@@ -1,0 +1,17 @@
+# Local dependencies and build output
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Local secrets; keep examples versionable
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# Local artifacts
+.DS_Store
+*.log
+tmp/
