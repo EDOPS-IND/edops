@@ -25,7 +25,8 @@ the `school_admin` role by default. No demo student data is seeded in developmen
 - All 10 original M1 operations also remain at their `/api` paths. New M2 routes
   have no unversioned aliases. Both M1 prefixes use the same handlers and rate limits.
 - There are 28 new M2 operations and 38 canonical v1 operations in total.
-- [M1 reference](API.md) covers login, CSRF, settings, platform onboarding and suspension.
+- [M1 guide](MILESTONE-1.md) covers the foundation and onboarding flow;
+  [M1 API reference](API.md) details login, CSRF, settings and platform operations.
 
 Keep the same cookie/CSRF flow: fetch `/api/v1/auth/csrf`, send its token on login,
 then use the replacement token returned by login on every POST/PATCH. Browser

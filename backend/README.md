@@ -4,7 +4,9 @@ Milestones 1 and 2 of the B2B school SaaS. One NestJS application, PostgreSQL an
 TypeORM migrations. Schools are tenants; users have memberships in schools.
 Platform privileges are separate from school roles.
 
-**API references:** [M2 academics and roster](docs/MILESTONE-2.md) documents the new
+**Milestone guides:** [M1 identity and onboarding](docs/MILESTONE-1.md) covers setup,
+workflow, data model, authorization, audit and verification.
+[M2 academics and roster](docs/MILESTONE-2.md) documents the new
 `/api/v1` routes. [M1 compatibility reference](docs/API.md) explains onboarding inputs,
 responses, permissions, internal function calls, database effects and errors.
 The running API exposes interactive Swagger at `/api/docs` and OpenAPI JSON at

@@ -28,6 +28,8 @@ output/pdf/               Product and architecture documents
 
 See [backend/README.md](backend/README.md) for setup, API flow and tests, and
 [frontend/README.md](frontend/README.md) for planned frontend folder ownership.
+Milestone guides: [M1 identity and onboarding](backend/docs/MILESTONE-1.md) and
+[M2 academic structure and roster](backend/docs/MILESTONE-2.md).
 
 Each app owns its dependencies and configuration.
 The backend starts as one modular application. Add shared packages or separate
