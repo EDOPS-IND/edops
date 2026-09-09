@@ -2,8 +2,10 @@
 
 B2B multi-tenant LMS sold to schools and education organizations.
 
-This is a folder structure only. NestJS and Next.js have not been initialized;
-there are no dependencies, runnable applications, or implemented security controls yet.
+The NestJS backend implements Milestones 1 and 2: onboarding, authentication,
+academic structure, teacher/student provisioning, enrollment lifecycle,
+tenant-scoped settings, suspension and transactional audit records.
+The Next.js frontend remains a folder structure only.
 
 ## Layout
 
@@ -24,10 +26,10 @@ frontend/                 Next.js App Router application
 output/pdf/               Product and architecture documents
 ```
 
-See [backend/README.md](backend/README.md) and
-[frontend/README.md](frontend/README.md) for folder ownership.
+See [backend/README.md](backend/README.md) for setup, API flow and tests, and
+[frontend/README.md](frontend/README.md) for planned frontend folder ownership.
 
-Each app will own its dependencies and configuration when initialized.
+Each app owns its dependencies and configuration.
 The backend starts as one modular application. Add shared packages or separate
 services only when working code needs them.
 
