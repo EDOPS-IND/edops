@@ -6,7 +6,7 @@ school; its administrator accepts an invitation and manages that school's
 settings. Students and teachers are not individual SaaS customers.
 
 This guide describes the implemented M1 workflow on the current branch, which
-also includes M2. It is not a claim that the complete LMS or production rollout
+also includes M2-M6. It is not a claim that the complete LMS or production rollout
 is finished. See [API.md](API.md) for detailed request/response models and
 [Milestone 2](MILESTONE-2.md) for academics and teacher/student provisioning.
 
@@ -50,7 +50,7 @@ an existing file. Compose uses local-only credentials, binds to loopback port
 With an existing PostgreSQL server, skip Compose, create those databases and
 configure their URLs. Do not start a second database on an occupied port.
 
-Run all pending migrations on the current branch, including M2. Current invite
+Run all pending migrations on the current branch, including M2-M6. Current invite
 acceptance uses columns added by M2, so applying only the historical M1 migration
 is not sufficient. Schema synchronization and automatic startup migrations are
 disabled. Migration rollback can destroy data; it is not an onboarding reset.
@@ -273,7 +273,7 @@ npm run build
 node --env-file-if-exists=.env --test test/milestone1.test.cjs
 ```
 
-[M1 tests](../test/milestone1.test.cjs) create a random isolated schema, apply both
+[M1 tests](../test/milestone1.test.cjs) create a random isolated schema, apply all four
 current migrations, bootstrap test accounts, run the API on ephemeral loopback
 ports and clean up the schema. They cover tenant isolation, escalation denial,
 settings validation, suspension, invite expiry/reuse/concurrency, existing-account
@@ -299,7 +299,7 @@ and retention/deletion procedures. Plan full M1 RLS separately from the current
 application checks. No real-student pilot readiness or legal compliance is claimed.
 
 Continue with [M2 academic structure and roster](MILESTONE-2.md), already implemented
-on this branch. Teacher/student resource policies, learning workflows, billing,
-entitlements and frontend experiences remain separate work. PostgreSQL and the
+on this branch, then [M3 teaching and scorecards](MILESTONE-3.md), now implemented.
+Billing, entitlements and frontend experiences remain separate work. PostgreSQL and the
 existing NestJS modules are enough for M1; no MongoDB, Redis session migration,
 LLM integration or microservice is required to run this foundation.

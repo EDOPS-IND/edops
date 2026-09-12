@@ -3,7 +3,14 @@
 This is the **Milestone 1 compatibility reference**. The canonical prefix is now
 `/api/v1`; the original `/api` M1 routes remain supported aliases. See
 [Milestone 2](MILESTONE-2.md) for the 28 new academic/roster operations, idempotency,
-RLS boundaries and current implementation decisions. Examples use fictitious data.
+RLS boundaries and implementation decisions. [Milestone 3](MILESTONE-3.md) adds
+teaching workflows and resource-scoped teacher/student access.
+[Milestone 4](MILESTONE-4.md) adds timeline, in-app notifications and recordings.
+[Milestone 5](MILESTONE-5.md) adds objective Arena practice and scorecard metrics.
+[Milestone 6](MILESTONE-6.md) adds platform billing and statistics, optional-feature
+entitlements and teacher/student seat enforcement. M1 onboarding creates an implicit
+30-day school trial; no payment is taken or explicit subscription row created.
+Examples use fictitious data.
 
 - Local base URL: `http://127.0.0.1:3001/api`
 - Interactive Swagger: [Open API documentation](http://127.0.0.1:3001/api/docs)

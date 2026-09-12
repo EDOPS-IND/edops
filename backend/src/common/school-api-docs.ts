@@ -2,10 +2,10 @@ import { applyDecorators, Type } from '@nestjs/common';
 import { ApiExtraModels, ApiHeader, ApiOperation, ApiResponse, getSchemaPath } from '@nestjs/swagger';
 import { ApiErrors } from './api-docs';
 
-export function SchoolEndpoint(summary: string, mode: 'read' | 'create' | 'update', model: Type<unknown>, list = false, description = '') {
+export function SchoolEndpoint(summary: string, mode: 'read' | 'create' | 'update', model: Type<unknown>, list = false, description = '', access = 'Requires an active school_admin membership in the active organization.') {
   return applyDecorators(
     ApiExtraModels(model),
-    ApiOperation({ summary, description: `${description} Requires an active school_admin membership in the active organization. Cross-school records return 404. Writes and audit records commit together.`,
+    ApiOperation({ summary, description: `${description} ${access} Cross-school records return 404. Writes and audit records commit together.`,
       security: mode === 'read' ? [{ cookie: [] }] : [{ cookie: [], csrf: [] }] }),
     ApiResponse({ status: mode === 'create' ? 201 : 200, description: mode === 'create' ? 'Created, or replayed for the same Idempotency-Key within 24 hours.' : 'Successful operation.',
       schema: list ? { type: 'object', required: ['items', 'total', 'limit', 'offset'], properties: {

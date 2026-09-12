@@ -80,7 +80,7 @@ const errorDescriptions = {
   413: 'JSON body exceeds the 16 KB limit.',
   429: 'Per-IP route limit exceeded. Respect the Retry-After header; login and invitation acceptance allow 10 requests/minute, other controller routes 120/minute.',
   500: 'Unexpected server or storage failure. Internal details are not returned; do not blindly retry a write.',
-  503: 'Database unavailable during the health query.',
+  503: 'Required service unavailable: database health query failed, or recording storage is unconfigured or unavailable.',
 };
 
 export function ApiErrors(...statuses: (keyof typeof errorDescriptions)[]) {

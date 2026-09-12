@@ -11,6 +11,10 @@ import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { ApiErrors } from './common/api-docs';
 import { AcademicsModule } from './modules/academics/academics.module';
+import { TeachingModule } from './modules/assignments/teaching.module';
+import { CommunicationModule } from './modules/content/communication.controller';
+import { ArenaModule } from './modules/arena/arena.controller';
+import { BillingModule } from './modules/billing/billing.controller';
 
 @Global()
 @Module({})
@@ -59,6 +63,10 @@ export class AppModule {
         AuthModule,
         TenantsModule,
         AcademicsModule,
+        TeachingModule,
+        CommunicationModule,
+        ArenaModule,
+        BillingModule,
       ],
       controllers: [HealthController],
       providers: [

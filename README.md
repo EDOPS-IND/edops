@@ -2,9 +2,12 @@
 
 B2B multi-tenant LMS sold to schools and education organizations.
 
-The NestJS backend implements Milestones 1 and 2: onboarding, authentication,
+The NestJS backend implements Milestones 1-6: onboarding, authentication,
 academic structure, teacher/student provisioning, enrollment lifecycle,
-tenant-scoped settings, suspension and transactional audit records.
+assignments, submissions, attendance, stored scorecards, tenant-scoped settings,
+suspension, transactional audit records, class timelines, in-app notifications and
+private versioned recording workflows, objective Arena questions, auto-graded practice,
+school subscriptions, manual billing records, entitlements and platform statistics.
 The Next.js frontend remains a folder structure only.
 
 ## Layout
@@ -29,7 +32,11 @@ output/pdf/               Product and architecture documents
 See [backend/README.md](backend/README.md) for setup, API flow and tests, and
 [frontend/README.md](frontend/README.md) for planned frontend folder ownership.
 Milestone guides: [M1 identity and onboarding](backend/docs/MILESTONE-1.md) and
-[M2 academic structure and roster](backend/docs/MILESTONE-2.md).
+[M2 academic structure and roster](backend/docs/MILESTONE-2.md), and
+[M3 teaching and scorecards](backend/docs/MILESTONE-3.md), and
+[M4 communication and recordings](backend/docs/MILESTONE-4.md), and
+[M5 objective Arena practice](backend/docs/MILESTONE-5.md), and
+[M6 billing and platform controls](backend/docs/MILESTONE-6.md).
 
 Each app owns its dependencies and configuration.
 The backend starts as one modular application. Add shared packages or separate

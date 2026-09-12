@@ -38,7 +38,7 @@ test('M2 academic structure and provisioning with a non-BYPASSRLS runtime role',
   const source = createDataSource(adminConfig);
   await source.initialize();
   try {
-    assert.equal((await source.runMigrations()).length, 2);
+    assert.equal((await source.runMigrations()).length, 6);
     await bootstrapAdmin(source, 'owner@m2.example', password);
   } finally { await source.destroy(); }
   await db.query(`CREATE ROLE "${role}" LOGIN PASSWORD '${runtimePassword}' NOSUPERUSER NOBYPASSRLS`);
@@ -301,7 +301,7 @@ test('M2 academic structure and provisioning with a non-BYPASSRLS runtime role',
     assert.ok(!audits.includes(password));
     assert.ok(batch.invitations.every((invitation) => !audits.includes(invitation.token)));
     const enforced = (await db.query("SELECT relname FROM pg_class WHERE relnamespace = $1::regnamespace AND relrowsecurity AND relforcerowsecurity", [schema])).rows;
-    assert.equal(enforced.length, 8);
+    assert.equal(enforced.length, 23);
   });
 
   await t.test('production refuses RLS-bypassing roles and disables Swagger for the restricted runtime role', async () => {

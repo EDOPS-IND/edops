@@ -1,10 +1,11 @@
-import { BadRequestException, ConflictException, Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { isUUID } from 'class-validator';
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto';
 import { DataSource, EntityManager } from 'typeorm';
 import { APP_CONFIG, AppConfig } from '../../config';
 import { User } from '../auth/user.entity';
 import { TenantsService } from './tenants.service';
+import { Organization, SchoolRole } from './tenant.entity';
 
 function canonical(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(canonical);
@@ -36,14 +37,21 @@ export class SchoolWork {
   }
 
   async run<T>(organizationId: string, actor: User, action: string | null, payload: unknown,
-    key: string | undefined | null, work: (manager: EntityManager) => Promise<T>): Promise<T> {
+    key: string | undefined | null, work: (manager: EntityManager) => Promise<T>,
+    access?: { roles: readonly SchoolRole[]; authorize: (manager: EntityManager) => Promise<void>; platform?: boolean }): Promise<T> {
     if (key !== null && (!key || !isUUID(key))) throw new BadRequestException('Idempotency-Key must be a UUID for creation requests');
     if (key) key = key.toLowerCase();
     return this.source.transaction(async (manager) => {
       // ponytail: serialize writes per school for pilot-sized rosters; narrow locks if measured throughput requires it.
-      const organization = await this.tenants.authorizedOrganization(manager, organizationId, actor, action !== null);
+      if (access?.platform && !await manager.getRepository(User).existsBy({ id: actor.id, isActive: true, isPlatformAdmin: true })) throw new ForbiddenException('Platform administrator access required');
+      const organization = access?.platform
+        ? await manager.getRepository(Organization).findOne({ where: { id: organizationId }, ...(action !== null ? { lock: { mode: 'pessimistic_write' as const } } : {}) })
+        : await this.tenants.authorizedOrganization(manager, organizationId, actor, action !== null, access?.roles);
+      if (!organization) throw new NotFoundException('Organization not found');
       organizationId = organization.id;
       await manager.query("SELECT set_config('app.current_org_id', $1, true)", [organizationId]);
+      // Resource authorization must run even when returning a previously stored response.
+      if (access) await access.authorize(manager);
       const context = `${organizationId}:${actor.id}:${key}`;
       const hash = createHash('sha256').update(JSON.stringify(canonical({ action, payload }))).digest('hex');
       if (key) {

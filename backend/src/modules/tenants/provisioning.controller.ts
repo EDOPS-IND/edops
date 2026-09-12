@@ -40,7 +40,7 @@ export class ProvisioningController {
   members(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Query() query: MemberListDto) {
     return this.provisioning.members(org, req.user, query);
   }
-  @Patch('members/:id') @ApiParam({ name: 'id', format: 'uuid', description: 'Teacher/student user UUID.' }) @SchoolEndpoint('Activate/deactivate a school membership', 'update', MemberStatus, false, 'Does not edit the global account, email, password or role. Historical assignments/enrollments are retained; deactivation does not release seats. Other schools are unaffected.')
+  @Patch('members/:id') @ApiParam({ name: 'id', format: 'uuid', description: 'Teacher/student user UUID.' }) @SchoolEndpoint('Activate/deactivate a school membership', 'update', MemberStatus, false, 'Does not edit the global account, email, password or role. Historical assignments/enrollments and their section capacity remain. Deactivation releases a subscription seat; reactivation checks M6 entitlement and reserved-seat limits. Other schools are unaffected.')
   update(@Param('organizationId', ParseUUIDPipe) org: string, @Param('id', ParseUUIDPipe) id: string, @Req() req: AuthenticatedRequest, @Body() dto: MembershipStatusDto) {
     return this.provisioning.updateMember(org, req.user, id, dto);
   }

@@ -1,13 +1,21 @@
 # EDOPS Backend
 
-Milestones 1 and 2 of the B2B school SaaS. One NestJS application, PostgreSQL and explicit
+Milestones 1-6 of the B2B school SaaS. One NestJS application, PostgreSQL and explicit
 TypeORM migrations. Schools are tenants; users have memberships in schools.
 Platform privileges are separate from school roles.
 
 **Milestone guides:** [M1 identity and onboarding](docs/MILESTONE-1.md) covers setup,
 workflow, data model, authorization, audit and verification.
 [M2 academics and roster](docs/MILESTONE-2.md) documents the new
-`/api/v1` routes. [M1 compatibility reference](docs/API.md) explains onboarding inputs,
+academic `/api/v1` routes. [M3 teaching](docs/MILESTONE-3.md) covers assignments,
+submissions, attendance, persisted scorecards and teacher/student policies.
+[M4 communication](docs/MILESTONE-4.md) covers the durable outbox worker, timeline,
+personal inbox, private recording uploads/playback and storage configuration.
+[M5 Arena](docs/MILESTONE-5.md) covers objective questions, private attempts,
+auto-grading and practice scorecards. [M6 billing](docs/MILESTONE-6.md) covers
+monthly school plans, manual invoices, entitlements, seats and platform statistics.
+The current v1 API has 90 operations.
+[M1 compatibility reference](docs/API.md) explains onboarding inputs,
 responses, permissions, internal function calls, database effects and errors.
 The running API exposes interactive Swagger at `/api/docs` and OpenAPI JSON at
 `/api/docs-json` in non-production environments.
@@ -142,7 +150,7 @@ not a claim that translated UI or course content is implemented.
 - Platform admins can provision and suspend schools. They do not silently bypass
   membership checks on school data. Support impersonation is not implemented.
 - Tenant scope is enforced by application authorization and forced PostgreSQL RLS
-  on the eight new M2 tables. M1 tables still use application checks only.
+  on the 23 M2-M6 tables. M1 tables still use application checks only.
   Future school resources must carry an organization ID and scoped queries;
   add equivalent isolation tests for every new module, export and background job.
 - School creation, invitation acceptance and settings/status changes include
@@ -207,10 +215,33 @@ for detailed behavior, runtime-role grants and constraints. Tests create a
 temporary non-BYPASSRLS login role, so the isolated test database administrator
 must have permission to create/drop roles as well as schemas.
 
+M3 adds current teacher section/subject authorization, student self-only learning
+access, draft/publication and attendance snapshots, grading and transactional
+scorecard refreshes. Its 16 operations live under `/api/v1/organizations/:organizationId/teaching`.
+M3 brought the API to 54 canonical v1 operations. See the M3 guide for score definitions,
+new runtime grants, plaintext-only submission scope and lifecycle limitations.
+
+M4 adds 12 operations (66 canonical v1 operations total), a PostgreSQL-backed
+outbox worker, per-recipient in-app notifications and class timelines. Recording
+metadata is local PostgreSQL data; binary media requires a configured private,
+versioned S3-compatible bucket. No bucket or cloud account is created automatically.
+Run `npm run worker` after a build in a separate process; `-- --once` performs one
+bounded sweep. Apply the M4 runtime grants for separate API/worker database roles.
+
 No MongoDB, Redis, LLM service, message bus or microservices are required here.
 Before multiple API replicas, replace in-memory rate-limit storage with a shared
 store. Before a school pilot, add administrator MFA, account recovery, email
 delivery, monitoring, consent/privacy workflows and backup/restore checks.
 Teacher/student invites can be revoked/replaced. School-admin onboarding invites
-still need an operator recovery process. Teaching workflows, billing, entitlements
-and frontend screens belong to later milestones. This is not a production-ready LMS.
+still need an operator recovery process. Outbound email/WhatsApp and transcoding
+remain separate integrations.
+M5 adds 10 Arena operations for class-scoped single/multiple-choice practice and
+transactional scorecard metrics. Apply the fifth migration before deploying the API.
+See [M5](docs/MILESTONE-5.md) for runtime grants and grading semantics.
+M6 adds 14 platform/school billing operations. Apply all six migrations before
+starting the current API. Existing schools receive a 30-day migration trial; new
+schools get a 30-day implicit trial. Operators must assign commercial terms before
+expiry. Payments are manually recorded, never automatically charged.
+Shared question libraries, subjective/AI grading, payment gateways, tax invoicing
+and frontend screens remain future work.
+This is not a production-ready LMS.

@@ -4,6 +4,10 @@ Implemented as an extension of the NestJS/PostgreSQL modular monolith. This is t
 school-admin setup workflow, not the teacher/student learning portal or the full
 LMS roadmap. No frontend, billing, attendance, homework or AI calls are included.
 
+This describes M2's scope. The current branch also implements
+[M3 teaching and scorecards](MILESTONE-3.md), with 16 additional operations and five
+additional RLS tables. Follow that guide for the expanded runtime-role grants.
+
 ## Start and Compatibility
 
 From `backend/`, with the existing `.env` and PostgreSQL running:
@@ -24,7 +28,11 @@ the `school_admin` role by default. No demo student data is seeded in developmen
 - OpenAPI JSON: `http://127.0.0.1:3001/api/docs-json`.
 - All 10 original M1 operations also remain at their `/api` paths. New M2 routes
   have no unversioned aliases. Both M1 prefixes use the same handlers and rate limits.
-- There are 28 new M2 operations and 38 canonical v1 operations in total.
+- M2 added 28 operations, bringing its total to 38. M3 brought that to 54;
+  [M4](MILESTONE-4.md) brought the canonical v1 total to 66;
+  [M5](MILESTONE-5.md) brought the total to 76 and [M6](MILESTONE-6.md) to 90.
+  M6 reserves subscription seats for pending teacher/student invites and checks
+  entitlement/capacity again on acceptance and membership reactivation.
 - [M1 guide](MILESTONE-1.md) covers the foundation and onboarding flow;
   [M1 API reference](API.md) details login, CSRF, settings and platform operations.
 
@@ -410,5 +418,7 @@ M2 makes these deliberate choices:
   MFA, retention/deletion workflows, backups, operational monitoring and legal review
   remain prerequisites. This code does not verify the spec's legal or market claims.
 
-Next product milestone: attendance, homework assignments, submissions and derived
-scorecards, with teacher/section and student/enrollment authorization tests.
+The next milestone, [M3](MILESTONE-3.md), is now implemented: attendance, homework
+assignments, submissions and derived scorecards, with teacher/section and
+student/enrollment authorization tests. M2's earlier deferrals above describe the
+choices made at that milestone; the M3 guide is authoritative for teaching scope.

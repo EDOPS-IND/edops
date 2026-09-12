@@ -10,6 +10,7 @@ import { AcademicListDto } from '../academics/academic.dto';
 import { BulkInvitationsDto, MemberInvitationDto, MemberListDto, MembershipStatusDto } from './provisioning.dto';
 import { Invitation, Membership } from './tenant.entity';
 import { SchoolWork } from './school-work.service';
+import { requireSeats } from '../billing/entitlements';
 
 @Injectable()
 export class ProvisioningService {
@@ -36,6 +37,7 @@ export class ProvisioningService {
   invite(org: string, actor: User, records: MemberInvitationDto[], key?: string) {
     return this.work.run(org, actor, 'invitations.created', records, key, async (manager) => {
       if (new Set(records.map((record) => record.email)).size !== records.length) throw new BadRequestException('Duplicate emails in the batch; no records were imported');
+      await requireSeats(manager,org,records.filter(r=>r.role==='student').length,records.filter(r=>r.role==='teacher').length);
       for (const record of records) {
         const user = await manager.getRepository(User).findOneBy({ email: record.email });
         if (user && await manager.getRepository(Membership).existsBy({ organizationId: org, userId: user.id })) {
@@ -119,6 +121,7 @@ export class ProvisioningService {
       const membership = await repository.findOneBy({ organizationId: org, userId: id });
       if (!membership || !['teacher', 'student'].includes(membership.role)) throw new NotFoundException('Member not found');
       const before = membership.status;
+      if (before !== 'active' && dto.status === 'active') await requireSeats(manager,org,membership.role==='student'?1:0,membership.role==='teacher'?1:0);
       membership.status = dto.status;
       await repository.save(membership);
       await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'membership.updated', details: { userId: id, before, after: dto.status } });

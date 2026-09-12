@@ -5,7 +5,8 @@ import { AuditService } from '../audit/audit.service';
 import { User } from '../auth/user.entity';
 import { hashPassword, tokenHash } from '../auth/password';
 import { AcceptInvitationDto, CreateOrganizationDto, UpdateOrganizationDto } from './tenant.dto';
-import { Invitation, Membership, Organization, OrganizationStatus } from './tenant.entity';
+import { Invitation, Membership, Organization, OrganizationStatus, SchoolRole } from './tenant.entity';
+import { entitlements, seatUsage } from '../billing/entitlements';
 
 @Injectable()
 export class TenantsService {
@@ -28,12 +29,12 @@ export class TenantsService {
     });
   }
 
-  async authorizedOrganization(manager: EntityManager, id: string, actor: User, lock = false) {
+  async authorizedOrganization(manager: EntityManager, id: string, actor: User, lock = false, roles: readonly SchoolRole[] = ['school_admin']) {
     const membership = await manager.getRepository(Membership).findOneBy({
       organizationId: id, userId: actor.id, status: 'active',
     });
     if (!membership) throw new NotFoundException('Organization not found');
-    if (membership.role !== 'school_admin') throw new ForbiddenException('School administrator access required');
+    if (!roles.includes(membership.role)) throw new ForbiddenException('School role does not permit this operation');
     const organization = await manager.getRepository(Organization).findOne({
       where: { id }, ...(lock ? { lock: { mode: 'pessimistic_write' as const } } : {}),
     });
@@ -84,11 +85,18 @@ export class TenantsService {
       if (!candidate) throw new BadRequestException('Invitation is invalid, expired, revoked or already accepted');
       // Lock school before invitation, matching school-admin provisioning/revocation lock order.
       const organization = await manager.getRepository(Organization).findOne({
-        where: { id: candidate.organizationId }, lock: { mode: 'pessimistic_read' },
+        where: { id: candidate.organizationId }, lock: { mode: 'pessimistic_write' },
       });
       if (!organization || organization.status !== 'active') throw new ForbiddenException('Organization is unavailable');
       const invitation = await lookup().setLock('pessimistic_write').getOne();
       if (!invitation) throw new BadRequestException('Invitation is invalid, expired, revoked or already accepted');
+      await manager.query("SELECT set_config('app.current_org_id',$1,true)",[organization.id]);
+      if (invitation.role !== 'school_admin') {
+        const e = await entitlements(manager,organization.id), seats = await seatUsage(manager,organization.id);
+        if (!e.entitled) throw new ForbiddenException('An active subscription or trial is required');
+        const used = invitation.role==='student' ? seats.students+seats.pendingStudents : seats.teachers+seats.pendingTeachers;
+        if (used>(invitation.role==='student'?e.maxStudents:e.maxTeachers)) throw new ForbiddenException('Plan seat limit reached');
+      }
       const users = manager.getRepository(User);
       let user = await users.findOneBy({ email: invitation.email });
       if (user) {

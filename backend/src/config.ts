@@ -12,6 +12,7 @@ export interface AppConfig {
   sessionMaxAge: number;
   corsOrigins: string[];
   trustProxy: false | string[];
+  storage?: { bucket: string; region: string; endpoint?: string; accessKeyId?: string; secretAccessKey?: string };
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
@@ -44,6 +45,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   }
   if (env.DATABASE_SSL && !['true', 'false'].includes(env.DATABASE_SSL)) throw new Error('Invalid DATABASE_SSL');
   const trustProxy = env.TRUST_PROXY?.trim() ? env.TRUST_PROXY.split(',').map((value) => value.trim()) : undefined;
+  let storage: AppConfig['storage'];
+  if (env.S3_BUCKET) {
+    if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(env.S3_BUCKET) || !env.S3_REGION) throw new Error('S3_BUCKET and S3_REGION must identify a private versioned bucket');
+    if (Boolean(env.S3_ACCESS_KEY_ID) !== Boolean(env.S3_SECRET_ACCESS_KEY)) throw new Error('Supply both S3 credentials or use the default AWS credential chain');
+    if (env.S3_ENDPOINT) {
+      const endpoint = new URL(env.S3_ENDPOINT);
+      if (endpoint.origin !== env.S3_ENDPOINT || endpoint.username || endpoint.password ||
+        (endpoint.protocol !== 'https:' && !(environment !== 'production' && endpoint.protocol === 'http:' && ['localhost','127.0.0.1','[::1]'].includes(endpoint.hostname)))) {
+        throw new Error('S3_ENDPOINT must be an HTTPS origin (loopback HTTP allowed outside production)');
+      }
+    }
+    storage = { bucket: env.S3_BUCKET, region: env.S3_REGION, endpoint: env.S3_ENDPOINT,
+      accessKeyId: env.S3_ACCESS_KEY_ID, secretAccessKey: env.S3_SECRET_ACCESS_KEY };
+  } else if (env.S3_REGION || env.S3_ENDPOINT || env.S3_ACCESS_KEY_ID || env.S3_SECRET_ACCESS_KEY) {
+    throw new Error('S3_BUCKET is required when configuring recording storage');
+  }
   if (trustProxy?.some((value) => !value || ['true', 'false', '*'].includes(value) || /^\d+$/.test(value))) {
     throw new Error('TRUST_PROXY must list trusted proxy IPs or CIDRs, not a boolean or hop count');
   }
@@ -59,5 +76,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     sessionMaxAge: 8 * 60 * 60 * 1000,
     corsOrigins,
     trustProxy: trustProxy ?? false,
+    storage,
   };
 }
