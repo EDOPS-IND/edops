@@ -98,8 +98,9 @@ export class AssignmentsService {
         const row = await repository.findOneByOrFail({ organizationId: org, assignmentId: id, studentId: actor.id });
         if (row.status === 'graded') throw new ConflictException('Graded submissions cannot be replaced');
         const submittedAt = new Date();
+        if (row.submittedAt && submittedAt > assignment.dueAt) throw new ConflictException('Cannot resubmit after the deadline');
         const updated = await repository.save({ ...row, content: dto.content, submittedAt, status: submittedAt > assignment.dueAt ? 'late' as const : 'submitted' as const });
-        await this.scorecards.refresh(manager, org, assignment.sectionId, assignment.subjectId);
+        await this.scorecards.refresh(manager, org, assignment.sectionId, assignment.subjectId, actor.id);
         await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'submission.submitted', details: { submissionId: row.id, status: updated.status } });
         return updated;
       });
@@ -118,7 +119,7 @@ export class AssignmentsService {
         if (!row.submittedAt) throw new ConflictException('Cannot grade pending work');
         if (dto.score > assignment.maxScore) throw new BadRequestException('Score cannot exceed assignment maxScore');
         const updated = await manager.getRepository(Submission).save({ ...row, score: dto.score, feedback: dto.feedback ?? row.feedback, gradedBy: actor.id, gradedAt: new Date(), status: 'graded' as const });
-        await this.scorecards.refresh(manager, org, assignment.sectionId, assignment.subjectId);
+        await this.scorecards.refresh(manager, org, assignment.sectionId, assignment.subjectId, row.studentId);
         await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'submission.graded', details: { submissionId: id, before: row.score, after: dto.score } });
         await this.outbox.append(manager, org, actor.id, 'submission.graded', id, assignment.sectionId, assignment.subjectId);
         return updated;

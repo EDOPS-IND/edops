@@ -8,26 +8,30 @@ import { ClassQuery } from '../assignments/teaching.dto';
 export class ScorecardsService {
   constructor(private readonly access: TeachingAccess) {}
 
-  async refresh(manager: EntityManager, org: string, sectionId: string, subjectId: string | null) {
-    // ponytail: refresh one class/subject on writes; move to an outbox worker if pilot write latency requires it.
+  async refresh(manager: EntityManager, org: string, sectionId: string, subjectId: string | null, studentId?: string) {
+    // ponytail: refresh one class/subject on writes; scope to one student when possible to avoid deadlocks.
     // Aggregate independently before joining, so attendance never multiplies assignment counts.
+    const params = [org, sectionId, subjectId, studentId ?? null];
     await manager.query(`WITH grades AS (
       SELECT s.student_id, count(*)::int AS assigned,
         count(s.submitted_at)::int AS submitted, count(s.score)::int AS graded,
         avg(s.score / a.max_score * 100) AS average
       FROM submissions s JOIN assignments a ON a.organization_id=s.organization_id AND a.id=s.assignment_id
-      WHERE a.organization_id=$1 AND a.section_id=$2 AND a.subject_id=$3 AND a.status='published'
+      WHERE a.organization_id=$1 AND a.section_id=$2 AND a.subject_id IS NOT DISTINCT FROM $3::uuid AND a.status='published'
+        AND ($4::uuid IS NULL OR s.student_id=$4)
       GROUP BY s.student_id
     ), attendance AS (
-      SELECT r.student_id, count(*) FILTER (WHERE r.status <> 'excused')::int AS counted,
+      SELECT r.student_id, count(*) FILTER (WHERE r.status IS NOT NULL AND r.status <> 'excused')::int AS counted,
         count(*) FILTER (WHERE r.status IN ('present','late'))::int AS attended
       FROM attendance_records r JOIN attendance_sessions a ON a.organization_id=r.organization_id AND a.id=r.attendance_session_id
       WHERE a.organization_id=$1 AND a.section_id=$2 AND a.subject_id IS NOT DISTINCT FROM $3::uuid AND a.status='finalized'
+        AND ($4::uuid IS NULL OR r.student_id=$4)
       GROUP BY r.student_id
     ), practice_questions AS (
       SELECT a.student_id,a.question_id,count(*)::int AS attempts,max(100.0*a.score/a.max_score) AS best
       FROM arena_attempts a JOIN arena_questions q ON q.organization_id=a.organization_id AND q.id=a.question_id
-      WHERE q.organization_id=$1 AND q.section_id=$2 AND q.subject_id=$3 GROUP BY a.student_id,a.question_id
+      WHERE q.organization_id=$1 AND q.section_id=$2 AND q.subject_id IS NOT DISTINCT FROM $3::uuid
+        AND ($4::uuid IS NULL OR a.student_id=$4) GROUP BY a.student_id,a.question_id
     ), practice AS (
       SELECT student_id,sum(attempts)::int AS attempts,count(*)::int AS questions,avg(best) AS score
       FROM practice_questions GROUP BY student_id
@@ -43,7 +47,7 @@ export class ScorecardsService {
       assignment_count=excluded.assignment_count, submitted_count=excluded.submitted_count, graded_count=excluded.graded_count,
       avg_score=excluded.avg_score, completion_pct=excluded.completion_pct, attendance_count=excluded.attendance_count,
       attended_count=excluded.attended_count, attendance_pct=excluded.attendance_pct, generated_at=excluded.generated_at,
-      arena_attempt_count=excluded.arena_attempt_count, arena_question_count=excluded.arena_question_count, arena_score=excluded.arena_score`, [org, sectionId, subjectId]);
+      arena_attempt_count=excluded.arena_attempt_count, arena_question_count=excluded.arena_question_count, arena_score=excluded.arena_score`, params);
   }
 
   list(org: string, actor: User, query: ClassQuery) {

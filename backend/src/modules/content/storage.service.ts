@@ -28,9 +28,9 @@ export class StorageService implements OnModuleDestroy {
     const headers = { 'Content-Type': row.contentType, 'x-amz-checksum-sha256': row.checksumSha256, 'If-None-Match': '*' };
     const url = await getSignedUrl(client, new PutObjectCommand({ Bucket: bucket, Key: row.objectKey,
       ContentType: row.contentType, ContentLength: row.sizeBytes, ChecksumSHA256: row.checksumSha256, IfNoneMatch: '*' }),
-    { expiresIn: 300, signableHeaders: new Set(['content-type', 'content-length', 'if-none-match']), unhoistableHeaders: new Set(['x-amz-checksum-sha256']) })
+    { expiresIn: 3600, signableHeaders: new Set(['content-type', 'content-length', 'if-none-match']), unhoistableHeaders: new Set(['x-amz-checksum-sha256']) })
       .catch(() => { throw new ServiceUnavailableException('Could not authorize recording storage'); });
-    return { url, method: 'PUT', headers, sizeBytes: row.sizeBytes, expiresIn: 300 };
+    return { url, method: 'PUT', headers, sizeBytes: row.sizeBytes, expiresIn: 3600 };
   }
   async verify(row: StoredVideo, versionId: string) {
     const { client, bucket } = this.configured();
