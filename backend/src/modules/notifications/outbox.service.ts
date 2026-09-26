@@ -45,10 +45,7 @@ export class OutboxService {
           return 'processed';
         } catch (error) {
           await manager.query('ROLLBACK TO SAVEPOINT project_event');
-          const msg = (error instanceof Error ? error.message : 'projection_failed').slice(0, 500);
-          await manager.query(`UPDATE domain_events SET attempts=attempts+1,last_error=$3,
-            available_at=clock_timestamp()+($4::int*interval '1 second'),
-            failed_at=CASE WHEN attempts+1>=5 THEN clock_timestamp() ELSE NULL END WHERE organization_id=$1 AND id=$2`, [org, event.id, msg, Math.min(3600, 2 ** (event.attempts + 1))]);
+          const msg = (error instanceof Error ? error.message : 'projection_failed').slice(0, 80);
           return 'failed';
         }
       });
