@@ -1,15 +1,67 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { DeepPartial, EntityManager, EntityTarget, FindOptionsOrder, FindOptionsWhere } from 'typeorm';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { DataSource, DeepPartial, EntityManager, EntityTarget, FindOptionsOrder, FindOptionsWhere } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { User } from '../auth/user.entity';
-import { Membership } from '../tenants/tenant.entity';
+import { Membership, Organization } from '../tenants/tenant.entity';
 import { SchoolWork } from '../tenants/school-work.service';
 import { AcademicRecord, AcademicYear, ClassSubjectAssignment, Enrollment, Program, Section, Subject } from './academic.entity';
 import { AcademicListDto, AcademicYearDto, EnrollmentDto, ProgramDto, SectionDto, SectionListDto, SectionResourceListDto, SubjectDto, TeacherAssignmentDto, TransferEnrollmentDto, UpdateAcademicYearDto, UpdateEnrollmentDto, UpdateProgramDto, UpdateSectionDto, UpdateSubjectDto, UpdateTeacherAssignmentDto } from './academic.dto';
 
 @Injectable()
 export class AcademicsService {
-  constructor(private readonly work: SchoolWork, private readonly audit: AuditService) {}
+  constructor(private readonly work: SchoolWork, private readonly audit: AuditService, private readonly source: DataSource) {}
+
+  async roleWorkspace(org: string, actor: User) {
+    return this.source.transaction(async (manager) => {
+      const membership = await manager.getRepository(Membership).findOneBy({ organizationId: org, userId: actor.id, status: 'active' });
+      if (!membership) throw new NotFoundException('Organization not found');
+      if (!['teacher', 'student'].includes(membership.role)) throw new ForbiddenException('Teacher or student access required');
+      const organization = await manager.getRepository(Organization).findOneBy({ id: org });
+      if (!organization) throw new NotFoundException('Organization not found');
+      if (organization.status !== 'active') throw new ForbiddenException('Organization is suspended');
+      await manager.query("SELECT set_config('app.current_org_id', $1, true)", [org]);
+      if (membership.role === 'teacher') {
+        const assignments = await manager.query(`SELECT assignment.id, section.id AS "sectionId", section.name AS "sectionName",
+          subject.id AS "subjectId", subject.name AS "subjectName", subject.code AS "subjectCode"
+          FROM class_subject_assignments assignment
+          JOIN sections section ON section.id = assignment.section_id AND section.organization_id = assignment.organization_id
+          JOIN subjects subject ON subject.id = assignment.subject_id AND subject.organization_id = assignment.organization_id
+          WHERE assignment.organization_id = $1 AND assignment.teacher_user_id = $2
+          ORDER BY section.name, subject.name`, [org, actor.id]);
+        const students = await manager.query(`SELECT DISTINCT user_account.id AS "studentUserId", user_account.email,
+          enrollment.section_id AS "sectionId", section.name AS "sectionName", enrollment.roll_number AS "rollNumber"
+          FROM enrollments enrollment
+          JOIN sections section ON section.id = enrollment.section_id AND section.organization_id = enrollment.organization_id
+          JOIN memberships membership ON membership.organization_id = enrollment.organization_id AND membership.user_id = enrollment.student_user_id
+            AND membership.role = 'student' AND membership.status = 'active'
+          JOIN users user_account ON user_account.id = enrollment.student_user_id AND user_account.is_active
+          WHERE enrollment.organization_id = $1 AND enrollment.status = 'active' AND EXISTS (
+            SELECT 1 FROM class_subject_assignments assignment WHERE assignment.organization_id = enrollment.organization_id
+              AND assignment.section_id = enrollment.section_id AND assignment.teacher_user_id = $2)
+          ORDER BY section.name, enrollment.roll_number, user_account.email`, [org, actor.id]);
+        return { role: 'teacher' as const, assignments, students };
+      }
+      const [enrollment] = await manager.query(`SELECT enrollment.id, enrollment.section_id AS "sectionId",
+        section.name AS "sectionName", enrollment.roll_number AS "rollNumber", program.name AS "programName",
+        academic_year.name AS "academicYearName"
+        FROM enrollments enrollment
+        JOIN sections section ON section.id = enrollment.section_id AND section.organization_id = enrollment.organization_id
+        JOIN programs program ON program.id = section.program_id AND program.organization_id = section.organization_id
+        JOIN academic_years academic_year ON academic_year.id = enrollment.academic_year_id AND academic_year.organization_id = enrollment.organization_id
+        WHERE enrollment.organization_id = $1 AND enrollment.student_user_id = $2 AND enrollment.status = 'active'
+        ORDER BY enrollment.created_at DESC LIMIT 1`, [org, actor.id]);
+      const subjects = enrollment ? await manager.query(`SELECT subject.id AS "subjectId", subject.name AS "subjectName",
+        subject.code AS "subjectCode", user_account.id AS "teacherUserId", user_account.email AS "teacherEmail"
+        FROM class_subject_assignments assignment
+        JOIN subjects subject ON subject.id = assignment.subject_id AND subject.organization_id = assignment.organization_id
+        JOIN memberships membership ON membership.organization_id = assignment.organization_id AND membership.user_id = assignment.teacher_user_id
+          AND membership.role = 'teacher' AND membership.status = 'active'
+        JOIN users user_account ON user_account.id = assignment.teacher_user_id AND user_account.is_active
+        WHERE assignment.organization_id = $1 AND assignment.section_id = $2
+        ORDER BY subject.name`, [org, enrollment.sectionId]) : [];
+      return { role: 'student' as const, enrollment: enrollment ?? null, subjects };
+    });
+  }
 
   private async record<T extends AcademicRecord>(manager: EntityManager, type: EntityTarget<T>, org: string, id: string): Promise<T> {
     const row = await manager.getRepository(type).findOneBy({ organizationId: org, id } as FindOptionsWhere<T>);

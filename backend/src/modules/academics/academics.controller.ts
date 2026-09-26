@@ -1,16 +1,26 @@
 import { Body, Controller, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Query, Req } from '@nestjs/common';
-import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedRequest } from '../../common/auth.guard';
+import { ApiErrors } from '../../common/api-docs';
 import { SchoolEndpoint } from '../../common/school-api-docs';
 import { AcademicListDto, AcademicYearDto, EnrollmentDto, ProgramDto, SectionDto, SectionListDto, SectionResourceListDto, SubjectDto, TeacherAssignmentDto, TransferEnrollmentDto, UpdateAcademicYearDto, UpdateEnrollmentDto, UpdateProgramDto, UpdateSectionDto, UpdateSubjectDto, UpdateTeacherAssignmentDto } from './academic.dto';
 import { AcademicYear, ClassSubjectAssignment, Enrollment, Program, Section, Subject } from './academic.entity';
 import { AcademicsService } from './academics.service';
 
 @ApiTags('Academics')
-@ApiParam({ name: 'organizationId', format: 'uuid', description: 'School UUID from your active school_admin membership.' })
+@ApiParam({ name: 'organizationId', format: 'uuid', description: 'School UUID from your active membership.' })
 @Controller({ path: 'organizations/:organizationId/academics', version: '1' })
 export class AcademicsController {
   constructor(private readonly academics: AcademicsService) {}
+
+  @Get('my-workspace')
+  @ApiOperation({ summary: 'Get role-scoped teacher or student academics', security: [{ cookie: [] }],
+    description: 'Teachers receive only their own section/subject assignments and active students in those sections. Students receive only their active enrollment and subjects assigned to that section.' })
+  @ApiOkResponse({ description: 'Role-scoped academic workspace.' })
+  @ApiErrors(401, 403, 404, 429, 500)
+  workspace(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest) {
+    return this.academics.roleWorkspace(org, req.user);
+  }
 
   @Get('years') @SchoolEndpoint('List academic years', 'read', AcademicYear, true)
   years(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Query() query: AcademicListDto) {

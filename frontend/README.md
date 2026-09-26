@@ -1,41 +1,45 @@
-# Frontend
+# EDOPS Frontend
 
-Next.js App Router with TypeScript. Folder structure only.
+The EDOPS school operations dashboard. It connects to the NestJS API for
+session authentication and every platform, school, teaching, communication,
+recording, Arena, billing and reporting endpoint exposed by the API.
 
-## Routes
+## Prerequisites
 
-| Directory under src/app | Intended URL | Workspace |
-| --- | --- | --- |
-| (auth)/login | /login | Organization user sign-in |
-| platform | /platform | Product team and super-admin tools |
-| t/[tenantSlug]/admin | /t/school-name/admin | School administration |
-| t/[tenantSlug]/teacher | /t/school-name/teacher | Assigned classes and student work |
-| t/[tenantSlug]/student | /t/school-name/student | Learning timeline, assignments and Arena |
-| t/[tenantSlug]/parent | /t/school-name/parent | Authorized children's summaries |
+- Node.js `>=22.13.0`
 
-These directories become routes only when Next.js page files are added.
-The `(auth)` route group does not add a URL segment. Tenant-scoped layouts can
-live at `src/app/t/[tenantSlug]/layout.tsx` when implemented.
+## Quick Start
 
-## Source ownership
+```bash
+npm ci
+npm run dev
+npm run build
+```
 
-- `src/app/`: thin route pages, layouts and route-level loading/error states.
-- `src/features/auth/`: sign-in and session UI.
-- `src/features/tenants/`: organization setup, memberships, roles and settings.
-- `src/features/academics/`: programs, classes and enrollment screens.
-- `src/features/attendance/`: attendance entry and history.
-- `src/features/assignments/`: authoring, submissions and grading.
-- `src/features/assessments/`: question bank and Arena.
-- `src/features/content/`: resources and recordings.
-- `src/features/reports/`: scorecards, timelines and dashboards.
-- `src/features/billing/`: organization plans, invoices and usage.
-- `src/components/`: genuinely shared UI such as tables and form fields.
-- `src/lib/`: shared session and API infrastructure.
-- `public/`: public static assets only; never student uploads or private recordings.
+The app runs on vinext and targets the Sites runtime.
 
-Keep feature components, API calls and types together. Role-specific pages reuse
-features where appropriate. Add subfolders only when a feature becomes large.
+## Current scope
 
-Menus and layouts help users navigate; backend authorization protects records.
-Only the backend decides whether a session can access a tenant or action.
-The frontend never connects directly to PostgreSQL, Redis or OpenAI.
+- Dashboard UI lives under `app/`.
+- Brand assets live under `public/`.
+- Local development connects to `http://127.0.0.1:3001/api/v1`; open the UI at
+  `http://127.0.0.1:3000` so the session cookie remains same-site.
+- Set `NEXT_PUBLIC_EDOPS_API_URL` when the API is hosted elsewhere. UI and API
+  should share a site so the backend's SameSite session cookie remains secure.
+
+## Authentication
+
+The frontend uses only the EDOPS API's secure HTTP-only session and CSRF flow.
+It has no ChatGPT sign-in dependency.
+
+## Useful Commands
+
+- `npm run dev`: start local development
+- `npm run build`: verify the vinext build output
+- `npm test`: build and verify the rendered dashboard shell
+- `npm run db:generate`: generate Drizzle migrations after schema changes
+
+## Learn More
+
+- [vinext Documentation](https://github.com/cloudflare/vinext)
+- [Drizzle D1 Guide](https://orm.drizzle.team/docs/get-started/d1-new)
