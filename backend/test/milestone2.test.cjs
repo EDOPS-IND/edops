@@ -109,6 +109,7 @@ test('M2 academic structure and provisioning with a non-BYPASSRLS runtime role',
     assert.deepEqual(operation.security, [{ cookie: [], csrf: [] }]);
     assert.ok(spec.paths['/api/v1/organizations/{organizationId}/invitations/import'].post);
     assert.ok(spec.paths['/api/v1/organizations/{organizationId}/academics/enrollments/{id}/transfer'].post);
+    assert.ok(spec.paths['/api/v1/organizations/{organizationId}/academics/my-workspace'].get);
     const cors = await fetch(`${url}/api/v1/auth/login`, { method: 'OPTIONS', headers: { Origin: 'http://localhost:3000', 'Access-Control-Request-Method': 'POST', 'Access-Control-Request-Headers': 'idempotency-key,x-csrf-token' } });
     assert.match(cors.headers.get('access-control-allow-headers'), /Idempotency-Key/);
   });
@@ -253,6 +254,13 @@ test('M2 academic structure and provisioning with a non-BYPASSRLS runtime role',
     await a.client.request('PATCH', `${schoolPath(a.id)}/members/${teacher.id}`, { status: 'inactive' });
     await a.client.request('PATCH', academicPath(a.id, `teacher-assignments/${assignment.id}`), { teacherUserId: teacher.id }, 409);
     await a.client.request('PATCH', `${schoolPath(a.id)}/members/${teacher.id}`, { status: 'active' });
+    const teacherWorkspace = (await teacher.client.request('GET', academicPath(a.id, 'my-workspace'))).data;
+    assert.equal(teacherWorkspace.role, 'teacher');
+    assert.deepEqual(teacherWorkspace.assignments.map((item) => [item.sectionName, item.subjectCode]), [['10-A', 'MATH']]);
+    assert.equal(teacherWorkspace.students.length, 0);
+    await teacher.client.request('GET', academicPath(b.id, 'my-workspace'), undefined, 404);
+    const emptyStudentWorkspace = (await student.client.request('GET', academicPath(a.id, 'my-workspace'))).data;
+    assert.equal(emptyStudentWorkspace.enrollment, null);
   });
 
   await t.test('enrollment capacity, unique roll numbers, atomic transfers and withdrawal', async () => {
@@ -261,6 +269,12 @@ test('M2 academic structure and provisioning with a non-BYPASSRLS runtime role',
     await post('enrollments', { studentUserId: student2.id, sectionId: sectionA.id, rollNumber: '01' }, a, 409);
     const other = await post('enrollments', { studentUserId: student2.id, sectionId: sectionA.id, rollNumber: '02' });
     assert.equal(enrollment.academicYearId, yearA.id);
+    const teacherWorkspace = (await teacher.client.request('GET', academicPath(a.id, 'my-workspace'))).data;
+    assert.deepEqual(teacherWorkspace.students.map((item) => item.email).sort(), ['student2@m2.example', 'student@m2.example']);
+    const studentWorkspace = (await student.client.request('GET', academicPath(a.id, 'my-workspace'))).data;
+    assert.equal(studentWorkspace.enrollment.sectionName, '10-A');
+    assert.equal(studentWorkspace.enrollment.rollNumber, '01');
+    assert.deepEqual(studentWorkspace.subjects.map((item) => [item.subjectCode, item.teacherEmail]), [['MATH', 'teacher@m2.example']]);
     await a.client.request('PATCH', academicPath(a.id, `sections/${sectionA.id}`), { capacity: 1 }, 409);
     const target = await post('sections', { name: '10-C', academicYearId: yearA.id, programId: gradeA.id, capacity: 1 });
     await post('enrollments', { studentUserId: student.id, sectionId: target.id, rollNumber: '01' }, a, 409);
