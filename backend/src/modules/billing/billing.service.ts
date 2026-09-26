@@ -100,7 +100,7 @@ export class BillingService {
   }
   issue(org: string, actor: User, key?: string) {
     return this.scope(org,actor,'invoice.issued',{},key,async m => {
-      const [s] = await m.query(`SELECT s.*,p.amount_minor,p.currency FROM subscriptions s JOIN plans p ON p.id=s.plan_id WHERE s.organization_id=$1`,[org]);
+      const [s] = await m.query(`SELECT s.*,p.amount_minor,p.currency FROM subscriptions s JOIN plans p ON p.id=s.plan_id WHERE s.organization_id=$1 FOR UPDATE OF s`,[org]);
       if (!s || !['active','past_due'].includes(s.status)) throw new ConflictException('An explicit active or past_due subscription is required');
       const [overlap] = await m.query(`SELECT id FROM invoices WHERE organization_id=$1 AND status<>'void'
         AND tstzrange(period_start,period_end,'[)') && tstzrange($2::timestamptz,$3::timestamptz,'[)')`,[org,s.period_start,s.period_end]);

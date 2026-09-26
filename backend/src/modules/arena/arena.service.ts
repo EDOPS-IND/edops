@@ -92,7 +92,7 @@ export class ArenaService {
         const correct = answer.length === row.answerKey.length && answer.every(id => row.answerKey.includes(id));
         const attempt = await m.getRepository(ArenaAttempt).save({ organizationId: org, questionId: id, studentId: actor.id,
           submittedAnswer: answer, isCorrect: correct, score: correct ? row.maxScore : 0, maxScore: row.maxScore });
-        await this.scorecards.refresh(m, org, row.sectionId, row.subjectId);
+        await this.scorecards.refresh(m, org, row.sectionId, row.subjectId, actor.id);
         await this.audit.record(m, { organizationId: org, actorId: actor.id, action: 'arena.attempt.created', details: { questionId: id, attemptId: attempt.id } });
         return attempt;
       });
