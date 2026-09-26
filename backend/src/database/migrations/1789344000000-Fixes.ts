@@ -17,6 +17,21 @@ export class Fixes1789344000000 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX domain_events_pending_idx`);
     await queryRunner.query(`DROP INDEX attendance_sessions_unique_null_idx`);
     await queryRunner.query(`DROP INDEX attendance_sessions_unique_idx`);
+    await queryRunner.query(`
+      DO $$
+      BEGIN
+        IF EXISTS (
+          SELECT 1
+          FROM invoices
+          WHERE payment_reference IS NOT NULL
+          GROUP BY payment_reference
+          HAVING COUNT(DISTINCT organization_id) > 1
+        ) THEN
+          RAISE EXCEPTION 'Cannot rollback: duplicate payment_reference values exist across organizations';
+        END IF;
+      END
+      $$;
+    `);
     await queryRunner.query(`DROP INDEX IF EXISTS invoices_payment_ref_idx`);
     await queryRunner.query(`CREATE UNIQUE INDEX invoices_payment_ref_idx ON invoices(payment_reference) WHERE payment_reference IS NOT NULL`);
   }
