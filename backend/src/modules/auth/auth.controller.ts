@@ -3,9 +3,9 @@ import { ApiBody, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } f
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { promisify } from 'node:util';
-import { Public, AuthenticatedRequest } from '../../common/auth.guard';
+import { AuthenticatedRequest, Public } from '../../common/auth.guard';
 import { csrf } from '../../common/csrf';
-import { APP_CONFIG, AppConfig } from '../../config';
+import { AppConfig, InjectConfig } from '../../config';
 import { AuthService } from './auth.service';
 import { LoginDto } from './auth.dto';
 import { ApiErrors, csrfSchema, loginSchema, profileSchema } from '../../common/api-docs';
@@ -14,7 +14,7 @@ import { ApiErrors, csrfSchema, loginSchema, profileSchema } from '../../common/
 @ApiErrors(429, 500)
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService, @Inject(APP_CONFIG) private readonly config: AppConfig) {}
+  constructor(private readonly auth: AuthService, @InjectConfig() private readonly config: AppConfig) {}
 
   @Public()
   @Get('csrf')
@@ -30,7 +30,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: Number(process.env.AUTH_THROTTLE_LIMIT ?? 10), ttl: 60_000 } })
   @ApiOperation({
     summary: 'Sign in and rotate the session', security: [{ cookie: [], csrf: [] }],
     description: 'No prior login required, but first call GET /api/auth/csrf. Trims/lowercases email, verifies the scrypt password and active user, records auth.login, then replaces the session and CSRF token. Authentication lasts at most 8 hours. Replace your saved CSRF token with this response. School suspension does not prevent login; school routes still deny access. Limit: 10 requests/minute per IP.',
@@ -45,6 +45,7 @@ export class AuthController {
     request.session.authenticatedAt = Date.now();
     const csrfToken = csrf.generateToken(request, true);
     await promisify(request.session.save.bind(request.session))();
+    await this.auth.recordLogin(user);
     return { ...(await this.auth.profile(user)), csrfToken };
   }
 

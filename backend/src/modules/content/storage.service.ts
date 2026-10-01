@@ -2,7 +2,7 @@ import { BadRequestException, Inject, Injectable, OnModuleDestroy, ServiceUnavai
 import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'node:stream';
-import { APP_CONFIG, AppConfig } from '../../config';
+import { AppConfig, InjectConfig } from '../../config';
 
 export type StoredVideo = { objectKey: string; contentType: string; sizeBytes: number; checksumSha256: string };
 
@@ -10,7 +10,7 @@ export type StoredVideo = { objectKey: string; contentType: string; sizeBytes: n
 export class StorageService implements OnModuleDestroy {
   private readonly client?: S3Client;
   private readonly bucket?: string;
-  constructor(@Inject(APP_CONFIG) config: AppConfig) {
+  constructor(@InjectConfig() config: AppConfig) {
     const storage = config.storage;
     if (!storage) return;
     this.bucket = storage.bucket;
@@ -28,9 +28,9 @@ export class StorageService implements OnModuleDestroy {
     const headers = { 'Content-Type': row.contentType, 'x-amz-checksum-sha256': row.checksumSha256, 'If-None-Match': '*' };
     const url = await getSignedUrl(client, new PutObjectCommand({ Bucket: bucket, Key: row.objectKey,
       ContentType: row.contentType, ContentLength: row.sizeBytes, ChecksumSHA256: row.checksumSha256, IfNoneMatch: '*' }),
-    { expiresIn: 3600, signableHeaders: new Set(['content-type', 'content-length', 'if-none-match']), unhoistableHeaders: new Set(['x-amz-checksum-sha256']) })
+    { expiresIn: 300, signableHeaders: new Set(['content-type', 'content-length', 'if-none-match']), unhoistableHeaders: new Set(['x-amz-checksum-sha256']) })
       .catch(() => { throw new ServiceUnavailableException('Could not authorize recording storage'); });
-    return { url, method: 'PUT', headers, sizeBytes: row.sizeBytes, expiresIn: 3600 };
+    return { url, method: 'PUT', headers, sizeBytes: row.sizeBytes, expiresIn: 300 };
   }
   async verify(row: StoredVideo, versionId: string) {
     const { client, bucket } = this.configured();

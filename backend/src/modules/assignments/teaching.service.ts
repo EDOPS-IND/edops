@@ -15,8 +15,10 @@ export class TeachingService {
       const params = [org, role, actor.id];
       const [count] = await manager.query(`SELECT count(*)::int AS total FROM class_subject_assignments c WHERE ${where}`, params);
       const items = await manager.query(`SELECT c.section_id AS "sectionId", s.name AS "sectionName", s.academic_year_id AS "academicYearId",
+        s.program_id AS "programId", p.name AS "programName",
         c.subject_id AS "subjectId", subject.name AS "subjectName", c.teacher_user_id AS "teacherUserId"
         FROM class_subject_assignments c JOIN sections s ON s.organization_id=c.organization_id AND s.id=c.section_id
+        LEFT JOIN programs p ON p.organization_id=s.organization_id AND p.id=s.program_id
         JOIN subjects subject ON subject.organization_id=c.organization_id AND subject.id=c.subject_id
         WHERE ${where} ORDER BY s.name, subject.name, c.id LIMIT $4 OFFSET $5`, [...params, query.limit, query.offset]);
       return { items, total: count.total, limit: query.limit, offset: query.offset };

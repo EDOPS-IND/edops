@@ -23,7 +23,11 @@ export class ArenaService {
     return row;
   }
   private validate(row: Pick<ArenaQuestion, 'content' | 'answerKey' | 'questionType'>) {
-    const ids = row.content.options.map(o => o.id);
+    if (row.questionType === 'subjective') {
+      if (!row.content.prompt) throw new BadRequestException('Prompt is required for subjective question');
+      return;
+    }
+    const ids = row.content.options ? row.content.options.map(o => o.id) : [];
     if (row.answerKey.some(id => !ids.includes(id)) || (row.questionType === 'single_choice' && row.answerKey.length !== 1)) {
       throw new BadRequestException('Answer key must reference the options; single_choice requires exactly one correct option');
     }
@@ -32,7 +36,7 @@ export class ArenaService {
     return this.access.forFeature('arena')(org, actor, 'arena.question.created', dto, key,
       (m, role) => this.access.classScope(m, org, actor, role, dto.sectionId, dto.subjectId, true), async m => {
         this.validate(dto);
-        const row = await m.getRepository(ArenaQuestion).save({ ...dto, organizationId: org, createdBy: actor.id });
+        const row = await m.getRepository(ArenaQuestion).save({ ...dto, chapter: dto.chapter ?? '', organizationId: org, createdBy: actor.id });
         await this.audit.record(m, { organizationId: org, actorId: actor.id, action: 'arena.question.created', details: { questionId: row.id } });
         return questionView(row);
       });
@@ -42,10 +46,22 @@ export class ArenaService {
       (m, role) => this.access.classScope(m, org, actor, role, query.sectionId, query.subjectId), async (m, role) => {
         const qb = m.getRepository(ArenaQuestion).createQueryBuilder('q').where('q.organization_id=:org AND q.section_id=:section AND q.subject_id=:subject', { org, section: query.sectionId, subject: query.subjectId });
         if (role === 'student') qb.andWhere("q.status='published'");
-        for (const field of ['status','difficulty','topic'] as const) if (query[field]) qb.andWhere(`q.${field}=:${field}`, { [field]: query[field] });
+        for (const field of ['status','difficulty','topic','chapter'] as const) if (query[field]) qb.andWhere(`q.${field}=:${field}`, { [field]: query[field] });
         if (query.tag) qb.andWhere(':tag=ANY(q.tags)', { tag: query.tag });
         const [items, total] = await qb.orderBy('q.created_at','DESC').addOrderBy('q.id','DESC').take(query.limit).skip(query.offset).getManyAndCount();
         return { items: items.map(questionView), total, limit: query.limit, offset: query.offset };
+      });
+  }
+  filters(org: string, actor: User, query: ArenaQuery) {
+    return this.access.forFeature('arena')(org, actor, null, null, null,
+      (m, role) => this.access.classScope(m, org, actor, role, query.sectionId, query.subjectId), async (m) => {
+        const rows = await m.getRepository(ArenaQuestion).createQueryBuilder('q')
+          .select(['DISTINCT q.chapter AS chapter', 'q.topic AS topic', 'q.difficulty AS difficulty'])
+          .where('q.organization_id=:org AND q.section_id=:section AND q.subject_id=:subject AND q.status=\'published\'', { org, section: query.sectionId, subject: query.subjectId })
+          .getRawMany();
+        const chapters = [...new Set(rows.map(r => r.chapter).filter(Boolean))];
+        const topics = [...new Set(rows.map(r => r.topic).filter(Boolean))];
+        return { chapters, topics };
       });
   }
   get(org: string, actor: User, id: string, keyOnly = false) {
@@ -88,14 +104,23 @@ export class ArenaService {
         row = await this.question(m, org, actor, role, id);
         if (role !== 'student') throw new ForbiddenException('Only enrolled students can submit practice attempts');
       }, async m => {
-        if (answer.some(id => !row.content.options.some(o => o.id === id)) || (row.questionType === 'single_choice' && answer.length !== 1)) throw new BadRequestException('Select valid options; single_choice requires exactly one');
-        const correct = answer.length === row.answerKey.length && answer.every(id => row.answerKey.includes(id));
+        let isCorrect = false;
+        let score = 0;
+        if (row.questionType === 'subjective') {
+          isCorrect = true;
+          score = row.maxScore;
+        } else {
+          const options = row.content.options ?? [];
+          if (answer.some(id => !options.some(o => o.id === id)) || (row.questionType === 'single_choice' && answer.length !== 1)) throw new BadRequestException('Select valid options; single_choice requires exactly one');
+          isCorrect = answer.length === row.answerKey.length && answer.every(id => row.answerKey.includes(id));
+          score = isCorrect ? row.maxScore : 0;
+        }
         const attempt = await m.getRepository(ArenaAttempt).save({ organizationId: org, questionId: id, studentId: actor.id,
-          submittedAnswer: answer, isCorrect: correct, score: correct ? row.maxScore : 0, maxScore: row.maxScore });
+          submittedAnswer: answer, isCorrect, score, maxScore: row.maxScore });
         await this.scorecards.refresh(m, org, row.sectionId, row.subjectId, actor.id);
         await this.audit.record(m, { organizationId: org, actorId: actor.id, action: 'arena.attempt.created', details: { questionId: id, attemptId: attempt.id } });
         return attempt;
-      });
+      }, false);
   }
   attempts(org: string, actor: User, id: string, query: AcademicListDto) {
     return this.access.forFeature('arena')(org, actor, null, null, null,

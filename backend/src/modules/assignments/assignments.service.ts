@@ -103,7 +103,7 @@ export class AssignmentsService {
         await this.scorecards.refresh(manager, org, assignment.sectionId, assignment.subjectId, actor.id);
         await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'submission.submitted', details: { submissionId: row.id, status: updated.status } });
         return updated;
-      });
+      }, undefined, false);
   }
 
   grade(org: string, actor: User, id: string, dto: GradeDto) {

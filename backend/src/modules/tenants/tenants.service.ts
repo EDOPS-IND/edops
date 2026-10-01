@@ -110,7 +110,7 @@ export class TenantsService {
         user = await users.save(users.create({ email: invitation.email, passwordHash: await hashPassword(dto.password) }));
       }
       await manager.getRepository(Membership).insert({
-        organizationId: organization.id, userId: user.id, role: invitation.role,
+        organizationId: organization.id, userId: user.id, role: invitation.role, specialty: dto.specialty || null,
       });
       invitation.acceptedAt = new Date();
       await manager.getRepository(Invitation).save(invitation);

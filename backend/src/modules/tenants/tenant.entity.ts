@@ -20,6 +20,7 @@ export class Membership {
   @PrimaryColumn({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
   @PrimaryColumn({ name: 'user_id', type: 'uuid' }) userId!: string;
   @Column({ type: 'varchar', length: 20 }) role!: SchoolRole;
+  @Column({ type: 'varchar', length: 100, nullable: true }) specialty?: string | null;
   @Column({ type: 'varchar', length: 16, default: 'active' }) status!: 'active' | 'inactive';
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
 }

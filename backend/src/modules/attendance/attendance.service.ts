@@ -68,7 +68,9 @@ export class AttendanceService {
         if (before.length !== ids.length) throw new NotFoundException('A student is not in this attendance snapshot; no marks saved');
         await manager.query(`UPDATE attendance_records r SET status=mark.status FROM jsonb_to_recordset($3::jsonb) AS mark("studentId" uuid, status text)
           WHERE r.organization_id=$1 AND r.attendance_session_id=$2 AND r.student_id=mark."studentId"`, [org, id, JSON.stringify(dto.records)]);
-        if (session.status === 'finalized') await this.scorecards.refresh(manager, org, session.sectionId, session.subjectId);
+        if (session.status === 'finalized') {
+          await this.scorecards.refresh(manager, org, session.sectionId, session.subjectId, dto.records.length === 1 ? dto.records[0].studentId : undefined);
+        }
         await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'attendance.marked', details: { sessionId: id, before, after: dto.records } });
         return session;
       });

@@ -13,15 +13,14 @@ export class TeachingAccess {
 
   run<T>(org: string, actor: User, action: string | null, payload: unknown, key: string | undefined | null,
     authorize: (manager: EntityManager, role: SchoolRole) => Promise<void>,
-    work: (manager: EntityManager, role: SchoolRole) => Promise<T>, feature?: Feature) {
+    work: (manager: EntityManager, role: SchoolRole) => Promise<T>, feature?: Feature, lockOrg?: boolean) {
     let role: SchoolRole;
     return this.work.run(org, actor, action, payload, key, (manager) => work(manager, role), {
       roles: ['school_admin', 'teacher', 'student'],
+      lockOrg,
       authorize: async (manager) => {
-        const member = await manager.getRepository(Membership).findOneBy({ organizationId: org, userId: actor.id, status: 'active' });
-        if (!member) throw new NotFoundException('Organization not found');
-        if (!['school_admin', 'teacher', 'student'].includes(member.role)) throw new ForbiddenException('School role does not permit this operation');
-        role = member.role;
+        const member = await manager.getRepository(Membership).findOneBy({ organizationId: org, userId: actor.id });
+        role = member!.role;
         await authorize(manager, role);
         if (feature) await requireFeature(manager, org, feature);
       },
@@ -30,8 +29,8 @@ export class TeachingAccess {
 
   forFeature(feature: Feature) {
     return <T>(org: string, actor: User, action: string | null, payload: unknown, key: string | undefined | null,
-      authorize: (m: EntityManager, role: SchoolRole) => Promise<void>, work: (m: EntityManager, role: SchoolRole) => Promise<T>) =>
-      this.run(org,actor,action,payload,key,authorize,work,feature);
+      authorize: (m: EntityManager, role: SchoolRole) => Promise<void>, work: (m: EntityManager, role: SchoolRole) => Promise<T>, lockOrg?: boolean) =>
+      this.run(org,actor,action,payload,key,authorize,work,feature,lockOrg);
   }
 
   async classScope(manager: EntityManager, org: string, actor: User, role: SchoolRole, sectionId: string, subjectId: string | null, staff = false) {
@@ -65,8 +64,9 @@ export class TeachingAccess {
     if (!row) throw new NotFoundException('Attendance session not found');
     await this.classScope(manager, org, actor, role, row.sectionId, row.subjectId, staff);
     if (role === 'student') {
-      const [record] = await manager.query('SELECT id FROM attendance_records WHERE organization_id=$1 AND attendance_session_id=$2 AND student_id=$3', [org, id, actor.id]);
-      if (row.status !== 'finalized' || !record) throw new NotFoundException('Attendance session not found');
+      if (row.status !== 'finalized') throw new NotFoundException('Attendance session not found');
+      const [record] = await manager.query('SELECT 1 FROM attendance_records WHERE organization_id=$1 AND attendance_session_id=$2 AND student_id=$3 LIMIT 1', [org, id, actor.id]);
+      if (!record) throw new NotFoundException('Attendance session not found');
     }
     return row;
   }

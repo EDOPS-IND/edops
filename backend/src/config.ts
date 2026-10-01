@@ -1,4 +1,7 @@
+import { Inject } from '@nestjs/common';
+
 export const APP_CONFIG = Symbol('APP_CONFIG');
+export const InjectConfig = () => Inject(APP_CONFIG);
 
 export interface AppConfig {
   environment: 'development' | 'test' | 'production';
@@ -10,6 +13,7 @@ export interface AppConfig {
   sessionSecret: string;
   cookieName: string;
   sessionMaxAge: number;
+  throttleLimit: number;
   corsOrigins: string[];
   trustProxy: false | string[];
   storage?: { bucket: string; region: string; endpoint?: string; accessKeyId?: string; secretAccessKey?: string };
@@ -64,6 +68,10 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (trustProxy?.some((value) => !value || ['true', 'false', '*'].includes(value) || /^\d+$/.test(value))) {
     throw new Error('TRUST_PROXY must list trusted proxy IPs or CIDRs, not a boolean or hop count');
   }
+  const sessionMaxAgeHours = Number(env.SESSION_MAX_AGE_HOURS ?? 8);
+  if (!Number.isFinite(sessionMaxAgeHours) || sessionMaxAgeHours <= 0) throw new Error('Invalid SESSION_MAX_AGE_HOURS');
+  const throttleLimit = Number(env.THROTTLE_LIMIT ?? 120);
+  if (!Number.isInteger(throttleLimit) || throttleLimit <= 0) throw new Error('Invalid THROTTLE_LIMIT');
   return {
     environment: environment as AppConfig['environment'],
     host: env.HOST ?? '127.0.0.1',
@@ -73,9 +81,18 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     databaseSsl: env.DATABASE_SSL === 'true',
     sessionSecret,
     cookieName: environment === 'production' ? '__Host-edops_session' : 'edops_session',
-    sessionMaxAge: 8 * 60 * 60 * 1000,
+    sessionMaxAge: sessionMaxAgeHours * 60 * 60 * 1000,
+    throttleLimit,
     corsOrigins,
     trustProxy: trustProxy ?? false,
     storage,
+  };
+}
+
+export function safeConfig(config: AppConfig) {
+  return {
+    ...config,
+    databaseUrl: config.databaseUrl.replace(/:[^:@]+@/, ':***@'),
+    sessionSecret: `${config.sessionSecret.slice(0, 4)}...[REDACTED]`,
   };
 }

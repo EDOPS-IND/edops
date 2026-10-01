@@ -2,7 +2,7 @@ import { ConflictException, Inject, Injectable, Logger, OnModuleDestroy, Unautho
 import { DataSource } from 'typeorm';
 import session, { Session, SessionData } from 'express-session';
 import connectPgSimple from 'connect-pg-simple';
-import { AppConfig, APP_CONFIG } from '../../config';
+import { AppConfig, InjectConfig } from '../../config';
 import { AuditService } from '../audit/audit.service';
 import { User } from './user.entity';
 import { Organization, Membership } from '../tenants/tenant.entity';
@@ -23,7 +23,7 @@ export class AuthService implements OnModuleDestroy {
   constructor(
     private readonly source: DataSource,
     private readonly audit: AuditService,
-    @Inject(APP_CONFIG) private readonly config: AppConfig,
+    @InjectConfig() private readonly config: AppConfig,
   ) {
     const PgStore = connectPgSimple(session);
     this.sessionStore = new PgStore({
@@ -32,6 +32,8 @@ export class AuthService implements OnModuleDestroy {
         ssl: config.databaseSsl ? { rejectUnauthorized: true } : false,
         options: '-c timezone=UTC',
         max: 5,
+        connectionTimeoutMillis: 5000,
+        idleTimeoutMillis: 30000,
       },
       schemaName: config.databaseSchema,
       tableName: 'sessions',
@@ -50,8 +52,11 @@ export class AuthService implements OnModuleDestroy {
       .addSelect('user.passwordHash').where('user.email = :email', { email }).getOne();
     const valid = await verifyPassword(password, user?.passwordHash);
     if (!valid || !user?.isActive) throw new UnauthorizedException('Invalid email or password');
-    await this.audit.record(this.source.manager, { organizationId: null, actorId: user.id, action: 'auth.login' });
     return user;
+  }
+
+  async recordLogin(user: User) {
+    await this.audit.record(this.source.manager, { organizationId: null, actorId: user.id, action: 'auth.login' });
   }
 
   async currentUser(currentSession: Session & Partial<SessionData>): Promise<User | null> {
@@ -75,7 +80,7 @@ export class AuthService implements OnModuleDestroy {
   }
 }
 
-export async function bootstrapAdmin(source: DataSource, email: string, password: string): Promise<string> {
+export async function bootstrapAdmin(source: DataSource, email: string, password: string, audit = new AuditService()): Promise<string> {
   const passwordHash = await hashPassword(password);
   return source.transaction(async (manager) => {
     await manager.query('SELECT pg_advisory_xact_lock(9546001)');
@@ -85,7 +90,7 @@ export async function bootstrapAdmin(source: DataSource, email: string, password
     }
     if (await users.existsBy({ email })) throw new ConflictException('Bootstrap cannot promote an existing account');
     const user = await users.save(users.create({ email, passwordHash, isPlatformAdmin: true }));
-    await new AuditService().record(manager, { organizationId: null, actorId: user.id, action: 'user.bootstrap' });
+    await audit.record(manager, { organizationId: null, actorId: user.id, action: 'user.bootstrap' });
     return user.id;
   });
 }

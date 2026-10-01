@@ -5,7 +5,7 @@ import { AcademicYear, api, createResource, loadRoleWorkspace, loadSchool, login
 import { LearningWorkspace, SchoolBilling } from "./learning-workspace";
 import { PlatformWorkspace } from "./platform-workspace";
 import { DashboardHome } from "./dashboard-home";
-import { BarChart3, Bell, BookOpen, CalendarCheck2, ClipboardCheck, CreditCard, GraduationCap, LayoutDashboard, LogOut, Settings as SettingsIcon, ShieldCheck, Trophy, UserRound, Users, Video } from "lucide-react";
+import { BarChart3, Bell, BookOpen, CalendarCheck2, CalendarDays, ClipboardCheck, CreditCard, Database, GraduationCap, Home as HomeIcon, LayoutDashboard, LogOut, Network, Settings as SettingsIcon, ShieldCheck, Sparkles, Trophy, UserRound, Users, Video } from "lucide-react";
 
 type Panel = "overview" | "academics" | "people" | "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress" | "billing" | "settings";
 type Action = "year" | "program" | "subject" | "section" | "teacherAssignment" | "enrollment" | "invite" | "school" | null;
@@ -161,30 +161,78 @@ export default function Home() {
   );
 }
 
-function Brand() { return <a className="brand wordmark" href="#content" aria-label="EDOPS dashboard">EDOPS</a>; }
+export function EdopsLogo({ size = "sm", className = "", style }: { size?: "sm" | "md" | "lg"; className?: string; style?: React.CSSProperties }) {
+  return (
+    <div className={`edops-pill-logo ${size} ${className}`.trim()} style={style} aria-label="EDOPS">
+      <div className="edops-logo-inner">
+        <svg className="edops-logo-wing" viewBox="0 0 300 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M 170 8 C 175 40 210 75 288 132 C 275 110 245 80 205 60 C 185 45 175 25 170 8 Z" fill="#5e17eb" />
+          <path d="M 85 32 C 120 60 180 85 284 129 C 250 115 195 95 130 65 C 105 50 90 40 85 32 Z" fill="#ffffff" />
+          <path d="M 10 97 C 35 112 65 125 105 133 C 145 135 220 130 288 132 C 240 125 180 127 125 122 C 75 118 40 108 10 97 Z" fill="#5e17eb" />
+        </svg>
+        <div className="edops-logo-text">
+          <span className="edops-purple">ED</span>
+          <span className="edops-white">O</span>
+          <span className="edops-purple">PS</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Brand() { return <a className="brand" href="#content" aria-label="EDOPS dashboard"><EdopsLogo size="sm" /></a>; }
 function NavIcon({ id }: { id: string }) { const Icon = ({ overview: LayoutDashboard, academics: GraduationCap, people: Users, assignments: ClipboardCheck, attendance: CalendarCheck2, updates: Bell, recordings: Video, arena: Trophy, progress: BarChart3, billing: CreditCard, settings: SettingsIcon, children: Users, notices: Bell } as Record<string, typeof LayoutDashboard>)[id] ?? BookOpen; return <Icon size={18} strokeWidth={1.8} aria-hidden="true" />; }
 function ProfileMenu({ email, role, onLogout }: { email: string; role: string; onLogout: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const menu = useRef<HTMLDetailsElement>(null);
   return <><details className="profile-menu" ref={menu} onKeyDown={(event) => { if (event.key === "Escape" && menu.current) menu.current.open = false; }}><summary className="avatar" aria-label="Open profile menu"><UserRound size={18} aria-hidden="true" /></summary><div><header><span><UserRound size={20} /></span><div><b>{email}</b><small>{role}</small></div></header><button type="button" onClick={() => { if (menu.current) menu.current.open = false; dialog.current?.showModal(); }}><ShieldCheck size={16} /> My profile</button><button type="button" onClick={onLogout}><LogOut size={16} /> Log out</button></div></details><dialog ref={dialog} className="profile-dialog" aria-labelledby="profile-heading"><form method="dialog"><button className="secondary-button">Close</button></form><span className="profile-portrait"><UserRound size={32} /></span><p className="section-kicker">Your EDOPS account</p><h2 id="profile-heading">My profile</h2><dl><div><dt>Email address</dt><dd>{email}</dd></div><div><dt>Current role</dt><dd>{role}</dd></div></dl><p>Your school manages your membership and class access.</p></dialog></>;
 }
-function LoadingScreen() { return <div className="loading-screen"><span className="loading-wordmark">EDOPS</span><i /></div>; }
+function LoadingScreen() { return <div className="loading-screen"><EdopsLogo size="md" /><span className="loading-wordmark" style={{ display: "none" }}>EDOPS</span><i /></div>; }
 function DashboardSkeleton() { return <div className="dashboard-skeleton"><div /><div /><div /><div /></div>; }
 
 function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => void; onInvite: () => void }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); const data = new FormData(event.currentTarget); try { onLogin(await login(String(data.get("email")), String(data.get("password")))); } catch (reason) { setError(reason instanceof Error ? reason.message : "Sign in failed"); } finally { setBusy(false); } }
-  return <main className="auth-page"><section className="auth-brand"><span className="auth-wordmark">EDOPS</span><div><p className="eyebrow">Connected school operations</p><h1>Everything your school needs. Nothing it doesn’t.</h1><p>A focused workspace for administrators, teachers, and students.</p></div><small>Secure. Clear. Built for learning.</small></section><section className="auth-panel"><form className="auth-form" onSubmit={submit}><p className="eyebrow">Welcome back</p><h2>Sign in to EDOPS</h2><p>Use the account created through your EDOPS invitation.</p>{error && <div className="form-error" role="alert">{error}</div>}<label>Email address<input name="email" type="email" autoComplete="email" required placeholder="you@school.edu" /></label><label>Password<input name="password" type="password" autoComplete="current-password" required /></label><button className="primary-button" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button><button type="button" className="link-button" onClick={onInvite}>Accept an invitation</button><small>Your session is protected by EDOPS.</small></form></section></main>;
+  return <main className="auth-page"><section className="auth-brand"><EdopsLogo size="lg" /><div><p className="eyebrow">Connected school operations</p><h1>Everything your school needs. Nothing it doesn’t.</h1><p>A focused workspace for administrators, teachers, and students.</p></div><small>Secure. Clear. Built for learning.</small></section><section className="auth-panel"><form className="auth-form" onSubmit={submit}><p className="eyebrow">Welcome back</p><h2>Sign in to EDOPS</h2><p>Use the account created through your EDOPS invitation.</p>{error && <div className="form-error" role="alert">{error}</div>}<label>Email address<input name="email" type="email" autoComplete="email" required placeholder="you@school.edu" /></label><label>Password<input name="password" type="password" autoComplete="current-password" required /></label><button className="primary-button" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button><button type="button" className="link-button" onClick={onInvite}>Accept an invitation</button><small>Your session is protected by EDOPS.</small></form></section></main>;
 }
 
 function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => void }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [success, setSuccess] = useState(false);
-  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); const data = new FormData(event.currentTarget); const body: Record<string, string> = { token: String(data.get("token")) }; if (!signedIn) body.password = String(data.get("password")); try { await api("/auth/invitations/accept", { method: "POST", body }); setSuccess(true); } catch (reason) { setError(reason instanceof Error ? reason.message : "Invitation could not be accepted"); } finally { setBusy(false); } }
-  return <main className="standalone-page"><section className="standalone-card"><span className="auth-wordmark">EDOPS</span>{success ? <><span className="success-mark">✓</span><h1>Invitation accepted</h1><p>{signedIn ? "Your school membership is ready. Refresh your dashboard to continue." : "Your account is ready. Sign in with your email and new password."}</p><button className="primary-button" onClick={onDone}>Continue to sign in</button></> : <form className="auth-form" onSubmit={submit}><p className="eyebrow">School invitation</p><h2>Join your EDOPS workspace</h2><p>{signedIn ? "Paste the invitation token sent to your account." : "Paste your invitation token and choose a password of at least 12 characters."}</p>{error && <div className="form-error" role="alert">{error}</div>}<label>Invitation token<input name="token" minLength={64} maxLength={64} required defaultValue={typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite") ?? "" : ""} /></label>{!signedIn && <label>Create password<input name="password" type="password" minLength={12} maxLength={128} required autoComplete="new-password" /></label>}<button className="primary-button" disabled={busy}>{busy ? "Accepting…" : "Accept invitation"}</button><button type="button" className="link-button" onClick={onDone}>Back to sign in</button></form>}</section></main>;
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setBusy(true); setError(""); const data = new FormData(event.currentTarget);
+    const body: Record<string, string> = { token: String(data.get("token")) };
+    if (!signedIn) body.password = String(data.get("password"));
+    const specialty = String(data.get("specialty") || "").trim();
+    if (specialty) body.specialty = specialty;
+    try {
+      await api("/auth/invitations/accept", { method: "POST", body });
+      setSuccess(true);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Invitation could not be accepted");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return <main className="standalone-page"><section className="standalone-card"><div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}><EdopsLogo size="md" /></div>{success ? <><span className="success-mark">✓</span><h1>Invitation accepted</h1><p>{signedIn ? "Your school membership is ready. Refresh your dashboard to continue." : "Your account is ready. Sign in with your email and new password."}</p><button className="primary-button" onClick={onDone}>Continue to sign in</button></> : <form className="auth-form" onSubmit={submit}><p className="eyebrow">School invitation</p><h2>Join your EDOPS workspace</h2><p>{signedIn ? "Paste the invitation token sent to your account." : "Paste your invitation token and choose a password of at least 12 characters."}</p>{error && <div className="form-error" role="alert">{error}</div>}<label>Invitation token<input name="token" minLength={64} maxLength={64} required defaultValue={typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite") ?? "" : ""} /></label>{!signedIn && <label>Create password<input name="password" type="password" minLength={12} maxLength={128} required autoComplete="new-password" /></label>}<label>Subject Specialty <span style={{ opacity: 0.65, fontSize: "0.85em" }}>(for teachers, e.g. Mathematics)</span><input name="specialty" placeholder="e.g. Mathematics, Physics, Chemistry" maxLength={100} /></label><button className="primary-button" disabled={busy}>{busy ? "Accepting…" : "Accept invitation"}</button><button type="button" className="link-button" onClick={onDone}>Back to sign in</button></form>}</section></main>;
 }
 
 function WorkspaceSelect({ profile, value, onChange }: { profile: Profile; value: string; onChange: (value: string) => void }) {
   return <select className="school-select" aria-label="Current workspace" value={value} onChange={(event) => onChange(event.target.value)}>{profile.user.isPlatformAdmin && <option value="platform">EDOPS Platform — Platform admin</option>}{profile.organizations.map((item) => <option key={item.id} value={item.id}>{item.name} — {roleNames[item.role]}</option>)}</select>;
+}
+
+function getSubjectIcon(name: string, index: number) {
+  const lower = name.toLowerCase().trim();
+  if (lower.includes("machine") || lower.includes("learn") || lower.includes("ai") || lower === "ml" || lower.includes("intel")) {
+    return <Sparkles size={17} strokeWidth={1.8} />;
+  }
+  if (lower.includes("data") || lower.includes("struct") || lower.includes("db") || lower.includes("sql") || lower === "ds" || lower === "dbms") {
+    return <Database size={17} strokeWidth={1.8} />;
+  }
+  if (lower.includes("math") || lower.includes("algo") || lower.includes("stat") || lower.includes("calc") || lower.includes("net") || lower.includes("logic")) {
+    return <Network size={17} strokeWidth={1.8} />;
+  }
+  const icons = [<Sparkles size={17} key="s" />, <Database size={17} key="d" />, <Network size={17} key="n" />, <BookOpen size={17} key="b" />];
+  return icons[index % icons.length];
 }
 
 function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }: { profile: Profile; membership: OrganizationSummary & { role: MemberRole }; workspace: string; onWorkspace: (value: string) => void; onLogout: () => void }) {
@@ -192,10 +240,31 @@ function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }
   const panels = config.panels;
   const [panelId, setPanelId] = useState("overview");
   const [initialClassKey, setInitialClassKey] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [data, setData] = useState<RoleWorkspaceData | null>(null);
   const [loading, setLoading] = useState(membership.role !== "parent");
   const [error, setError] = useState("");
   const panel = panels.find((item) => item.id === panelId) ?? panels[0];
+
+  const studentSubjects = useMemo(() => {
+    if (data?.subjects && data.subjects.length > 0) {
+      return data.subjects.map((item) => {
+        const anyItem = item as any;
+        const name = item.subjectName || anyItem.name || anyItem.title || item.subjectCode || "Subject";
+        return {
+          id: anyItem.subjectId || anyItem.id || item.subjectCode || name,
+          name,
+          code: item.subjectCode || "",
+        };
+      });
+    }
+    return [
+      { id: "ml", name: "Machine Learning", code: "ML" },
+      { id: "ds", name: "Data Structures", code: "DS" },
+      { id: "math", name: "Mathematics", code: "MATH" },
+    ];
+  }, [data?.subjects]);
+
   useEffect(() => {
     if (membership.role === "parent") return;
     setLoading(true); setError("");
@@ -203,8 +272,91 @@ function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }
   }, [membership.id, membership.role]);
   return <div className="app-shell role-workspace">
     <header className="topbar"><Brand /><div className="api-status"><span /> {membership.name}</div><div className="top-actions"><WorkspaceSelect profile={profile} value={workspace} onChange={onWorkspace} /><ProfileMenu email={profile.user.email} role={roleNames[membership.role]} onLogout={onLogout} /></div></header>
-    <aside className="sidebar" aria-label={`${roleNames[membership.role]} navigation`}><div className="nav-section"><p className="eyebrow">{roleNames[membership.role]}</p>{panels.map((item) => <button key={item.id} className={panel.id === item.id ? "nav-item active" : "nav-item"} onClick={() => setPanelId(item.id)}><span><NavIcon id={item.id} /></span>{item.label}</button>)}</div><div className={`term-card sidebar-term ${membership.status === "suspended" ? "suspended" : ""}`}><span>{membership.name}</span><p>{membership.status === "active" ? "Active school" : "School access suspended"}</p></div></aside>
-    <main id="content" className="main-content"><section className="welcome-row"><div><p className="date-line">{membership.name} · {roleNames[membership.role]}</p><h1>{panel.title}</h1><p>{panel.id === "overview" ? config.intro : panel.copy}</p></div><span className={`membership-badge ${membership.status}`}>{membership.status}</span></section>{membership.status === "suspended" && <div className="error-banner" role="alert"><b>This school workspace is suspended.</b><span>Contact a school or platform administrator to restore access.</span></div>}{error && <div className="error-banner" role="alert"><b>Couldn’t load your academic records.</b><span>{error}</span></div>}{membership.role === "parent" ? <><section className="role-card-grid">{panel.items.map(([title, copy], index) => <article className="role-card" key={title}><span>{panel.icon}</span><div><p className="eyebrow">{String(index + 1).padStart(2, "0")}</p><h2>{title}</h2><p>{copy}</p></div></article>)}</section><section className="data-card role-coming-soon"><div className="data-head"><div><h2>{panel.title}</h2><p>{panel.copy}</p></div><span className="table-pill">Not available in API</span></div><div><span>◇</span><h3>Parent data is not implemented</h3><p>The backend must add parent-to-student relationships before this workspace can show real records.</p></div></section></> : <>{loading && !data ? <DashboardSkeleton /> : panel.id === "overview" ? <><DashboardHome organizationId={membership.id} role={membership.role} onNavigate={(tab, classKey) => { setInitialClassKey(classKey ?? ""); setPanelId(tab); }} /><details className="academic-details"><summary>My academic details</summary>{data && <RoleAcademicData data={data} />}</details></> : <LearningWorkspace key={panel.id} initialClassKey={initialClassKey} organizationId={membership.id} role={membership.role} initialTab={panel.id as "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress"} hideTabs />}</>}</main>
+    {membership.role === "student" ? (
+      <aside className="sidebar student-sidebar" aria-label="Student navigation">
+        <div className="nav-section">
+          <button
+            type="button"
+            className={panelId === "overview" && !selectedSubject ? "nav-item student-nav-home active" : "nav-item student-nav-home"}
+            onClick={() => { setPanelId("overview"); setSelectedSubject(null); }}
+          >
+            <span><HomeIcon size={18} strokeWidth={1.8} /></span>
+            Home
+          </button>
+
+          <div className="student-nav-heading">Enrolled Subjects</div>
+          <div className="student-subjects-list">
+            {studentSubjects.map((sub, idx) => {
+              const displayName = sub.name?.trim() || sub.code?.trim() || "Subject";
+              const isSelected = panelId === "overview" && (selectedSubject === sub.name || selectedSubject === displayName);
+              return (
+                <button
+                  key={sub.id || idx}
+                  type="button"
+                  title={displayName}
+                  aria-label={`Subject: ${displayName}`}
+                  className={isSelected ? "nav-item student-subject-item active" : "nav-item student-subject-item"}
+                  onClick={() => {
+                    setPanelId("overview");
+                    setSelectedSubject(selectedSubject === displayName ? null : displayName);
+                  }}
+                >
+                  <span className="student-subject-icon" aria-hidden="true">{getSubjectIcon(displayName, idx)}</span>
+                  <span className="student-subject-title">{displayName}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <hr className="student-nav-divider" />
+
+          <button
+            type="button"
+            className={panelId === "progress" ? "nav-item active" : "nav-item"}
+            onClick={() => { setPanelId("progress"); setSelectedSubject(null); }}
+          >
+            <span><BarChart3 size={18} strokeWidth={1.8} /></span>
+            Scorecard
+          </button>
+          <button
+            type="button"
+            className={panelId === "arena" && selectedSubject === "leaderboard" ? "nav-item active" : "nav-item"}
+            onClick={() => { setPanelId("arena"); setSelectedSubject("leaderboard"); }}
+          >
+            <span><Trophy size={18} strokeWidth={1.8} /></span>
+            Leaderboard
+          </button>
+          <button
+            type="button"
+            className={panelId === "overview" && selectedSubject === "calendar" ? "nav-item active" : "nav-item"}
+            onClick={() => {
+              setPanelId("overview");
+              setSelectedSubject("calendar");
+              const cal = typeof document !== "undefined" ? document.querySelector(".calendar-panel") : null;
+              if (cal) cal.scrollIntoView({ behavior: "smooth" });
+            }}
+          >
+            <span><CalendarDays size={18} strokeWidth={1.8} /></span>
+            Calendar
+          </button>
+          <button
+            type="button"
+            className={panelId === "arena" && selectedSubject !== "leaderboard" ? "nav-item active" : "nav-item"}
+            onClick={() => { setPanelId("arena"); setSelectedSubject(null); }}
+          >
+            <span><Trophy size={18} strokeWidth={1.8} /></span>
+            Arena
+          </button>
+        </div>
+        <div className={`term-card sidebar-term ${membership.status === "suspended" ? "suspended" : ""}`}>
+          <span>{membership.name}</span>
+          <p>{membership.status === "active" ? "Active school" : "School access suspended"}</p>
+        </div>
+      </aside>
+    ) : (
+      <aside className="sidebar" aria-label={`${roleNames[membership.role]} navigation`}><div className="nav-section"><p className="eyebrow">{roleNames[membership.role]}</p>{panels.map((item) => <button key={item.id} className={panel.id === item.id ? "nav-item active" : "nav-item"} onClick={() => setPanelId(item.id)}><span><NavIcon id={item.id} /></span>{item.label}</button>)}</div><div className={`term-card sidebar-term ${membership.status === "suspended" ? "suspended" : ""}`}><span>{membership.name}</span><p>{membership.status === "active" ? "Active school" : "School access suspended"}</p></div></aside>
+    )}
+    <main id="content" className="main-content"><section className="welcome-row"><div><p className="date-line">{membership.name} · {roleNames[membership.role]}</p><h1>{panel.title}</h1><p>{panel.id === "overview" ? config.intro : panel.copy}</p></div><span className={`membership-badge ${membership.status}`}>{membership.status}</span></section>{membership.status === "suspended" && <div className="error-banner" role="alert"><b>This school workspace is suspended.</b><span>Contact a school or platform administrator to restore access.</span></div>}{error && <div className="error-banner" role="alert"><b>Couldn’t load your academic records.</b><span>{error}</span></div>}{membership.role === "parent" ? <><section className="role-card-grid">{panel.items.map(([title, copy], index) => <article className="role-card" key={title}><span>{panel.icon}</span><div><p className="eyebrow">{String(index + 1).padStart(2, "0")}</p><h2>{title}</h2><p>{copy}</p></div></article>)}</section><section className="data-card role-coming-soon"><div className="data-head"><div><h2>{panel.title}</h2><p>{panel.copy}</p></div><span className="table-pill">Not available in API</span></div><div><span>◇</span><h3>Parent data is not implemented</h3><p>The backend must add parent-to-student relationships before this workspace can show real records.</p></div></section></> : <>{loading && !data ? <DashboardSkeleton /> : panel.id === "overview" ? <><DashboardHome organizationId={membership.id} role={membership.role} selectedSubject={selectedSubject} onSelectSubject={setSelectedSubject} onNavigate={(tab, classKey) => { setInitialClassKey(classKey ?? ""); setPanelId(tab); }} /><details className="academic-details"><summary>My academic details</summary>{data && <RoleAcademicData data={data} />}</details></> : <LearningWorkspace key={panel.id} initialClassKey={initialClassKey} organizationId={membership.id} role={membership.role} initialTab={panel.id as "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress"} hideTabs />}</>}</main>
   </div>;
 }
 
@@ -221,7 +373,7 @@ function ReadOnlySection({ title, empty, rows }: { title: string; empty: string;
 function PlatformScreen({ profile, workspace, onWorkspace, onLogout }: { profile: Profile; workspace: string; onWorkspace: (value: string) => void; onLogout: () => void }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [result, setResult] = useState<{ invitation: { token: string; email: string; expiresAt: string }; organization: Organization } | null>(null);
   async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); const data = new FormData(event.currentTarget); try { setResult(await createResource("/platform/organizations", { name: data.get("name"), slug: data.get("slug"), adminEmail: data.get("adminEmail"), timeZone: data.get("timeZone"), locale: data.get("locale") }, false)); } catch (reason) { setError(reason instanceof Error ? reason.message : "School could not be created"); } finally { setBusy(false); } }
-  return <main className="standalone-page platform-page"><header><span className="auth-wordmark">EDOPS</span><div className="top-actions">{profile.organizations.length > 0 && <WorkspaceSelect profile={profile} value={workspace} onChange={onWorkspace} />}<ProfileMenu email={profile.user.email} role="Platform administrator" onLogout={onLogout} /></div></header><section className="platform-card"><p className="eyebrow">Platform administration</p><h1>{profile.user.isPlatformAdmin ? "Platform overview" : "No active workspace"}</h1><p>{profile.user.isPlatformAdmin ? "Manage your schools, subscription plans, and billing in one place." : "Your account has no school membership. Ask a platform administrator for an invitation."}</p>{profile.user.isPlatformAdmin && !result && <details className="provision-panel"><summary>Add a new school</summary><form className="form-grid platform-form" onSubmit={submit}>{error && <div className="form-error wide">{error}</div>}<label>School name<input name="name" required maxLength={120} /></label><label>URL slug<input name="slug" required maxLength={63} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="greenfield-school" /></label><label>Administrator email<input name="adminEmail" type="email" required /></label><label>Timezone<input name="timeZone" required defaultValue={Intl.DateTimeFormat().resolvedOptions().timeZone} /></label><label>Locale<select name="locale" defaultValue="en-IN"><option value="en-IN">English (India)</option><option value="hi-IN">Hindi (India)</option><option value="en-US">English (US)</option></select></label><button className="primary-button" disabled={busy}>{busy ? "Creating…" : "Create school"}</button></form></details>}{result && <div className="invite-result"><span className="success-mark">✓</span><h2>{result.organization.name} created</h2><p>Copy this one-time invitation token and deliver it privately to <b>{result.invitation.email}</b>. It cannot be retrieved later.</p><code>{result.invitation.token}</code><small>Expires {formatDate(result.invitation.expiresAt)}</small><button className="primary-button" onClick={() => navigator.clipboard.writeText(result.invitation.token)}>Copy invitation token</button><button className="secondary-button" onClick={() => setResult(null)}>Provision another school</button></div>}</section>{profile.user.isPlatformAdmin && <PlatformWorkspace />}</main>;
+  return <main className="standalone-page platform-page"><header><EdopsLogo size="sm" /><div className="top-actions">{profile.organizations.length > 0 && <WorkspaceSelect profile={profile} value={workspace} onChange={onWorkspace} />}<ProfileMenu email={profile.user.email} role="Platform administrator" onLogout={onLogout} /></div></header><section className="platform-card"><p className="eyebrow">Platform administration</p><h1>{profile.user.isPlatformAdmin ? "Platform overview" : "No active workspace"}</h1><p>{profile.user.isPlatformAdmin ? "Manage your schools, subscription plans, and billing in one place." : "Your account has no school membership. Ask a platform administrator for an invitation."}</p>{profile.user.isPlatformAdmin && !result && <details className="provision-panel"><summary>Add a new school</summary><form className="form-grid platform-form" onSubmit={submit}>{error && <div className="form-error wide">{error}</div>}<label>School name<input name="name" required maxLength={120} /></label><label>URL slug<input name="slug" required maxLength={63} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="greenfield-school" /></label><label>Administrator email<input name="adminEmail" type="email" required /></label><label>Timezone<input name="timeZone" required defaultValue={Intl.DateTimeFormat().resolvedOptions().timeZone} /></label><label>Locale<select name="locale" defaultValue="en-IN"><option value="en-IN">English (India)</option><option value="hi-IN">Hindi (India)</option><option value="en-US">English (US)</option></select></label><button className="primary-button" disabled={busy}>{busy ? "Creating…" : "Create school"}</button></form></details>}{result && <div className="invite-result"><span className="success-mark">✓</span><h2>{result.organization.name} created</h2><p>Copy this one-time invitation token and deliver it privately to <b>{result.invitation.email}</b>. It cannot be retrieved later.</p><code>{result.invitation.token}</code><small>Expires {formatDate(result.invitation.expiresAt)}</small><button className="primary-button" onClick={() => navigator.clipboard.writeText(result.invitation.token)}>Copy invitation token</button><button className="secondary-button" onClick={() => setResult(null)}>Provision another school</button></div>}</section>{profile.user.isPlatformAdmin && <PlatformWorkspace />}</main>;
 }
 
 function Overview({ school, setup, completed, teachers, students, activeEnrollments, onAction }: { school: SchoolData; setup: readonly (readonly [string, boolean])[]; completed: number; teachers: number; students: number; activeEnrollments: number; onAction: (action: Action) => void }) {
