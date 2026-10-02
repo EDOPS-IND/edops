@@ -125,8 +125,8 @@ export class BillingService {
       if (!row) throw new NotFoundException('Invoice not found');
       if (row.status===target && (!dto || row.paymentReference===dto.paymentReference)) return row;
       if (row.status!=='open') throw new ConflictException('Only open invoices can be paid or voided');
-      const [after] = await m.query(`WITH updated AS (UPDATE invoices SET status=$3::varchar,payment_reference=$4,paid_at=CASE WHEN $3::varchar='paid' THEN clock_timestamp() ELSE NULL END
-        WHERE organization_id=$1 AND id=$2 RETURNING *) SELECT ${invoiceFields} FROM updated`,[org,id,target,dto?.paymentReference??null]);
+      const [after] = await m.query(`UPDATE invoices SET status=$3::varchar,payment_reference=$4,paid_at=CASE WHEN $3::varchar='paid' THEN clock_timestamp() ELSE NULL END
+        WHERE organization_id=$1 AND id=$2 RETURNING ${invoiceFields}`,[org,id,target,dto?.paymentReference??null]);
       await this.audit.record(m,{organizationId:org,actorId:actor.id,action:`invoice.${target}`,details:{invoiceId:id,before:'open',after:target}});
       return after;
     });

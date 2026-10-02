@@ -29,6 +29,9 @@ export class ArenaController {
   @Get('questions') @Endpoint('Browse the class question bank', 'read', ArenaQuestion, true, 'Requires sectionId and subjectId. Optional exact topic, tag, difficulty and status filters. Students only see published questions, staff all states. Newest first; no answer keys in any list response.')
   list(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Query() query: ArenaQuery) { return this.arena.list(org, req.user, query); }
 
+  @Get('filters') @Endpoint('Get unique chapters and topics for class and subject', 'read', ArenaQuestion, false, 'Returns dynamic list of unique chapters and topics available for filtering.')
+  filters(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Query() query: ArenaQuery) { return this.arena.filters(org, req.user, query); }
+
   @Get('questions/:id') @ApiParam({ name: 'id', format: 'uuid' }) @Endpoint('Read a practice question', 'read', ArenaQuestion, false, 'Returns prompt, options and metadata, never the answer key. Students need a published question and active class enrollment. Draft and archived questions return 404 for students.')
   get(@Param('organizationId', ParseUUIDPipe) org: string, @Param('id', ParseUUIDPipe) id: string, @Req() req: AuthenticatedRequest) { return this.arena.get(org, req.user, id); }
 

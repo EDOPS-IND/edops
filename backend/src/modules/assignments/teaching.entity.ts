@@ -38,3 +38,14 @@ export class AttendanceSession extends AcademicRecord {
   @ApiProperty({ enum: ['draft', 'finalized'] }) @Column({ type: 'varchar', length: 16, default: 'draft' }) status!: 'draft' | 'finalized';
   @ApiProperty({ type: String, format: 'date-time', nullable: true }) @Column({ name: 'finalized_at', type: 'timestamptz', nullable: true }) finalizedAt!: Date | null;
 }
+
+@Entity('exam_evaluations')
+export class ExamEvaluation extends AcademicRecord {
+  @ApiProperty({ format: 'uuid' }) @Column({ name: 'section_id', type: 'uuid' }) sectionId!: string;
+  @ApiProperty({ format: 'uuid' }) @Column({ name: 'subject_id', type: 'uuid' }) subjectId!: string;
+  @ApiProperty() @Column({ type: 'varchar', length: 120 }) title!: string;
+  @ApiProperty() @Column({ name: 'max_marks', type: 'double precision', default: 100 }) maxMarks!: number;
+  @ApiProperty() @Column({ type: 'double precision', default: 20 }) weightage!: number;
+  @ApiProperty() @Column({ name: 'student_scores', type: 'jsonb', default: {} }) studentScores!: Record<string, number>;
+}
+

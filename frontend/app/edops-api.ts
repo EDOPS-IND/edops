@@ -23,7 +23,7 @@ function baseUrl() {
   return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? `${window.location.protocol}//${window.location.hostname}:3001/api/v1` : `${window.location.origin}/api/v1`;
 }
 
-export async function api<T>(path: string, options: { method?: "GET" | "POST" | "PATCH"; body?: unknown; idempotent?: boolean } = {}): Promise<T> {
+export async function api<T>(path: string, options: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown; idempotent?: boolean } = {}): Promise<T> {
   const method = options.method ?? "GET";
   if (method !== "GET" && !csrfToken) await csrf();
   const headers: Record<string, string> = {};
@@ -61,3 +61,4 @@ export async function loadSchool(organizationId: string): Promise<SchoolData> {
 
 export function createResource<T>(path: string, body: unknown, idempotent = true) { return api<T>(path, { method: "POST", body, idempotent }); }
 export function updateResource<T>(path: string, body: unknown) { return api<T>(path, { method: "PATCH", body }); }
+export function deleteResource<T>(path: string) { return api<T>(path, { method: "DELETE" }); }

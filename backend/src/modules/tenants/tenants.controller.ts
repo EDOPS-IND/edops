@@ -82,7 +82,7 @@ export class InvitationsController {
   @Public()
   @Post('accept')
   @HttpCode(200)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: Number(process.env.AUTH_THROTTLE_LIMIT ?? 10), ttl: 60_000 } })
   @ApiOperation({
     summary: 'Accept a school membership invitation', security: [{ cookie: [], csrf: [] }],
     description: 'Get /auth/csrf first. New account: be signed out and supply a 12-128 character password. Existing account: sign in with the invited email and omit password; an invite cannot reset it. Locks the school before the invitation and checks expiry, revocation, previous use and active school. In one transaction, creates the user if needed, adds the role stored on the invitation (school_admin for platform onboarding; teacher/student for M2 roster invites), consumes the invite and records invitation.accepted. Does not log in a new user or grant platform privilege. Invalid/expired/revoked/used token returns 400; wrong account or unavailable school returns 403; uniqueness conflicts return 409. Limit: 10 requests/minute per IP.',

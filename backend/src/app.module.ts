@@ -18,7 +18,7 @@ import { BillingModule } from './modules/billing/billing.controller';
 
 @Global()
 @Module({})
-class ConfigurationModule {
+export class ConfigurationModule {
   static register(config: AppConfig): DynamicModule {
     return { module: ConfigurationModule, providers: [{ provide: APP_CONFIG, useValue: config }], exports: [APP_CONFIG] };
   }
@@ -57,9 +57,14 @@ export class AppModule {
       module: AppModule,
       imports: [
         ConfigurationModule.register(config),
-        TypeOrmModule.forRoot({ ...databaseOptions(config), retryAttempts: 1 }),
+        TypeOrmModule.forRoot({ ...databaseOptions(config), retryAttempts: 3, retryDelay: 2000 }),
         // ponytail: one API process; use shared throttler storage before deploying multiple replicas.
-        ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
+        ThrottlerModule.forRoot([{
+          ttl: 60_000,
+          limit: config.throttleLimit,
+          // ponytail: throttle by user if signed in so one student on school WiFi doesn't block everyone
+          getTracker: (req) => (req.session?.userId ? `user:${req.session.userId}` : (req.ip ?? '127.0.0.1')),
+        }]),
         AuthModule,
         TenantsModule,
         AcademicsModule,

@@ -1,26 +1,20 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource, DeepPartial, EntityManager, EntityTarget, FindOptionsOrder, FindOptionsWhere } from 'typeorm';
+import { DeepPartial, EntityManager, EntityTarget, FindOptionsOrder, FindOptionsWhere } from 'typeorm';
 import { AuditService } from '../audit/audit.service';
 import { User } from '../auth/user.entity';
-import { Membership, Organization } from '../tenants/tenant.entity';
+import { Membership, SchoolRole } from '../tenants/tenant.entity';
 import { SchoolWork } from '../tenants/school-work.service';
 import { AcademicRecord, AcademicYear, ClassSubjectAssignment, Enrollment, Program, Section, Subject } from './academic.entity';
 import { AcademicListDto, AcademicYearDto, EnrollmentDto, ProgramDto, SectionDto, SectionListDto, SectionResourceListDto, SubjectDto, TeacherAssignmentDto, TransferEnrollmentDto, UpdateAcademicYearDto, UpdateEnrollmentDto, UpdateProgramDto, UpdateSectionDto, UpdateSubjectDto, UpdateTeacherAssignmentDto } from './academic.dto';
 
 @Injectable()
 export class AcademicsService {
-  constructor(private readonly work: SchoolWork, private readonly audit: AuditService, private readonly source: DataSource) {}
+  constructor(private readonly work: SchoolWork, private readonly audit: AuditService) {}
 
-  async roleWorkspace(org: string, actor: User) {
-    return this.source.transaction(async (manager) => {
-      const membership = await manager.getRepository(Membership).findOneBy({ organizationId: org, userId: actor.id, status: 'active' });
-      if (!membership) throw new NotFoundException('Organization not found');
-      if (!['teacher', 'student'].includes(membership.role)) throw new ForbiddenException('Teacher or student access required');
-      const organization = await manager.getRepository(Organization).findOneBy({ id: org });
-      if (!organization) throw new NotFoundException('Organization not found');
-      if (organization.status !== 'active') throw new ForbiddenException('Organization is suspended');
-      await manager.query("SELECT set_config('app.current_org_id', $1, true)", [org]);
-      if (membership.role === 'teacher') {
+  roleWorkspace(org: string, actor: User) {
+    let role: SchoolRole;
+    return this.work.run(org, actor, null, null, null, async (manager) => {
+      if (role === 'teacher') {
         const assignments = await manager.query(`SELECT assignment.id, section.id AS "sectionId", section.name AS "sectionName",
           subject.id AS "subjectId", subject.name AS "subjectName", subject.code AS "subjectCode"
           FROM class_subject_assignments assignment
@@ -60,6 +54,12 @@ export class AcademicsService {
         WHERE assignment.organization_id = $1 AND assignment.section_id = $2
         ORDER BY subject.name`, [org, enrollment.sectionId]) : [];
       return { role: 'student' as const, enrollment: enrollment ?? null, subjects };
+    }, {
+      roles: ['teacher', 'student'],
+      authorize: async (manager) => {
+        const member = await manager.getRepository(Membership).findOneBy({ organizationId: org, userId: actor.id, status: 'active' });
+        role = member!.role;
+      },
     });
   }
 
@@ -166,8 +166,9 @@ export class AcademicsService {
   private async member(manager: EntityManager, org: string, userId: string, role: 'teacher' | 'student') {
     const membership = await manager.getRepository(Membership).findOneBy({ organizationId: org, userId });
     if (!membership) throw new NotFoundException('Member not found');
-    const user = await manager.getRepository(User).findOneBy({ id: userId, isActive: true });
-    if (!user || membership.role !== role || membership.status !== 'active') throw new ConflictException(`An active ${role} membership and account are required`);
+    if (membership.role !== role || membership.status !== 'active' || !await manager.getRepository(User).existsBy({ id: userId, isActive: true })) {
+      throw new ConflictException(`An active ${role} membership and account are required`);
+    }
   }
 
   assignTeacher(org: string, actor: User, dto: TeacherAssignmentDto, key?: string) {

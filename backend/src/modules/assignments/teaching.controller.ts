@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Query, Req, Type } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Query, Req, Type } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedRequest } from '../../common/auth.guard';
 import { SchoolEndpoint } from '../../common/school-api-docs';
@@ -6,8 +6,8 @@ import { AcademicListDto } from '../academics/academic.dto';
 import { AttendanceService } from '../attendance/attendance.service';
 import { ScorecardsService } from '../reports/scorecards.service';
 import { AssignmentsService } from './assignments.service';
-import { AssignmentDto, AssignmentQuery, AttendanceDto, AttendanceMarksDto, ClassQuery, EmptyActionDto, GradeDto, SubmitDto, UpdateAssignmentDto } from './teaching.dto';
-import { Assignment, AttendanceSession, Submission } from './teaching.entity';
+import { AssignmentDto, AssignmentQuery, AttendanceDto, AttendanceMarksDto, ClassQuery, CreateEvaluationDto, EmptyActionDto, GradeDto, SubmitDto, UpdateAssignmentDto, UpdateScoresDto } from './teaching.dto';
+import { Assignment, AttendanceSession, ExamEvaluation, Submission } from './teaching.entity';
 import { AttendanceRecord, RosterStudent, Scorecard, TeachingClass } from './teaching.responses';
 import { TeachingService } from './teaching.service';
 
@@ -86,5 +86,25 @@ export class TeachingController {
   @Get('scorecards') @TeachingEndpoint('Read stored class scorecards', 'read', Scorecard, true, 'Requires sectionId; optional subjectId (omitted means whole-class attendance only). Students see self only. Academic-year-to-date per section, not custom terms. Mean of graded score/maxScore percentages; completion counts submitted including late; attendance counts present+late over non-excused finalized records. Empty denominators are null. No expensive refresh on GET and no arena data yet.')
   reports(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Query() query: ClassQuery) {
     return this.scorecards.list(org, req.user, query);
+  }
+
+  @Get('evaluations') @TeachingEndpoint('List exam evaluations', 'read', ExamEvaluation, true, 'Returns exam evaluations for section and subject.')
+  evaluations(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Query() query: AssignmentQuery) {
+    return this.teaching.evaluations(org, req.user, query);
+  }
+
+  @Post('evaluations') @TeachingEndpoint('Create an exam evaluation', 'create', ExamEvaluation, false, 'Staff only. Create a new official exam component.')
+  createEvaluation(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Body() dto: CreateEvaluationDto) {
+    return this.teaching.createEvaluation(org, req.user, dto);
+  }
+
+  @Patch('evaluations/:id/scores') @ApiParam({ name: 'id', format: 'uuid' }) @TeachingEndpoint('Update student scores for an evaluation', 'update', ExamEvaluation, false, 'Staff only. Save student scores.')
+  updateEvaluationScores(@Param('organizationId', ParseUUIDPipe) org: string, @Param('id', ParseUUIDPipe) id: string, @Req() req: AuthenticatedRequest, @Body() dto: UpdateScoresDto) {
+    return this.teaching.updateEvaluationScores(org, req.user, id, dto);
+  }
+
+  @Delete('evaluations/:id') @ApiParam({ name: 'id', format: 'uuid' }) @TeachingEndpoint('Delete an exam evaluation', 'update', ExamEvaluation, false, 'Staff only.')
+  deleteEvaluation(@Param('organizationId', ParseUUIDPipe) org: string, @Param('id', ParseUUIDPipe) id: string, @Req() req: AuthenticatedRequest) {
+    return this.teaching.deleteEvaluation(org, req.user, id);
   }
 }

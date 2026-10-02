@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Inject, Inj
 import { isUUID } from 'class-validator';
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto';
 import { DataSource, EntityManager } from 'typeorm';
-import { APP_CONFIG, AppConfig } from '../../config';
+import { AppConfig, InjectConfig } from '../../config';
 import { User } from '../auth/user.entity';
 import { TenantsService } from './tenants.service';
 import { Organization, SchoolRole } from './tenant.entity';
@@ -16,7 +16,7 @@ function canonical(value: unknown): unknown {
 @Injectable()
 export class SchoolWork {
   private readonly encryptionKey: Buffer;
-  constructor(private readonly source: DataSource, private readonly tenants: TenantsService, @Inject(APP_CONFIG) config: AppConfig) {
+  constructor(private readonly source: DataSource, private readonly tenants: TenantsService, @InjectConfig() config: AppConfig) {
     this.encryptionKey = Buffer.from(hkdfSync('sha256', config.sessionSecret, 'edops', 'idempotency-response-v1', 32));
   }
 
@@ -38,15 +38,16 @@ export class SchoolWork {
 
   async run<T>(organizationId: string, actor: User, action: string | null, payload: unknown,
     key: string | undefined | null, work: (manager: EntityManager) => Promise<T>,
-    access?: { roles: readonly SchoolRole[]; authorize: (manager: EntityManager) => Promise<void>; platform?: boolean }): Promise<T> {
+    access?: { roles: readonly SchoolRole[]; authorize: (manager: EntityManager) => Promise<void>; platform?: boolean; lockOrg?: boolean }): Promise<T> {
     if (key !== null && (!key || !isUUID(key))) throw new BadRequestException('Idempotency-Key must be a UUID for creation requests');
     if (key) key = key.toLowerCase();
     return this.source.transaction(async (manager) => {
       // ponytail: serialize writes per school for pilot-sized rosters; narrow locks if measured throughput requires it.
       if (access?.platform && !await manager.getRepository(User).existsBy({ id: actor.id, isActive: true, isPlatformAdmin: true })) throw new ForbiddenException('Platform administrator access required');
+      const shouldLock = action !== null && access?.lockOrg !== false;
       const organization = access?.platform
-        ? await manager.getRepository(Organization).findOne({ where: { id: organizationId }, ...(action !== null ? { lock: { mode: 'pessimistic_write' as const } } : {}) })
-        : await this.tenants.authorizedOrganization(manager, organizationId, actor, action !== null, access?.roles);
+        ? await manager.getRepository(Organization).findOne({ where: { id: organizationId }, ...(shouldLock ? { lock: { mode: 'pessimistic_write' as const } } : {}) })
+        : await this.tenants.authorizedOrganization(manager, organizationId, actor, shouldLock, access?.roles);
       if (!organization) throw new NotFoundException('Organization not found');
       organizationId = organization.id;
       await manager.query("SELECT set_config('app.current_org_id', $1, true)", [organizationId]);
@@ -55,8 +56,11 @@ export class SchoolWork {
       const context = `${organizationId}:${actor.id}:${key}`;
       const hash = createHash('sha256').update(JSON.stringify(canonical({ action, payload }))).digest('hex');
       if (key) {
-        await manager.query('DELETE FROM idempotency_records WHERE organization_id = $1 AND expires_at <= now()', [organizationId]);
-        const [previous] = await manager.query('SELECT request_hash, response_ciphertext FROM idempotency_records WHERE organization_id = $1 AND actor_id = $2 AND key = $3', [organizationId, actor.id, key]);
+        // Prune expired records probabilistically (1 in 20 writes) to avoid table bloat and lock contention on every write.
+        if (Math.random() < 0.05) {
+          await manager.query('DELETE FROM idempotency_records WHERE organization_id = $1 AND expires_at <= now()', [organizationId]);
+        }
+        const [previous] = await manager.query('SELECT request_hash, response_ciphertext FROM idempotency_records WHERE organization_id = $1 AND actor_id = $2 AND key = $3 AND expires_at > now()', [organizationId, actor.id, key]);
         if (previous) {
           if (previous.request_hash !== hash) throw new ConflictException('Idempotency-Key was already used with a different request');
           try { return this.decrypt<T>(previous.response_ciphertext, context); }
@@ -66,7 +70,9 @@ export class SchoolWork {
       const result = await work(manager);
       if (key) await manager.query(`INSERT INTO idempotency_records
         (organization_id, actor_id, key, request_hash, response_ciphertext, expires_at)
-        VALUES ($1, $2, $3, $4, $5, now() + interval '24 hours')`,
+        VALUES ($1, $2, $3, $4, $5, now() + interval '24 hours')
+        ON CONFLICT (organization_id, actor_id, key) DO UPDATE SET
+        request_hash = excluded.request_hash, response_ciphertext = excluded.response_ciphertext, expires_at = excluded.expires_at`,
       [organizationId, actor.id, key, hash, this.encrypt(result, context)]);
       return result;
     });

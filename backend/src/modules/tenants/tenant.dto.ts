@@ -57,4 +57,16 @@ export class AcceptInvitationDto {
   @ApiPropertyOptional({ format: 'password', minLength: 12, maxLength: 128, description: 'Required for a new account. Existing users must sign in and omit this field.', writeOnly: true })
   @ValidateIf(supplied) @IsString() @MinLength(12) @MaxLength(128)
   password?: string;
+
+  @ApiPropertyOptional({ example: 'Mathematics', maxLength: 100, description: 'Subject specialty when accepting invitation as teacher.' })
+  @ValidateIf(supplied) @Transform(trim) @IsString() @MaxLength(100)
+  specialty?: string;
+
+  @ApiPropertyOptional({ example: '+919876543210', maxLength: 32, description: 'Phone number when onboarding.' })
+  @ValidateIf(supplied) @Transform(trim) @IsString() @MaxLength(32)
+  phone?: string;
+
+  @ApiPropertyOptional({ example: 'Rahul Sharma', maxLength: 120, description: 'Full name when onboarding.' })
+  @ValidateIf(supplied) @Transform(trim) @IsString() @MaxLength(120)
+  name?: string;
 }

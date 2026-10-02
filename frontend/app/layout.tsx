@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: new URL(origin),
     title: "EDOPS — Connected school operations",
     description: "Manage school setup, academic structure and roster from one connected workspace.",
-    icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
+    icons: { icon: "/favicon.png", shortcut: "/favicon.png", apple: "/logo.png" },
     openGraph: { title: "EDOPS", description: "School operations, properly connected.", images: [`${origin}/og-api.png`] },
     twitter: { card: "summary_large_image", title: "EDOPS", description: "School operations, properly connected.", images: [`${origin}/og-api.png`] },
   };

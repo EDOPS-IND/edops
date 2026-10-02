@@ -99,18 +99,31 @@ export class TenantsService {
       }
       const users = manager.getRepository(User);
       let user = await users.findOneBy({ email: invitation.email });
+      const fullName = dto.name || invitation.name || user?.name || '';
+      const phoneNum = dto.phone || user?.phone || null;
+
       if (user) {
         if (!user.isActive || signedInUser?.id !== user.id) {
           throw new ForbiddenException('Sign in with the invited account before accepting');
         }
         if (dto.password !== undefined) throw new BadRequestException('An invitation cannot change an existing password');
+        if (fullName || phoneNum) {
+          if (fullName) user.name = fullName;
+          if (phoneNum) user.phone = phoneNum;
+          await users.save(user);
+        }
       } else {
         if (signedInUser) throw new ForbiddenException('Sign out before creating the invited account');
         if (!dto.password) throw new BadRequestException('A password is required for a new account');
-        user = await users.save(users.create({ email: invitation.email, passwordHash: await hashPassword(dto.password) }));
+        user = await users.save(users.create({
+          email: invitation.email,
+          name: fullName,
+          phone: phoneNum,
+          passwordHash: await hashPassword(dto.password),
+        }));
       }
       await manager.getRepository(Membership).insert({
-        organizationId: organization.id, userId: user.id, role: invitation.role,
+        organizationId: organization.id, userId: user.id, role: invitation.role, specialty: dto.specialty || null,
       });
       invitation.acceptedAt = new Date();
       await manager.getRepository(Invitation).save(invitation);

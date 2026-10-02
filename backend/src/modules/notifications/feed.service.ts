@@ -56,8 +56,7 @@ export class FeedService {
         WHERE n.id=$4 AND n.user_id=$3 AND ${visibleEvent}`, [org, role, actor.id, id]);
       if (!found) throw new NotFoundException('Notification not found');
       if (!found.readAt) {
-        const [updated] = await manager.query(`WITH changed AS (UPDATE notifications SET read_at=clock_timestamp() WHERE organization_id=$1 AND id=$2 RETURNING id,read_at)
-          SELECT id,read_at AS "readAt" FROM changed`, [org, id]);
+        const [updated] = await manager.query('UPDATE notifications SET read_at=clock_timestamp() WHERE organization_id=$1 AND id=$2 RETURNING id, read_at AS "readAt"', [org, id]);
         await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'notification.read', details: { notificationId: id } });
         return updated;
       }

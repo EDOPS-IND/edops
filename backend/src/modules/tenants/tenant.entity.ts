@@ -20,6 +20,7 @@ export class Membership {
   @PrimaryColumn({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
   @PrimaryColumn({ name: 'user_id', type: 'uuid' }) userId!: string;
   @Column({ type: 'varchar', length: 20 }) role!: SchoolRole;
+  @Column({ type: 'varchar', length: 100, nullable: true }) specialty?: string | null;
   @Column({ type: 'varchar', length: 16, default: 'active' }) status!: 'active' | 'inactive';
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' }) createdAt!: Date;
 }
@@ -29,6 +30,7 @@ export class Invitation {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
   @Column({ type: 'varchar', length: 254 }) email!: string;
+  @Column({ type: 'varchar', length: 120, nullable: true }) name?: string | null;
   @Column({ type: 'varchar', length: 20, default: 'school_admin' }) role!: 'school_admin' | 'teacher' | 'student';
   @Column({ name: 'batch_id', type: 'uuid', nullable: true }) batchId!: string | null;
   @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true }) revokedAt!: Date | null;
