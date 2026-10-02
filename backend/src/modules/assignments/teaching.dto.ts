@@ -48,3 +48,17 @@ export class AttendanceMarksDto {
   @ValidateNested({ each: true }) @Type(() => AttendanceMarkDto) records!: AttendanceMarkDto[];
 }
 export class EmptyActionDto {}
+
+export class CreateEvaluationDto {
+  @ApiProperty({ format: 'uuid' }) @IsUUID() sectionId!: string;
+  @ApiProperty({ format: 'uuid' }) @IsUUID() subjectId!: string;
+  @ApiProperty({ example: 'Mid Semester Exam', maxLength: 120 }) @Transform(trim) @IsString() @MinLength(1) @MaxLength(120) title!: string;
+  @ApiPropertyOptional({ example: 100 }) @ValidateIf((_o, v) => v !== undefined) @IsNumber() @Min(1) @Max(10000) maxMarks?: number;
+  @ApiPropertyOptional({ example: 25 }) @ValidateIf((_o, v) => v !== undefined) @IsNumber() @Min(0) @Max(100) weightage?: number;
+}
+
+export class UpdateScoresDto {
+  @ApiProperty({ description: 'Map of studentId to numeric score', example: { '00000000-0000-0000-0000-000000000000': 85 } })
+  scores!: Record<string, number>;
+}
+

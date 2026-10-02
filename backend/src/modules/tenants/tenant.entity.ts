@@ -30,6 +30,7 @@ export class Invitation {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
   @Column({ type: 'varchar', length: 254 }) email!: string;
+  @Column({ type: 'varchar', length: 120, nullable: true }) name?: string | null;
   @Column({ type: 'varchar', length: 20, default: 'school_admin' }) role!: 'school_admin' | 'teacher' | 'student';
   @Column({ name: 'batch_id', type: 'uuid', nullable: true }) batchId!: string | null;
   @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true }) revokedAt!: Date | null;

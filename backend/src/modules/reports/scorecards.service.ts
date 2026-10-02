@@ -61,7 +61,10 @@ export class ScorecardsService {
           subject_id AS "subjectId", term, assignment_count AS "assignmentCount", submitted_count AS "submittedCount",
           graded_count AS "gradedCount", avg_score AS "avgScore", completion_pct AS "completionPct", attendance_count AS "attendanceCount",
           attended_count AS "attendedCount", attendance_pct AS "attendancePct", generated_at AS "generatedAt",
-          arena_attempt_count AS "arenaAttemptCount", arena_question_count AS "arenaQuestionCount", arena_score AS "arenaScore"
+          arena_attempt_count AS "arenaAttemptCount", arena_question_count AS "arenaQuestionCount", arena_score AS "arenaScore",
+          (SELECT email FROM users WHERE id = scorecards.student_id) AS "studentEmail",
+          (SELECT coalesce(nullif(name, ''), split_part(email, '@', 1)) FROM users WHERE id = scorecards.student_id) AS "studentName",
+          (SELECT roll_number FROM enrollments WHERE organization_id = scorecards.organization_id AND student_user_id = scorecards.student_id AND section_id = scorecards.section_id AND status = 'active' LIMIT 1) AS "rollNumber"
           FROM scorecards WHERE ${where} ORDER BY student_id LIMIT $5 OFFSET $6`, [...params, query.limit, query.offset]);
         return { items, total: count.total, limit: query.limit, offset: query.offset };
       });

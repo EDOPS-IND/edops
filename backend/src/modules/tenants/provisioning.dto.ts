@@ -7,6 +7,7 @@ import { AcademicListDto } from '../academics/academic.dto';
 export class MemberInvitationDto {
   @ApiProperty({ format: 'email', example: 'teacher@school.example', maxLength: 254 }) @Transform(normalizeEmail) @IsEmail() @MaxLength(254) email!: string;
   @ApiProperty({ enum: ['teacher', 'student'] }) @IsIn(['teacher', 'student']) role!: 'teacher' | 'student';
+  @ApiPropertyOptional({ example: 'Rahul Sharma', maxLength: 120 }) @ValidateIf((_object, value) => value !== undefined) @IsString() @MaxLength(120) name?: string;
 }
 
 export class BulkInvitationsDto {

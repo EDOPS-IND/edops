@@ -72,7 +72,7 @@ export class AuthService implements OnModuleDestroy {
       .select(['organization.id AS id', 'organization.name AS name', 'organization.slug AS slug',
         'organization.status AS status', 'membership.role AS role'])
       .orderBy('organization.name', 'ASC').getRawMany();
-    return { user: { id: user.id, email: user.email, isPlatformAdmin: user.isPlatformAdmin }, organizations };
+    return { user: { id: user.id, email: user.email, name: user.name || '', phone: user.phone || null, isPlatformAdmin: user.isPlatformAdmin }, organizations };
   }
 
   async recordLogout(user: User) {

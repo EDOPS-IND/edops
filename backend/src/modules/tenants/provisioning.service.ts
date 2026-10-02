@@ -60,7 +60,7 @@ export class ProvisioningService {
         const token = randomBytes(32).toString('hex');
         const repository = manager.getRepository(Invitation);
         const invitation = await repository.save(repository.create({ organizationId: org, batchId: batch.id,
-          email: record.email, role: record.role, invitedBy: actor.id, expiresAt, tokenHash: tokenHash(token) }));
+          email: record.email, role: record.role, name: record.name || null, invitedBy: actor.id, expiresAt, tokenHash: tokenHash(token) }));
         invitations.push({ id: invitation.id, email: invitation.email, role: invitation.role, token, expiresAt });
       }
       await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'invitations.created', details: { batchId: batch.id, count: records.length } });
