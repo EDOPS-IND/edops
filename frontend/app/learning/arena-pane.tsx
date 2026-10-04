@@ -17,6 +17,7 @@ export function ArenaPane({
 }) {
   const [items, setItems] = useState<ArenaQuestion[]>([]);
   const [creating, setCreating] = useState(false);
+  const [attemptingId, setAttemptingId] = useState<string | null>(null);
   const [attempts, setAttempts] = useState<Record<string, ArenaAttempt[]>>({});
   const [error, setError] = useState("");
   const [chapterFilter, setChapterFilter] = useState("");
@@ -56,6 +57,7 @@ export function ArenaPane({
     const data = new FormData(event.currentTarget);
     const selected =
       question.questionType === "subjective" ? ["model_answer"] : data.getAll("answer").map(String);
+    setAttemptingId(question.id);
     await run(async () => {
       await createResource(`${root}/questions/${question.id}/attempts`, {
         selectedOptionIds: selected,
@@ -65,6 +67,7 @@ export function ArenaPane({
       );
       setAttempts((current) => ({ ...current, [question.id]: history.items }));
     }, setError);
+    setAttemptingId(null);
   }
 
   const availableChapters = Array.from(new Set(items.map((i) => i.chapter).filter(Boolean)));
@@ -215,7 +218,9 @@ export function ArenaPane({
                       ))}
                     </div>
                   )}
-                  <button className="primary-button">Check answer</button>
+                  <button className="primary-button" disabled={attemptingId === item.id}>
+                    {attemptingId === item.id ? "Checking…" : "Check answer"}
+                  </button>
                   {attempts[item.id]?.[0] &&
                     (item.questionType === "subjective" ? (
                       <div
@@ -301,6 +306,7 @@ export function ArenaPane({
               ? "Published practice will appear here."
               : "Create the first practice question."
           }
+          action={role !== "student" ? { label: "New Arena question", onClick: () => setCreating(true) } : undefined}
         />
       )}
       {creating && (
@@ -327,6 +333,7 @@ function QuestionForm({
   onClose: () => void;
 }) {
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   const [qType, setQType] = useState<"single_choice" | "subjective">("single_choice");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -357,6 +364,7 @@ function QuestionForm({
       answerKey = [String(data.get("answer") || "a")];
     }
 
+    setBusy(true);
     await run(async () => {
       await createResource(`/organizations/${org}/arena/questions`, {
         sectionId: classroom.sectionId,
@@ -373,6 +381,7 @@ function QuestionForm({
       });
       onClose();
     }, setError);
+    setBusy(false);
   }
 
   return (
@@ -503,7 +512,7 @@ function QuestionForm({
           Tags, separated by commas
           <input name="tags" placeholder="e.g. calculus, exam-prep" />
         </label>
-        <FormActions onCancel={onClose} />
+        <FormActions onCancel={onClose} busy={busy} busyLabel="Creating…" />
       </form>
     </Modal>
   );

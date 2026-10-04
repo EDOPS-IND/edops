@@ -9,9 +9,20 @@ export type Section = { id: string; academicYearId: string; programId: string; n
 export type Member = { userId: string; email: string; role: "teacher" | "student"; status: "active" | "inactive"; accountActive: boolean };
 export type Enrollment = { id: string; studentUserId: string; sectionId: string; academicYearId: string; rollNumber: string; status: "active" | "transferred" | "withdrawn"; createdAt: string };
 export type Assignment = { id: string; sectionId: string; subjectId: string; teacherUserId: string; createdAt: string };
+export type ParentChild = {
+  studentUserId: string;
+  name: string;
+  email: string;
+  rollNumber: string;
+  sectionName: string;
+  programName: string;
+  attendancePct: number;
+  todayAttendance: string;
+};
 export type TeacherWorkspaceData = { role: "teacher"; assignments: { id: string; sectionId: string; sectionName: string; subjectId: string; subjectName: string; subjectCode: string }[]; students: { studentUserId: string; email: string; sectionId: string; sectionName: string; rollNumber: string }[] };
 export type StudentWorkspaceData = { role: "student"; enrollment: null | { id: string; sectionId: string; sectionName: string; rollNumber: string; programName: string; academicYearName: string }; subjects: { subjectId: string; subjectName: string; subjectCode: string; teacherUserId: string; teacherEmail: string }[] };
-export type RoleWorkspaceData = TeacherWorkspaceData | StudentWorkspaceData;
+export type ParentWorkspaceData = { role: "parent"; children: ParentChild[] };
+export type RoleWorkspaceData = TeacherWorkspaceData | StudentWorkspaceData | ParentWorkspaceData;
 export type InvitationBatch = { id: string; organizationId: string; count: number; createdAt: string };
 export type SchoolData = { organization: Organization; years: ListResult<AcademicYear>; programs: ListResult<Program>; subjects: ListResult<Subject>; sections: ListResult<Section>; members: ListResult<Member>; enrollments: ListResult<Enrollment>; assignments: ListResult<Assignment>; batches: ListResult<InvitationBatch> };
 
@@ -62,3 +73,58 @@ export async function loadSchool(organizationId: string): Promise<SchoolData> {
 export function createResource<T>(path: string, body: unknown, idempotent = true) { return api<T>(path, { method: "POST", body, idempotent }); }
 export function updateResource<T>(path: string, body: unknown) { return api<T>(path, { method: "PATCH", body }); }
 export function deleteResource<T>(path: string) { return api<T>(path, { method: "DELETE" }); }
+
+// Platform Control Center APIs
+export function getPlatformDashboard() { return api<any>("/platform/dashboard"); }
+export function getPlatformSchools(limit = 50, offset = 0) { return api<ListResult<any>>(`/platform/organizations?limit=${limit}&offset=${offset}`); }
+export function getPlatformPlans(limit = 50, offset = 0) { return api<ListResult<any>>(`/platform/plans?limit=${limit}&offset=${offset}`); }
+export function createPlatformPlan(plan: any) { return api<any>("/platform/plans", { method: "POST", body: plan }); }
+export function updatePlanStatus(id: string, active: boolean) { return api<any>(`/platform/plans/${id}/status`, { method: "PATCH", body: { active } }); }
+export function getPlatformFeatures() { return api<any[]>("/platform/features"); }
+export function getPlatformFeatureMatrix() { return api<{ plans: any[]; features: any[] }>("/platform/feature-matrix"); }
+export function updatePlanFeatures(planId: string, features: Record<string, boolean>) { return api<any>(`/platform/plans/${planId}/features`, { method: "PATCH", body: { features } }); }
+export function getSchoolBilling(orgId: string) { return api<any>(`/platform/organizations/${orgId}/billing`); }
+export function getSchoolDetailedOverrides(orgId: string) { return api<any[]>(`/platform/organizations/${orgId}/detailed-overrides`); }
+export function setSchoolDetailedOverride(orgId: string, override: any) { return api<any>(`/platform/organizations/${orgId}/detailed-overrides`, { method: "POST", body: override }); }
+export function removeSchoolDetailedOverride(orgId: string, featureKey: string) { return api<any>(`/platform/organizations/${orgId}/detailed-overrides/${featureKey}/remove`, { method: "PATCH", body: {} }); }
+export function onboardSchool(data: any) { return api<any>("/platform/organizations/onboard", { method: "POST", body: data }); }
+export function updateSchoolLifecycle(orgId: string, data: any) { return api<any>(`/platform/organizations/${orgId}/lifecycle`, { method: "PATCH", body: data }); }
+export function getSupportTickets(limit = 50, offset = 0) { return api<ListResult<any>>(`/platform/support/tickets?limit=${limit}&offset=${offset}`); }
+export function createSupportTicket(data: any) { return api<any>("/platform/support/tickets", { method: "POST", body: data }); }
+export function updateSupportTicketStatus(id: string, data: any) { return api<any>(`/platform/support/tickets/${id}/status`, { method: "PATCH", body: data }); }
+export function startSupportSession(data: any) { return api<any>("/platform/support/sessions", { method: "POST", body: data }); }
+export function getAnnouncements() { return api<any[]>("/platform/announcements"); }
+export function createAnnouncement(data: any) { return api<any>("/platform/announcements", { method: "POST", body: data }); }
+export function getPayments(limit = 50, offset = 0) { return api<ListResult<any>>(`/platform/payments?limit=${limit}&offset=${offset}`); }
+export function recordPayment(data: any) { return api<any>("/platform/payments", { method: "POST", body: data }); }
+export function refundPayment(id: string, reason: string) { return api<any>(`/platform/payments/${id}/refund`, { method: "POST", body: { reason } }); }
+export function globalSearch(q: string) { return api<{ results: any[] }>(`/platform/search?q=${encodeURIComponent(q)}`); }
+export function getDetailedHealth() { return api<any>("/platform/health-detailed"); }
+export function getPlatformStaff() { return api<any>("/platform/staff"); }
+export function getAuditLogs(limit = 50, offset = 0) { return api<ListResult<any>>(`/platform/audit-logs?limit=${limit}&offset=${offset}`); }
+
+// School Admin Control Center APIs
+export function getSchoolAdminDashboard(orgId: string) { return api<any>(`/organizations/${orgId}/school-admin/dashboard`); }
+export function getSchoolAdminStudents(orgId: string) { return api<any[]>(`/organizations/${orgId}/school-admin/people/students`); }
+export function getSchoolAdminStudent360(orgId: string, studentId: string) { return api<any>(`/organizations/${orgId}/school-admin/people/students/${studentId}/360`); }
+export function getSchoolAdminTeachers(orgId: string) { return api<any[]>(`/organizations/${orgId}/school-admin/people/teachers`); }
+export function getSchoolAdminDepartments(orgId: string) { return api<any[]>(`/organizations/${orgId}/school-admin/people/departments`); }
+export function createSchoolAdminDepartment(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/school-admin/people/departments`, { method: "POST", body: data }); }
+export function getSchoolAdminAcademics(orgId: string) { return api<any>(`/organizations/${orgId}/school-admin/academics/overview`); }
+export function getSchoolAdminTimetable(orgId: string, sectionId?: string) { return api<any>(`/organizations/${orgId}/school-admin/timetable${sectionId ? `?sectionId=${sectionId}` : ''}`); }
+export function createSchoolAdminTimetable(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/school-admin/timetable`, { method: "POST", body: data }); }
+export function getSchoolAdminAttendance(orgId: string) { return api<any>(`/organizations/${orgId}/school-admin/attendance/registers`); }
+export function getSchoolAdminLeaves(orgId: string) { return api<any[]>(`/organizations/${orgId}/school-admin/leaves`); }
+export function createSchoolAdminLeave(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/school-admin/leaves`, { method: "POST", body: data }); }
+export function updateSchoolAdminLeaveStatus(orgId: string, id: string, status: string, reviewNotes?: string) { return api<any>(`/organizations/${orgId}/school-admin/leaves/${id}/status`, { method: "PATCH", body: { status, reviewNotes } }); }
+export function getSchoolAdminFinance(orgId: string) { return api<any>(`/organizations/${orgId}/school-admin/finance/overview`); }
+export function createSchoolAdminFeeStructure(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/school-admin/finance/structures`, { method: "POST", body: data }); }
+export function sendSchoolAdminFeeReminder(orgId: string, dueId: string, channel = "whatsapp") { return api<any>(`/organizations/${orgId}/school-admin/finance/send-reminder`, { method: "POST", body: { dueId, channel } }); }
+export function grantSchoolAdminFeeConcession(orgId: string, dueId: string, concessionAmount: number, concessionReason: string) { return api<any>(`/organizations/${orgId}/school-admin/finance/grant-concession`, { method: "POST", body: { dueId, concessionAmount, concessionReason } }); }
+export function getSchoolAdminBroadcasts(orgId: string) { return api<any[]>(`/organizations/${orgId}/school-admin/communication/broadcasts`); }
+export function createSchoolAdminBroadcast(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/school-admin/communication/broadcast`, { method: "POST", body: data }); }
+export function getSchoolAdminOperations(orgId: string) { return api<any>(`/organizations/${orgId}/school-admin/operations/overview`); }
+export function getSchoolAdminGovernance(orgId: string) { return api<any>(`/organizations/${orgId}/school-admin/governance/overview`); }
+export function createSchoolAdminDiscipline(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/school-admin/governance/discipline`, { method: "POST", body: data }); }
+
+

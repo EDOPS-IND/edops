@@ -5,9 +5,12 @@ import { AcademicYear, api, createResource, loadRoleWorkspace, loadSchool, login
 import { LearningWorkspace, SchoolBilling } from "./learning-workspace";
 import { PlatformWorkspace } from "./platform-workspace";
 import { DashboardHome } from "./dashboard-home";
-import { BarChart3, Bell, BookOpen, CalendarCheck2, CalendarDays, ClipboardCheck, CreditCard, Database, GraduationCap, Home as HomeIcon, LayoutDashboard, LogOut, Network, Settings as SettingsIcon, ShieldCheck, Sparkles, Trophy, UserRound, Users, Video } from "lucide-react";
+import { ParentDashboard } from "./parent-dashboard";
+import { PrincipalDashboard } from "./principal-dashboard";
+import { SchoolAdminWorkspace } from "./school-admin";
+import { BarChart3, Bell, BookOpen, CalendarCheck2, CalendarDays, ClipboardCheck, CreditCard, Database, Eye, EyeOff, GraduationCap, Home as HomeIcon, LayoutDashboard, LogOut, Network, Settings as SettingsIcon, ShieldCheck, Sliders, Sparkles, Trophy, UserRound, Users, Video, Building2 } from "lucide-react";
 
-type Panel = "overview" | "academics" | "people" | "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress" | "billing" | "settings";
+type Panel = "overview" | "principal" | "parent" | "academics" | "people" | "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress" | "billing" | "settings";
 type Action = "year" | "program" | "subject" | "section" | "teacherAssignment" | "enrollment" | "invite" | "school" | null;
 type MemberRole = Exclude<OrganizationSummary["role"], "school_admin">;
 
@@ -114,48 +117,68 @@ export default function Home() {
   const activeEnrollments = school?.enrollments.items.filter((item) => item.status === "active").length ?? 0;
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <header className="topbar">
         <Brand />
-        <div className="api-status"><span /> Connected to EDOPS API</div>
+        <div className="api-status"><span /> Connected to EDOPS API · School OS</div>
         <div className="top-actions">
           <WorkspaceSelect profile={profile} value={workspace} onChange={switchWorkspace} />
           <ProfileMenu email={profile.user.email} role="School administrator" onLogout={signOut} />
         </div>
       </header>
 
-      <aside className="sidebar" aria-label="School navigation">
-        <div className="nav-section"><p className="eyebrow">School workspace</p>{[["overview", "Overview"], ["academics", "Academics"], ["people", "People"], ["assignments", "Assignments"], ["attendance", "Attendance"], ["updates", "Updates"], ["recordings", "Recordings"], ["arena", "Arena"], ["progress", "Progress"], ["billing", "Billing"], ["settings", "Settings"]].map(([key, label]) => <button key={key} className={panel === key ? "nav-item active" : "nav-item"} onClick={() => setPanel(key as Panel)}><span><NavIcon id={key} /></span>{label}</button>)}</div>
-        {currentYear && <div className="term-card sidebar-term"><span>{currentYear.name}</span><p>Current academic year</p></div>}
-      </aside>
+      {error && <div className="error-banner" role="alert"><b>Couldn’t complete that request.</b><span>{error}</span><button onClick={() => setError("")}>×</button></div>}
 
-      <main id="content" className="main-content">
-        {error && <div className="error-banner" role="alert"><b>Couldn’t complete that request.</b><span>{error}</span><button onClick={() => setError("")}>×</button></div>}
-        {loading || !school?.organization ? <DashboardSkeleton /> : <>
-          <section className="welcome-row"><div><p className="date-line">{new Intl.DateTimeFormat(undefined, { weekday: "long", day: "numeric", month: "long" }).format(new Date())}</p><h1>{panel === "overview" ? school.organization.name : panel[0].toUpperCase() + panel.slice(1)}</h1><p>{panel === "overview" ? "Your live school setup and roster at a glance." : `Manage ${panel} for ${school.organization.name}.`}</p></div>{(["overview", "academics", "people", "settings"] as Panel[]).includes(panel) && <button className="primary-button" onClick={() => setAction(panel === "people" ? "invite" : panel === "settings" ? "school" : "section")}><span>＋</span>{panel === "people" ? "Invite person" : panel === "settings" ? "Edit school" : "Create section"}</button>}</section>
+      <div className="school-workspace-container" aria-label="School workspace" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <SchoolAdminWorkspace
+          schoolName={school?.organization?.name || membership.name}
+          organizationId={schoolId}
+          onOpenAction={(act) => setAction(act as Action)}
+        />
+      </div>
 
-          {panel === "overview" && <Overview school={school} setup={setup} completed={completed} teachers={memberCounts.teacher ?? 0} students={memberCounts.student ?? 0} activeEnrollments={activeEnrollments} onAction={setAction} />}
-          {panel === "academics" && <Academics school={school} onAction={setAction} />}
-          {panel === "people" && <People members={school.members.items} onInvite={() => setAction("invite")} onStatus={(member) => mutate(() => updateResource(`/organizations/${schoolId}/members/${member.userId}`, { status: member.status === "active" ? "inactive" : "active" }), `${member.email} ${member.status === "active" ? "deactivated" : "activated"}`)} />}
-          {(["assignments", "attendance", "updates", "recordings", "arena", "progress"] as Panel[]).includes(panel) && <LearningWorkspace key={panel} organizationId={schoolId} role="school_admin" initialTab={panel as "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress"} hideTabs />}
-          {panel === "billing" && <SchoolBilling organizationId={schoolId} />}
-          {panel === "settings" && <Settings organization={school.organization} onEdit={() => setAction("school")} />}
-        </>}
-      </main>
+      {action && school?.organization && (
+        <ActionModal
+          action={action}
+          school={school}
+          busy={busy}
+          onClose={() => setAction(null)}
+          onSubmit={(body) => {
+            const root = `/organizations/${schoolId}`;
+            const academics = `${root}/academics`;
+            if (action === "school") return mutate(() => updateResource(root, body), "School settings updated");
+            if (action === "invite") {
+              setBusy(true); setError("");
+              createResource<{ invitations: { token: string; email: string; expiresAt: string }[] }>(`${root}/invitations`, body)
+                .then(async (result) => { setInvitation(result.invitations[0]); setAction(null); await refresh(); })
+                .catch((reason) => setError(reason.message))
+                .finally(() => setBusy(false));
+              return;
+            }
+            if (action === "teacherAssignment") return mutate(() => createResource(`${academics}/teacher-assignments`, body), "Teacher assigned");
+            if (action === "enrollment") return mutate(() => createResource(`${academics}/enrollments`, body), "Student enrolled");
+            return mutate(() => createResource(`${academics}/${action === "year" ? "years" : action + "s"}`, body), `${action[0].toUpperCase() + action.slice(1)} created`);
+          }}
+        />
+      )}
 
-      {action && school?.organization && <ActionModal action={action} school={school} busy={busy} onClose={() => setAction(null)} onSubmit={(body) => {
-        const root = `/organizations/${schoolId}`; const academics = `${root}/academics`;
-        if (action === "school") return mutate(() => updateResource(root, body), "School settings updated");
-        if (action === "invite") {
-          setBusy(true); setError("");
-          createResource<{ invitations: { token: string; email: string; expiresAt: string }[] }>(`${root}/invitations`, body).then(async (result) => { setInvitation(result.invitations[0]); setAction(null); await refresh(); }).catch((reason) => setError(reason.message)).finally(() => setBusy(false));
-          return;
-        }
-        if (action === "teacherAssignment") return mutate(() => createResource(`${academics}/teacher-assignments`, body), "Teacher assigned");
-        if (action === "enrollment") return mutate(() => createResource(`${academics}/enrollments`, body), "Student enrolled");
-        return mutate(() => createResource(`${academics}/${action === "year" ? "years" : action + "s"}`, body), `${action[0].toUpperCase() + action.slice(1)} created`);
-      }} />}
-      {invitation && <div className="modal-backdrop"><section className="action-modal token-modal" role="dialog" aria-modal="true" aria-labelledby="token-title"><button className="modal-close" onClick={() => setInvitation(null)} aria-label="Close">×</button><span className="success-mark">✓</span><h2 id="token-title">Invitation created</h2><p>Deliver this one-time token privately to <b>{invitation.email}</b>. EDOPS cannot retrieve it later.</p><code>{invitation.token}</code><small>Expires {formatDate(invitation.expiresAt)}</small><div className="modal-actions"><button className="secondary-button" onClick={() => setInvitation(null)}>Done</button><button className="primary-button" onClick={() => navigator.clipboard.writeText(invitation.token)}>Copy token</button></div></section></div>}
+      {invitation && (
+        <div className="modal-backdrop">
+          <section className="action-modal token-modal" role="dialog" aria-modal="true" aria-labelledby="token-title">
+            <button className="modal-close" onClick={() => setInvitation(null)} aria-label="Close">×</button>
+            <span className="success-mark">✓</span>
+            <h2 id="token-title">Invitation created</h2>
+            <p>Deliver this one-time token privately to <b>{invitation.email}</b>. EDOPS cannot retrieve it later.</p>
+            <code>{invitation.token}</code>
+            <small>Expires {formatDate(invitation.expiresAt)}</small>
+            <div className="modal-actions">
+              <button className="secondary-button" onClick={() => setInvitation(null)}>Done</button>
+              <button className="primary-button" onClick={() => navigator.clipboard.writeText(invitation.token)}>Copy token</button>
+            </div>
+          </section>
+        </div>
+      )}
+
       {notice && <div className="toast" role="status"><span>✓</span>{notice}</div>}
     </div>
   );
@@ -166,9 +189,9 @@ export function EdopsLogo({ size = "sm", className = "", style }: { size?: "sm" 
     <div className={`edops-pill-logo ${size} ${className}`.trim()} style={style} aria-label="EDOPS">
       <div className="edops-logo-inner">
         <svg className="edops-logo-wing" viewBox="0 0 300 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M 170 8 C 175 40 210 75 288 132 C 275 110 245 80 205 60 C 185 45 175 25 170 8 Z" fill="#5e17eb" />
+          <path d="M 170 8 C 175 40 210 75 288 132 C 275 110 245 80 205 60 C 185 45 175 25 170 8 Z" fill="#F8E7C9" />
           <path d="M 85 32 C 120 60 180 85 284 129 C 250 115 195 95 130 65 C 105 50 90 40 85 32 Z" fill="#ffffff" />
-          <path d="M 10 97 C 35 112 65 125 105 133 C 145 135 220 130 288 132 C 240 125 180 127 125 122 C 75 118 40 108 10 97 Z" fill="#5e17eb" />
+          <path d="M 10 97 C 35 112 65 125 105 133 C 145 135 220 130 288 132 C 240 125 180 127 125 122 C 75 118 40 108 10 97 Z" fill="#F8E7C9" />
         </svg>
         <div className="edops-logo-text">
           <span className="edops-purple">ED</span>
@@ -181,7 +204,7 @@ export function EdopsLogo({ size = "sm", className = "", style }: { size?: "sm" 
 }
 
 function Brand() { return <a className="brand" href="#content" aria-label="EDOPS dashboard"><EdopsLogo size="sm" /></a>; }
-function NavIcon({ id }: { id: string }) { const Icon = ({ overview: LayoutDashboard, academics: GraduationCap, people: Users, assignments: ClipboardCheck, attendance: CalendarCheck2, updates: Bell, recordings: Video, arena: Trophy, progress: BarChart3, billing: CreditCard, settings: SettingsIcon, children: Users, notices: Bell } as Record<string, typeof LayoutDashboard>)[id] ?? BookOpen; return <Icon size={18} strokeWidth={1.8} aria-hidden="true" />; }
+function NavIcon({ id }: { id: string }) { const Icon = ({ overview: LayoutDashboard, principal: ShieldCheck, parent: Users, academics: GraduationCap, people: Users, assignments: ClipboardCheck, attendance: CalendarCheck2, updates: Bell, recordings: Video, arena: Trophy, progress: BarChart3, billing: CreditCard, settings: SettingsIcon, children: Users, notices: Bell } as Record<string, typeof LayoutDashboard>)[id] ?? BookOpen; return <Icon size={18} strokeWidth={1.8} aria-hidden="true" />; }
 function ProfileMenu({ email, role, onLogout }: { email: string; role: string; onLogout: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const menu = useRef<HTMLDetailsElement>(null);
@@ -191,15 +214,95 @@ function LoadingScreen() { return <div className="loading-screen"><EdopsLogo siz
 function DashboardSkeleton() { return <div className="dashboard-skeleton"><div /><div /><div /><div /></div>; }
 
 function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => void; onInvite: () => void }) {
-  const [busy, setBusy] = useState(false); const [error, setError] = useState("");
-  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); const data = new FormData(event.currentTarget); try { onLogin(await login(String(data.get("email")), String(data.get("password")))); } catch (reason) { setError(reason instanceof Error ? reason.message : "Sign in failed"); } finally { setBusy(false); } }
-  return <main className="auth-page"><section className="auth-brand"><EdopsLogo size="lg" /><div><p className="eyebrow">Connected school operations</p><h1>Everything your school needs. Nothing it doesn’t.</h1><p>A focused workspace for administrators, teachers, and students.</p></div><small>Secure. Clear. Built for learning.</small></section><section className="auth-panel"><form className="auth-form" onSubmit={submit}><p className="eyebrow">Welcome back</p><h2>Sign in to EDOPS</h2><p>Use the account created through your EDOPS invitation.</p>{error && <div className="form-error" role="alert">{error}</div>}<label>Email address<input name="email" type="email" autoComplete="email" required placeholder="you@school.edu" /></label><label>Password<input name="password" type="password" autoComplete="current-password" required /></label><button className="primary-button" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button><button type="button" className="link-button" onClick={onInvite}>Accept an invitation</button><small>Your session is protected by EDOPS.</small></form></section></main>;
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    const data = new FormData(event.currentTarget);
+    try {
+      onLogin(await login(String(data.get("email")), String(data.get("password"))));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Sign in failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="auth-page">
+      <section className="auth-brand">
+        <EdopsLogo size="lg" />
+        <div>
+          <p className="eyebrow">Connected school operations</p>
+          <h1>Everything your school needs. Nothing it doesn’t.</h1>
+          <p>A focused workspace for administrators, teachers, and students.</p>
+        </div>
+        <small>Secure. Clear. Built for learning.</small>
+      </section>
+      <section className="auth-panel">
+        <form className="auth-form" onSubmit={submit}>
+          <p className="eyebrow">Welcome back</p>
+          <h2>Sign in to EDOPS</h2>
+          <p>Use the account created through your EDOPS invitation.</p>
+          {error && <div className="form-error" role="alert">{error}</div>}
+          <label>
+            Email address
+            <input name="email" type="email" autoComplete="email" required placeholder="you@school.edu" />
+          </label>
+          <label>
+            Password
+            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                style={{ paddingRight: "40px" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Hide password" : "Show password"}
+                style={{
+                  position: "absolute",
+                  right: "10px",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "var(--muted, #64748b)",
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "4px",
+                }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </label>
+          <button className="primary-button" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
+          <button type="button" className="link-button" onClick={onInvite}>Accept an invitation</button>
+          <small>Your session is protected by EDOPS.</small>
+        </form>
+      </section>
+    </main>
+  );
 }
 
 function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => void }) {
-  const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [success, setSuccess] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setBusy(true); setError(""); const data = new FormData(event.currentTarget);
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    const data = new FormData(event.currentTarget);
     const body: Record<string, string> = { token: String(data.get("token")) };
     if (!signedIn) body.password = String(data.get("password"));
     const specialty = String(data.get("specialty") || "").trim();
@@ -217,7 +320,83 @@ function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => v
       setBusy(false);
     }
   }
-  return <main className="standalone-page"><section className="standalone-card"><div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}><EdopsLogo size="md" /></div>{success ? <><span className="success-mark">✓</span><h1>Invitation accepted</h1><p>{signedIn ? "Your school membership is ready. Refresh your dashboard to continue." : "Your account is ready. Sign in with your email and new password."}</p><button className="primary-button" onClick={onDone}>Continue to sign in</button></> : <form className="auth-form" onSubmit={submit}><p className="eyebrow">School invitation</p><h2>Join your EDOPS workspace</h2><p>{signedIn ? "Paste the invitation token sent to your account." : "Paste your invitation token and choose a password of at least 12 characters."}</p>{error && <div className="form-error" role="alert">{error}</div>}<label>Invitation token<input name="token" minLength={64} maxLength={64} required defaultValue={typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite") ?? "" : ""} /></label>{!signedIn && <label>Create password<input name="password" type="password" minLength={12} maxLength={128} required autoComplete="new-password" /></label>}<label>Phone number <span style={{ color: "var(--accent, #e11d48)" }}>*</span><input name="phone" type="tel" required placeholder="+91 98765 43210" maxLength={32} /></label><label>Full name<input name="name" placeholder="Confirm your name" maxLength={120} /></label><label>Subject Specialty <span style={{ opacity: 0.65, fontSize: "0.85em" }}>(for teachers, e.g. Mathematics)</span><input name="specialty" placeholder="e.g. Mathematics, Physics, Chemistry" maxLength={100} /></label><button className="primary-button" disabled={busy}>{busy ? "Accepting…" : "Accept invitation"}</button><button type="button" className="link-button" onClick={onDone}>Back to sign in</button></form>}</section></main>;
+
+  return (
+    <main className="standalone-page">
+      <section className="standalone-card">
+        <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
+          <EdopsLogo size="md" />
+        </div>
+        {success ? (
+          <>
+            <span className="success-mark">✓</span>
+            <h1>Invitation accepted</h1>
+            <p>{signedIn ? "Your school membership is ready. Refresh your dashboard to continue." : "Your account is ready. Sign in with your email and new password."}</p>
+            <button className="primary-button" onClick={onDone}>Continue to sign in</button>
+          </>
+        ) : (
+          <form className="auth-form" onSubmit={submit}>
+            <p className="eyebrow">School invitation</p>
+            <h2>Join your EDOPS workspace</h2>
+            <p>{signedIn ? "Paste the invitation token sent to your account." : "Paste your invitation token and choose a password of at least 12 characters."}</p>
+            {error && <div className="form-error" role="alert">{error}</div>}
+            <label>
+              Invitation token
+              <input name="token" minLength={64} maxLength={64} required defaultValue={typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite") ?? "" : ""} />
+            </label>
+            {!signedIn && (
+              <label>
+                Create password
+                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                  <input
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    minLength={12}
+                    maxLength={128}
+                    required
+                    autoComplete="new-password"
+                    style={{ paddingRight: "40px" }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    style={{
+                      position: "absolute",
+                      right: "10px",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--muted, #64748b)",
+                      display: "flex",
+                      alignItems: "center",
+                      padding: "4px",
+                    }}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </label>
+            )}
+            <label>
+              Phone number <span style={{ color: "var(--accent, #e11d48)" }}>*</span>
+              <input name="phone" type="tel" required placeholder="+91 98765 43210" maxLength={32} />
+            </label>
+            <label>
+              Full name
+              <input name="name" placeholder="Confirm your name" maxLength={120} />
+            </label>
+            <label>
+              Subject Specialty <span style={{ opacity: 0.65, fontSize: "0.85em" }}>(for teachers, e.g. Mathematics)</span>
+              <input name="specialty" placeholder="e.g. Mathematics, Physics, Chemistry" maxLength={100} />
+            </label>
+            <button className="primary-button" disabled={busy}>{busy ? "Accepting…" : "Accept invitation"}</button>
+            <button type="button" className="link-button" onClick={onDone}>Back to sign in</button>
+          </form>
+        )}
+      </section>
+    </main>
+  );
 }
 
 function WorkspaceSelect({ profile, value, onChange }: { profile: Profile; value: string; onChange: (value: string) => void }) {
@@ -250,13 +429,13 @@ function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }
   const [error, setError] = useState("");
   const panel = panels.find((item) => item.id === panelId) ?? panels[0];
 
-  const studentSubjects = useMemo(() => {
-    if (data?.subjects && data.subjects.length > 0) {
-      return data.subjects.map((item) => {
-        const anyItem = item as any;
-        const name = item.subjectName || anyItem.name || anyItem.title || item.subjectCode || "Subject";
+  const studentSubjects: { id: string; name: string; code: string }[] = useMemo(() => {
+    const d = data as any;
+    if (d?.subjects && d.subjects.length > 0) {
+      return d.subjects.map((item: any) => {
+        const name = item.subjectName || item.name || item.title || item.subjectCode || "Subject";
         return {
-          id: anyItem.subjectId || anyItem.id || item.subjectCode || name,
+          id: item.subjectId || item.id || item.subjectCode || name,
           name,
           code: item.subjectCode || "",
         };
@@ -267,10 +446,9 @@ function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }
       { id: "ds", name: "Data Structures", code: "DS" },
       { id: "math", name: "Mathematics", code: "MATH" },
     ];
-  }, [data?.subjects]);
+  }, [data]);
 
   useEffect(() => {
-    if (membership.role === "parent") return;
     setLoading(true); setError("");
     loadRoleWorkspace(membership.id).then(setData).catch((reason) => setError(reason instanceof Error ? reason.message : "Academic records could not be loaded")).finally(() => setLoading(false));
   }, [membership.id, membership.role]);
@@ -360,12 +538,13 @@ function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }
     ) : (
       <aside className="sidebar" aria-label={`${roleNames[membership.role]} navigation`}><div className="nav-section"><p className="eyebrow">{roleNames[membership.role]}</p>{panels.map((item) => <button key={item.id} className={panel.id === item.id ? "nav-item active" : "nav-item"} onClick={() => setPanelId(item.id)}><span><NavIcon id={item.id} /></span>{item.label}</button>)}</div><div className={`term-card sidebar-term ${membership.status === "suspended" ? "suspended" : ""}`}><span>{membership.name}</span><p>{membership.status === "active" ? "Active school" : "School access suspended"}</p></div></aside>
     )}
-    <main id="content" className="main-content"><section className="welcome-row"><div><p className="date-line">{membership.name} · {roleNames[membership.role]}</p><h1>{panel.title}</h1><p>{panel.id === "overview" ? config.intro : panel.copy}</p></div><span className={`membership-badge ${membership.status}`}>{membership.status}</span></section>{membership.status === "suspended" && <div className="error-banner" role="alert"><b>This school workspace is suspended.</b><span>Contact a school or platform administrator to restore access.</span></div>}{error && <div className="error-banner" role="alert"><b>Couldn’t load your academic records.</b><span>{error}</span></div>}{membership.role === "parent" ? <><section className="role-card-grid">{panel.items.map(([title, copy], index) => <article className="role-card" key={title}><span>{panel.icon}</span><div><p className="eyebrow">{String(index + 1).padStart(2, "0")}</p><h2>{title}</h2><p>{copy}</p></div></article>)}</section><section className="data-card role-coming-soon"><div className="data-head"><div><h2>{panel.title}</h2><p>{panel.copy}</p></div><span className="table-pill">Not available in API</span></div><div><span>◇</span><h3>Parent data is not implemented</h3><p>The backend must add parent-to-student relationships before this workspace can show real records.</p></div></section></> : <>{loading && !data ? <DashboardSkeleton /> : panel.id === "overview" ? <><DashboardHome organizationId={membership.id} role={membership.role} selectedSubject={selectedSubject} onSelectSubject={setSelectedSubject} onNavigate={(tab, classKey) => { setInitialClassKey(classKey ?? ""); setPanelId(tab); }} /><details className="academic-details"><summary>My academic details</summary>{data && <RoleAcademicData data={data} />}</details></> : <LearningWorkspace key={panel.id} initialClassKey={initialClassKey} organizationId={membership.id} role={membership.role} initialTab={panel.id as "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress"} hideTabs />}</>}</main>
+    <main id="content" className="main-content"><section className="welcome-row"><div><p className="date-line">{membership.name} · {roleNames[membership.role]}</p><h1>{panel.title}</h1><p>{panel.id === "overview" ? config.intro : panel.copy}</p></div><span className={`membership-badge ${membership.status}`}>{membership.status}</span></section>{membership.status === "suspended" && <div className="error-banner" role="alert"><b>This school workspace is suspended.</b><span>Contact a school or platform administrator to restore access.</span></div>}{error && <div className="error-banner" role="alert"><b>Couldn’t load your academic records.</b><span>{error}</span></div>}{membership.role === "parent" ? <ParentDashboard organizationId={membership.id} children={data && "children" in data ? (data as any).children : []} onNotify={(msg) => alert(msg)} /> : <>{loading && !data ? <DashboardSkeleton /> : panel.id === "overview" ? <><DashboardHome organizationId={membership.id} role={membership.role} selectedSubject={selectedSubject} onSelectSubject={setSelectedSubject} onNavigate={(tab, classKey) => { setInitialClassKey(classKey ?? ""); setPanelId(tab); }} /><details className="academic-details"><summary>My academic details</summary>{data && <RoleAcademicData data={data} />}</details></> : <LearningWorkspace key={panel.id} initialClassKey={initialClassKey} organizationId={membership.id} role={membership.role} initialTab={panel.id as "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress"} hideTabs />}</>}</main>
   </div>;
 }
 
 function RoleAcademicData({ data }: { data: RoleWorkspaceData }) {
   if (data.role === "teacher") return <div className="content-stack"><ReadOnlySection title="My teaching assignments" empty="No section or subject has been assigned to you yet." rows={data.assignments.map((item) => [item.subjectName, item.sectionName, item.subjectCode])} /><ReadOnlySection title="Students in my sections" empty="No active students are enrolled in your assigned sections yet." rows={data.students.map((item) => [item.email, item.sectionName, `Roll ${item.rollNumber}`])} /></div>;
+  if (data.role === "parent") return <div className="content-stack"><p>Parent academic details are shown in the Parent Hub above.</p></div>;
   const enrollment = data.enrollment;
   return <div className="content-stack"><ReadOnlySection title="My enrollment" empty="You do not have an active section enrollment yet." rows={enrollment ? [[enrollment.sectionName, `${enrollment.programName} · ${enrollment.academicYearName}`, `Roll ${enrollment.rollNumber}`]] : []} /><ReadOnlySection title="My subjects and teachers" empty="No teachers have been assigned to subjects in your section yet." rows={data.subjects.map((item) => [item.subjectName, item.teacherEmail, item.subjectCode])} /></div>;
 }
@@ -375,14 +554,72 @@ function ReadOnlySection({ title, empty, rows }: { title: string; empty: string;
 }
 
 function PlatformScreen({ profile, workspace, onWorkspace, onLogout }: { profile: Profile; workspace: string; onWorkspace: (value: string) => void; onLogout: () => void }) {
-  const [busy, setBusy] = useState(false); const [error, setError] = useState(""); const [result, setResult] = useState<{ invitation: { token: string; email: string; expiresAt: string }; organization: Organization } | null>(null);
-  async function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); setBusy(true); setError(""); const data = new FormData(event.currentTarget); try { setResult(await createResource("/platform/organizations", { name: data.get("name"), slug: data.get("slug"), adminEmail: data.get("adminEmail"), timeZone: data.get("timeZone"), locale: data.get("locale") }, false)); } catch (reason) { setError(reason instanceof Error ? reason.message : "School could not be created"); } finally { setBusy(false); } }
-  return <main className="standalone-page platform-page"><header><EdopsLogo size="sm" /><div className="top-actions">{profile.organizations.length > 0 && <WorkspaceSelect profile={profile} value={workspace} onChange={onWorkspace} />}<ProfileMenu email={profile.user.email} role="Platform administrator" onLogout={onLogout} /></div></header><section className="platform-card"><p className="eyebrow">Platform administration</p><h1>{profile.user.isPlatformAdmin ? "Platform overview" : "No active workspace"}</h1><p>{profile.user.isPlatformAdmin ? "Manage your schools, subscription plans, and billing in one place." : "Your account has no school membership. Ask a platform administrator for an invitation."}</p>{profile.user.isPlatformAdmin && !result && <details className="provision-panel"><summary>Add a new school</summary><form className="form-grid platform-form" onSubmit={submit}>{error && <div className="form-error wide">{error}</div>}<label>School name<input name="name" required maxLength={120} /></label><label>URL slug<input name="slug" required maxLength={63} pattern="[a-z0-9]+(?:-[a-z0-9]+)*" placeholder="greenfield-school" /></label><label>Administrator email<input name="adminEmail" type="email" required /></label><label>Timezone<input name="timeZone" required defaultValue={Intl.DateTimeFormat().resolvedOptions().timeZone} /></label><label>Locale<select name="locale" defaultValue="en-IN"><option value="en-IN">English (India)</option><option value="hi-IN">Hindi (India)</option><option value="en-US">English (US)</option></select></label><button className="primary-button" disabled={busy}>{busy ? "Creating…" : "Create school"}</button></form></details>}{result && <div className="invite-result"><span className="success-mark">✓</span><h2>{result.organization.name} created</h2><p>Copy this one-time invitation token and deliver it privately to <b>{result.invitation.email}</b>. It cannot be retrieved later.</p><code>{result.invitation.token}</code><small>Expires {formatDate(result.invitation.expiresAt)}</small><button className="primary-button" onClick={() => navigator.clipboard.writeText(result.invitation.token)}>Copy invitation token</button><button className="secondary-button" onClick={() => setResult(null)}>Provision another school</button></div>}</section>{profile.user.isPlatformAdmin && <PlatformWorkspace />}</main>;
+  const [panel, setPanel] = useState(() => {
+    if (typeof window !== "undefined") {
+      const path = window.location.pathname;
+      if (path.startsWith("/platform/schools")) return "schools";
+      if (path.startsWith("/platform/subscriptions")) return "subscriptions";
+      if (path.startsWith("/platform/configuration")) return "configuration";
+      if (path.startsWith("/platform/logs")) return "logs";
+      if (path.startsWith("/platform/support")) return "support";
+    }
+    return "overview";
+  });
+
+  const handleSelectPanel = (p: string) => {
+    setPanel(p);
+    if (typeof window !== "undefined") {
+      if (p === "schools") {
+        window.history.pushState(null, "", "/platform/schools");
+      } else if (p === "overview") {
+        window.history.pushState(null, "", "/platform/overview");
+      } else {
+        window.history.pushState(null, "", `/platform/${p}`);
+      }
+    }
+  };
+
+  return (
+    <div className="app-shell platform-shell">
+      <header className="topbar">
+        <Brand />
+        <div className="api-status"><span /> EDOPS Super Admin</div>
+        <div className="top-actions">
+           <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "4px 12px" }}>
+             <input type="text" placeholder="Search..." aria-label="Search" style={{ border: "none", outline: "none", background: "transparent", fontSize: "14px", width: "200px", color: "#064E3B" }} />
+           </div>
+           <button style={{ background: "none", border: "none", cursor: "pointer", color: "#064E3B", padding: "4px" }} aria-label="Notifications"><Bell size={18} /></button>
+          {profile.organizations.length > 0 && <WorkspaceSelect profile={profile} value={workspace} onChange={onWorkspace} />}
+          <ProfileMenu email={profile.user.email} role="Platform administrator" onLogout={onLogout} />
+        </div>
+      </header>
+      <aside className="sidebar" aria-label="Platform navigation">
+        <div className="nav-section">
+          <p className="eyebrow">Platform administration</p>
+          <button className={panel === "overview" ? "nav-item active" : "nav-item"} onClick={() => handleSelectPanel("overview")}><span><LayoutDashboard size={18} /></span>Platform Overview</button>
+          <button className={panel === "schools" ? "nav-item active" : "nav-item"} onClick={() => handleSelectPanel("schools")}><span><Building2 size={18} /></span>Tenants & Schools</button>
+          <button className={panel === "subscriptions" ? "nav-item active" : "nav-item"} onClick={() => handleSelectPanel("subscriptions")}><span><CreditCard size={18} /></span>Global Subscriptions</button>
+          <button className={panel === "configuration" ? "nav-item active" : "nav-item"} onClick={() => handleSelectPanel("configuration")}><span><Sliders size={18} /></span>Global Config</button>
+          <button className={panel === "logs" ? "nav-item active" : "nav-item"} onClick={() => handleSelectPanel("logs")}><span><Database size={18} /></span>Security & Logs</button>
+          <button className={panel === "support" ? "nav-item active" : "nav-item"} onClick={() => handleSelectPanel("support")}><span><ShieldCheck size={18} /></span>Support & Notices</button>
+        </div>
+      </aside>
+      <main id="content" className="main-content">
+        <section className="welcome-row" style={{ marginBottom: "20px" }}>
+           <div>
+              <h1>Dashboard</h1>
+              <p>Manage your schools, subscription plans, and billing in one place.</p>
+           </div>
+        </section>
+        {profile.user.isPlatformAdmin ? <PlatformWorkspace activePanel={panel} onSelectPanel={handleSelectPanel} /> : <div className="error-banner">Your account has no school membership. Ask a platform administrator for an invitation.</div>}
+      </main>
+    </div>
+  );
 }
 
 function Overview({ school, setup, completed, teachers, students, activeEnrollments, onAction }: { school: SchoolData; setup: readonly (readonly [string, boolean])[]; completed: number; teachers: number; students: number; activeEnrollments: number; onAction: (action: Action) => void }) {
   const next = setup.find((item) => !item[1]);
-  return <><section className="metric-grid"><Metric label="Teachers" value={teachers} note="Active memberships" tone="indigo" icon="♙" /><Metric label="Students" value={students} note="Active memberships" tone="teal" icon="◎" /><Metric label="Sections" value={school.sections.total} note={`${school.programs.total} programs`} tone="orange" icon="▤" /><Metric label="Enrollments" value={activeEnrollments} note="Active records" tone="rose" icon="✓" /></section><section className="setup-banner"><div className="setup-mark"><span>{completed}</span><small>/6</small></div><div className="setup-copy"><p className="banner-kicker">School readiness</p><h2>{completed === 6 ? "Your school foundation is complete." : `${6 - completed} setup ${6 - completed === 1 ? "step" : "steps"} remaining.`}</h2><p>{next ? `Next: ${next[0]}.` : "Academic structure and roster are ready."}</p></div><div className="setup-actions"><div className="progress-track"><span style={{ width: `${completed / 6 * 100}%` }} /></div><button onClick={() => onAction(next?.[0] === "Current academic year" ? "year" : next?.[0] === "Programs" ? "program" : next?.[0] === "Subjects" ? "subject" : next?.[0] === "Sections" ? "section" : next ? "invite" : "school")}>{next ? "Continue setup" : "Review settings"} <span>→</span></button></div></section><div className="dashboard-grid"><section className="feed"><div className="feed-head"><div><h2>Academic structure</h2><p>Live records from the EDOPS API</p></div></div><RecordRows school={school} /></section><aside className="right-rail"><section className="rail-card"><div className="rail-heading"><div><p className="eyebrow">Setup checklist</p><h2>{completed} of 6 complete</h2></div></div><div className="check-list">{setup.map(([label, done]) => <div key={label}><span className={done ? "complete" : ""}>{done ? "✓" : "○"}</span><b>{label}</b><small>{done ? "Ready" : "Required"}</small></div>)}</div></section><section className="rail-card"><div className="rail-heading"><div><p className="eyebrow">School details</p><h2>{school.organization.name}</h2></div></div><dl className="detail-list"><div><dt>Status</dt><dd><span className="live-dot" />{school.organization.status}</dd></div><div><dt>Timezone</dt><dd>{school.organization.timeZone}</dd></div><div><dt>Locale</dt><dd>{school.organization.locale}</dd></div><div><dt>Slug</dt><dd>{school.organization.slug}</dd></div></dl></section></aside></div></>;
+  return <><section className="metric-grid"><Metric label="Teachers" value={teachers} note="Active memberships" tone="indigo" icon="♙" /><Metric label="Students" value={students} note="Active memberships" tone="teal" icon="◎" /><Metric label="Sections" value={school.sections.total} note={`${school.programs.total} programs`} tone="orange" icon="▤" /><Metric label="Enrollments" value={activeEnrollments} note="Active records" tone="rose" icon="✓" /></section><section className="setup-banner"><div className="setup-mark"><span>{completed}</span><small>/6</small></div><div className="setup-copy"><p className="banner-kicker">School readiness</p><h2>{completed === 6 ? "Your school foundation is complete." : `${6 - completed} setup ${6 - completed === 1 ? "step" : "steps"} remaining.`}</h2><p>{next ? `Next: ${next[0]}.` : "Academic structure and roster are ready."}</p></div><div className="setup-actions"><div className="progress-track"><span style={{ width: `${completed / 6 * 100}%` }} /></div><button onClick={() => onAction(next?.[0] === "Current academic year" ? "year" : next?.[0] === "Programs" ? "program" : next?.[0] === "Subjects" ? "subject" : next?.[0] === "Sections" ? "section" : next ? "invite" : "school")}>{next ? "Continue setup" : "Review settings"} <span>→</span></button></div></section><div className="dashboard-grid"><section className="feed"><div className="feed-head"><div><h2>Academic structure</h2><p>Live records from the EDOPS API</p></div></div><RecordRows school={school} /></section><aside className="right-rail"><section className="rail-card quick-actions-card" style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "18px", boxShadow: "0 1px 3px rgba(6,78,59,0.03)" }}><div className="rail-heading"><div style={{ marginBottom: "12px" }}><h2 style={{ fontSize: "16px", fontWeight: 800, margin: 0, color: "#064E3B" }}>Quick Actions</h2></div></div><div style={{ display: "grid", gap: "10px" }}><button type="button" className="primary-button" onClick={() => onAction("invite")} style={{ width: "100%", background: "#064E3B", borderColor: "#064E3B", color: "#F8E7C9", justifyContent: "center", fontWeight: 700 }}>Invite person</button><button type="button" className="primary-button" onClick={() => onAction("section")} style={{ width: "100%", background: "#064E3B", borderColor: "#064E3B", color: "#F8E7C9", justifyContent: "center", fontWeight: 700 }}>Create section</button><button type="button" className="primary-button" onClick={() => onAction("year")} style={{ width: "100%", background: "#064E3B", borderColor: "#064E3B", color: "#F8E7C9", justifyContent: "center", fontWeight: 700 }}>Add year</button></div></section><section className="rail-card"><div className="rail-heading"><div><p className="eyebrow">Setup checklist</p><h2>{completed} of 6 complete</h2></div></div><div className="check-list">{setup.map(([label, done]) => <div key={label}><span className={done ? "complete" : ""}>{done ? "✓" : "○"}</span><b>{label}</b><small>{done ? "Ready" : "Required"}</small></div>)}</div></section><section className="rail-card"><div className="rail-heading"><div><p className="eyebrow">School details</p><h2>{school.organization.name}</h2></div></div><dl className="detail-list"><div><dt>Status</dt><dd><span className="live-dot" />{school.organization.status}</dd></div><div><dt>Timezone</dt><dd>{school.organization.timeZone}</dd></div><div><dt>Locale</dt><dd>{school.organization.locale}</dd></div><div><dt>Slug</dt><dd>{school.organization.slug}</dd></div></dl></section></aside></div></>;
 }
 
 function Metric({ label, value, note, tone, icon }: { label: string; value: number; note: string; tone: string; icon: string }) { const id = label === "Teachers" || label === "Students" ? "people" : label === "Enrollments" ? "assignments" : "academics"; return <article className="metric-card"><div><p>{label}</p><strong>{value.toLocaleString()}</strong></div><span className={`metric-icon ${tone}`} aria-label={icon}><NavIcon id={id} /></span><small>{note}</small></article>; }

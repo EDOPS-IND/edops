@@ -22,6 +22,10 @@ function StablePlanCreate() {
 @Controller({path:'platform',version:'1'})
 export class PlatformBillingController {
   constructor(private readonly billing: BillingService) {}
+  @Get('dashboard')
+  dashboard(@Req() req: AuthenticatedRequest) { return this.billing.dashboard(req.user); }
+  @Get('audit-logs')
+  auditLogs(@Req() req: AuthenticatedRequest, @Query() q: AcademicListDto) { return this.billing.auditLogs(req.user, q); }
   @Post('plans') @StablePlanCreate()
   createPlan(@Req() req: AuthenticatedRequest,@Body() dto: CreatePlanDto) { return this.billing.createPlan(req.user,dto); }
   @Get('plans') @Endpoint('List platform plan catalog','read',PlanView,true,'Includes retired plans and migration trial plan. Paginated newest-first metadata. Plan retirement does not alter existing subscription terms or revoke access; it prevents choosing that plan on subsequent subscription writes.')
@@ -44,8 +48,115 @@ export class PlatformBillingController {
   pay(@Req() req: AuthenticatedRequest,@Param('organizationId',ParseUUIDPipe) org: string,@Param('id',ParseUUIDPipe) id: string,@Body() dto: PayInvoiceDto) { return this.billing.settle(org,req.user,id,dto); }
   @Patch('organizations/:organizationId/invoices/:id/void') @ApiParam({name:'organizationId',format:'uuid'}) @ApiParam({name:'id',format:'uuid'}) @Endpoint('Void an unpaid invoice record','update',InvoiceView,false,'Empty body; open to void, repeat-safe. Paid records cannot be voided or refunded through this route. Voiding permits issuing a replacement period record and has no subscription or payment-provider side effects.')
   void(@Req() req: AuthenticatedRequest,@Param('organizationId',ParseUUIDPipe) org: string,@Param('id',ParseUUIDPipe) id: string,@Body() _dto: EmptyActionDto) { return this.billing.settle(org,req.user,id,null); }
-  @Get('organizations/:organizationId/statistics') @ApiParam({name:'organizationId',format:'uuid'}) @Endpoint('Read aggregate school product statistics','read',SchoolStatistics,false,'Explicit platform reporting permission; queries one tenant under RLS. Counts sections, published assignments/recordings, Arena attempts, failed events and seats. Money/byte totals are decimal integer strings. No student names, answers, grades or signed URLs; not MRR or provider-metered storage.')
+  @Get('statistics') @ApiParam({name:'organizationId',format:'uuid'}) @Endpoint('Read aggregate school product statistics','read',SchoolStatistics,false,'Explicit platform reporting permission; queries one tenant under RLS. Counts sections, published assignments/recordings, Arena attempts, failed events and seats. Money/byte totals are decimal integer strings. No student names, answers, grades or signed URLs; not MRR or provider-metered storage.')
   statistics(@Req() req: AuthenticatedRequest,@Param('organizationId',ParseUUIDPipe) org: string) { return this.billing.statistics(org,req.user); }
+
+  // §6 & §7: Feature Catalog & Matrix
+  @Get('features')
+  features(@Req() req: AuthenticatedRequest) { return this.billing.featureCatalog(req.user); }
+
+  @Get('feature-matrix')
+  featureMatrix(@Req() req: AuthenticatedRequest) { return this.billing.featureMatrix(req.user); }
+
+  @Patch('plans/:id/features')
+  updatePlanFeatures(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() body: { features: Record<string, boolean> }) {
+    return this.billing.updatePlanFeatures(req.user, id, body.features);
+  }
+
+  // §8: School-Specific Detailed Overrides
+  @Get('organizations/:organizationId/detailed-overrides')
+  getDetailedOverrides(@Req() req: AuthenticatedRequest, @Param('organizationId', ParseUUIDPipe) org: string) {
+    return this.billing.getDetailedOverrides(req.user, org);
+  }
+
+  @Post('organizations/:organizationId/detailed-overrides')
+  setDetailedOverride(@Req() req: AuthenticatedRequest, @Param('organizationId', ParseUUIDPipe) org: string, @Body() dto: any) {
+    return this.billing.setDetailedOverride(req.user, org, dto);
+  }
+
+  @Patch('organizations/:organizationId/detailed-overrides/:featureKey/remove')
+  removeDetailedOverride(@Req() req: AuthenticatedRequest, @Param('organizationId', ParseUUIDPipe) org: string, @Param('featureKey') featureKey: string) {
+    return this.billing.removeDetailedOverride(req.user, org, featureKey);
+  }
+
+  // §3, §4, §5, §6, §29: Full School Onboarding Wizard
+  @Post('organizations/onboard')
+  onboard(@Req() req: AuthenticatedRequest, @Body() dto: any) {
+    return this.billing.onboardSchool(req.user, dto);
+  }
+
+  // §28: School Lifecycle Transitions
+  @Patch('organizations/:organizationId/lifecycle')
+  lifecycle(@Req() req: AuthenticatedRequest, @Param('organizationId', ParseUUIDPipe) org: string, @Body() dto: any) {
+    return this.billing.schoolLifecycle(req.user, org, dto);
+  }
+
+  // §23: Support Center Tickets
+  @Get('support/tickets')
+  tickets(@Req() req: AuthenticatedRequest, @Query() q: AcademicListDto) {
+    return this.billing.tickets(req.user, q);
+  }
+
+  @Post('support/tickets')
+  createTicket(@Req() req: AuthenticatedRequest, @Body() dto: any) {
+    return this.billing.createTicket(req.user, dto);
+  }
+
+  @Patch('support/tickets/:id/status')
+  updateTicketStatus(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: any) {
+    return this.billing.updateTicketStatus(req.user, id, dto);
+  }
+
+  // §24: Audited Support Sessions (Impersonation)
+  @Post('support/sessions')
+  startSupportSession(@Req() req: AuthenticatedRequest, @Body() dto: any) {
+    return this.billing.startSupportSession(req.user, dto);
+  }
+
+  // §25: Platform Announcements
+  @Get('announcements')
+  announcements(@Req() req: AuthenticatedRequest) {
+    return this.billing.announcements(req.user);
+  }
+
+  @Post('announcements')
+  createAnnouncement(@Req() req: AuthenticatedRequest, @Body() dto: any) {
+    return this.billing.createAnnouncement(req.user, dto);
+  }
+
+  // §12: Payments & Refunds
+  @Get('payments')
+  payments(@Req() req: AuthenticatedRequest, @Query() q: AcademicListDto) {
+    return this.billing.payments(req.user, q);
+  }
+
+  @Post('payments')
+  recordPayment(@Req() req: AuthenticatedRequest, @Body() dto: any) {
+    return this.billing.recordPayment(req.user, dto);
+  }
+
+  @Post('payments/:id/refund')
+  refundPayment(@Req() req: AuthenticatedRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: any) {
+    return this.billing.refundPayment(req.user, id, dto);
+  }
+
+  // §35: Global Search
+  @Get('search')
+  search(@Req() req: AuthenticatedRequest, @Query('q') q: string) {
+    return this.billing.globalSearch(req.user, q);
+  }
+
+  // §34: Detailed Health
+  @Get('health-detailed')
+  detailedHealth(@Req() req: AuthenticatedRequest) {
+    return this.billing.detailedHealth(req.user);
+  }
+
+  // §26 & §27: Platform Staff
+  @Get('staff')
+  staff(@Req() req: AuthenticatedRequest) {
+    return this.billing.staff(req.user);
+  }
 }
 @ApiTags('School Billing')
 @ApiParam({name:'organizationId',format:'uuid'})

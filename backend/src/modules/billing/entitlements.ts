@@ -1,7 +1,7 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 
-export type Feature = 'arena' | 'recordings' | 'communication';
+export type Feature = 'arena' | 'recordings' | 'communication' | string;
 export const featureKeys: Feature[] = ['arena','recordings','communication'];
 
 export async function entitlements(m: EntityManager, org: string) {
@@ -15,12 +15,33 @@ export async function entitlements(m: EntityManager, org: string) {
     FROM organizations o LEFT JOIN subscriptions s ON s.organization_id=o.id LEFT JOIN plans p ON p.id=s.plan_id WHERE o.id=$1`, [org]);
   if (!row) throw new NotFoundException('Organization not found');
   const flags = await m.query('SELECT feature_key,enabled FROM feature_flags WHERE organization_id=$1',[org]);
-  const features = Object.fromEntries(featureKeys.map(f => [f, row.entitled && (flags.find((x: {feature_key: string}) => x.feature_key===f)?.enabled ?? row.features[f]) === true])) as Record<Feature,boolean>;
+  const overrides = await m.query(
+    `SELECT feature_key, enabled, custom_limit, custom_quota FROM feature_overrides 
+     WHERE organization_id=$1 AND (expiry_date IS NULL OR expiry_date > now())`, [org]
+  );
+  
+  // Base features from plan and flags
+  const features: Record<string, boolean> = {};
+  for (const f of featureKeys) {
+    features[f] = row.entitled && (flags.find((x: {feature_key: string}) => x.feature_key===f)?.enabled ?? row.features[f]) === true;
+  }
+  // Catalog features from plan JSONB if present
+  if (row.features && typeof row.features === 'object') {
+    for (const [k, v] of Object.entries(row.features)) {
+      if (typeof v === 'boolean') features[k] = row.entitled && v;
+    }
+  }
+  // Apply school overrides
+  for (const ov of overrides) {
+    features[ov.feature_key] = row.entitled && ov.enabled;
+  }
+
   return { status: row.status, periodStart: row.period_start, periodEnd: row.period_end, implicitTrial: row.implicit_trial,
-    entitled: row.entitled as boolean, maxStudents: row.max_students as number, maxTeachers: row.max_teachers as number, features };
+    entitled: row.entitled as boolean, maxStudents: row.max_students as number, maxTeachers: row.max_teachers as number, features, overrides };
 }
 export async function requireFeature(m: EntityManager, org: string, feature: Feature) {
-  if (!(await entitlements(m,org)).features[feature]) throw new ForbiddenException('Feature is not enabled for this school subscription');
+  const e = await entitlements(m,org);
+  if (!e.features[feature]) throw new ForbiddenException(`Feature '${feature}' is not enabled for this school subscription`);
 }
 export async function seatUsage(m: EntityManager, org: string) {
   const [row] = await m.query(`SELECT

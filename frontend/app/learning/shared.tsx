@@ -1,99 +1,11 @@
 "use client";
 
 import React from "react";
-import { Bell, CalendarCheck2, ClipboardCheck, Inbox, Trophy, Video, X } from "lucide-react";
+import { Bell, CalendarCheck2, ClipboardCheck, Trophy, Video } from "lucide-react";
 import { ClassRoom } from "./types";
 
-export function FeatureCard({
-  title,
-  copy,
-  action,
-  children,
-}: {
-  title: string;
-  copy: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="feature-surface">
-      <header>
-        <div>
-          <h2>{title}</h2>
-          <p>{copy}</p>
-        </div>
-        {action}
-      </header>
-      <div className="feature-body">{children}</div>
-    </section>
-  );
-}
+export { Modal, Banner, Empty, FeatureCard, FormActions, Metric } from "../components/ui";
 
-export function Modal({
-  title,
-  onClose,
-  children,
-}: {
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="modal-backdrop">
-      <section className="action-modal product-modal" role="dialog" aria-modal="true" aria-label={title}>
-        <button className="modal-close" onClick={onClose} aria-label="Close">
-          <X size={18} />
-        </button>
-        <h2>{title}</h2>
-        {children}
-      </section>
-    </div>
-  );
-}
-
-export function FormActions({
-  onCancel,
-  label = "Save",
-  disabled = false,
-}: {
-  onCancel: () => void;
-  label?: string;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="modal-actions">
-      <button type="button" className="secondary-button" onClick={onCancel}>
-        Cancel
-      </button>
-      <button className="primary-button" disabled={disabled}>
-        {label}
-      </button>
-    </div>
-  );
-}
-
-export function Empty({ title, copy }: { title: string; copy: string }) {
-  return (
-    <div className="product-empty">
-      <span><Inbox size={20} /></span>
-      <h3>{title}</h3>
-      <p>{copy}</p>
-    </div>
-  );
-}
-
-export function Banner({ text }: { text: string }) {
-  return <div className="form-error product-error" role="alert">{text}</div>;
-}
-
-export function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="score-metric">
-      <span>{label}</span>
-      <b>{value}</b>
-    </div>
-  );
-}
 
 export async function run(task: () => Promise<void>, onError: (message: string) => void) {
   onError("");
