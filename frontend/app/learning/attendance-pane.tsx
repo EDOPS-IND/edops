@@ -18,6 +18,7 @@ export function AttendancePane({
   const [sessions, setSessions] = useState<AttendanceSession[]>([]);
   const [selected, setSelected] = useState<AttendanceSession | null>(null);
   const [creating, setCreating] = useState(false);
+  const [creatingBusy, setCreatingBusy] = useState(false);
   const [error, setError] = useState("");
   const root = `/organizations/${org}/teaching`;
 
@@ -43,6 +44,7 @@ export function AttendancePane({
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    setCreatingBusy(true);
     await run(async () => {
       await createResource(`${root}/attendance-sessions`, {
         sectionId: classroom.sectionId,
@@ -53,6 +55,7 @@ export function AttendancePane({
       setCreating(false);
       await load();
     }, setError);
+    setCreatingBusy(false);
   }
 
   return (
@@ -90,6 +93,7 @@ export function AttendancePane({
         <Empty
           title="No attendance records"
           copy="Attendance sessions for this class will appear here."
+          action={role !== "student" ? { label: "Take attendance", onClick: () => setCreating(true) } : undefined}
         />
       )}
       {creating && (
@@ -118,6 +122,8 @@ export function AttendancePane({
             <FormActions
               onCancel={() => setCreating(false)}
               label="Open register"
+              busy={creatingBusy}
+              busyLabel="Opening register…"
             />
           </form>
         </Modal>
@@ -154,6 +160,8 @@ function AttendanceRegister({
   const [records, setRecords] = useState<AttendanceRecord[]>([]);
   const [roster, setRoster] = useState<RosterStudent[]>([]);
   const [error, setError] = useState("");
+  const [savedNotice, setSavedNotice] = useState("");
+  const [busy, setBusy] = useState(false);
   const root = `/organizations/${org}/teaching`;
 
   async function load() {
@@ -188,6 +196,8 @@ function AttendanceRegister({
   }, [classroom.sectionId, classroom.subjectId, role, root, session.id]);
 
   async function save() {
+    setBusy(true);
+    setSavedNotice("");
     await run(async () => {
       await updateResource(
         `${root}/attendance-sessions/${session.id}/records`,
@@ -199,10 +209,14 @@ function AttendanceRegister({
         }
       );
       await load();
+      setSavedNotice("Attendance marks saved successfully.");
+      setTimeout(() => setSavedNotice(""), 3500);
     }, setError);
+    setBusy(false);
   }
 
   async function finalize() {
+    setBusy(true);
     await run(async () => {
       await createResource(
         `${root}/attendance-sessions/${session.id}/finalize`,
@@ -210,52 +224,58 @@ function AttendanceRegister({
       );
       onClose();
     }, setError);
+    setBusy(false);
   }
 
   return (
     <Modal title={`${dateOnly(session.date)} · Period ${session.period}`} onClose={onClose}>
       {error && <Banner text={error} />}
+      {savedNotice && <Banner text={savedNotice} variant="success" />}
       {records.length ? (
         <div className="attendance-list">
-          {records.map((item) => (
-            <label key={item.id}>
-              <span>
-                <b>
-                  {roster.find((person) => person.studentId === item.studentId)?.email ??
-                    "My attendance"}
-                </b>
-                <small>
-                  {roster.find((person) => person.studentId === item.studentId)?.rollNumber
-                    ? `Roll ${roster.find((person) => person.studentId === item.studentId)?.rollNumber}`
-                    : item.studentId}
-                </small>
-              </span>
-              {role === "student" || session.status === "finalized" ? (
-                <strong className={`status-chip ${item.status}`}>
-                  {item.status ?? "unmarked"}
-                </strong>
-              ) : (
-                <select
-                  value={item.status ?? ""}
-                  onChange={(event) =>
-                    setRecords((current) =>
-                      current.map((record) =>
-                        record.id === item.id
-                          ? { ...record, status: event.target.value as AttendanceRecord["status"] }
-                          : record
+          {records.map((item) => {
+            const student = roster.find((person) => person.studentId === item.studentId);
+            const displayName =
+              student?.studentName ||
+              student?.email ||
+              (role === "student" ? "My attendance" : item.studentId);
+            const secondaryText = student?.rollNumber
+              ? `Roll ${student.rollNumber}${student.email ? ` · ${student.email}` : ""}`
+              : (student?.email || item.studentId);
+
+            return (
+              <label key={item.id}>
+                <span>
+                  <b>{displayName}</b>
+                  <small>{secondaryText}</small>
+                </span>
+                {role === "student" || session.status === "finalized" ? (
+                  <strong className={`status-chip ${item.status}`}>
+                    {item.status ?? "unmarked"}
+                  </strong>
+                ) : (
+                  <select
+                    value={item.status ?? ""}
+                    onChange={(event) =>
+                      setRecords((current) =>
+                        current.map((record) =>
+                          record.id === item.id
+                            ? { ...record, status: event.target.value as AttendanceRecord["status"] }
+                            : record
+                        )
                       )
-                    )
-                  }
-                >
-                  <option value="">Mark attendance</option>
-                  <option value="present">Present</option>
-                  <option value="absent">Absent</option>
-                  <option value="late">Late</option>
-                  <option value="excused">Excused</option>
-                </select>
-              )}
-            </label>
-          ))}
+                    }
+                  >
+                    <option value="">Mark attendance</option>
+                    <option value="present">Present</option>
+                    <option value="absent">Absent</option>
+                    <option value="late">Late</option>
+                    <option value="excused">Excused</option>
+                  </select>
+                )}
+              </label>
+            );
+          })}
         </div>
       ) : (
         <Empty
@@ -265,15 +285,15 @@ function AttendanceRegister({
       )}
       {role !== "student" && session.status === "draft" && (
         <div className="modal-actions">
-          <button className="secondary-button" onClick={save}>
-            Save marks
+          <button className="secondary-button" onClick={save} disabled={busy}>
+            {busy ? "Saving…" : savedNotice ? "Saved ✓" : "Save marks"}
           </button>
           <button
             className="primary-button"
             onClick={finalize}
-            disabled={records.some((item) => !item.status)}
+            disabled={busy || records.some((item) => !item.status)}
           >
-            Finalize register
+            {busy ? "Finalizing…" : "Finalize register"}
           </button>
         </div>
       )}

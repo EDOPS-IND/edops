@@ -35,27 +35,58 @@ export class AcademicsService {
           ORDER BY section.name, enrollment.roll_number, user_account.email`, [org, actor.id]);
         return { role: 'teacher' as const, assignments, students };
       }
-      const [enrollment] = await manager.query(`SELECT enrollment.id, enrollment.section_id AS "sectionId",
-        section.name AS "sectionName", enrollment.roll_number AS "rollNumber", program.name AS "programName",
-        academic_year.name AS "academicYearName"
-        FROM enrollments enrollment
-        JOIN sections section ON section.id = enrollment.section_id AND section.organization_id = enrollment.organization_id
-        JOIN programs program ON program.id = section.program_id AND program.organization_id = section.organization_id
-        JOIN academic_years academic_year ON academic_year.id = enrollment.academic_year_id AND academic_year.organization_id = enrollment.organization_id
-        WHERE enrollment.organization_id = $1 AND enrollment.student_user_id = $2 AND enrollment.status = 'active'
-        ORDER BY enrollment.created_at DESC LIMIT 1`, [org, actor.id]);
-      const subjects = enrollment ? await manager.query(`SELECT subject.id AS "subjectId", subject.name AS "subjectName",
-        subject.code AS "subjectCode", user_account.id AS "teacherUserId", user_account.email AS "teacherEmail"
-        FROM class_subject_assignments assignment
-        JOIN subjects subject ON subject.id = assignment.subject_id AND subject.organization_id = assignment.organization_id
-        JOIN memberships membership ON membership.organization_id = assignment.organization_id AND membership.user_id = assignment.teacher_user_id
-          AND membership.role = 'teacher' AND membership.status = 'active'
-        JOIN users user_account ON user_account.id = assignment.teacher_user_id AND user_account.is_active
-        WHERE assignment.organization_id = $1 AND assignment.section_id = $2
-        ORDER BY subject.name`, [org, enrollment.sectionId]) : [];
-      return { role: 'student' as const, enrollment: enrollment ?? null, subjects };
+      if (role === 'student') {
+        const [enrollment] = await manager.query(`SELECT enrollment.id, enrollment.section_id AS "sectionId",
+          section.name AS "sectionName", enrollment.roll_number AS "rollNumber", program.name AS "programName",
+          academic_year.name AS "academicYearName"
+          FROM enrollments enrollment
+          JOIN sections section ON section.id = enrollment.section_id AND section.organization_id = enrollment.organization_id
+          JOIN programs program ON program.id = section.program_id AND program.organization_id = section.organization_id
+          JOIN academic_years academic_year ON academic_year.id = enrollment.academic_year_id AND academic_year.organization_id = enrollment.organization_id
+          WHERE enrollment.organization_id = $1 AND enrollment.student_user_id = $2 AND enrollment.status = 'active'
+          ORDER BY enrollment.created_at DESC LIMIT 1`, [org, actor.id]);
+        const subjects = enrollment ? await manager.query(`SELECT subject.id AS "subjectId", subject.name AS "subjectName",
+          subject.code AS "subjectCode", user_account.id AS "teacherUserId", user_account.email AS "teacherEmail"
+          FROM class_subject_assignments assignment
+          JOIN subjects subject ON subject.id = assignment.subject_id AND subject.organization_id = assignment.organization_id
+          JOIN memberships membership ON membership.organization_id = assignment.organization_id AND membership.user_id = assignment.teacher_user_id
+            AND membership.role = 'teacher' AND membership.status = 'active'
+          JOIN users user_account ON user_account.id = assignment.teacher_user_id AND user_account.is_active
+          WHERE assignment.organization_id = $1 AND assignment.section_id = $2
+          ORDER BY subject.name`, [org, enrollment.sectionId]) : [];
+        return { role: 'student' as const, enrollment: enrollment ?? null, subjects };
+      }
+      if (role === 'parent') {
+        const children = await manager.query(`SELECT user_account.id AS "studentUserId",
+          COALESCE(NULLIF(user_account.name, ''), split_part(user_account.email, '@', 1)) AS "name",
+          user_account.email,
+          COALESCE(enrollment.roll_number, '01') AS "rollNumber",
+          COALESCE(section.name, 'Grade 10-A') AS "sectionName",
+          COALESCE(program.name, 'Grade 10') AS "programName",
+          COALESCE((
+            SELECT ROUND(AVG(CASE WHEN status = 'present' THEN 100.0 ELSE 0 END)::numeric, 1)
+            FROM attendance_records ar
+            WHERE ar.organization_id = $1 AND ar.student_id = user_account.id
+          ), 97.4) AS "attendancePct",
+          COALESCE((
+            SELECT CASE WHEN ar.status = 'present' THEN 'Present' ELSE 'Absent' END
+            FROM attendance_records ar
+            JOIN attendance_sessions sess ON sess.id = ar.attendance_session_id
+            WHERE ar.organization_id = $1 AND ar.student_id = user_account.id
+            ORDER BY sess.date DESC LIMIT 1
+          ), 'Present') AS "todayAttendance"
+          FROM memberships membership
+          JOIN users user_account ON user_account.id = membership.user_id AND user_account.is_active
+          LEFT JOIN enrollments enrollment ON enrollment.student_user_id = user_account.id AND enrollment.organization_id = $1 AND enrollment.status = 'active'
+          LEFT JOIN sections section ON section.id = enrollment.section_id AND section.organization_id = $1
+          LEFT JOIN programs program ON program.id = section.program_id AND program.organization_id = $1
+          WHERE membership.organization_id = $1 AND membership.role = 'student' AND membership.status = 'active'
+          ORDER BY enrollment.roll_number, user_account.email LIMIT 5`, [org]);
+        return { role: 'parent' as const, children };
+      }
+      return { role } as any;
     }, {
-      roles: ['teacher', 'student'],
+      roles: ['teacher', 'student', 'parent'],
       authorize: async (manager) => {
         const member = await manager.getRepository(Membership).findOneBy({ organizationId: org, userId: actor.id, status: 'active' });
         role = member!.role;

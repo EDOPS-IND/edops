@@ -26,12 +26,19 @@ export function ProgressPane({
   const [selectedKey, setSelectedKey] = useState<string>(
     classroom ? `${classroom.sectionId}:${classroom.subjectId}` : ""
   );
+
+  useEffect(() => {
+    if (classroom) {
+      setSelectedKey(`${classroom.sectionId}:${classroom.subjectId}`);
+    }
+  }, [classroom?.sectionId, classroom?.subjectId]);
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<Scorecard[]>([]);
   const [evaluations, setEvaluations] = useState<ExamEvaluation[]>([]);
   const [subjectData, setSubjectData] = useState<SubjectScorecardData[]>([]);
   const [creatingEval, setCreatingEval] = useState(false);
   const [gradingEval, setGradingEval] = useState<ExamEvaluation | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const root = `/organizations/${org}/teaching`;
@@ -85,10 +92,12 @@ export function ProgressPane({
 
   async function deleteEval(id: string) {
     if (!activeClass) return;
+    setDeletingId(id);
     await run(async () => {
       await deleteResource(`${root}/evaluations/${id}`);
       await loadTeacherData(activeClass);
     }, setError);
+    setDeletingId(null);
   }
 
   useEffect(() => {
@@ -216,7 +225,8 @@ export function ProgressPane({
                         {evals.map((item) => {
                           const marks = typeof item.myScore === "number" ? item.myScore : null;
                           const total = item.maxMarks;
-                          const pct = marks !== null ? `${Math.round((marks / total) * 100)}%` : "—";
+                          const pctNum = marks !== null ? Math.round((marks / total) * 100) : null;
+                          const pct = pctNum !== null ? `${pctNum}%` : "—";
                           const weightage = `${item.weightage}%`;
                           const status = marks !== null ? "Graded" : "Pending";
                           const statusClass = marks !== null ? "active" : "pending";
@@ -226,7 +236,34 @@ export function ProgressPane({
                               <td><b>{item.title}</b></td>
                               <td>{marks !== null ? marks : "—"}</td>
                               <td>{total}</td>
-                              <td>{pct}</td>
+                              <td>
+                                {pctNum !== null ? (
+                                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                    <span style={{ fontWeight: 600, minWidth: "36px" }}>{pct}</span>
+                                    <div
+                                      style={{
+                                        flex: 1,
+                                        maxWidth: "70px",
+                                        height: "6px",
+                                        background: "#e2e8f0",
+                                        borderRadius: "3px",
+                                        overflow: "hidden",
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          width: `${Math.min(100, Math.max(0, pctNum))}%`,
+                                          height: "100%",
+                                          background: "var(--emerald)",
+                                          borderRadius: "3px",
+                                        }}
+                                      />
+                                    </div>
+                                  </div>
+                                ) : (
+                                  "—"
+                                )}
+                              </td>
                               <td>{weightage}</td>
                               <td><span className={`status-chip ${statusClass}`}>{status}</span></td>
                             </tr>
@@ -242,9 +279,37 @@ export function ProgressPane({
                           </td>
                           <td>100 pts</td>
                           <td>
-                            {scorecard?.arenaScore !== null && scorecard?.arenaScore !== undefined
-                              ? `${Math.round(scorecard.arenaScore)}%`
-                              : "—"}
+                            {scorecard?.arenaScore !== null && scorecard?.arenaScore !== undefined ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <span style={{ fontWeight: 600, minWidth: "36px" }}>{Math.round(scorecard.arenaScore)}%</span>
+                                <div
+                                  style={{
+                                    flex: 1,
+                                    maxWidth: "70px",
+                                    height: "6px",
+                                    background: "#e2e8f0",
+                                    borderRadius: "3px",
+                                    overflow: "hidden",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      width: `${Math.min(100, Math.max(0, Math.round(scorecard.arenaScore)))}%`,
+                                      height: "100%",
+                                      background:
+                                        scorecard.arenaScore >= 75
+                                          ? "#16a34a"
+                                          : scorecard.arenaScore >= 50
+                                          ? "#d97706"
+                                          : "#dc2626",
+                                      borderRadius: "3px",
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                            ) : (
+                              "—"
+                            )}
                           </td>
                           <td>Practice</td>
                           <td>
@@ -329,37 +394,11 @@ export function ProgressPane({
           : "Overview of your assigned classes and teaching responsibilities."
       }
       action={
-        <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
-          {classes.length > 0 && (
-            <select
-              value={selectedKey}
-              onChange={(e) => {
-                setSelectedKey(e.target.value);
-                setSearchQuery("");
-              }}
-              style={{
-                fontSize: "13px",
-                fontWeight: 600,
-                padding: "6px 12px",
-                borderRadius: "6px",
-                border: "1px solid var(--border-subtle, #cbd5e1)",
-                background: "#fff",
-              }}
-            >
-              <option value="">All Classes (Teacher Overview)</option>
-              {classes.map((c) => (
-                <option key={`${c.sectionId}:${c.subjectId}`} value={`${c.sectionId}:${c.subjectId}`}>
-                  {c.sectionName} · {c.subjectName}
-                </option>
-              ))}
-            </select>
-          )}
-          {activeClass && (
-            <button className="primary-button" onClick={() => setCreatingEval(true)}>
-              <Plus size={16} /> New exam component
-            </button>
-          )}
-        </div>
+        activeClass ? (
+          <button className="primary-button" onClick={() => setCreatingEval(true)}>
+            <Plus size={16} /> New exam component
+          </button>
+        ) : null
       }
     >
       {error && <Banner text={error} />}
@@ -381,8 +420,8 @@ export function ProgressPane({
                   width: "48px",
                   height: "48px",
                   borderRadius: "10px",
-                  background: "#0284c7",
-                  color: "#fff",
+                  background: "var(--emerald)",
+                  color: "var(--champagne)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -432,8 +471,8 @@ export function ProgressPane({
               >
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                    <BookOpen size={16} color="#0284c7" />
-                    <span style={{ fontSize: "12px", fontWeight: 600, color: "#0284c7", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    <BookOpen size={16} color="var(--emerald)" />
+                    <span style={{ fontSize: "12px", fontWeight: 600, color: "var(--emerald)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                       {c.sectionName}
                     </span>
                   </div>
@@ -508,8 +547,8 @@ export function ProgressPane({
                       <button className="primary-button" onClick={() => setGradingEval(item)}>
                         Enter / Update marks
                       </button>
-                      <button className="secondary-button" onClick={() => deleteEval(item.id)}>
-                        Delete
+                      <button className="secondary-button" onClick={() => deleteEval(item.id)} disabled={deletingId === item.id}>
+                        {deletingId === item.id ? "Deleting…" : "Delete"}
                       </button>
                     </div>
                   </article>
@@ -634,9 +673,11 @@ function EvaluationCreateModal({
   onClose: () => void;
 }) {
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
+    setBusy(true);
     await run(async () => {
       await createResource(`/organizations/${org}/teaching/evaluations`, {
         sectionId: classroom.sectionId,
@@ -647,6 +688,7 @@ function EvaluationCreateModal({
       });
       onClose();
     }, setError);
+    setBusy(false);
   }
   return (
     <Modal title="New Exam / Evaluation Component" onClose={onClose}>
@@ -671,7 +713,7 @@ function EvaluationCreateModal({
             <input name="weightage" type="number" min="0" max="100" defaultValue="25" required />
           </label>
         </div>
-        <FormActions onCancel={onClose} label="Add component" />
+        <FormActions onCancel={onClose} label="Add component" busy={busy} busyLabel="Adding component…" />
       </form>
     </Modal>
   );

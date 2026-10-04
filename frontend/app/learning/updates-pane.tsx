@@ -14,6 +14,7 @@ export function UpdatesPane({
 }) {
   const [inbox, setInbox] = useState<Inbox>({ items: [], total: 0, unreadCount: 0 });
   const [timeline, setTimeline] = useState<Notification[]>([]);
+  const [markingId, setMarkingId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   async function load() {
@@ -48,10 +49,12 @@ export function UpdatesPane({
   }, [classroom.sectionId, classroom.subjectId, org]);
 
   async function markRead(id: string) {
+    setMarkingId(id);
     await run(async () => {
       await updateResource(`/organizations/${org}/notifications/${id}/read`, {});
       await load();
     }, setError);
+    setMarkingId(null);
   }
 
   return (
@@ -71,7 +74,9 @@ export function UpdatesPane({
                   <small>{dateTime(item.occurredAt)}</small>
                 </div>
                 {!item.readAt && (
-                  <button onClick={() => markRead(item.id)}>Mark read</button>
+                  <button onClick={() => markRead(item.id)} disabled={markingId === item.id}>
+                    {markingId === item.id ? "Marking…" : "Mark read"}
+                  </button>
                 )}
               </article>
             ))}

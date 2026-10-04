@@ -17,6 +17,8 @@ export function RecordingsPane({
 }) {
   const [items, setItems] = useState<Recording[]>([]);
   const [creating, setCreating] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [playingId, setPlayingId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const root = `/organizations/${org}/recordings`;
 
@@ -40,18 +42,22 @@ export function RecordingsPane({
   }, [classroom.sectionId, classroom.subjectId, root]);
 
   async function transition(id: string, action: "publish" | "archive") {
+    setBusyId(id);
     await run(async () => {
       if (action === "publish") await createResource(`${root}/${id}/publish`, {});
       else await updateResource(`${root}/${id}/archive`, {});
       await load();
     }, setError);
+    setBusyId(null);
   }
 
   async function play(id: string) {
+    setPlayingId(id);
     await run(async () => {
       const result = await api<{ url: string }>(`${root}/${id}/playback`);
       window.open(result.url, "_blank", "noopener,noreferrer");
     }, setError);
+    setPlayingId(null);
   }
 
   return (
@@ -86,13 +92,19 @@ export function RecordingsPane({
               <p>{dateTime(item.recordedAt)} · {formatBytes(item.sizeBytes)}</p>
               <div className="row-actions">
                 {(item.status === "published" || (role !== "student" && item.status === "ready")) && (
-                  <button onClick={() => play(item.id)}>Play</button>
+                  <button onClick={() => play(item.id)} disabled={playingId === item.id}>
+                    {playingId === item.id ? "Opening…" : "Play"}
+                  </button>
                 )}
                 {role !== "student" && item.status === "ready" && (
-                  <button onClick={() => transition(item.id, "publish")}>Publish</button>
+                  <button onClick={() => transition(item.id, "publish")} disabled={busyId === item.id}>
+                    {busyId === item.id ? "Publishing…" : "Publish"}
+                  </button>
                 )}
                 {role !== "student" && item.status !== "archived" && (
-                  <button onClick={() => transition(item.id, "archive")}>Archive</button>
+                  <button onClick={() => transition(item.id, "archive")} disabled={busyId === item.id}>
+                    {busyId === item.id ? "Archiving…" : "Archive"}
+                  </button>
                 )}
               </div>
             </article>
@@ -102,6 +114,7 @@ export function RecordingsPane({
         <Empty
           title="No recordings"
           copy="Published class recordings will appear here."
+          action={role !== "student" ? { label: "Upload recording", onClick: () => setCreating(true) } : undefined}
         />
       )}
       {creating && (
