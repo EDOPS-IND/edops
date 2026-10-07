@@ -6,15 +6,17 @@ import { LearningWorkspace, SchoolBilling } from "./learning-workspace";
 import { PlatformWorkspace } from "./platform-workspace";
 import { DashboardHome } from "./dashboard-home";
 import { ParentDashboard } from "./parent-dashboard";
-import { PrincipalDashboard } from "./principal-dashboard";
+import { PrincipalWorkspace } from "./principal";
+import { TeacherWorkspace } from "./teacher";
+import { StudentWorkspace } from "./student";
 import { SchoolAdminWorkspace } from "./school-admin";
 import { BarChart3, Bell, BookOpen, CalendarCheck2, CalendarDays, ClipboardCheck, CreditCard, Database, Eye, EyeOff, GraduationCap, Home as HomeIcon, LayoutDashboard, LogOut, Network, Settings as SettingsIcon, ShieldCheck, Sliders, Sparkles, Trophy, UserRound, Users, Video, Building2 } from "lucide-react";
 
 type Panel = "overview" | "principal" | "parent" | "academics" | "people" | "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress" | "billing" | "settings";
 type Action = "year" | "program" | "subject" | "section" | "teacherAssignment" | "enrollment" | "invite" | "school" | null;
-type MemberRole = Exclude<OrganizationSummary["role"], "school_admin">;
+type MemberRole = Exclude<OrganizationSummary["role"], "school_admin" | "principal">;
 
-const roleNames: Record<OrganizationSummary["role"] | "platform", string> = { platform: "Platform administrator", school_admin: "School administrator", teacher: "Teacher", student: "Student", parent: "Parent" };
+const roleNames: Record<OrganizationSummary["role"] | "platform", string> = { platform: "Platform administrator", school_admin: "School administrator", principal: "Principal", teacher: "Teacher", student: "Student", parent: "Parent" };
 const rolePanels: Record<MemberRole, { intro: string; panels: { id: string; icon: string; label: string; title: string; copy: string; items: [string, string][] }[] }> = {
   teacher: { intro: "Plan lessons, follow your classes and keep daily teaching work together.", panels: [
     { id: "overview", icon: "⌂", label: "Overview", title: "Teaching overview", copy: "A focused view of your day at school.", items: [["My classes", "Assigned sections and subjects"], ["Assignments", "Coursework shared with students"], ["Attendance", "Daily class attendance"]] },
@@ -43,7 +45,7 @@ const rolePanels: Record<MemberRole, { intro: string; panels: { id: string; icon
 };
 
 function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(value)); }
-function isMemberWorkspace(item: OrganizationSummary): item is OrganizationSummary & { role: MemberRole } { return item.role !== "school_admin"; }
+function isMemberWorkspace(item: OrganizationSummary): item is OrganizationSummary & { role: MemberRole } { return item.role !== "school_admin" && item.role !== "principal"; }
 
 export default function Home() {
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -62,7 +64,7 @@ export default function Home() {
   const schoolId = membership?.role === "school_admin" ? membership.id : "";
 
   function selectInitialWorkspace(current: Profile) {
-    return current.organizations.find((item) => item.role === "school_admin" && item.status === "active")?.id
+    return current.organizations.find((item) => (item.role === "school_admin" || item.role === "principal") && item.status === "active")?.id
       ?? current.organizations.find((item) => item.status === "active")?.id
       ?? (current.user.isPlatformAdmin ? "platform" : current.organizations[0]?.id ?? "");
   }
@@ -110,6 +112,39 @@ export default function Home() {
   const signOut = async () => { await logout(); setProfile(null); setSchool(null); setWorkspace(""); };
   const switchWorkspace = (value: string) => { setWorkspace(value); setPanel("overview"); };
   if (workspace === "platform" || !membership) return <PlatformScreen profile={profile} workspace={workspace} onWorkspace={switchWorkspace} onLogout={signOut} />;
+  if (membership.role === "principal") {
+    return (
+      <PrincipalWorkspace
+        key={workspace}
+        organization={membership}
+        onLogout={signOut}
+        onSwitchOrganization={switchWorkspace}
+        organizations={profile.organizations}
+      />
+    );
+  }
+  if (membership.role === "teacher") {
+    return (
+      <TeacherWorkspace
+        key={workspace}
+        organization={membership}
+        onLogout={signOut}
+        onSwitchOrganization={switchWorkspace}
+        organizations={profile.organizations}
+      />
+    );
+  }
+  if (membership.role === "student") {
+    return (
+      <StudentWorkspace
+        key={workspace}
+        organization={membership}
+        onLogout={signOut}
+        onSwitchOrganization={switchWorkspace}
+        organizations={profile.organizations}
+      />
+    );
+  }
   if (isMemberWorkspace(membership)) return <RoleWorkspace key={workspace} profile={profile} membership={membership} workspace={workspace} onWorkspace={switchWorkspace} onLogout={signOut} />;
 
   const memberCounts = school?.members.items.reduce((counts, member) => ({ ...counts, [member.role]: (counts[member.role] ?? 0) + (member.status === "active" ? 1 : 0) }), {} as Record<string, number>) ?? {};
@@ -641,5 +676,5 @@ function ActionModal({ action, school, busy, onClose, onSubmit }: { action: Excl
   const activeStudents = school.members.items.filter((item) => item.role === "student" && item.status === "active" && item.accountActive);
   const canSubmit = action === "teacherAssignment" ? Boolean(activeTeachers.length && school.sections.total && school.subjects.total) : action === "enrollment" ? Boolean(activeStudents.length && school.sections.total) : true;
   function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const data = Object.fromEntries(new FormData(event.currentTarget)); let body: Record<string, unknown> = data; if (action === "year") body = { ...data, isCurrent: data.isCurrent === "on" }; if (action === "program") body = { name: data.name, sequenceOrder: Number(data.sequenceOrder || 0) }; if (action === "section") body = { ...data, capacity: Number(data.capacity) }; onSubmit(body); }
-  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="action-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button className="modal-close" onClick={onClose} aria-label="Close">×</button><p className="eyebrow">EDOPS setup</p><h2 id="modal-title">{labels[action]}</h2><form className="modal-form" onSubmit={submit}>{action === "year" && <><label>Name<input name="name" required maxLength={120} placeholder="2026–27" /></label><div className="form-grid"><label>Start date<input name="startDate" type="date" required /></label><label>End date<input name="endDate" type="date" required /></label></div><label className="checkbox"><input name="isCurrent" type="checkbox" /> Set as current academic year</label></>}{action === "program" && <><label>Program name<input name="name" required maxLength={120} placeholder="Grade 10" /></label><label>Sequence order<input name="sequenceOrder" type="number" min="0" max="10000" defaultValue="0" /></label></>}{action === "subject" && <><label>Subject name<input name="name" required maxLength={120} placeholder="Mathematics" /></label><label>Subject code<input name="code" required maxLength={32} pattern="[A-Za-z0-9][A-Za-z0-9_-]*" placeholder="MATH" /></label></>}{action === "section" && <><label>Academic year<select name="academicYearId" required defaultValue=""><option value="" disabled>Select year</option>{school.years.items.map((item: AcademicYear) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Program<select name="programId" required defaultValue=""><option value="" disabled>Select program</option>{school.programs.items.map((item: Program) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="form-grid"><label>Section name<input name="name" required maxLength={120} placeholder="10-A" /></label><label>Capacity<input name="capacity" type="number" min="1" max="5000" required /></label></div></>}{action === "teacherAssignment" && <><label>Teacher<select name="teacherUserId" required defaultValue=""><option value="" disabled>Select teacher</option>{activeTeachers.map((item) => <option key={item.userId} value={item.userId}>{item.email}</option>)}</select></label><label>Section<select name="sectionId" required defaultValue=""><option value="" disabled>Select section</option>{school.sections.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Subject<select name="subjectId" required defaultValue=""><option value="" disabled>Select subject</option>{school.subjects.items.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>{!canSubmit && <p className="form-note">Create a section and subject, then invite a teacher and wait for the invitation to be accepted.</p>}</>}{action === "enrollment" && <><label>Student<select name="studentUserId" required defaultValue=""><option value="" disabled>Select student</option>{activeStudents.map((item) => <option key={item.userId} value={item.userId}>{item.email}</option>)}</select></label><label>Section<select name="sectionId" required defaultValue=""><option value="" disabled>Select section</option>{school.sections.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Roll number<input name="rollNumber" required maxLength={32} placeholder="01" /></label>{!canSubmit && <p className="form-note">Create a section, then invite a student and wait for the invitation to be accepted.</p>}</>}{action === "invite" && <><label>Full name <span style={{ color: "var(--accent, #e11d48)" }}>*</span><input name="name" required maxLength={120} placeholder="e.g. Rahul Sharma" /></label><label>Email address <span style={{ color: "var(--accent, #e11d48)" }}>*</span><input name="email" type="email" required placeholder="name@school.edu" /></label><label>School role<select name="role" defaultValue="teacher"><option value="teacher">Teacher</option><option value="student">Student</option></select></label><p className="form-note">The API returns a private, single-use token. Automatic email delivery is not implemented by the backend.</p></>}{action === "school" && <><label>School name<input name="name" required defaultValue={school.organization.name} /></label><label>Timezone<input name="timeZone" required defaultValue={school.organization.timeZone} /></label><label>Locale<select name="locale" defaultValue={school.organization.locale}><option value="en-IN">English (India)</option><option value="hi-IN">Hindi (India)</option><option value="en-US">English (US)</option></select></label></>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={busy || !canSubmit}>{busy ? "Saving…" : "Save"}</button></div></form></section></div>;
+  return <div className="modal-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="action-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><button className="modal-close" onClick={onClose} aria-label="Close">×</button><p className="eyebrow">EDOPS setup</p><h2 id="modal-title">{labels[action]}</h2><form className="modal-form" onSubmit={submit}>{action === "year" && <><label>Name<input name="name" required maxLength={120} placeholder="2026–27" /></label><div className="form-grid"><label>Start date<input name="startDate" type="date" required /></label><label>End date<input name="endDate" type="date" required /></label></div><label className="checkbox"><input name="isCurrent" type="checkbox" /> Set as current academic year</label></>}{action === "program" && <><label>Program name<input name="name" required maxLength={120} placeholder="Grade 10" /></label><label>Sequence order<input name="sequenceOrder" type="number" min="0" max="10000" defaultValue="0" /></label></>}{action === "subject" && <><label>Subject name<input name="name" required maxLength={120} placeholder="Mathematics" /></label><label>Subject code<input name="code" required maxLength={32} pattern="[A-Za-z0-9][A-Za-z0-9_-]*" placeholder="MATH" /></label></>}{action === "section" && <><label>Academic year<select name="academicYearId" required defaultValue=""><option value="" disabled>Select year</option>{school.years.items.map((item: AcademicYear) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Program<select name="programId" required defaultValue=""><option value="" disabled>Select program</option>{school.programs.items.map((item: Program) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><div className="form-grid"><label>Section name<input name="name" required maxLength={120} placeholder="10-A" /></label><label>Capacity<input name="capacity" type="number" min="1" max="5000" required /></label></div></>}{action === "teacherAssignment" && <><label>Teacher<select name="teacherUserId" required defaultValue=""><option value="" disabled>Select teacher</option>{activeTeachers.map((item) => <option key={item.userId} value={item.userId}>{item.email}</option>)}</select></label><label>Section<select name="sectionId" required defaultValue=""><option value="" disabled>Select section</option>{school.sections.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Subject<select name="subjectId" required defaultValue=""><option value="" disabled>Select subject</option>{school.subjects.items.map((item) => <option key={item.id} value={item.id}>{item.name} ({item.code})</option>)}</select></label>{!canSubmit && <p className="form-note">Create a section and subject, then invite a teacher and wait for the invitation to be accepted.</p>}</>}{action === "enrollment" && <><label>Student<select name="studentUserId" required defaultValue=""><option value="" disabled>Select student</option>{activeStudents.map((item) => <option key={item.userId} value={item.userId}>{item.email}</option>)}</select></label><label>Section<select name="sectionId" required defaultValue=""><option value="" disabled>Select section</option>{school.sections.items.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Roll number<input name="rollNumber" required maxLength={32} placeholder="01" /></label>{!canSubmit && <p className="form-note">Create a section, then invite a student and wait for the invitation to be accepted.</p>}</>}{action === "invite" && <><label>Full name <span style={{ color: "var(--accent, #e11d48)" }}>*</span><input name="name" required maxLength={120} placeholder="e.g. Rahul Sharma" /></label><label>Email address <span style={{ color: "var(--accent, #e11d48)" }}>*</span><input name="email" type="email" required placeholder="name@school.edu" /></label><label>School role<select name="role" defaultValue="teacher"><option value="teacher">Teacher</option><option value="student">Student</option><option value="principal">Principal</option></select></label><p className="form-note">The API returns a private, single-use token. Automatic email delivery is not implemented by the backend.</p></>}{action === "school" && <><label>School name<input name="name" required defaultValue={school.organization.name} /></label><label>Timezone<input name="timeZone" required defaultValue={school.organization.timeZone} /></label><label>Locale<select name="locale" defaultValue={school.organization.locale}><option value="en-IN">English (India)</option><option value="hi-IN">Hindi (India)</option><option value="en-US">English (US)</option></select></label></>}<div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={busy || !canSubmit}>{busy ? "Saving…" : "Save"}</button></div></form></section></div>;
 }

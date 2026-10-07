@@ -16,6 +16,9 @@ import { CommunicationModule } from './modules/content/communication.controller'
 import { ArenaModule } from './modules/arena/arena.controller';
 import { BillingModule } from './modules/billing/billing.controller';
 import { SchoolAdminModule } from './modules/school-admin/school-admin.module';
+import { PrincipalModule } from './modules/principal/principal.module';
+import { TeacherModule } from './modules/teacher/teacher.module';
+import { StudentModule } from './modules/student/student.module';
 
 @Global()
 @Module({})
@@ -74,6 +77,9 @@ export class AppModule {
         ArenaModule,
         BillingModule,
         SchoolAdminModule,
+        PrincipalModule,
+        TeacherModule,
+        StudentModule,
       ],
       controllers: [HealthController],
       providers: [

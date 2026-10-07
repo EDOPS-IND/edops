@@ -1,7 +1,7 @@
 import { Column, CreateDateColumn, Entity, PrimaryColumn, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 export type OrganizationStatus = 'active' | 'suspended';
-export type SchoolRole = 'school_admin' | 'teacher' | 'student' | 'parent';
+export type SchoolRole = 'school_admin' | 'principal' | 'teacher' | 'student' | 'parent';
 
 @Entity('organizations')
 export class Organization {
@@ -31,7 +31,7 @@ export class Invitation {
   @Column({ name: 'organization_id', type: 'uuid' }) organizationId!: string;
   @Column({ type: 'varchar', length: 254 }) email!: string;
   @Column({ type: 'varchar', length: 120, nullable: true }) name?: string | null;
-  @Column({ type: 'varchar', length: 20, default: 'school_admin' }) role!: 'school_admin' | 'teacher' | 'student';
+  @Column({ type: 'varchar', length: 20, default: 'school_admin' }) role!: 'school_admin' | 'principal' | 'teacher' | 'student';
   @Column({ name: 'batch_id', type: 'uuid', nullable: true }) batchId!: string | null;
   @Column({ name: 'revoked_at', type: 'timestamptz', nullable: true }) revokedAt!: Date | null;
   @Column({ name: 'token_hash', type: 'varchar', length: 64, unique: true, select: false }) tokenHash!: string;

@@ -136,9 +136,9 @@ export function SchoolAdminWorkspace({
       {/* ============================================================== */}
       <aside
         style={{
-          background: "#064E3B",
+          background: "#090D16",
           color: "#FFFFFF",
-          borderRight: "1px solid #04382A",
+          borderRight: "1px solid #1A243D",
           padding: "20px 12px 30px",
           display: "flex",
           flexDirection: "column",
@@ -147,14 +147,14 @@ export function SchoolAdminWorkspace({
         }}
       >
         <div>
-          <div style={{ padding: "0 10px 14px", borderBottom: "1px solid rgba(248, 231, 201, 0.15)" }}>
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "#F8E7C9", letterSpacing: "0.06em", textTransform: "uppercase" }}>
+          <div style={{ padding: "0 10px 14px", borderBottom: "1px solid #1A243D" }}>
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "#818CF8", letterSpacing: "0.06em", textTransform: "uppercase" }}>
               School OS Control Center
             </span>
             <div style={{ fontSize: "15px", fontWeight: 800, color: "#FFFFFF", marginTop: "2px" }}>
               {schoolName}
             </div>
-            <div style={{ fontSize: "11px", color: "#F8E7C9", opacity: 0.85, marginTop: "2px" }}>
+            <div style={{ fontSize: "11px", color: "#94A3B8", opacity: 0.85, marginTop: "2px" }}>
               CBSE Affiliation #2130842
             </div>
           </div>
@@ -175,9 +175,12 @@ export function SchoolAdminWorkspace({
                 borderRadius: "7px",
                 fontSize: "13px",
                 fontWeight: currentTab === "dashboard" ? 750 : 500,
-                background: currentTab === "dashboard" ? "#F8E7C9" : "transparent",
-                color: currentTab === "dashboard" ? "#064E3B" : "#E2E8F0",
-                border: "none",
+                background: currentTab === "dashboard" ? "#334155" : "transparent",
+                color: currentTab === "dashboard" ? "#FFFFFF" : "#CBD5E1",
+                borderLeft: "none",
+                borderTop: "none",
+                borderRight: "none",
+                borderBottom: "none",
                 cursor: "pointer",
                 textAlign: "left",
               }}
@@ -189,7 +192,7 @@ export function SchoolAdminWorkspace({
 
           {/* People Module */}
           <div>
-            <div style={{ padding: "0 12px 6px", fontSize: "11px", fontWeight: 700, color: "#F8E7C9", opacity: 0.85, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+            <div style={{ padding: "0 12px 6px", fontSize: "11px", fontWeight: 700, color: "#8B9BB4", opacity: 0.85, letterSpacing: "0.05em", textTransform: "uppercase" }}>
               People Management
             </div>
             <div style={{ display: "grid", gap: "2px" }}>
@@ -215,9 +218,12 @@ export function SchoolAdminWorkspace({
                       borderRadius: "6px",
                       fontSize: "12.5px",
                       fontWeight: active ? 750 : 500,
-                      background: active ? "#F8E7C9" : "transparent",
-                      color: active ? "#064E3B" : "#E2E8F0",
-                      border: "none",
+                      background: active ? "#334155" : "transparent",
+                      color: active ? "#FFFFFF" : "#CBD5E1",
+                      borderLeft: "none",
+                      borderTop: "none",
+                      borderRight: "none",
+                      borderBottom: "none",
                       cursor: "pointer",
                       textAlign: "left",
                     }}
@@ -232,7 +238,7 @@ export function SchoolAdminWorkspace({
 
           {/* Academics & Timetable */}
           <div>
-            <div style={{ padding: "0 12px 6px", fontSize: "11px", fontWeight: 700, color: "#F8E7C9", opacity: 0.85, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+            <div style={{ padding: "0 12px 6px", fontSize: "11px", fontWeight: 700, color: "#8B9BB4", opacity: 0.85, letterSpacing: "0.05em", textTransform: "uppercase" }}>
               Academics & Schedule
             </div>
             <div style={{ display: "grid", gap: "2px" }}>
@@ -258,9 +264,12 @@ export function SchoolAdminWorkspace({
                       borderRadius: "6px",
                       fontSize: "12.5px",
                       fontWeight: active ? 750 : 500,
-                      background: active ? "#F8E7C9" : "transparent",
-                      color: active ? "#064E3B" : "#E2E8F0",
-                      border: "none",
+                      background: active ? "#334155" : "transparent",
+                      color: active ? "#FFFFFF" : "#CBD5E1",
+                      borderLeft: "none",
+                      borderTop: "none",
+                      borderRight: "none",
+                      borderBottom: "none",
                       cursor: "pointer",
                       textAlign: "left",
                     }}
@@ -275,7 +284,7 @@ export function SchoolAdminWorkspace({
 
           {/* Finance & Communication */}
           <div>
-            <div style={{ padding: "0 12px 6px", fontSize: "11px", fontWeight: 700, color: "#F8E7C9", opacity: 0.85, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+            <div style={{ padding: "0 12px 6px", fontSize: "11px", fontWeight: 700, color: "#8B9BB4", opacity: 0.85, letterSpacing: "0.05em", textTransform: "uppercase" }}>
               Finance & Comms
             </div>
             <div style={{ display: "grid", gap: "2px" }}>
@@ -299,9 +308,12 @@ export function SchoolAdminWorkspace({
                       borderRadius: "6px",
                       fontSize: "12.5px",
                       fontWeight: active ? 750 : 500,
-                      background: active ? "#F8E7C9" : "transparent",
-                      color: active ? "#064E3B" : "#E2E8F0",
-                      border: "none",
+                      background: active ? "#334155" : "transparent",
+                      color: active ? "#FFFFFF" : "#CBD5E1",
+                      borderLeft: "none",
+                      borderTop: "none",
+                      borderRight: "none",
+                      borderBottom: "none",
                       cursor: "pointer",
                       textAlign: "left",
                     }}
@@ -316,7 +328,7 @@ export function SchoolAdminWorkspace({
 
           {/* Governance & Governance */}
           <div>
-            <div style={{ padding: "0 12px 6px", fontSize: "11px", fontWeight: 700, color: "#F8E7C9", opacity: 0.85, letterSpacing: "0.05em", textTransform: "uppercase" }}>
+            <div style={{ padding: "0 12px 6px", fontSize: "11px", fontWeight: 700, color: "#8B9BB4", opacity: 0.85, letterSpacing: "0.05em", textTransform: "uppercase" }}>
               Governance & Audit
             </div>
             <div style={{ display: "grid", gap: "2px" }}>
@@ -343,9 +355,12 @@ export function SchoolAdminWorkspace({
                       borderRadius: "6px",
                       fontSize: "12.5px",
                       fontWeight: active ? 750 : 500,
-                      background: active ? "#F8E7C9" : "transparent",
-                      color: active ? "#064E3B" : "#E2E8F0",
-                      border: "none",
+                      background: active ? "#334155" : "transparent",
+                      color: active ? "#FFFFFF" : "#CBD5E1",
+                      borderLeft: "none",
+                      borderTop: "none",
+                      borderRight: "none",
+                      borderBottom: "none",
                       cursor: "pointer",
                       textAlign: "left",
                     }}
@@ -363,14 +378,14 @@ export function SchoolAdminWorkspace({
       {/* ============================================================== */}
       {/* 2. MAIN OPERATIONAL DESK & TOP CONTROLS                       */}
       {/* ============================================================== */}
-      <main style={{ padding: "24px 32px", overflowY: "auto" }}>
+      <main style={{ padding: "24px 32px", overflowY: "auto", background: "#F8FAFC" }}>
         {/* Top Control Bar */}
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "22px", flexWrap: "wrap", gap: "12px" }}>
           <div>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#064E3B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.05em" }}>
               EDOPS School Operating System
             </span>
-            <h1 style={{ margin: "2px 0 0", fontSize: "22px", fontWeight: 800, color: "#064E3B" }}>
+            <h1 style={{ margin: "2px 0 0", fontSize: "22px", fontWeight: 800, color: "#0F172A" }}>
               {currentTab === "dashboard"
                 ? "School Operations Control Center"
                 : currentTab.charAt(0).toUpperCase() + currentTab.slice(1) + " Management"}

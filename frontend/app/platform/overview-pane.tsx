@@ -30,9 +30,20 @@ export function OverviewPane({
             <span>Active Users (Students + Staff)</span>
             <Users size={16} />
           </div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#111827", marginTop: "6px" }}>84.5K</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#111827", marginTop: "6px" }}>
+            {(() => {
+              const totalStudents = schools.reduce((acc, s) => acc + parseInt((s.studentsCount || "0").replace(/,/g, ""), 10), 0);
+              const totalTeachers = schools.reduce((acc, s) => acc + parseInt((s.teachersCount || "0").replace(/,/g, ""), 10), 0);
+              const totalUsers = totalStudents + totalTeachers;
+              return totalUsers > 1000 ? `${(totalUsers / 1000).toFixed(1)}K` : `${totalUsers}`;
+            })()}
+          </div>
           <div style={{ fontSize: "11.5px", color: "#6B7280", marginTop: "4px" }}>
-            76.2K Students · 5.2K Teachers · 3.1K Staff
+            {(() => {
+              const students = schools.reduce((acc, s) => acc + parseInt((s.studentsCount || "0").replace(/,/g, ""), 10), 0);
+              const teachers = schools.reduce((acc, s) => acc + parseInt((s.teachersCount || "0").replace(/,/g, ""), 10), 0);
+              return `${students.toLocaleString()} Students · ${teachers.toLocaleString()} Teachers`;
+            })()}
           </div>
         </div>
 
@@ -41,20 +52,28 @@ export function OverviewPane({
             <span>Monthly Recurring Revenue</span>
             <DollarSign size={16} />
           </div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#059669", marginTop: "6px" }}>₹28.45L</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#059669", marginTop: "6px" }}>
+            ₹{(() => {
+              const activeCount = schools.filter(s => s.status === "active").length;
+              const estLakhs = (activeCount * 0.75).toFixed(2);
+              return `${estLakhs}L`;
+            })()}
+          </div>
           <div style={{ fontSize: "11.5px", color: "#10B981", marginTop: "4px", fontWeight: 600 }}>
-            +14.2% YoY growth · ARR ₹3.41 Cr
+            {schools.filter(s => s.status === "active").length} Billable Active Schools
           </div>
         </div>
 
         <div style={{ background: "#FFF", padding: "18px", borderRadius: "10px", border: "1px solid #E5E7EB", boxShadow: "0 1px 2px rgba(0,0,0,0.04)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", color: "#6B7280", fontSize: "12.5px", fontWeight: 600 }}>
-            <span>API & Storage Volume</span>
+            <span>Storage & API Volume</span>
             <HardDrive size={16} />
           </div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#111827", marginTop: "6px" }}>782 GB</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#111827", marginTop: "6px" }}>
+            {schools.reduce((acc, s) => acc + (s.storageUsageGb || 0), 0)} GB
+          </div>
           <div style={{ fontSize: "11.5px", color: "#6B7280", marginTop: "4px" }}>
-            1.42M API requests this month (99.98% ok)
+            {schools.reduce((acc, s) => acc + (s.apiRequests || 0), 0).toLocaleString()} API requests tracked
           </div>
         </div>
       </div>

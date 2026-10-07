@@ -12,6 +12,9 @@ import { Arena1789171200000 } from './migrations/1789171200000-Arena';
 import { Billing1789257600000 } from './migrations/1789257600000-Billing';
 import { PlatformControlCenter1789344000000 } from './migrations/1789344000000-PlatformControlCenter';
 import { SchoolAdminControlCenter1789430400000 } from './migrations/1789430400000-SchoolAdminControlCenter';
+import { PrincipalControlCenter1789516800000 } from './migrations/1789516800000-PrincipalControlCenter';
+import { TeacherControlCenter1789603200000 } from './migrations/1789603200000-TeacherControlCenter';
+import { StudentControlCenter1789689600000 } from './migrations/1789689600000-StudentControlCenter';
 import { ArenaAttempt, ArenaQuestion } from '../modules/arena/arena.entity';
 import { Recording } from '../modules/content/recording.entity';
 import { Assignment, AttendanceSession, ExamEvaluation, Submission } from '../modules/assignments/teaching.entity';
@@ -25,7 +28,7 @@ export function databaseOptions(config: AppConfig): DataSourceOptions {
     schema: config.databaseSchema,
     ssl: config.databaseSsl ? { rejectUnauthorized: true } : false,
     entities: [User, Organization, Membership, Invitation, AuditEvent, AcademicYear, Program, Subject, Section, ClassSubjectAssignment, Enrollment, Assignment, Submission, AttendanceSession, Recording, ArenaQuestion, ArenaAttempt, ExamEvaluation],
-    migrations: [InitialSchema1788825600000, Academics1788912000000, Teaching1788998400000, Communication1789084800000, Arena1789171200000, Billing1789257600000, PlatformControlCenter1789344000000, SchoolAdminControlCenter1789430400000],
+    migrations: [InitialSchema1788825600000, Academics1788912000000, Teaching1788998400000, Communication1789084800000, Arena1789171200000, Billing1789257600000, PlatformControlCenter1789344000000, SchoolAdminControlCenter1789430400000, PrincipalControlCenter1789516800000, TeacherControlCenter1789603200000, StudentControlCenter1789689600000],
     migrationsTransactionMode: 'all',
     synchronize: false,
     logging: process.env.DB_LOGGING === 'true',
