@@ -5,8 +5,8 @@ import { normalizeEmail } from '../auth/auth.dto';
 import { AcademicListDto } from '../academics/academic.dto';
 
 export class MemberInvitationDto {
-  @ApiProperty({ format: 'email', example: 'teacher@school.example', maxLength: 254 }) @Transform(normalizeEmail) @IsEmail() @MaxLength(254) email!: string;
-  @ApiProperty({ enum: ['teacher', 'student'] }) @IsIn(['teacher', 'student']) role!: 'teacher' | 'student';
+  @ApiProperty({ format: 'email', example: 'principal@school.example', maxLength: 254 }) @Transform(normalizeEmail) @IsEmail() @MaxLength(254) email!: string;
+  @ApiProperty({ enum: ['principal', 'teacher', 'student'] }) @IsIn(['principal', 'teacher', 'student']) role!: 'principal' | 'teacher' | 'student';
   @ApiPropertyOptional({ example: 'Rahul Sharma', maxLength: 120 }) @ValidateIf((_object, value) => value !== undefined) @IsString() @MaxLength(120) name?: string;
 }
 
@@ -27,8 +27,8 @@ export class MembershipStatusDto {
 }
 
 export class MemberListDto extends AcademicListDto {
-  @ApiPropertyOptional({ enum: ['teacher', 'student'] }) @ValidateIf((_object, value) => value !== undefined)
-  @IsIn(['teacher', 'student']) role?: 'teacher' | 'student';
+  @ApiPropertyOptional({ enum: ['principal', 'teacher', 'student'] }) @ValidateIf((_object, value) => value !== undefined)
+  @IsIn(['principal', 'teacher', 'student']) role?: 'principal' | 'teacher' | 'student';
 }
 
 export class InvitationResult {
