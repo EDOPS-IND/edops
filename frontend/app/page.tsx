@@ -6,9 +6,7 @@ import { LearningWorkspace, SchoolBilling } from "./learning-workspace";
 import { PlatformWorkspace } from "./platform-workspace";
 import { DashboardHome } from "./dashboard-home";
 import { ParentDashboard } from "./parent-dashboard";
-import { PrincipalWorkspace } from "./principal";
-import { TeacherWorkspace } from "./teacher";
-import { StudentWorkspace } from "./student";
+import { PrincipalDashboard } from "./principal-dashboard";
 import { SchoolAdminWorkspace } from "./school-admin";
 import { BarChart3, Bell, BookOpen, CalendarCheck2, CalendarDays, ClipboardCheck, CreditCard, Database, Eye, EyeOff, GraduationCap, Home as HomeIcon, LayoutDashboard, LogOut, Network, Settings as SettingsIcon, ShieldCheck, Sliders, Sparkles, Trophy, UserRound, Users, Video, Building2 } from "lucide-react";
 

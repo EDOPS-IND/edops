@@ -328,17 +328,17 @@ export function PlatformWorkspace({
       )}
 
       {/* 2. HEADER BAR WITH GLOBAL SEARCH & QUICK ACTIONS (§32, §35) */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", borderBottom: "1px solid #E2E8F0", paddingBottom: "16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", borderBottom: "1px solid #E2DDD5", paddingBottom: "16px" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <h1 style={{ fontSize: "22px", fontWeight: 800, color: "#0F172A", margin: 0 }}>
+            <h1 style={{ fontSize: "22px", fontWeight: 800, color: "#064E3B", margin: 0 }}>
               EDOPS Platform Admin
             </h1>
-            <span style={{ background: "#090D16", color: "#F1F5F9", border: "1px solid #1A243D", padding: "2px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 800 }}>
+            <span style={{ background: "#F8E7C9", color: "#064E3B", border: "1px solid #E5CCA2", padding: "2px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: 800 }}>
               CONTROL CENTER v2.4
             </span>
           </div>
-          <p style={{ margin: "3px 0 0", fontSize: "12.5px", color: "#64748B" }}>
+          <p style={{ margin: "3px 0 0", fontSize: "12.5px", color: "#52635B" }}>
             Multi-tenant control plane: Lifecycle, Entitlements, Metering, Billing & Governance
           </p>
         </div>
@@ -352,7 +352,7 @@ export function PlatformWorkspace({
               placeholder="Search schools, codes, tickets, invoices..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ width: "100%", padding: "7px 12px 7px 32px", fontSize: "12.5px", borderRadius: "7px", border: "1px solid #D1D5DB", outline: "none", background: "#FFFFFF", color: "#0F172A" }}
+              style={{ width: "100%", padding: "7px 12px 7px 32px", fontSize: "12.5px", borderRadius: "7px", border: "1px solid #D1D5DB", outline: "none", background: "#F9FAFB" }}
             />
             {searchResults.length > 0 && (
               <div style={{ position: "absolute", top: "38px", left: 0, right: 0, background: "#FFF", border: "1px solid #D1D5DB", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", zIndex: 100, maxHeight: "250px", overflowY: "auto", padding: "6px 0" }}>
@@ -376,7 +376,7 @@ export function PlatformWorkspace({
                       <b>{item.name || item.subject || item.ticketCode || item.paymentReference}</b>
                       <span style={{ fontSize: "11px", color: "#6B7280", marginLeft: "8px" }}>{item.code || item.status}</span>
                     </div>
-                    <span style={{ textTransform: "uppercase", fontSize: "10px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px", background: "#090D16", color: "#FFF" }}>
+                    <span style={{ textTransform: "uppercase", fontSize: "10px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px", background: "#F8E7C9", color: "#064E3B" }}>
                       {item.type}
                     </span>
                   </div>
@@ -387,19 +387,19 @@ export function PlatformWorkspace({
 
           <button
             onClick={() => setTab("onboarding")}
-            style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "7px", background: "#090D16", color: "#FFFFFF", border: "1px solid #1A243D", fontWeight: 700, fontSize: "12.5px", cursor: "pointer" }}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 14px", borderRadius: "7px", background: "#064E3B", color: "#F8E7C9", border: "1px solid #064E3B", fontWeight: 700, fontSize: "12.5px", cursor: "pointer" }}
           >
             <Plus size={15} /> Add School
           </button>
           <button
             onClick={() => setCreatePlanModal(true)}
-            style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 12px", borderRadius: "7px", background: "#FFFFFF", color: "#0F172A", border: "1px solid #E2E8F0", fontWeight: 700, fontSize: "12.5px", cursor: "pointer" }}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 12px", borderRadius: "7px", background: "#F8E7C9", color: "#064E3B", border: "1px solid #E5CCA2", fontWeight: 700, fontSize: "12.5px", cursor: "pointer" }}
           >
             <Plus size={14} /> Create Plan
           </button>
           <button
             onClick={() => setAnnouncementModal(true)}
-            style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 12px", borderRadius: "7px", background: "#FFFFFF", color: "#0F172A", border: "1px solid #E2E8F0", fontWeight: 700, fontSize: "12.5px", cursor: "pointer" }}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px", padding: "7px 12px", borderRadius: "7px", background: "#F8E7C9", color: "#064E3B", border: "1px solid #E5CCA2", fontWeight: 700, fontSize: "12.5px", cursor: "pointer" }}
           >
             <Bell size={14} /> Broadcast
           </button>
@@ -421,7 +421,7 @@ export function PlatformWorkspace({
       )}
 
       {/* 3. PLATFORM NAVIGATION TABS (ALL 11 SECTIONS - §40) */}
-      <div style={{ display: "flex", gap: "6px", borderBottom: "1px solid #E2E8F0", paddingBottom: "10px", overflowX: "auto" }}>
+      <div style={{ display: "flex", gap: "6px", borderBottom: "1px solid #E2DDD5", paddingBottom: "10px", overflowX: "auto" }}>
         {[
           { id: "overview", label: "Overview", icon: BarChart3 },
           { id: "schools", label: "Schools & Tenants", icon: Building2 },
@@ -447,8 +447,8 @@ export function PlatformWorkspace({
               }}
               style={{
                 display: "inline-flex", alignItems: "center", gap: "7px", padding: "7px 14px", borderRadius: "7px",
-                border: "1px solid", borderColor: isActive ? "#1A243D" : "#E2E8F0",
-                background: isActive ? "#090D16" : "#FFFFFF", color: isActive ? "#FFFFFF" : "#475569",
+                border: "1px solid", borderColor: isActive ? "#064E3B" : "#E2DDD5",
+                background: isActive ? "#064E3B" : "#FFFFFF", color: isActive ? "#F8E7C9" : "#4B5563",
                 fontWeight: 700, fontSize: "12.5px", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s ease",
               }}
             >
