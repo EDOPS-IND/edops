@@ -128,3 +128,63 @@ export function getSchoolAdminGovernance(orgId: string) { return api<any>(`/orga
 export function createSchoolAdminDiscipline(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/school-admin/governance/discipline`, { method: "POST", body: data }); }
 
 
+
+// Auto-generated stubs for missing API endpoints
+export function getPrincipalActivity(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/principal/activity`); }
+export function getPrincipalAlerts(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/principal/alerts`); }
+export function resolvePrincipalAlert(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/resolvePrincipalAlert`, { method: "POST" }); }
+export function getPrincipalReports(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/principal/reports`); }
+export function submitStudentArenaAttempt(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/submitStudentArenaAttempt`, { method: "POST" }); }
+export function createStudentGoal(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/createStudentGoal`, { method: "POST" }); }
+export function submitStudentAssignment(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/submitStudentAssignment`, { method: "POST" }); }
+export function createStudentSupportRequest(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/createStudentSupportRequest`, { method: "POST" }); }
+export function updateStudentLectureProgress(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/updateStudentLectureProgress`, { method: "POST" }); }
+export function toggleStudentBookmark(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/toggleStudentBookmark`, { method: "POST" }); }
+export function getStudentCurriculum(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/curriculum`); }
+export function getStudentPerformance(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/performance`); }
+export function getStudentAttendance(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/attendance`); }
+export function getStudentSubjects(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/subjects`); }
+export function getStudentArena(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/arena`); }
+export function getStudentAssignments(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/assignments`); }
+export function getStudentClass(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/class`); }
+export function getStudentDashboard(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/dashboard`); }
+export function getStudentExams(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/exams`); }
+export function getStudentResources(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/resources`); }
+export function getStudentMessages(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/messages`); }
+export function sendStudentMessage(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/sendStudentMessage`, { method: "POST" }); }
+export function getStudentProgress(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/progress`); }
+export function getStudentAssessments(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/assessments`); }
+export function getStudentTimetable(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/student/timetable`); }
+export function createTeacherAssignment(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/createTeacherAssignment`, { method: "POST" }); }
+export function getTeacherClasses(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/classes`); }
+export function markTeacherAttendance(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/markTeacherAttendance`, { method: "POST" }); }
+export function getTeacherClassDetails(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/class-details`); }
+export function getTeacherStudent360(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/student360`); }
+export function createTeacherIntervention(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/createTeacherIntervention`, { method: "POST" }); }
+export function getTeacherClassStudents(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/class-students`); }
+export function recordTeacherLessonDelivery(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/recordTeacherLessonDelivery`, { method: "POST" }); }
+export function getTeacherCurriculum(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/curriculum`); }
+export function updateTeacherCurriculumProgress(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/updateTeacherCurriculumProgress`, { method: "POST" }); }
+export function getTeacherAttendance(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/attendance`); }
+export function getTeacherActivity(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/activity`); }
+export function getTeacherArenaQuestions(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/arena-questions`); }
+export function createTeacherArenaQuestion(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/createTeacherArenaQuestion`, { method: "POST" }); }
+export function getTeacherArenaAnalytics(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/arena-analytics`); }
+export function getTeacherAssignments(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/assignments`); }
+export function getTeacherSubmissionsQueue(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/submissions-queue`); }
+export function gradeTeacherSubmission(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/gradeTeacherSubmission`, { method: "POST" }); }
+export function getTeacherLearning(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/learning`); }
+export function uploadTeacherStudyMaterial(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/uploadTeacherStudyMaterial`, { method: "POST" }); }
+export function getTeacherCalendar(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/calendar`); }
+export function getTeacherStudents(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/students`); }
+export function getTeacherWorkload(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/workload`); }
+export function updateTeacherTask(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/updateTeacherTask`, { method: "POST" }); }
+export function getTeacherDashboard(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/dashboard`); }
+export function getTeacherAssessments(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/assessments`); }
+export function getTeacherMessages(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/messages`); }
+export function sendTeacherMessage(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/sendTeacherMessage`, { method: "POST" }); }
+export function submitTeacherMarks(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/unknown/submitTeacherMarks`, { method: "POST" }); }
+export function getTeacherTodayTimetable(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/today-timetable`); }
+export function getTeacherWeeklyTimetable(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/weekly-timetable`); }
+export function getTeacherReports(orgId: string, ...args: any[]) { return api<any>(`/organizations/${orgId}/teacher/reports`); }
+export function searchPrincipal(orgId: string, q: string) { return api<any>(`/organizations/${orgId}/principal/search?q=${encodeURIComponent(q)}`); }
