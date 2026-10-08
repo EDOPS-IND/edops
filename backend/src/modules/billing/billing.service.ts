@@ -376,7 +376,7 @@ export class BillingService {
       // 2. Insert organization
       const status = dto.isTrial ? 'trial' : 'active';
       const [org] = await m.query(`INSERT INTO organizations (
-        name, slug, timeZone, locale, status, code, school_type, board, registration_number, affiliation_number, established_year, address_line1, city, state, pincode, official_email, official_phone, website, principal_name, principal_email, principal_phone, health_score
+        name, slug, time_zone, locale, status, code, school_type, board, registration_number, affiliation_number, established_year, address_line1, city, state, pincode, official_email, official_phone, website, principal_name, principal_email, principal_phone, health_score
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21, 98)
       RETURNING id, name, slug, status, created_at AS "createdAt"`, [
         dto.name, dto.slug, dto.timeZone ?? 'Asia/Kolkata', dto.locale ?? 'en-IN', status,

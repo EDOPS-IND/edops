@@ -8,6 +8,9 @@ import { DashboardHome } from "./dashboard-home";
 import { ParentDashboard } from "./parent-dashboard";
 import { PrincipalDashboard } from "./principal-dashboard";
 import { SchoolAdminWorkspace } from "./school-admin";
+import { StudentWorkspace } from "./student";
+import { TeacherWorkspace } from "./teacher";
+import { PrincipalWorkspace } from "./principal";
 import { BarChart3, Bell, BookOpen, CalendarCheck2, CalendarDays, ClipboardCheck, CreditCard, Database, Eye, EyeOff, GraduationCap, Home as HomeIcon, LayoutDashboard, LogOut, Network, Settings as SettingsIcon, ShieldCheck, Sliders, Sparkles, Trophy, UserRound, Users, Video, Building2 } from "lucide-react";
 
 type Panel = "overview" | "principal" | "parent" | "academics" | "people" | "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress" | "billing" | "settings";
@@ -16,30 +19,36 @@ type MemberRole = Exclude<OrganizationSummary["role"], "school_admin" | "princip
 
 const roleNames: Record<OrganizationSummary["role"] | "platform", string> = { platform: "Platform administrator", school_admin: "School administrator", principal: "Principal", teacher: "Teacher", student: "Student", parent: "Parent" };
 const rolePanels: Record<MemberRole, { intro: string; panels: { id: string; icon: string; label: string; title: string; copy: string; items: [string, string][] }[] }> = {
-  teacher: { intro: "Plan lessons, follow your classes and keep daily teaching work together.", panels: [
-    { id: "overview", icon: "⌂", label: "Overview", title: "Teaching overview", copy: "A focused view of your day at school.", items: [["My classes", "Assigned sections and subjects"], ["Assignments", "Coursework shared with students"], ["Attendance", "Daily class attendance"]] },
-    { id: "assignments", icon: "✓", label: "Assignments", title: "Assignments", copy: "Create, publish and grade class work.", items: [] },
-    { id: "attendance", icon: "◎", label: "Attendance", title: "Attendance", copy: "Take attendance and review class registers.", items: [] },
-    { id: "updates", icon: "◇", label: "Updates", title: "Class updates", copy: "Notifications and published class activity.", items: [] },
-    { id: "recordings", icon: "▶", label: "Recordings", title: "Recordings", copy: "Upload and publish recorded lessons.", items: [] },
-    { id: "arena", icon: "◈", label: "Arena", title: "Arena", copy: "Create objective practice for your classes.", items: [] },
-    { id: "progress", icon: "↗", label: "Progress", title: "Class progress", copy: "Review scorecards across your class.", items: [] },
-  ] },
-  student: { intro: "See your learning, schedule and school progress in one place.", panels: [
-    { id: "overview", icon: "⌂", label: "Overview", title: "Student overview", copy: "Your current learning activity at a glance.", items: [["My subjects", "Subjects in your current section"], ["Due work", "Assignments to complete"], ["Attendance", "Your attendance summary"]] },
-    { id: "progress", icon: "↗", label: "Previous grades", title: "Previous grades", copy: "Your marks, completion and academic progress.", items: [] },
-    { id: "assignments", icon: "✓", label: "Assignments", title: "Assignments", copy: "Open your current work and teacher feedback.", items: [] },
-    { id: "attendance", icon: "◎", label: "Attendance", title: "My attendance", copy: "Review finalized attendance records.", items: [] },
-    { id: "recordings", icon: "▶", label: "Recordings", title: "Class recordings", copy: "Watch lessons shared by your teachers.", items: [] },
-    { id: "arena", icon: "◈", label: "Arena", title: "Practice Arena", copy: "Practice questions and improve your score.", items: [] },
-    { id: "updates", icon: "◇", label: "Updates", title: "My updates", copy: "Messages and activity addressed to you.", items: [] },
-  ] },
-  parent: { intro: "Stay informed about your children’s school life and progress.", panels: [
-    { id: "overview", icon: "⌂", label: "Overview", title: "Family overview", copy: "The latest school information for your family.", items: [["Children", "Linked student profiles"], ["Attendance", "Recent attendance updates"], ["Notices", "Messages from school"]] },
-    { id: "children", icon: "♙", label: "Children", title: "Children", copy: "Linked student profiles and learning summaries will appear here.", items: [["Learning", "Subjects and coursework"], ["Progress", "Results and teacher feedback"], ["Schedule", "Classes and school dates"]] },
-    { id: "attendance", icon: "✓", label: "Attendance", title: "Attendance", copy: "Review attendance details for your linked children.", items: [["Today", "Latest attendance status"], ["History", "Attendance across the term"], ["Absence notes", "Updates shared with school"]] },
-    { id: "notices", icon: "◇", label: "Notices", title: "School notices", copy: "Announcements and messages from school will appear here.", items: [["Announcements", "Whole-school updates"], ["Class messages", "Updates from teachers"], ["Reminders", "Dates and actions to remember"]] },
-  ] },
+  teacher: {
+    intro: "Plan lessons, follow your classes and keep daily teaching work together.", panels: [
+      { id: "overview", icon: "⌂", label: "Overview", title: "Teaching overview", copy: "A focused view of your day at school.", items: [["My classes", "Assigned sections and subjects"], ["Assignments", "Coursework shared with students"], ["Attendance", "Daily class attendance"]] },
+      { id: "assignments", icon: "✓", label: "Assignments", title: "Assignments", copy: "Create, publish and grade class work.", items: [] },
+      { id: "attendance", icon: "◎", label: "Attendance", title: "Attendance", copy: "Take attendance and review class registers.", items: [] },
+      { id: "updates", icon: "◇", label: "Updates", title: "Class updates", copy: "Notifications and published class activity.", items: [] },
+      { id: "recordings", icon: "▶", label: "Recordings", title: "Recordings", copy: "Upload and publish recorded lessons.", items: [] },
+      { id: "arena", icon: "◈", label: "Arena", title: "Arena", copy: "Create objective practice for your classes.", items: [] },
+      { id: "progress", icon: "↗", label: "Progress", title: "Class progress", copy: "Review scorecards across your class.", items: [] },
+    ]
+  },
+  student: {
+    intro: "See your learning, schedule and school progress in one place.", panels: [
+      { id: "overview", icon: "⌂", label: "Overview", title: "Student overview", copy: "Your current learning activity at a glance.", items: [["My subjects", "Subjects in your current section"], ["Due work", "Assignments to complete"], ["Attendance", "Your attendance summary"]] },
+      { id: "progress", icon: "↗", label: "Previous grades", title: "Previous grades", copy: "Your marks, completion and academic progress.", items: [] },
+      { id: "assignments", icon: "✓", label: "Assignments", title: "Assignments", copy: "Open your current work and teacher feedback.", items: [] },
+      { id: "attendance", icon: "◎", label: "Attendance", title: "My attendance", copy: "Review finalized attendance records.", items: [] },
+      { id: "recordings", icon: "▶", label: "Recordings", title: "Class recordings", copy: "Watch lessons shared by your teachers.", items: [] },
+      { id: "arena", icon: "◈", label: "Arena", title: "Practice Arena", copy: "Practice questions and improve your score.", items: [] },
+      { id: "updates", icon: "◇", label: "Updates", title: "My updates", copy: "Messages and activity addressed to you.", items: [] },
+    ]
+  },
+  parent: {
+    intro: "Stay informed about your children’s school life and progress.", panels: [
+      { id: "overview", icon: "⌂", label: "Overview", title: "Family overview", copy: "The latest school information for your family.", items: [["Children", "Linked student profiles"], ["Attendance", "Recent attendance updates"], ["Notices", "Messages from school"]] },
+      { id: "children", icon: "♙", label: "Children", title: "Children", copy: "Linked student profiles and learning summaries will appear here.", items: [["Learning", "Subjects and coursework"], ["Progress", "Results and teacher feedback"], ["Schedule", "Classes and school dates"]] },
+      { id: "attendance", icon: "✓", label: "Attendance", title: "Attendance", copy: "Review attendance details for your linked children.", items: [["Today", "Latest attendance status"], ["History", "Attendance across the term"], ["Absence notes", "Updates shared with school"]] },
+      { id: "notices", icon: "◇", label: "Notices", title: "School notices", copy: "Announcements and messages from school will appear here.", items: [["Announcements", "Whole-school updates"], ["Class messages", "Updates from teachers"], ["Reminders", "Dates and actions to remember"]] },
+    ]
+  },
 };
 
 function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(value)); }
@@ -220,18 +229,7 @@ export default function Home() {
 export function EdopsLogo({ size = "sm", className = "", style }: { size?: "sm" | "md" | "lg"; className?: string; style?: React.CSSProperties }) {
   return (
     <div className={`edops-pill-logo ${size} ${className}`.trim()} style={style} aria-label="EDOPS">
-      <div className="edops-logo-inner">
-        <svg className="edops-logo-wing" viewBox="0 0 300 140" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <path d="M 170 8 C 175 40 210 75 288 132 C 275 110 245 80 205 60 C 185 45 175 25 170 8 Z" fill="#F8E7C9" />
-          <path d="M 85 32 C 120 60 180 85 284 129 C 250 115 195 95 130 65 C 105 50 90 40 85 32 Z" fill="#ffffff" />
-          <path d="M 10 97 C 35 112 65 125 105 133 C 145 135 220 130 288 132 C 240 125 180 127 125 122 C 75 118 40 108 10 97 Z" fill="#F8E7C9" />
-        </svg>
-        <div className="edops-logo-text">
-          <span className="edops-purple">ED</span>
-          <span className="edops-white">O</span>
-          <span className="edops-purple">PS</span>
-        </div>
-      </div>
+      <img src="/logo.svg" alt="EDOPS" style={{ height: "100%", width: "auto", display: "block" }} />
     </div>
   );
 }
@@ -243,7 +241,18 @@ function ProfileMenu({ email, role, onLogout }: { email: string; role: string; o
   const menu = useRef<HTMLDetailsElement>(null);
   return <><details className="profile-menu" ref={menu} onKeyDown={(event) => { if (event.key === "Escape" && menu.current) menu.current.open = false; }}><summary className="avatar" aria-label="Open profile menu"><UserRound size={18} aria-hidden="true" /></summary><div><header><span><UserRound size={20} /></span><div><b>{email}</b><small>{role}</small></div></header><button type="button" onClick={() => { if (menu.current) menu.current.open = false; dialog.current?.showModal(); }}><ShieldCheck size={16} /> My profile</button><button type="button" onClick={onLogout}><LogOut size={16} /> Log out</button></div></details><dialog ref={dialog} className="profile-dialog" aria-labelledby="profile-heading"><form method="dialog"><button className="secondary-button">Close</button></form><span className="profile-portrait"><UserRound size={32} /></span><p className="section-kicker">Your EDOPS account</p><h2 id="profile-heading">My profile</h2><dl><div><dt>Email address</dt><dd>{email}</dd></div><div><dt>Current role</dt><dd>{role}</dd></div></dl><p>Your school manages your membership and class access.</p></dialog></>;
 }
-function LoadingScreen() { return <div className="loading-screen"><EdopsLogo size="md" /><span className="loading-wordmark" style={{ display: "none" }}>EDOPS</span><i /></div>; }
+function LoadingScreen() {
+  return (
+    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#020617] text-white">
+      <img src="/logo.svg" alt="EDOPS" className="h-16 w-auto animate-pulse" />
+      <div className="mt-8 flex gap-2 items-center">
+        <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: "0ms" }}></div>
+        <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: "150ms" }}></div>
+        <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: "300ms" }}></div>
+      </div>
+    </div>
+  );
+}
 function DashboardSkeleton() { return <div className="dashboard-skeleton"><div /><div /><div /><div /></div>; }
 
 function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => void; onInvite: () => void }) {
@@ -266,60 +275,85 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
   }
 
   return (
-    <main className="auth-page">
-      <section className="auth-brand">
-        <EdopsLogo size="lg" />
-        <div>
-          <p className="eyebrow">Connected school operations</p>
-          <h1>Everything your school needs. Nothing it doesn’t.</h1>
-          <p>A focused workspace for administrators, teachers, and students.</p>
+    <main className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden" style={{ fontFamily: '"Space Grotesk", Inter, system-ui, sans-serif' }}>
+      <section className="bg-[#020617] text-white flex flex-col justify-between p-12 lg:p-24 lg:w-1/2 h-full overflow-hidden">
+        <div className="block">
+          <img src="/logo.svg" alt="EDOPS" className="block h-12 w-auto -ml-2" />
+          <span className="block text-sm font-medium mt-1 uppercase tracking-[0.1em] text-[#94a3b8]">Management Console</span>
         </div>
-        <small>Secure. Clear. Built for learning.</small>
+
+        <div className="my-24 lg:my-auto">
+          <h1 className="text-white text-[72px] font-normal leading-none tracking-[-1.44px] m-0">Operate with<br />clarity.</h1>
+          <p className="mt-8 text-lg text-[#cbd5e1] max-w-[400px] leading-[1.4] mb-0">Centralized platform for managing schools, overseeing operations, and handling student-related activities.</p>
+        </div>
+
+        <div className="flex gap-8 text-sm text-[#94a3b8]">
+          <span className="cursor-pointer transition-colors duration-200 hover:text-white">Documentation</span>
+          <span className="cursor-pointer transition-colors duration-200 hover:text-white">Support</span>
+        </div>
       </section>
-      <section className="auth-panel">
-        <form className="auth-form" onSubmit={submit}>
-          <p className="eyebrow">Welcome back</p>
-          <h2>Sign in to EDOPS</h2>
-          <p>Use the account created through your EDOPS invitation.</p>
-          {error && <div className="form-error" role="alert">{error}</div>}
-          <label>
-            Email address
-            <input name="email" type="email" autoComplete="email" required placeholder="you@school.edu" />
-          </label>
-          <label>
-            Password
-            <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-              <input
-                name="password"
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                required
-                style={{ paddingRight: "40px" }}
-              />
+
+      <section className="bg-white lg:w-1/2 h-full overflow-y-auto flex flex-col">
+        <div className="flex-1 flex items-center justify-center p-8 lg:p-24 min-h-max">
+          <div className="w-full max-w-[400px] my-auto">
+            <h2 className="mb-2 text-[48px] font-normal text-[#212121] leading-[1.2] tracking-[-0.48px] mt-0">Sign in</h2>
+            <p className="mb-10 text-base text-[#75758a] leading-normal mt-0">Access the EDOPS enterprise dashboard.</p>
+
+            <form className="flex flex-col gap-6" onSubmit={submit}>
+              {error && <div className="text-red-500 text-sm p-3 bg-red-50 rounded border border-red-200" role="alert">{error}</div>}
+
+              <div className="flex flex-col gap-2">
+                <label className="block text-sm text-[#212121] font-medium">Email</label>
+                <input
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  placeholder="owner@your-company.com"
+                  className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="block text-sm text-[#212121] font-medium">Password</label>
+                <div className="relative flex items-center">
+                  <input
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    required
+                    placeholder="•••••••••••••••"
+                    className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border pr-10 focus:border-[#A0B6D9]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((prev) => !prev)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-2.5 bg-transparent border-none cursor-pointer text-[#64748b] flex items-center p-1"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full flex items-center justify-center gap-2 text-sm mt-4 bg-[#17171c] px-6 py-[14px] rounded-[32px] font-medium border-none cursor-pointer hover:bg-[#000000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={busy}
+              >
+                <span className="text-white">{busy ? "Signing in..." : "Sign in"}</span>
+              </button>
+
               <button
                 type="button"
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                style={{
-                  position: "absolute",
-                  right: "10px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  color: "var(--muted, #64748b)",
-                  display: "flex",
-                  alignItems: "center",
-                  padding: "4px",
-                }}
+                className="bg-transparent border-none text-black font-medium text-sm cursor-pointer text-center p-0 mt-[-8px] hover:text-[#212121] transition-colors"
+                onClick={onInvite}
               >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                Accept an invitation
               </button>
-            </div>
-          </label>
-          <button className="primary-button" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
-          <button type="button" className="link-button" onClick={onInvite}>Accept an invitation</button>
-          <small>Your session is protected by EDOPS.</small>
-        </form>
+            </form>
+          </div>
+        </div>
       </section>
     </main>
   );
@@ -355,78 +389,143 @@ function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => v
   }
 
   return (
-    <main className="standalone-page">
-      <section className="standalone-card">
-        <div style={{ display: "flex", justifyContent: "center", marginBottom: "20px" }}>
-          <EdopsLogo size="md" />
+    <main className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden" style={{ fontFamily: '"Space Grotesk", Inter, system-ui, sans-serif' }}>
+      <section className="bg-[#020617] text-white flex flex-col justify-between p-12 lg:p-24 lg:w-1/2 h-full overflow-hidden">
+        <div className="block">
+          <img src="/logo.svg" alt="EDOPS" className="block h-12 w-auto -ml-2" />
+          <span className="block text-sm font-medium mt-1 uppercase tracking-[0.1em] text-[#94a3b8]">Management Console</span>
         </div>
-        {success ? (
-          <>
-            <span className="success-mark">✓</span>
-            <h1>Invitation accepted</h1>
-            <p>{signedIn ? "Your school membership is ready. Refresh your dashboard to continue." : "Your account is ready. Sign in with your email and new password."}</p>
-            <button className="primary-button" onClick={onDone}>Continue to sign in</button>
-          </>
-        ) : (
-          <form className="auth-form" onSubmit={submit}>
-            <p className="eyebrow">School invitation</p>
-            <h2>Join your EDOPS workspace</h2>
-            <p>{signedIn ? "Paste the invitation token sent to your account." : "Paste your invitation token and choose a password of at least 12 characters."}</p>
-            {error && <div className="form-error" role="alert">{error}</div>}
-            <label>
-              Invitation token
-              <input name="token" minLength={64} maxLength={64} required defaultValue={typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite") ?? "" : ""} />
-            </label>
-            {!signedIn && (
-              <label>
-                Create password
-                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                  <input
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    minLength={12}
-                    maxLength={128}
-                    required
-                    autoComplete="new-password"
-                    style={{ paddingRight: "40px" }}
-                  />
+
+        <div className="my-24 lg:my-auto">
+          <h1 className="text-white text-[72px] font-normal leading-none tracking-[-1.44px] m-0">Join the<br />network.</h1>
+          <p className="mt-8 text-lg text-[#cbd5e1] max-w-[400px] leading-[1.4] mb-0">Securely accept your invitation to access decentralized property infrastructure.</p>
+        </div>
+
+        <div className="flex gap-8 text-sm text-[#94a3b8]">
+          <span className="cursor-pointer transition-colors duration-200 hover:text-white">Documentation</span>
+          <span className="cursor-pointer transition-colors duration-200 hover:text-white">Support</span>
+        </div>
+      </section>
+
+      <section className="bg-white lg:w-1/2 h-full overflow-y-auto flex flex-col">
+        <div className="flex-1 flex items-center justify-center p-8 lg:p-24 min-h-max">
+          <div className="w-full max-w-[400px] my-auto">
+            {success ? (
+              <>
+                <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-6">
+                  <span className="text-green-600 text-3xl">✓</span>
+                </div>
+                <h2 className="mb-2 text-[48px] font-normal text-[#212121] leading-[1.2] tracking-[-0.48px] mt-0">Invitation accepted</h2>
+                <p className="mb-10 text-base text-[#75758a] leading-normal mt-0">
+                  {signedIn ? "Your school membership is ready. Refresh your dashboard to continue." : "Your account is ready. Sign in with your email and new password."}
+                </p>
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center gap-2 text-sm mt-4 bg-[#17171c] text-white px-6 py-[14px] rounded-[32px] font-medium border-none cursor-pointer hover:bg-[#000000] transition-colors"
+                  onClick={onDone}
+                >
+                  Continue to sign in
+                </button>
+              </>
+            ) : (
+              <>
+                <h2 className="mb-2 text-[48px] font-normal text-[#212121] leading-[1.2] tracking-[-0.48px] mt-0">Join EDOPS</h2>
+                <p className="mb-10 text-base text-[#75758a] leading-normal mt-0">
+                  {signedIn ? "Paste the invitation token sent to your account." : "Paste your invitation token and set a password."}
+                </p>
+
+                <form className="flex flex-col gap-6" onSubmit={submit}>
+                  {error && <div className="text-red-500 text-sm p-3 bg-red-50 rounded border border-red-200" role="alert">{error}</div>}
+
+                  <div className="flex flex-col gap-2">
+                    <label className="block text-sm text-[#212121] font-medium">Invitation token</label>
+                    <input
+                      name="token"
+                      minLength={64}
+                      maxLength={64}
+                      required
+                      defaultValue={typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite") ?? "" : ""}
+                      className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
+                    />
+                  </div>
+
+                  {!signedIn && (
+                    <div className="flex flex-col gap-2">
+                      <label className="block text-sm text-[#212121] font-medium">Create password</label>
+                      <div className="relative flex items-center">
+                        <input
+                          name="password"
+                          type={showPassword ? "text" : "password"}
+                          minLength={12}
+                          maxLength={128}
+                          required
+                          autoComplete="new-password"
+                          className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border pr-10 focus:border-[#A0B6D9]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((prev) => !prev)}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          className="absolute right-2.5 bg-transparent border-none cursor-pointer text-[#64748b] flex items-center p-1"
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-2">
+                    <label className="block text-sm text-[#212121] font-medium">Phone number <span className="text-[#e11d48]">*</span></label>
+                    <input
+                      name="phone"
+                      type="tel"
+                      required
+                      placeholder="+91 98765 43210"
+                      maxLength={32}
+                      className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="block text-sm text-[#212121] font-medium">Full name</label>
+                    <input
+                      name="name"
+                      placeholder="Confirm your name"
+                      maxLength={120}
+                      className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label className="block text-sm text-[#212121] font-medium">Subject Specialty <span className="opacity-65 text-[0.85em] font-normal">(for teachers, e.g. Mathematics)</span></label>
+                    <input
+                      name="specialty"
+                      placeholder="e.g. Mathematics, Physics, Chemistry"
+                      maxLength={100}
+                      className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full flex items-center justify-center gap-2 text-sm mt-4 bg-[#17171c] px-6 py-[14px] rounded-[32px] font-medium border-none cursor-pointer hover:bg-[#000000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={busy}
+                  >
+                    <span className="text-white">{busy ? "Accepting..." : "Accept invitation"}</span>
+                  </button>
+
                   <button
                     type="button"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
-                    style={{
-                      position: "absolute",
-                      right: "10px",
-                      background: "none",
-                      border: "none",
-                      cursor: "pointer",
-                      color: "var(--muted, #64748b)",
-                      display: "flex",
-                      alignItems: "center",
-                      padding: "4px",
-                    }}
+                    className="bg-transparent border-none text-black font-medium text-sm cursor-pointer text-center p-0 mt-[-8px] hover:text-[#212121] transition-colors"
+                    onClick={onDone}
                   >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    Back to sign in
                   </button>
-                </div>
-              </label>
+                </form>
+              </>
             )}
-            <label>
-              Phone number <span style={{ color: "var(--accent, #e11d48)" }}>*</span>
-              <input name="phone" type="tel" required placeholder="+91 98765 43210" maxLength={32} />
-            </label>
-            <label>
-              Full name
-              <input name="name" placeholder="Confirm your name" maxLength={120} />
-            </label>
-            <label>
-              Subject Specialty <span style={{ opacity: 0.65, fontSize: "0.85em" }}>(for teachers, e.g. Mathematics)</span>
-              <input name="specialty" placeholder="e.g. Mathematics, Physics, Chemistry" maxLength={100} />
-            </label>
-            <button className="primary-button" disabled={busy}>{busy ? "Accepting…" : "Accept invitation"}</button>
-            <button type="button" className="link-button" onClick={onDone}>Back to sign in</button>
-          </form>
-        )}
+          </div>
+        </div>
       </section>
     </main>
   );
@@ -618,10 +717,10 @@ function PlatformScreen({ profile, workspace, onWorkspace, onLogout }: { profile
         <Brand />
         <div className="api-status"><span /> EDOPS Super Admin</div>
         <div className="top-actions">
-           <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "4px 12px" }}>
-             <input type="text" placeholder="Search..." aria-label="Search" style={{ border: "none", outline: "none", background: "transparent", fontSize: "14px", width: "200px", color: "#064E3B" }} />
-           </div>
-           <button style={{ background: "none", border: "none", cursor: "pointer", color: "#064E3B", padding: "4px" }} aria-label="Notifications"><Bell size={18} /></button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "4px 12px" }}>
+            <input type="text" placeholder="Search..." aria-label="Search" style={{ border: "none", outline: "none", background: "transparent", fontSize: "14px", width: "200px", color: "#064E3B" }} />
+          </div>
+          <button style={{ background: "none", border: "none", cursor: "pointer", color: "#064E3B", padding: "4px" }} aria-label="Notifications"><Bell size={18} /></button>
           {profile.organizations.length > 0 && <WorkspaceSelect profile={profile} value={workspace} onChange={onWorkspace} />}
           <ProfileMenu email={profile.user.email} role="Platform administrator" onLogout={onLogout} />
         </div>
@@ -639,10 +738,10 @@ function PlatformScreen({ profile, workspace, onWorkspace, onLogout }: { profile
       </aside>
       <main id="content" className="main-content">
         <section className="welcome-row" style={{ marginBottom: "20px" }}>
-           <div>
-              <h1>Dashboard</h1>
-              <p>Manage your schools, subscription plans, and billing in one place.</p>
-           </div>
+          <div>
+            <h1>Dashboard</h1>
+            <p>Manage your schools, subscription plans, and billing in one place.</p>
+          </div>
         </section>
         {profile.user.isPlatformAdmin ? <PlatformWorkspace activePanel={panel} onSelectPanel={handleSelectPanel} /> : <div className="error-banner">Your account has no school membership. Ask a platform administrator for an invitation.</div>}
       </main>
