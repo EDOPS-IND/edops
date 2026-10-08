@@ -159,23 +159,20 @@ export default function Home() {
   const activeEnrollments = school?.enrollments.items.filter((item) => item.status === "active").length ?? 0;
 
   return (
-    <div className="app-shell" style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
-      <header className="topbar">
-        <Brand />
-        <div className="api-status"><span /> Connected to EDOPS API · School OS</div>
-        <div className="top-actions">
-          <WorkspaceSelect profile={profile} value={workspace} onChange={switchWorkspace} />
-          <ProfileMenu email={profile.user.email} role="School administrator" onLogout={signOut} />
+    <div className="app-shell" style={{ minHeight: "100vh" }}>
+      {error && (
+        <div className="error-banner" role="alert" style={{ position: "fixed", top: "16px", left: "270px", right: "16px", zIndex: 200 }}>
+          <b>Couldn't complete that request.</b><span>{error}</span>
+          <button onClick={() => setError("")}>×</button>
         </div>
-      </header>
+      )}
 
-      {error && <div className="error-banner" role="alert"><b>Couldn’t complete that request.</b><span>{error}</span><button onClick={() => setError("")}>×</button></div>}
-
-      <div className="school-workspace-container" aria-label="School workspace" style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div aria-label="School workspace">
         <SchoolAdminWorkspace
           schoolName={school?.organization?.name || membership.name}
           organizationId={schoolId}
           onOpenAction={(act) => setAction(act as Action)}
+          onLogout={signOut}
         />
       </div>
 
