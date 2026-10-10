@@ -10,9 +10,6 @@ import { PrincipalWorkspace } from "./principal";
 import { TeacherWorkspace } from "./teacher";
 import { StudentWorkspace } from "./student";
 import { SchoolAdminWorkspace } from "./school-admin";
-import { StudentWorkspace } from "./student";
-import { TeacherWorkspace } from "./teacher";
-import { PrincipalWorkspace } from "./principal";
 import { BarChart3, Bell, BookOpen, CalendarCheck2, CalendarDays, ClipboardCheck, CreditCard, Database, Eye, EyeOff, GraduationCap, Home as HomeIcon, LayoutDashboard, LogOut, Network, Settings as SettingsIcon, ShieldCheck, Sliders, Sparkles, Trophy, UserRound, Users, Video, Building2 } from "lucide-react";
 
 type Panel = "overview" | "principal" | "parent" | "academics" | "people" | "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress" | "billing" | "settings";

@@ -548,65 +548,24 @@ export function SchoolAdminWorkspace({
           </div>
         </header>
 
-        {/* Dynamic Pane Switcher */}
-        {currentTab === "dashboard" && (
-          <DashboardPane
-            organizationId={organizationId}
-            onNavigate={handleSelectTab}
-            onOpenQuickAction={(action) => handleTriggerAction(action)}
-          />
-        )}
-
-        {["students", "teachers", "staff", "parents", "departments"].includes(currentTab) && (
-          <PeoplePane
-            organizationId={organizationId}
-            initialSubtab={currentTab as any}
-            onOpenQuickAction={(action) => handleTriggerAction(action)}
-          />
-        )}
-
-        {currentTab === "academics" && (
-          <AcademicsPane
-            organizationId={organizationId}
-            onOpenQuickAction={(action) => handleTriggerAction(action)}
-          />
-        )}
-
-        {currentTab === "timetable" && <TimetablePane organizationId={organizationId} />}
-
-        {currentTab === "attendance" && <AttendanceLeavePane organizationId={organizationId} />}
-
-        {currentTab === "learning" && <LearningExamsPane organizationId={organizationId} initialTab="assignments" />}
-
-        {currentTab === "examinations" && <LearningExamsPane organizationId={organizationId} initialTab="exams" />}
-
-        {currentTab === "finance" && <FinancePane organizationId={organizationId} />}
-
-        {currentTab === "communication" && <CommunicationPane organizationId={organizationId} />}
-
-        {currentTab === "operations" && <OperationsPane organizationId={organizationId} />}
-
-        {["discipline", "documents", "reports", "alerts", "settings", "audit"].includes(currentTab) && (
-          <GovernancePane organizationId={organizationId} initialTab={currentTab as any} />
-        )}
         {/* ── Page content ────────────────────────────── */}
         <div style={{ flex: 1, padding: "28px 28px 56px" }}>
           {currentTab === "dashboard" && (
-            <DashboardPane onNavigate={go} onOpenQuickAction={triggerAction} />
+            <DashboardPane organizationId={organizationId} onNavigate={go} onOpenQuickAction={triggerAction} />
           )}
           {["students","teachers","staff","parents","departments"].includes(currentTab) && (
-            <PeoplePane initialSubtab={currentTab as any} onOpenQuickAction={triggerAction} />
+            <PeoplePane organizationId={organizationId} initialSubtab={currentTab as any} onOpenQuickAction={triggerAction} />
           )}
-          {currentTab === "academics" && <AcademicsPane onOpenQuickAction={triggerAction} />}
-          {currentTab === "timetable" && <TimetablePane />}
-          {currentTab === "attendance" && <AttendanceLeavePane />}
-          {currentTab === "learning" && <LearningExamsPane initialTab="assignments" />}
-          {currentTab === "examinations" && <LearningExamsPane initialTab="exams" />}
-          {currentTab === "finance" && <FinancePane />}
-          {currentTab === "communication" && <CommunicationPane />}
-          {currentTab === "operations" && <OperationsPane />}
+          {currentTab === "academics" && <AcademicsPane organizationId={organizationId} onOpenQuickAction={triggerAction} />}
+          {currentTab === "timetable" && <TimetablePane organizationId={organizationId} />}
+          {currentTab === "attendance" && <AttendanceLeavePane organizationId={organizationId} />}
+          {currentTab === "learning" && <LearningExamsPane organizationId={organizationId} initialTab="assignments" />}
+          {currentTab === "examinations" && <LearningExamsPane organizationId={organizationId} initialTab="exams" />}
+          {currentTab === "finance" && <FinancePane organizationId={organizationId} />}
+          {currentTab === "communication" && <CommunicationPane organizationId={organizationId} />}
+          {currentTab === "operations" && <OperationsPane organizationId={organizationId} />}
           {["discipline","documents","reports","alerts","settings","audit"].includes(currentTab) && (
-            <GovernancePane initialTab={currentTab as any} />
+            <GovernancePane organizationId={organizationId} initialTab={currentTab as any} />
           )}
         </div>
       </main>
