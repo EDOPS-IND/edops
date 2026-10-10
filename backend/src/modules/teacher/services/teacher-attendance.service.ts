@@ -1,11 +1,11 @@
-import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DrizzleService } from '../../../database/drizzle.service';
+import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
 import { User } from '../../auth/user.entity';
 import { QuickAttendanceDto } from '../dto/teacher.dto';
 
 @Injectable()
 export class TeacherAttendanceService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getAttendanceOverview(organizationId: string, user: User) {
     let recentSessions: any[] = [];
@@ -16,7 +16,7 @@ export class TeacherAttendanceService {
 
     try {
       // 1. Fetch real attendance sessions from database
-      const sessionRows = await this.dataSource.query(
+      const sessionRows = await this.drizzle.query(
         `SELECT 
            s.id,
            to_char(s.date, 'YYYY-MM-DD') as date,
@@ -66,7 +66,7 @@ export class TeacherAttendanceService {
 
     try {
       // 2. Fetch real defaulters from database (attendance < 75%)
-      const defaulterRows = await this.dataSource.query(
+      const defaulterRows = await this.drizzle.query(
         `SELECT 
            e.student_user_id as id,
            coalesce(u.name, 'Student') as student_name,
@@ -103,9 +103,34 @@ export class TeacherAttendanceService {
       defaultersAlerts = [];
     }
 
-    const classesTotal = todaySessionsCount;
+    let scheduledClassesCount = 0;
+    try {
+      const todayName = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()).toLowerCase();
+      const dayMap: Record<string, number> = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6, sunday: 7 };
+      const todayNum = dayMap[todayName] || 1;
+
+      const [sched] = await this.drizzle.query(
+        `SELECT COUNT(*)::int as count FROM timetable_entries
+         WHERE organization_id = $1 AND teacher_user_id = $2 AND day_of_week = $3`,
+        [organizationId, user?.id, todayNum]
+      );
+      scheduledClassesCount = Number(sched?.count || 0);
+
+      if (scheduledClassesCount === 0) {
+        const [tts] = await this.drizzle.query(
+          `SELECT COUNT(*)::int as count FROM teacher_timetable_slots
+           WHERE organization_id = $1 AND teacher_user_id = $2 AND day_of_week = $3`,
+          [organizationId, user?.id, todayName]
+        );
+        scheduledClassesCount = Number(tts?.count || 0);
+      }
+    } catch {
+      scheduledClassesCount = 0;
+    }
+
+    const classesTotal = Math.max(scheduledClassesCount, todaySessionsCount);
     const classesMarked = todaySessionsCount;
-    const pendingMarking = 0;
+    const pendingMarking = Math.max(0, classesTotal - classesMarked);
     const overallAttendancePct = totalRecords > 0
       ? Number(((totalPresent / totalRecords) * 100).toFixed(1))
       : 0;
@@ -124,82 +149,102 @@ export class TeacherAttendanceService {
 
   async recordQuickAttendance(organizationId: string, user: User, dto: QuickAttendanceDto) {
     let resolvedSectionId = dto.sectionId;
-    let resolvedSubjectId = dto.subjectId || null;
+    let resolvedSubjectId: string | null = null;
 
-    // Validate or resolve sectionId to actual UUID if passed slug
-    try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.sectionId);
-      if (!isUuid) {
-        const cleanName = dto.sectionId.replace(/^sec-/, '').replace('-', ' ');
-        const [sec] = await this.dataSource.query(
-          `SELECT id FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
-          [organizationId, `%${cleanName}%`, dto.sectionId]
-        );
-        if (sec?.id) resolvedSectionId = sec.id;
-      }
-    } catch {}
-
-    // Validate or resolve subjectId if passed slug
-    if (dto.subjectId) {
-      try {
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.subjectId);
-        if (!isUuid) {
-          const [sub] = await this.dataSource.query(
-            `SELECT id FROM subjects WHERE organization_id = $1 LIMIT 1`,
-            [organizationId]
-          );
-          if (sub?.id) resolvedSubjectId = sub.id;
-          else resolvedSubjectId = null;
-        }
-      } catch {
-        resolvedSubjectId = null;
+    // Validate or resolve sectionId to actual UUID
+    const isSectionUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.sectionId || '');
+    if (isSectionUuid) {
+      const [sec] = await this.drizzle.query(
+        `SELECT id FROM sections WHERE organization_id = $1 AND id = $2 LIMIT 1`,
+        [organizationId, dto.sectionId]
+      ).catch(() => []);
+      if (sec?.id) resolvedSectionId = sec.id;
+    } else {
+      const cleanName = (dto.sectionId || '').replace(/^sec-/, '').replace('-', ' ');
+      const [sec] = await this.drizzle.query(
+        `SELECT id FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
+        [organizationId, `%${cleanName}%`, dto.sectionId]
+      ).catch(() => []);
+      if (sec?.id) resolvedSectionId = sec.id;
+      else {
+        const [firstSec] = await this.drizzle.query(
+          `SELECT id FROM sections WHERE organization_id = $1 LIMIT 1`,
+          [organizationId]
+        ).catch(() => []);
+        if (firstSec?.id) resolvedSectionId = firstSec.id;
       }
     }
 
-    // 1. Create or upsert attendance session in DB
-    let sessionId: string | null = null;
-    try {
-      const [existing] = await this.dataSource.query(
-        `SELECT id FROM attendance_sessions
-         WHERE organization_id = $1 AND section_id = $2 AND date = $3 AND period = $4`,
-        [organizationId, resolvedSectionId, dto.date, dto.period]
-      );
-
-      if (existing?.id) {
-        sessionId = existing.id;
-      } else {
-        const [inserted] = await this.dataSource.query(
-          `INSERT INTO attendance_sessions (organization_id, section_id, subject_id, date, period, taken_by, status, finalized_at)
-           VALUES ($1, $2, $3, $4, $5, $6, 'finalized', now())
-           RETURNING id`,
-          [organizationId, resolvedSectionId, resolvedSubjectId, dto.date, dto.period, user.id]
-        );
-        sessionId = inserted?.id;
+    // Validate or resolve subjectId if valid UUID exists in DB
+    if (dto.subjectId) {
+      const isSubUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.subjectId);
+      if (isSubUuid) {
+        const [sub] = await this.drizzle.query(
+          `SELECT id FROM subjects WHERE organization_id = $1 AND id = $2 LIMIT 1`,
+          [organizationId, dto.subjectId]
+        ).catch(() => []);
+        if (sub?.id) resolvedSubjectId = sub.id;
       }
+    }
 
-      // 2. Insert records
-      if (sessionId && dto.records?.length > 0) {
-        for (const rec of dto.records) {
-          const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rec.studentId);
-          if (isUuid) {
-            await this.dataSource.query(
-              `INSERT INTO attendance_records (organization_id, attendance_session_id, student_id, status)
-               VALUES ($1, $2, $3, $4)
-               ON CONFLICT (organization_id, attendance_session_id, student_id)
-               DO UPDATE SET status = EXCLUDED.status`,
-              [organizationId, sessionId, rec.studentId, rec.status]
-            );
-          }
+    if (!resolvedSectionId) {
+      throw new BadRequestException('A valid class section is required to record attendance.');
+    }
+
+    // 1. Create or check existing attendance session in DB
+    let sessionId: string;
+    const [existing] = await this.drizzle.query(
+      `SELECT id, status FROM attendance_sessions
+       WHERE organization_id = $1 AND section_id = $2 AND date = $3 AND period = $4`,
+      [organizationId, resolvedSectionId, dto.date, dto.period]
+    ).catch(() => []);
+
+    if (existing?.id) {
+      if (existing.status === 'finalized') {
+        throw new ConflictException(
+          `Attendance for Period ${dto.period} on ${dto.date} has already been finalized. Duplicate attendance is not allowed.`
+        );
+      }
+      sessionId = existing.id;
+      await this.drizzle.query(
+        `UPDATE attendance_sessions SET status = 'finalized', finalized_at = now() WHERE id = $1`,
+        [sessionId]
+      ).catch(() => {});
+    } else {
+      const [inserted] = await this.drizzle.query(
+        `INSERT INTO attendance_sessions (organization_id, section_id, subject_id, date, period, taken_by, status, finalized_at)
+         VALUES ($1, $2, $3, $4, $5, $6, 'finalized', now())
+         RETURNING id`,
+        [organizationId, resolvedSectionId, resolvedSubjectId, dto.date, dto.period, user.id]
+      );
+      if (!inserted?.id) {
+        throw new BadRequestException('Could not create attendance session.');
+      }
+      sessionId = inserted.id;
+    }
+
+    // 2. Insert records
+    let markedCount = 0;
+    if (sessionId && dto.records?.length > 0) {
+      for (const rec of dto.records) {
+        const isStudentUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rec.studentId);
+        if (isStudentUuid) {
+          await this.drizzle.query(
+            `INSERT INTO attendance_records (organization_id, attendance_session_id, student_id, status)
+             VALUES ($1, $2, $3, $4)
+             ON CONFLICT (organization_id, attendance_session_id, student_id)
+             DO UPDATE SET status = EXCLUDED.status`,
+            [organizationId, sessionId, rec.studentId, rec.status]
+          ).catch(() => {});
+          markedCount++;
         }
       }
-    } catch {
-      sessionId = sessionId || `att-${Date.now()}`;
     }
 
     return {
       success: true,
-      sessionId: sessionId || `att-${Date.now()}`,
-      markedStudents: dto.records?.length || 0,
+      sessionId,
+      markedStudents: markedCount,
       message: `Period ${dto.period} attendance finalized successfully.`,
     };
   }

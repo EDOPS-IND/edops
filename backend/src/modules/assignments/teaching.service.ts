@@ -2,7 +2,6 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { AcademicListDto } from '../academics/academic.dto';
 import { User } from '../auth/user.entity';
 import { AssignmentQuery, ClassQuery, CreateEvaluationDto, UpdateScoresDto } from './teaching.dto';
-import { ExamEvaluation } from './teaching.entity';
 import { TeachingAccess } from './teaching-access.service';
 
 @Injectable()
@@ -44,11 +43,15 @@ export class TeachingService {
     return this.access.run(org, actor, null, null, null,
       (manager, role) => this.access.classScope(manager, org, actor, role, query.sectionId, query.subjectId),
       async (manager, role) => {
-        const items = await manager.getRepository(ExamEvaluation).find({
-          where: { organizationId: org, sectionId: query.sectionId, subjectId: query.subjectId },
-          order: { createdAt: 'ASC' },
-        });
-        const mapped = items.map((item) => {
+        const items = await manager.query(
+          `SELECT id, organization_id AS "organizationId", section_id AS "sectionId", subject_id AS "subjectId",
+                  title, max_marks AS "maxMarks", weightage, student_scores AS "studentScores", created_at AS "createdAt"
+           FROM exam_evaluations
+           WHERE organization_id = $1 AND section_id = $2 AND subject_id = $3
+           ORDER BY created_at ASC`,
+          [org, query.sectionId, query.subjectId],
+        );
+        const mapped = items.map((item: any) => {
           if (role === 'student') {
             const score = typeof item.studentScores?.[actor.id] === 'number' ? item.studentScores[actor.id] : null;
             return {
@@ -73,44 +76,43 @@ export class TeachingService {
     return this.access.run(org, actor, null, null, null,
       (manager, role) => this.access.classScope(manager, org, actor, role, dto.sectionId, dto.subjectId, true),
       async (manager) => {
-        const repo = manager.getRepository(ExamEvaluation);
-        const item = repo.create({
-          organizationId: org,
-          sectionId: dto.sectionId,
-          subjectId: dto.subjectId,
-          title: dto.title,
-          maxMarks: dto.maxMarks ?? 100,
-          weightage: dto.weightage ?? 20,
-          studentScores: {},
-        });
-        return repo.save(item);
+        const [item] = await manager.query(
+          `INSERT INTO exam_evaluations (organization_id, section_id, subject_id, title, max_marks, weightage, student_scores)
+           VALUES ($1, $2, $3, $4, $5, $6, '{}'::jsonb) RETURNING *`,
+          [org, dto.sectionId, dto.subjectId, dto.title, dto.maxMarks ?? 100, dto.weightage ?? 20],
+        );
+        return item;
       });
   }
 
   updateEvaluationScores(org: string, actor: User, id: string, dto: UpdateScoresDto) {
     return this.access.run(org, actor, null, null, null,
       async (manager, role) => {
-        const item = await manager.getRepository(ExamEvaluation).findOneBy({ organizationId: org, id });
+        const [item] = await manager.query('SELECT * FROM exam_evaluations WHERE organization_id = $1 AND id = $2 LIMIT 1', [org, id]);
         if (!item) throw new NotFoundException('Evaluation not found');
-        await this.access.classScope(manager, org, actor, role, item.sectionId, item.subjectId, true);
+        await this.access.classScope(manager, org, actor, role, item.section_id || item.sectionId, item.subject_id || item.subjectId, true);
       },
       async (manager) => {
-        const repo = manager.getRepository(ExamEvaluation);
-        const item = await repo.findOneByOrFail({ organizationId: org, id });
-        item.studentScores = { ...(item.studentScores || {}), ...dto.scores };
-        return repo.save(item);
+        const [existing] = await manager.query('SELECT student_scores FROM exam_evaluations WHERE organization_id = $1 AND id = $2 LIMIT 1', [org, id]);
+        if (!existing) throw new NotFoundException('Evaluation not found');
+        const updatedScores = { ...(existing.student_scores || {}), ...dto.scores };
+        const [updated] = await manager.query(
+          'UPDATE exam_evaluations SET student_scores = $1::jsonb WHERE organization_id = $2 AND id = $3 RETURNING *',
+          [JSON.stringify(updatedScores), org, id],
+        );
+        return updated;
       });
   }
 
   deleteEvaluation(org: string, actor: User, id: string) {
     return this.access.run(org, actor, null, null, null,
       async (manager, role) => {
-        const item = await manager.getRepository(ExamEvaluation).findOneBy({ organizationId: org, id });
+        const [item] = await manager.query('SELECT * FROM exam_evaluations WHERE organization_id = $1 AND id = $2 LIMIT 1', [org, id]);
         if (!item) throw new NotFoundException('Evaluation not found');
-        await this.access.classScope(manager, org, actor, role, item.sectionId, item.subjectId, true);
+        await this.access.classScope(manager, org, actor, role, item.section_id || item.sectionId, item.subject_id || item.subjectId, true);
       },
       async (manager) => {
-        await manager.getRepository(ExamEvaluation).delete({ organizationId: org, id });
+        await manager.query('DELETE FROM exam_evaluations WHERE organization_id = $1 AND id = $2', [org, id]);
         return { success: true };
       });
   }

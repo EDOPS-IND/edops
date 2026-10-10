@@ -1,7 +1,8 @@
 import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { isUUID } from 'class-validator';
 import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'node:crypto';
-import { DataSource, EntityManager } from 'typeorm';
+import { DrizzleService } from '../../database/drizzle.service';
+import { Queryable } from '../billing/entitlements';
 import { AppConfig, InjectConfig } from '../../config';
 import { User } from '../auth/user.entity';
 import { TenantsService } from './tenants.service';
@@ -16,7 +17,7 @@ function canonical(value: unknown): unknown {
 @Injectable()
 export class SchoolWork {
   private readonly encryptionKey: Buffer;
-  constructor(private readonly source: DataSource, private readonly tenants: TenantsService, @InjectConfig() config: AppConfig) {
+  constructor(private readonly drizzle: DrizzleService, private readonly tenants: TenantsService, @InjectConfig() config: AppConfig) {
     this.encryptionKey = Buffer.from(hkdfSync('sha256', config.sessionSecret, 'edops', 'idempotency-response-v1', 32));
   }
 
@@ -37,17 +38,25 @@ export class SchoolWork {
   }
 
   async run<T>(organizationId: string, actor: User, action: string | null, payload: unknown,
-    key: string | undefined | null, work: (manager: EntityManager) => Promise<T>,
-    access?: { roles: readonly SchoolRole[]; authorize: (manager: EntityManager) => Promise<void>; platform?: boolean; lockOrg?: boolean }): Promise<T> {
+    key: string | undefined | null, work: (manager: Queryable) => Promise<T>,
+    access?: { roles: readonly SchoolRole[]; authorize: (manager: Queryable) => Promise<void>; platform?: boolean; lockOrg?: boolean }): Promise<T> {
     if (key !== null && (!key || !isUUID(key))) throw new BadRequestException('Idempotency-Key must be a UUID for creation requests');
     if (key) key = key.toLowerCase();
-    return this.source.transaction(async (manager) => {
+    return this.drizzle.transaction(async (manager) => {
       // ponytail: serialize writes per school for pilot-sized rosters; narrow locks if measured throughput requires it.
-      if (access?.platform && !await manager.getRepository(User).existsBy({ id: actor.id, isActive: true, isPlatformAdmin: true })) throw new ForbiddenException('Platform administrator access required');
+      if (access?.platform) {
+        const [admin] = await manager.query('SELECT id FROM users WHERE id = $1 AND is_active = true AND is_platform_admin = true LIMIT 1', [actor.id]);
+        if (!admin) throw new ForbiddenException('Platform administrator access required');
+      }
       const shouldLock = action !== null && access?.lockOrg !== false;
-      const organization = access?.platform
-        ? await manager.getRepository(Organization).findOne({ where: { id: organizationId }, ...(shouldLock ? { lock: { mode: 'pessimistic_write' as const } } : {}) })
-        : await this.tenants.authorizedOrganization(manager, organizationId, actor, shouldLock, access?.roles);
+      let organization: any;
+      if (access?.platform) {
+        const lockClause = shouldLock ? ' FOR UPDATE' : '';
+        const [org] = await manager.query(`SELECT * FROM organizations WHERE id = $1${lockClause} LIMIT 1`, [organizationId]);
+        organization = org;
+      } else {
+        organization = await this.tenants.authorizedOrganization(manager, organizationId, actor, shouldLock, access?.roles);
+      }
       if (!organization) throw new NotFoundException('Organization not found');
       organizationId = organization.id;
       await manager.query("SELECT set_config('app.current_org_id', $1, true)", [organizationId]);

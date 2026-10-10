@@ -50,7 +50,7 @@ export class StudentControlCenter1789689600000 implements MigrationInterface {
         updated_at timestamptz NOT NULL DEFAULT now(),
         UNIQUE (organization_id, id),
         UNIQUE (organization_id, student_user_id, recording_id),
-        FOREIGN KEY (organization_id, recording_id) REFERENCES recordings(organization_id, id),
+        FOREIGN KEY (organization_id, recording_id) REFERENCES recorded_sessions(organization_id, id),
         FOREIGN KEY (organization_id, student_user_id) REFERENCES memberships(organization_id, user_id)
       );
       CREATE INDEX IF NOT EXISTS idx_student_lecture_prog ON student_lecture_progress(organization_id, student_user_id, recording_id);

@@ -1,10 +1,10 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { CreateStudentGoalDto, CreateStudentSupportRequestDto } from '../dto/student.dto';
 
 @Injectable()
 export class StudentProgressService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getProgressOverview(organizationId: string, studentUserId: string) {
     const gapsAndStrengths = [

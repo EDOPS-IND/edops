@@ -1,10 +1,10 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { User } from '../../auth/user.entity';
 
 @Injectable()
 export class TeacherDashboardService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getDashboard(organizationId: string, user: User) {
     const userId = user?.id;
@@ -12,7 +12,7 @@ export class TeacherDashboardService {
     // 1. Fetch teacher assignments to know their classes & subjects
     let assignments: any[] = [];
     try {
-      assignments = await this.dataSource.query(
+      assignments = await this.drizzle.query(
         `SELECT csa.section_id, csa.subject_id, sec.name as section_name, sub.name as subject_name, sub.code as subject_code
          FROM class_subject_assignments csa
          JOIN sections sec ON sec.id = csa.section_id AND sec.organization_id = csa.organization_id
@@ -26,7 +26,7 @@ export class TeacherDashboardService {
 
     if (!assignments || assignments.length === 0) {
       try {
-        const secRows = await this.dataSource.query(
+        const secRows = await this.drizzle.query(
           `SELECT sec.id as section_id, sec.name as section_name, sub.id as subject_id, sub.name as subject_name, sub.code as subject_code
            FROM sections sec
            LEFT JOIN subjects sub ON sub.organization_id = sec.organization_id
@@ -48,7 +48,7 @@ export class TeacherDashboardService {
     let studentCount = 0;
     if (sectionIds.length > 0) {
       try {
-        const rows = await this.dataSource.query(
+        const rows = await this.drizzle.query(
           `SELECT COUNT(DISTINCT student_user_id) as count
            FROM enrollments
            WHERE organization_id = $1 AND section_id = ANY($2::uuid[]) AND status = 'active'`,
@@ -66,7 +66,7 @@ export class TeacherDashboardService {
     let pendingEvaluations = 0;
     if (sectionIds.length > 0) {
       try {
-        const rows = await this.dataSource.query(
+        const rows = await this.drizzle.query(
           `SELECT COUNT(sub.id) as count
            FROM submissions sub
            JOIN assignments a ON a.id = sub.assignment_id AND a.organization_id = sub.organization_id
@@ -85,7 +85,7 @@ export class TeacherDashboardService {
     const today = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()).toLowerCase();
     let todaySlots: any[] = [];
     try {
-      todaySlots = await this.dataSource.query(
+      todaySlots = await this.drizzle.query(
         `SELECT tts.*, sec.name as section_name, sub.name as subject_name
          FROM teacher_timetable_slots tts
          JOIN sections sec ON sec.id = tts.section_id AND sec.organization_id = tts.organization_id
@@ -107,7 +107,7 @@ export class TeacherDashboardService {
     // 6. Query today's attendance sessions to know real marked periods
     let markedPeriodsToday: number[] = [];
     try {
-      const markedRows = await this.dataSource.query(
+      const markedRows = await this.drizzle.query(
         `SELECT DISTINCT period FROM attendance_sessions WHERE organization_id = $1 AND date = CURRENT_DATE`,
         [organizationId]
       );
@@ -122,7 +122,7 @@ export class TeacherDashboardService {
     // 7. Recent activity from delivery & assignments
     let recentActivity: any[] = [];
     try {
-      const actRows = await this.dataSource.query(
+      const actRows = await this.drizzle.query(
         `SELECT action_type as text, to_char(created_at, 'HH12:MI AM') as time
          FROM audit_logs
          WHERE organization_id = $1

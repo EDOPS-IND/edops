@@ -41,89 +41,17 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
       const res = await getPrincipalAlerts(organizationId);
       setData(res);
     } catch {
-      // Mock fallback
       setData({
-        alerts: [
-          {
-            id: "alt-1",
-            title: "Severe Syllabus Lag: Class 9 Physics",
-            category: "curriculum_lag",
-            severity: "critical",
-            classSection: "Class 9-A & 9-B",
-            subject: "Physics",
-            teacher: "Vikram Malhotra",
-            details: "Gravitation and Work & Energy chapters are running 16 days behind the approved annual pedagogical timeline.",
-            impact: "Students at risk of incomplete syllabus before Mid-Term II exams.",
-            suggestedAction: "Schedule 3 remedial catch-up periods or assign peer teaching co-faculty.",
-            createdAt: "2026-10-04",
-            resolved: false
-          },
-          {
-            id: "alt-2",
-            title: "Chronic Absenteeism Surge: Class 10-C",
-            category: "attendance_drop",
-            severity: "critical",
-            classSection: "Class 10-C",
-            subject: "All Subjects",
-            teacher: "Kavita Sen (Class Teacher)",
-            details: "7 students have breached the mandatory 75% CBSE minimum attendance threshold over the last 30 calendar days.",
-            impact: "CBSE board admit card eligibility warning triggers at 65%.",
-            suggestedAction: "Convene special parent counseling meeting and register medical cert audit.",
-            createdAt: "2026-10-05",
-            resolved: false
-          },
-          {
-            id: "alt-3",
-            title: "Assessment Drop > 15%: Class 8-B Mathematics",
-            category: "assessment_drop",
-            severity: "warning",
-            classSection: "Class 8-B",
-            subject: "Mathematics",
-            teacher: "Ramesh Sharma",
-            details: "Formative Assessment 3 average plummeted from 78.4% to 62.1% across Linear Equations unit.",
-            impact: "Core numeracy foundation gap ahead of high school algebra.",
-            suggestedAction: "Trigger 2-week bridge remedial course focusing on algebraic transposition.",
-            createdAt: "2026-10-02",
-            resolved: false
-          },
-          {
-            id: "alt-4",
-            title: "Delayed Homework SLA: Senior English Dept",
-            category: "assignment_delay",
-            severity: "warning",
-            classSection: "Class 11 & 12",
-            subject: "English Core",
-            teacher: "Ananya Roy",
-            details: "142 creative essay submissions have remained unevaluated for over 5 days (exceeding the 48-hour SLA).",
-            impact: "Delayed feedback loop prevents learning reinforcement.",
-            suggestedAction: "Issue department notice and allocate dedicated evaluation window.",
-            createdAt: "2026-10-01",
-            resolved: false
-          },
-          {
-            id: "alt-5",
-            title: "Class 10-A Chemistry Unit Test Complete",
-            category: "compliance",
-            severity: "info",
-            classSection: "Class 10-A",
-            subject: "Chemistry",
-            teacher: "Dr. Sunita Rao",
-            details: "100% evaluated answer scripts uploaded with learning outcome mappings verified.",
-            impact: "Positive compliance benchmark.",
-            suggestedAction: "No action required.",
-            createdAt: "2026-09-30",
-            resolved: true,
-            resolvedAt: "2026-10-01"
-          }
-        ],
+        alerts: [],
         stats: {
-          criticalCount: 2,
-          warningCount: 2,
-          infoCount: 1,
-          resolvedThisWeek: 4
+          criticalCount: 0,
+          warningCount: 0,
+          infoCount: 0,
+          resolvedThisWeek: 0
         }
       });
     } finally {
+
       setLoading(false);
     }
   }

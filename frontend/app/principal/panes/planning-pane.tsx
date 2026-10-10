@@ -9,14 +9,34 @@ export function PlanningPane({
   actionPlans = [],
   meetings = [],
   onTriggerAction,
+  organizationId,
+  initialTab,
 }: {
   plans?: any[];
   targets?: any[];
   actionPlans?: any[];
   meetings?: any[];
-  onTriggerAction: (actionType: string) => void;
+  onTriggerAction?: (actionType: string) => void;
+  organizationId?: string;
+  initialTab?: string;
 }) {
-  const [subTab, setSubTab] = useState<"annual_plan" | "targets" | "action_plans" | "meetings">("annual_plan");
+  const [liveData, setLiveData] = useState<any>(null);
+  const [subTab, setSubTab] = useState<"annual_plan" | "targets" | "action_plans" | "meetings">((initialTab as any) || "annual_plan");
+
+  React.useEffect(() => {
+    if (!organizationId) return;
+    import("../../edops-api").then(({ getPrincipalPlanning }) => {
+      getPrincipalPlanning(organizationId)
+        .then((data) => setLiveData(data))
+        .catch(() => null);
+    });
+  }, [organizationId]);
+
+  const planList = (liveData?.plans && liveData.plans.length > 0) ? liveData.plans : plans;
+  const targetList = (liveData?.targets && liveData.targets.length > 0) ? liveData.targets : targets;
+  const actionList = (liveData?.actionPlans && liveData.actionPlans.length > 0) ? liveData.actionPlans : actionPlans;
+  const meetingList = (liveData?.meetings && liveData.meetings.length > 0) ? liveData.meetings : meetings;
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -73,7 +93,7 @@ export function PlanningPane({
       {/* 1. Annual Pedagogical Plan Tab */}
       {subTab === "annual_plan" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {plans.map((plan, idx) => (
+          {planList.map((plan: any, idx: number) => (
             <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "12px", padding: "24px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
                 <div>
@@ -114,7 +134,7 @@ export function PlanningPane({
       {/* 2. School Academic Targets Tab */}
       {subTab === "targets" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
-          {targets.map((tgt, idx) => (
+          {targetList.map((tgt: any, idx: number) => (
             <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
@@ -146,7 +166,7 @@ export function PlanningPane({
       {/* 3. Academic Action Plans Tab */}
       {subTab === "action_plans" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {actionPlans.map((act, idx) => (
+          {actionList.map((act: any, idx: number) => (
             <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
                 <div>
@@ -180,7 +200,8 @@ export function PlanningPane({
       {/* 4. Academic Review Meetings Tab */}
       {subTab === "meetings" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {meetings.map((meet, idx) => (
+          {meetingList.map((meet: any, idx: number) => (
+
             <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                 <div>

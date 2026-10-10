@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { BroadcastRecord, CommunicationTicket } from "./types";
+import { getSchoolAdminBroadcasts, createSchoolAdminBroadcast, getSchoolAdminTickets } from "../edops-api";
 import {
   Send,
   MessageSquare,
@@ -15,8 +16,9 @@ import {
   Search,
 } from "lucide-react";
 
-export function CommunicationPane() {
+export function CommunicationPane({ organizationId }: { organizationId?: string }) {
   const [subtab, setSubtab] = useState<"broadcast" | "inbox" | "newBroadcast">("broadcast");
+  const [loading, setLoading] = useState(false);
 
   // Broadcasts history (§44)
   const [broadcasts, setBroadcasts] = useState<BroadcastRecord[]>([
@@ -49,19 +51,65 @@ export function CommunicationPane() {
     { id: "t-3", senderName: "Pooja Malhotra", senderRole: "Teacher", subject: "Class 10-C Student Discipline Escalation", snippet: "Repeated disturbance during Period 3. Incident logged in discipline register.", priority: "Urgent", status: "Open", timestamp: "Oct 03 11:30 AM", assignedTo: "Vice Principal" },
   ]);
 
+  useEffect(() => {
+    if (!organizationId) return;
+    setLoading(true);
+    getSchoolAdminBroadcasts(organizationId)
+      .then((data) => {
+        if (data && Array.isArray(data) && data.length > 0) {
+          setBroadcasts(
+            data.map((b: any) => ({
+              id: b.id,
+              title: b.title,
+              message: b.message,
+              audience: b.target_audience === "all" ? "Entire School" : (b.target_audience.charAt(0).toUpperCase() + b.target_audience.slice(1)),
+              channels: b.channels || ["In-App"],
+              sentAt: new Date(b.created_at).toLocaleDateString() + " " + new Date(b.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              sentBy: b.sender_name || "School Admin",
+              deliveryStats: typeof b.delivery_stats === "object" && b.delivery_stats ? b.delivery_stats : { sent: b.recipient_count || 100, delivered: b.recipient_count || 100, failed: 0 },
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+
+    getSchoolAdminTickets(organizationId)
+      .then((data) => {
+        if (data && Array.isArray(data) && data.length > 0) {
+          setTickets(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [organizationId]);
+
   // Form state for New Broadcast modal
   const [broadcastTitle, setBroadcastTitle] = useState("");
   const [broadcastBody, setBroadcastBody] = useState("");
   const [broadcastAudience, setBroadcastAudience] = useState<"Entire School" | "Students" | "Parents" | "Teachers" | "Staff">("Parents");
   const [channels, setChannels] = useState<{ inApp: boolean; whatsapp: boolean; sms: boolean; email: boolean }>({ inApp: true, whatsapp: true, sms: false, email: false });
 
-  const handleSendBroadcast = (e: React.FormEvent) => {
+  const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
     const selectedChannels: ("In-App" | "SMS" | "WhatsApp" | "Email")[] = [];
     if (channels.inApp) selectedChannels.push("In-App");
     if (channels.whatsapp) selectedChannels.push("WhatsApp");
     if (channels.sms) selectedChannels.push("SMS");
     if (channels.email) selectedChannels.push("Email");
+
+    if (organizationId) {
+      try {
+        await createSchoolAdminBroadcast(organizationId, {
+          title: broadcastTitle,
+          message: broadcastBody,
+          targetAudience: broadcastAudience.toLowerCase().replace(" ", "_"),
+          channels: selectedChannels,
+          priority: "normal",
+        });
+      } catch (err) {
+        console.error("Broadcast failed:", err);
+      }
+    }
 
     const newRecord: BroadcastRecord = {
       id: `b-${Date.now()}`,

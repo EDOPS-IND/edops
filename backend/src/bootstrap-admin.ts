@@ -3,7 +3,7 @@ import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { isEmail } from 'class-validator';
 import { loadConfig } from './config';
-import { createDataSource } from './database/data-source';
+import { DrizzleService } from './database/drizzle.service';
 import { bootstrapAdmin } from './modules/auth/auth.service';
 
 async function readPassword(): Promise<string> {
@@ -25,13 +25,13 @@ async function main() {
   if (process.argv.length !== 3) throw new Error('Pass only the email; passwords are read from hidden input or stdin');
   const password = await readPassword();
   if (password.length < 12 || password.length > 128) throw new Error('Password must contain 12-128 characters');
-  const source = createDataSource(loadConfig());
-  await source.initialize();
+  const config = loadConfig();
+  const drizzle = new DrizzleService(config);
   try {
-    const id = await bootstrapAdmin(source, email, password);
+    const id = await bootstrapAdmin(drizzle, email, password);
     console.log(`Platform administrator created: ${id}`);
   } finally {
-    await source.destroy();
+    await drizzle.onModuleDestroy();
   }
 }
 

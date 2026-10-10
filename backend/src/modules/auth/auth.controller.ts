@@ -38,7 +38,7 @@ export class AuthController {
   @ApiBody({ type: LoginDto })
   @ApiOkResponse({ description: 'Current profile, active memberships and replacement CSRF token. Sets a new session cookie.', schema: loginSchema })
   @ApiErrors(400, 401, 403, 413)
-  async login(@Body() dto: LoginDto, @Req() request: Request) {
+  async login(@Body() dto: LoginDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
     const user = await this.auth.verifyCredentials(dto.email, dto.password);
     await promisify(request.session.regenerate.bind(request.session))();
     request.session.userId = user.id;
@@ -46,7 +46,63 @@ export class AuthController {
     const csrfToken = csrf.generateToken(request, true);
     await promisify(request.session.save.bind(request.session))();
     await this.auth.recordLogin(user);
-    return { ...(await this.auth.profile(user)), csrfToken };
+
+    const refreshToken = await this.auth.createRefreshToken(user.id);
+    response.cookie('edops_refresh_token', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 14 * 24 * 60 * 60 * 1000,
+    });
+
+    const { signAccessToken } = await import('./jwt.util');
+    const accessToken = signAccessToken({
+      sub: user.id,
+      email: user.email,
+      isPlatformAdmin: user.isPlatformAdmin,
+    });
+    return { ...(await this.auth.profile(user)), csrfToken, accessToken };
+  }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(200)
+  async refresh(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    const refreshToken = request.cookies?.edops_refresh_token;
+    if (!refreshToken) {
+      return response.status(401).json({ message: 'Refresh token missing' });
+    }
+    const result = await this.auth.rotateRefreshToken(refreshToken);
+    if (!result) {
+      response.clearCookie('edops_refresh_token');
+      return response.status(401).json({ message: 'Invalid or expired refresh token' });
+    }
+    response.cookie('edops_refresh_token', result.newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 14 * 24 * 60 * 60 * 1000,
+    });
+    return { accessToken: result.accessToken, user: { id: result.user.id, email: result.user.email } };
+  }
+
+  @Post('switch-school')
+  @HttpCode(200)
+  async switchSchool(@Body() body: { schoolId: string }, @Req() request: AuthenticatedRequest) {
+    const { signAccessToken } = await import('./jwt.util');
+    const user = request.user;
+    const [membership] = await this.auth.drizzle.query(
+      `SELECT role FROM memberships WHERE user_id = $1 AND organization_id = $2 AND status = 'active' LIMIT 1`,
+      [user.id, body.schoolId]
+    ).catch(() => []);
+    const accessToken = signAccessToken({
+      sub: user.id,
+      email: user.email,
+      isPlatformAdmin: user.isPlatformAdmin,
+      schoolId: body.schoolId,
+      role: membership?.role,
+    });
+    return { accessToken, activeSchoolId: body.schoolId, role: membership?.role };
   }
 
   @Get('me')

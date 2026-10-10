@@ -1,15 +1,15 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { User } from '../../auth/user.entity';
 import { CreateTeacherAssignmentDto, GradeSubmissionDto } from '../dto/teacher.dto';
 
 @Injectable()
 export class TeacherAssignmentsService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getAssignments(organizationId: string, user: User) {
     try {
-      const rows = await this.dataSource.query(
+      const rows = await this.drizzle.query(
         `SELECT a.id, a.title, a.description, a.status,
                 to_char(a.due_at, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
                 a.max_score,
@@ -55,7 +55,7 @@ export class TeacherAssignmentsService {
 
   async getSubmissionsQueue(organizationId: string, user: User, assignmentId?: string) {
     try {
-      const rows = await this.dataSource.query(
+      const rows = await this.drizzle.query(
         `SELECT s.id, s.assignment_id, s.status, s.content, s.score, s.feedback,
                 to_char(coalesce(s.submitted_at, s.created_at), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as submitted_at,
                 a.title as assignment_title,
@@ -103,13 +103,13 @@ export class TeacherAssignmentsService {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.sectionId);
       if (!isUuid) {
         const cleanName = dto.sectionId.replace(/^sec-/, '').replace('-', ' ');
-        const [sec] = await this.dataSource.query(
+        const [sec] = await this.drizzle.query(
           `SELECT id FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
           [organizationId, `%${cleanName}%`, dto.sectionId]
         );
         if (sec?.id) resolvedSectionId = sec.id;
         else {
-          const [firstSec] = await this.dataSource.query(
+          const [firstSec] = await this.drizzle.query(
             `SELECT id FROM sections WHERE organization_id = $1 LIMIT 1`,
             [organizationId]
           );
@@ -122,7 +122,7 @@ export class TeacherAssignmentsService {
     try {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.subjectId);
       if (!isUuid) {
-        const [sub] = await this.dataSource.query(
+        const [sub] = await this.drizzle.query(
           `SELECT id FROM subjects WHERE organization_id = $1 LIMIT 1`,
           [organizationId]
         );
@@ -133,12 +133,12 @@ export class TeacherAssignmentsService {
     // Resolve creator in memberships
     let creatorId = user.id;
     try {
-      const [m] = await this.dataSource.query(
+      const [m] = await this.drizzle.query(
         `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
         [organizationId, user.id]
       );
       if (!m) {
-        const [anyMember] = await this.dataSource.query(
+        const [anyMember] = await this.drizzle.query(
           `SELECT user_id FROM memberships WHERE organization_id = $1 LIMIT 1`,
           [organizationId]
         );
@@ -146,7 +146,7 @@ export class TeacherAssignmentsService {
       }
     } catch {}
 
-    const [inserted] = await this.dataSource.query(
+    const [inserted] = await this.drizzle.query(
       `INSERT INTO assignments (
         organization_id, section_id, subject_id, created_by, title, description, due_at, max_score, status, published_at
       )
@@ -166,7 +166,7 @@ export class TeacherAssignmentsService {
 
     // Create submissions placeholders for students enrolled in section
     try {
-      await this.dataSource.query(
+      await this.drizzle.query(
         `INSERT INTO submissions (organization_id, assignment_id, student_id, status)
          SELECT $1, $2, e.student_user_id, 'pending'
          FROM enrollments e
@@ -189,19 +189,19 @@ export class TeacherAssignmentsService {
     if (isUuid) {
       try {
         let graderId = user.id;
-        const [m] = await this.dataSource.query(
+        const [m] = await this.drizzle.query(
           `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
           [organizationId, user.id]
         );
         if (!m) {
-          const [anyMember] = await this.dataSource.query(
+          const [anyMember] = await this.drizzle.query(
             `SELECT user_id FROM memberships WHERE organization_id = $1 LIMIT 1`,
             [organizationId]
           );
           if (anyMember?.user_id) graderId = anyMember.user_id;
         }
 
-        await this.dataSource.query(
+        await this.drizzle.query(
           `UPDATE submissions
            SET score = $1, feedback = $2, graded_by = $3, graded_at = now(), status = 'graded'
            WHERE organization_id = $4 AND id = $5`,

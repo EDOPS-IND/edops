@@ -8,7 +8,6 @@ import { User } from '../auth/user.entity';
 import { tokenHash } from '../auth/password';
 import { AcademicListDto } from '../academics/academic.dto';
 import { BulkInvitationsDto, MemberInvitationDto, MemberListDto, MembershipStatusDto } from './provisioning.dto';
-import { Invitation, Membership } from './tenant.entity';
 import { SchoolWork } from './school-work.service';
 import { requireSeats } from '../billing/entitlements';
 
@@ -37,19 +36,28 @@ export class ProvisioningService {
   invite(org: string, actor: User, records: MemberInvitationDto[], key?: string) {
     return this.work.run(org, actor, 'invitations.created', records, key, async (manager) => {
       if (new Set(records.map((record) => record.email)).size !== records.length) throw new BadRequestException('Duplicate emails in the batch; no records were imported');
-      await requireSeats(manager,org,records.filter(r=>r.role==='student').length,records.filter(r=>r.role==='teacher').length);
+      await requireSeats(manager, org, records.filter(r => r.role === 'student').length, records.filter(r => r.role === 'teacher').length);
       for (const record of records) {
-        const user = await manager.getRepository(User).findOneBy({ email: record.email });
-        if (user && await manager.getRepository(Membership).existsBy({ organizationId: org, userId: user.id })) {
-          throw new ConflictException('A requested person already has a membership; update their school status instead');
+        const [user] = await manager.query('SELECT id FROM users WHERE email = $1 LIMIT 1', [record.email]);
+        if (user) {
+          const [membership] = await manager.query(
+            'SELECT 1 FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1',
+            [org, user.id]
+          );
+          if (membership) {
+            throw new ConflictException('A requested person already has a membership; update their school status instead');
+          }
         }
         // Expired pending invites can be replaced, but live invites require explicit revocation.
-        const pending = await manager.getRepository(Invitation).createQueryBuilder('invite')
-          .where('invite.organization_id = :org AND invite.email = :email AND invite.accepted_at IS NULL AND invite.revoked_at IS NULL', { org, email: record.email }).getOne();
+        const [pending] = await manager.query(
+          `SELECT id, expires_at AS "expiresAt" FROM invitations 
+           WHERE organization_id = $1 AND email = $2 AND accepted_at IS NULL AND revoked_at IS NULL LIMIT 1`,
+          [org, record.email]
+        );
         if (pending) {
-          if (pending.expiresAt.getTime() > Date.now()) throw new ConflictException('An active invitation already exists; revoke it before replacing it');
-          pending.revokedAt = new Date();
-          await manager.getRepository(Invitation).save(pending);
+          const expTime = new Date(pending.expiresAt).getTime();
+          if (expTime > Date.now()) throw new ConflictException('An active invitation already exists; revoke it before replacing it');
+          await manager.query('UPDATE invitations SET revoked_at = NOW() WHERE id = $1', [pending.id]);
           await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'invitation.revoked', details: { invitationId: pending.id, reason: 'expired_replacement' } });
         }
       }
@@ -58,9 +66,12 @@ export class ProvisioningService {
       const invitations = [];
       for (const record of records) {
         const token = randomBytes(32).toString('hex');
-        const repository = manager.getRepository(Invitation);
-        const invitation = await repository.save(repository.create({ organizationId: org, batchId: batch.id,
-          email: record.email, role: record.role, name: record.name || null, invitedBy: actor.id, expiresAt, tokenHash: tokenHash(token) }));
+        const [invitation] = await manager.query(
+          `INSERT INTO invitations (organization_id, batch_id, email, role, name, invited_by, expires_at, token_hash)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+           RETURNING id, email, role`,
+          [org, batch.id, record.email, record.role, record.name || null, actor.id, expiresAt, tokenHash(token)]
+        );
         invitations.push({ id: invitation.id, email: invitation.email, role: invitation.role, token, expiresAt });
       }
       await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'invitations.created', details: { batchId: batch.id, count: records.length } });
@@ -91,12 +102,13 @@ export class ProvisioningService {
 
   revoke(org: string, actor: User, id: string) {
     return this.work.run(org, actor, 'invitation.revoked', { id }, null, async (manager) => {
-      const repository = manager.getRepository(Invitation);
-      const invitation = await repository.findOneBy({ organizationId: org, id });
+      const [invitation] = await manager.query(
+        'SELECT id, role, accepted_at AS "acceptedAt", revoked_at AS "revokedAt" FROM invitations WHERE organization_id = $1 AND id = $2',
+        [org, id]
+      );
       if (!invitation || invitation.role === 'school_admin') throw new NotFoundException('Invitation not found');
       if (invitation.acceptedAt || invitation.revokedAt) throw new ConflictException('Invitation is already accepted or revoked');
-      invitation.revokedAt = new Date();
-      await repository.save(invitation);
+      await manager.query('UPDATE invitations SET revoked_at = NOW() WHERE id = $1', [id]);
       await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'invitation.revoked', details: { invitationId: id } });
       return { id, status: 'revoked' };
     });
@@ -104,28 +116,43 @@ export class ProvisioningService {
 
   members(org: string, actor: User, query: MemberListDto) {
     return this.work.run(org, actor, null, null, null, async (manager) => {
-      const builder = manager.getRepository(Membership).createQueryBuilder('membership')
-        .innerJoin(User, 'user', 'user.id = membership.user_id')
-        .where('membership.organization_id = :org AND membership.role IN (:...roles)', { org, roles: query.role ? [query.role] : ['teacher', 'student'] });
-      const total = await builder.getCount();
-      const items = await builder.select(['membership.user_id AS "userId"', 'user.email AS email', 'membership.role AS role',
-        'membership.status AS status', 'user.is_active AS "accountActive"'])
-        .orderBy('membership.user_id', 'ASC').limit(query.limit).offset(query.offset).getRawMany();
+      const roles = query.role ? [query.role] : ['teacher', 'student'];
+      const [countRes] = await manager.query(
+        `SELECT count(*)::int AS total
+         FROM memberships m
+         JOIN users u ON u.id = m.user_id
+         WHERE m.organization_id = $1 AND m.role = ANY($2::text[])`,
+        [org, roles]
+      );
+      const total = countRes?.total ?? 0;
+      const items = await manager.query(
+        `SELECT m.user_id AS "userId", u.email AS email, m.role AS role,
+                m.status AS status, u.is_active AS "accountActive"
+         FROM memberships m
+         JOIN users u ON u.id = m.user_id
+         WHERE m.organization_id = $1 AND m.role = ANY($2::text[])
+         ORDER BY m.user_id ASC LIMIT $3 OFFSET $4`,
+        [org, roles, query.limit, query.offset]
+      );
       return { items, total, limit: query.limit, offset: query.offset };
     });
   }
 
   updateMember(org: string, actor: User, id: string, dto: MembershipStatusDto) {
     return this.work.run(org, actor, 'membership.updated', { id, ...dto }, null, async (manager) => {
-      const repository = manager.getRepository(Membership);
-      const membership = await repository.findOneBy({ organizationId: org, userId: id });
+      const [membership] = await manager.query(
+        'SELECT role, status FROM memberships WHERE organization_id = $1 AND user_id = $2',
+        [org, id]
+      );
       if (!membership || !['teacher', 'student'].includes(membership.role)) throw new NotFoundException('Member not found');
       const before = membership.status;
-      if (before !== 'active' && dto.status === 'active') await requireSeats(manager,org,membership.role==='student'?1:0,membership.role==='teacher'?1:0);
-      membership.status = dto.status;
-      await repository.save(membership);
+      if (before !== 'active' && dto.status === 'active') await requireSeats(manager, org, membership.role === 'student' ? 1 : 0, membership.role === 'teacher' ? 1 : 0);
+      await manager.query(
+        'UPDATE memberships SET status = $1 WHERE organization_id = $2 AND user_id = $3',
+        [dto.status, org, id]
+      );
       await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'membership.updated', details: { userId: id, before, after: dto.status } });
-      return { userId: id, role: membership.role, status: membership.status };
+      return { userId: id, role: membership.role, status: dto.status };
     });
   }
 }

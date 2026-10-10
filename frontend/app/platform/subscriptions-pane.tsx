@@ -29,40 +29,51 @@ export function SubscriptionsPane({
             </tr>
           </thead>
           <tbody>
-            {schools.map(s => (
-              <tr key={s.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
-                <td style={{ padding: "12px 10px" }}>
-                  <b>{s.name}</b>
-                  <div style={{ fontSize: "11px", color: "#6B7280" }}>{s.code}</div>
-                </td>
-                <td style={{ padding: "12px 10px" }}>
-                  <span style={{ fontWeight: 700, color: "#064E3B" }}>{s.plan}</span>
-                </td>
-                <td style={{ padding: "12px 10px" }}>
-                  <span style={{
-                    padding: "3px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, textTransform: "uppercase",
-                    background: s.status === "active" ? "#DEF7EC" : s.status === "trial" ? "#FEF3C7" : "#FDE8E8",
-                    color: s.status === "active" ? "#03543F" : s.status === "trial" ? "#92400E" : "#9B1C1C"
-                  }}>
-                    {s.status}
-                  </span>
-                </td>
-                <td style={{ padding: "12px 10px", fontSize: "12px", color: "#4B5563" }}>
-                  2026-03-01 → 2026-03-31
-                </td>
-                <td style={{ padding: "12px 10px", fontWeight: 700 }}>
-                  ₹{s.plan === "Enterprise" ? "1,45,000" : s.plan === "Professional" ? "65,000" : "25,000"}
-                </td>
-                <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                  <button
-                    onClick={() => onExtendPeriod(s.id, s.status, 30)}
-                    style={{ padding: "5px 10px", background: "#F3F4F6", border: "1px solid #D1D5DB", borderRadius: "6px", fontSize: "11.5px", fontWeight: 600, cursor: "pointer" }}
-                  >
-                    Extend Period (+30d)
-                  </button>
+            {schools.length > 0 ? (
+              schools.map(s => {
+                const termStart = s.createdAt ? new Date(s.createdAt).toISOString().split("T")[0] : "2026-01-01";
+                return (
+                  <tr key={s.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                    <td style={{ padding: "12px 10px" }}>
+                      <b>{s.name}</b>
+                      <div style={{ fontSize: "11px", color: "#6B7280" }}>{s.code}</div>
+                    </td>
+                    <td style={{ padding: "12px 10px" }}>
+                      <span style={{ fontWeight: 700, color: "#064E3B" }}>{s.plan || "Basic"}</span>
+                    </td>
+                    <td style={{ padding: "12px 10px" }}>
+                      <span style={{
+                        padding: "3px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, textTransform: "uppercase",
+                        background: s.status === "active" ? "#DEF7EC" : s.status === "trial" ? "#FEF3C7" : "#FDE8E8",
+                        color: s.status === "active" ? "#03543F" : s.status === "trial" ? "#92400E" : "#9B1C1C"
+                      }}>
+                        {s.status}
+                      </span>
+                    </td>
+                    <td style={{ padding: "12px 10px", fontSize: "12px", color: "#4B5563" }}>
+                      {termStart} → Active Term
+                    </td>
+                    <td style={{ padding: "12px 10px", fontWeight: 700 }}>
+                      ₹{s.plan === "Enterprise" ? "1,45,000" : s.plan === "Professional" ? "65,000" : "25,000"}
+                    </td>
+                    <td style={{ padding: "12px 10px", textAlign: "right" }}>
+                      <button
+                        onClick={() => onExtendPeriod(s.id, s.status, 30)}
+                        style={{ padding: "5px 10px", background: "#F3F4F6", border: "1px solid #D1D5DB", borderRadius: "6px", fontSize: "11.5px", fontWeight: 600, cursor: "pointer" }}
+                      >
+                        Extend Period (+30d)
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan={6} style={{ padding: "20px", textAlign: "center", color: "#6B7280" }}>
+                  No active school subscriptions found.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

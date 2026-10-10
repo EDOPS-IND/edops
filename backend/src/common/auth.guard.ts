@@ -20,6 +20,21 @@ export class AuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     if (this.reflector.getAllAndOverride<boolean>(PUBLIC, [context.getHandler(), context.getClass()])) return true;
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+
+    // Support JWT Bearer Token directly
+    const authHeader = request.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const user = await this.auth.userFromJwt(token);
+      if (user) {
+        request.user = user;
+        if (this.reflector.getAllAndOverride<boolean>(PLATFORM, [context.getHandler(), context.getClass()]) && !user.isPlatformAdmin) {
+          throw new ForbiddenException('Platform administrator access required');
+        }
+        return true;
+      }
+    }
+
     const user = await this.auth.currentUser(request.session);
     if (!user) throw new UnauthorizedException('Sign in to continue');
     request.user = user;

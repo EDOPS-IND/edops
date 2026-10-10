@@ -8,21 +8,40 @@ export function TeachersPane({
   teachers = [],
   workloadSummary,
   onOpenTeacherProfile,
+  onOpenProfile,
   onTriggerObservation,
   onTriggerDevelopment,
+  organizationId,
 }: {
   teachers?: TeacherAcademicItem[];
   workloadSummary?: any;
-  onOpenTeacherProfile: (teacherId: string) => void;
-  onTriggerObservation: () => void;
-  onTriggerDevelopment: () => void;
+  onOpenTeacherProfile?: (teacherId: string) => void;
+  onOpenProfile?: (teacherId: string) => void;
+  onTriggerObservation?: () => void;
+  onTriggerDevelopment?: () => void;
+  organizationId?: string;
 }) {
+  const handleOpenProfile = onOpenTeacherProfile || onOpenProfile;
+  const [liveData, setLiveData] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [deptFilter, setDeptFilter] = useState("all");
   const [workloadFilter, setWorkloadFilter] = useState("all");
 
-  const filtered = teachers.filter((t) => {
-    const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase()) || t.department.toLowerCase().includes(searchTerm.toLowerCase());
+  React.useEffect(() => {
+    if (!organizationId) return;
+    import("../../edops-api").then(({ getPrincipalTeachers }) => {
+      getPrincipalTeachers(organizationId)
+        .then((data) => setLiveData(data))
+        .catch(() => null);
+    });
+  }, [organizationId]);
+
+  const teacherList = (liveData?.teachers && liveData.teachers.length > 0) ? liveData.teachers : teachers;
+  const summary = liveData?.workloadSummary || workloadSummary;
+
+
+  const filtered = teacherList.filter((t: any) => {
+    const matchesSearch = (t.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || (t.department || "").toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDept = deptFilter === "all" || t.department === deptFilter;
     const matchesWorkload = workloadFilter === "all" || t.workloadStatus === workloadFilter;
     return matchesSearch && matchesDept && matchesWorkload;
@@ -43,10 +62,10 @@ export function TeachersPane({
       {/* 1. Workload Engine Balance Summary Cards */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
         {[
-          { label: "Optimal / Balanced", count: workloadSummary?.balancedCount ?? 26, note: "20-26 periods/week", bg: "#F0FDF4", color: "#15803D" },
-          { label: "Heavy Load", count: workloadSummary?.heavyCount ?? 11, note: "28-30 periods/week", bg: "#FFFBEB", color: "#B45309" },
-          { label: "Overloaded (&gt;30)", count: workloadSummary?.overloadedCount ?? 3, note: "Requires co-faculty relief", bg: "#FEF2F2", color: "#B91C1C" },
-          { label: "Underutilized (&lt;20)", count: workloadSummary?.underutilizedCount ?? 2, note: "Available for relief duty", bg: "#F0F9FF", color: "#0369A1" },
+          { label: "Optimal / Balanced", count: summary?.balancedCount ?? 0, note: "20-26 periods/week", bg: "#F0FDF4", color: "#15803D" },
+          { label: "Heavy Load", count: summary?.heavyCount ?? 0, note: "28-30 periods/week", bg: "#FFFBEB", color: "#B45309" },
+          { label: "Overloaded (>30)", count: summary?.overloadedCount ?? 0, note: "Requires co-faculty relief", bg: "#FEF2F2", color: "#B91C1C" },
+          { label: "Underutilized (<20)", count: summary?.underutilizedCount ?? 0, note: "Available for relief duty", bg: "#F0F9FF", color: "#0369A1" },
         ].map((item, idx) => (
           <div key={idx} style={{ background: item.bg, border: "1px solid rgba(0,0,0,0.06)", borderRadius: "10px", padding: "16px" }}>
             <div style={{ fontSize: "12px", color: item.color, fontWeight: 600 }}>{item.label}</div>
@@ -197,7 +216,7 @@ export function TeachersPane({
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        onOpenTeacherProfile(t.id);
+                        handleOpenProfile?.(t.id);
                       }}
                       style={{
                         background: "#F1F5F9",

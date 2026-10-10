@@ -11,16 +11,39 @@ export function AcademicsPane({
   lessonPlans = [],
   onReviewLessonPlan,
   onNavigateClass,
+  organizationId,
+  initialTab,
 }: {
   classes?: ClassPerformanceItem[];
   subjects?: SubjectPerformanceItem[];
   curriculumNodes?: CurriculumNodeItem[];
   lessonPlans?: LessonPlanItem[];
-  onReviewLessonPlan: (lessonId: string, status: string, feedback: string) => Promise<void>;
+  onReviewLessonPlan?: (lessonId: string, status: string, feedback: string) => Promise<void>;
   onNavigateClass?: (classId: string) => void;
+  organizationId?: string;
+  initialTab?: string;
+  onOpenTeacherProfile?: (id: string) => void;
 }) {
-  const [subTab, setSubTab] = useState<"classes" | "subjects" | "curriculum" | "lesson_plans" | "competencies">("classes");
+  const [liveData, setLiveData] = useState<any>(null);
+  const [subTab, setSubTab] = useState<"classes" | "subjects" | "curriculum" | "lesson_plans" | "competencies">(
+    (initialTab as any) || "classes"
+  );
   const [feedbackInput, setFeedbackInput] = useState<{ [key: string]: string }>({});
+
+  React.useEffect(() => {
+    if (!organizationId) return;
+    import("../../edops-api").then(({ getPrincipalAcademics }) => {
+      getPrincipalAcademics(organizationId)
+        .then((data) => setLiveData(data))
+        .catch(() => null);
+    });
+  }, [organizationId]);
+
+  const classList = (liveData?.classes && liveData.classes.length > 0) ? liveData.classes : classes;
+  const subjectList = (liveData?.subjects && liveData.subjects.length > 0) ? liveData.subjects : subjects;
+  const nodeList = (liveData?.curriculumNodes && liveData.curriculumNodes.length > 0) ? liveData.curriculumNodes : curriculumNodes;
+  const planList = (liveData?.lessonPlans && liveData.lessonPlans.length > 0) ? liveData.lessonPlans : lessonPlans;
+
 
   const handleSendFeedback = async (id: string, status: string) => {
     const text = feedbackInput[id] || "Approved by Principal.";
@@ -77,10 +100,10 @@ export function AcademicsPane({
               </tr>
             </thead>
             <tbody>
-              {classes.map((c, idx) => (
+              {classList.map((c: any, idx: number) => (
                 <tr key={idx} style={{ borderBottom: "1px solid #F1F5F9" }}>
                   <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1E293B" }}>
-                    {c.displayName || `${c.className} - ${c.sectionName}`}
+                    {c.displayName || `${c.className || ''} - ${c.sectionName || ''}`}
                   </td>
                   <td style={{ padding: "12px 16px", color: "#64748B" }}>{c.studentCount} students</td>
                   <td style={{ padding: "12px 16px", fontWeight: 800, color: c.averageScore < 75 ? "#DC2626" : "#1E293B" }}>
@@ -124,7 +147,7 @@ export function AcademicsPane({
       {/* 2. Subjects Performance Tab */}
       {subTab === "subjects" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
-          {subjects.map((sub, idx) => (
+          {subjectList.map((sub: any, idx: number) => (
             <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                 <div>

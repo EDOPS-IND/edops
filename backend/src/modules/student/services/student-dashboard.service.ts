@@ -1,36 +1,36 @@
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { Enrollment, Section, Subject, Program, AcademicYear } from '../../academics/academic.entity';
-import { Membership } from '../../tenants/tenant.entity';
+import { DrizzleService } from '../../../database/drizzle.service';
 
 @Injectable()
 export class StudentDashboardService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getDashboard(organizationId: string, studentUserId: string) {
     // 1. Resolve student active enrollment
-    const enrollment = await this.dataSource.getRepository(Enrollment).findOne({
-      where: {
-        organizationId,
-        studentUserId,
-        status: 'active',
-      },
-    });
+    const [enrollment] = await this.drizzle.query(
+      `SELECT e.*, s.name as "sectionName", s.program_id as "programId", p.name as "programName", y.name as "academicYearName"
+       FROM enrollments e
+       LEFT JOIN sections s ON s.id = e.section_id AND s.organization_id = e.organization_id
+       LEFT JOIN programs p ON p.id = s.program_id AND p.organization_id = e.organization_id
+       LEFT JOIN academic_years y ON y.id = e.academic_year_id AND y.organization_id = e.organization_id
+       WHERE e.organization_id = $1 AND e.student_user_id = $2 AND e.status = 'active'
+       LIMIT 1`,
+      [organizationId, studentUserId]
+    );
 
     let classSectionName = 'Class 10-A';
     let academicYearName = '2026-27';
-    let rollNumber = enrollment?.rollNumber || '17';
-    let sectionId = enrollment?.sectionId || 'sec-default';
+    let rollNumber = enrollment?.roll_number || '17';
+    let sectionId = enrollment?.section_id || 'sec-default';
 
     if (enrollment) {
-      const section = await this.dataSource.getRepository(Section).findOneBy({ id: enrollment.sectionId });
-      if (section) {
-        const program = await this.dataSource.getRepository(Program).findOneBy({ id: section.programId });
-        classSectionName = program ? `${program.name} - ${section.name}` : `Class ${section.name}`;
+      if (enrollment.programName && enrollment.sectionName) {
+        classSectionName = `${enrollment.programName} - ${enrollment.sectionName}`;
+      } else if (enrollment.sectionName) {
+        classSectionName = `Class ${enrollment.sectionName}`;
       }
-      const year = await this.dataSource.getRepository(AcademicYear).findOneBy({ id: enrollment.academicYearId });
-      if (year) {
-        academicYearName = year.name;
+      if (enrollment.academicYearName) {
+        academicYearName = enrollment.academicYearName;
       }
     }
 
@@ -38,7 +38,7 @@ export class StudentDashboardService {
     let timetable: any[] = [];
     try {
       const dayOfWeek = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()).toLowerCase();
-      timetable = await this.dataSource.query(
+      timetable = await this.drizzle.query(
         `SELECT t.id, t.period_number as "periodNumber", t.start_time as "startTime", t.end_time as "endTime",
                 t.room, s.name as "subjectName", u.name as "teacherName"
          FROM teacher_timetable_slots t
@@ -63,37 +63,50 @@ export class StudentDashboardService {
       ];
     }
 
-    // Query actual student attendance from scorecards or enrollments
-    let overallAttendance = 0;
-    let academicAverage = 0;
+    // Query actual student attendance from attendance_records
+    let overallAttendance = 100;
+    let academicAverage = 80;
     let pendingAssignments = 0;
     let submittedAssignments = 0;
 
     try {
-      const scoreRes = await this.dataSource.query(
-        `SELECT avg_score, attendance_pct FROM scorecards
-         WHERE organization_id = $1 AND student_id = $2 LIMIT 1`,
+      const [attRow] = await this.drizzle.query(
+        `SELECT COUNT(*)::int as total,
+                COUNT(*) FILTER (WHERE r.status IN ('present', 'late'))::int as attended
+         FROM attendance_records r
+         WHERE r.organization_id = $1 AND r.student_id = $2`,
         [organizationId, studentUserId]
       );
-      if (scoreRes?.[0]) {
-        academicAverage = Math.round(Number(scoreRes[0].avg_score) || 0);
-        overallAttendance = Math.round(Number(scoreRes[0].attendance_pct) || 0);
+      if (attRow && Number(attRow.total) > 0) {
+        overallAttendance = Math.round((Number(attRow.attended) / Number(attRow.total)) * 100);
       }
     } catch {}
 
     try {
-      const asgRes = await this.dataSource.query(
+      const [scoreRow] = await this.drizzle.query(
+        `SELECT ROUND(AVG(score), 1) as avg_score
+         FROM submissions
+         WHERE organization_id = $1 AND student_id = $2 AND score IS NOT NULL`,
+        [organizationId, studentUserId]
+      );
+      if (scoreRow?.avg_score) {
+        academicAverage = Math.round(Number(scoreRow.avg_score));
+      }
+    } catch {}
+
+    try {
+      const [asgRow] = await this.drizzle.query(
         `SELECT
-           COUNT(CASE WHEN sub.id IS NULL THEN 1 END)::int as pending,
-           COUNT(CASE WHEN sub.id IS NOT NULL THEN 1 END)::int as submitted
+           COUNT(*) FILTER (WHERE sub.id IS NULL OR sub.status = 'pending')::int as pending,
+           COUNT(*) FILTER (WHERE sub.status IN ('submitted', 'graded'))::int as submitted
          FROM assignments a
-         LEFT JOIN submissions sub ON sub.assignment_id = a.id AND sub.student_user_id = $2
+         LEFT JOIN submissions sub ON sub.assignment_id = a.id AND sub.student_id = $2
          WHERE a.organization_id = $1`,
         [organizationId, studentUserId]
       );
-      if (asgRes?.[0]) {
-        pendingAssignments = asgRes[0].pending || 0;
-        submittedAssignments = asgRes[0].submitted || 0;
+      if (asgRow) {
+        pendingAssignments = asgRow.pending || 0;
+        submittedAssignments = asgRow.submitted || 0;
       }
     } catch {}
 
@@ -115,15 +128,15 @@ export class StudentDashboardService {
     const totalAssignments = pendingAssignments + submittedAssignments;
     const assignmentCompletion = totalAssignments > 0 ? Math.round((submittedAssignments / totalAssignments) * 100) : 100;
     const kpis = {
-      overallAttendance: overallAttendance || 90,
+      overallAttendance,
       subjectWiseAttendance: [
-        { subject: 'Mathematics', percentage: overallAttendance || 92 },
-        { subject: 'Science', percentage: overallAttendance || 88 },
-        { subject: 'English', percentage: overallAttendance || 95 },
+        { subject: 'Mathematics', percentage: overallAttendance },
+        { subject: 'Science', percentage: overallAttendance },
+        { subject: 'English', percentage: overallAttendance },
       ],
-      academicAverage: academicAverage || 78,
-      previousAverage: academicAverage ? Math.max(40, academicAverage - 4) : 74,
-      improvement: 4,
+      academicAverage,
+      previousAverage: academicAverage,
+      improvement: 0,
       assignmentCompletion,
       assignmentsPending: pendingAssignments,
       assignmentsSubmitted: submittedAssignments,
@@ -141,6 +154,33 @@ export class StudentDashboardService {
       { id: 'a1', type: 'warning', title: 'Attendance Alert', message: `Your current attendance is ${overallAttendance || 90}%. Minimum threshold is 75%.` },
     ];
 
+    // Recent Messages & In-App Communications from Teachers
+    let recentMessages: any[] = [];
+    try {
+      const msgs = await this.drizzle.query(
+        `SELECT tm.id, tm.subject_line, tm.body, tm.priority, tm.is_read, tm.created_at,
+                su.name as sender_name, su.email as sender_email
+         FROM teacher_messages tm
+         LEFT JOIN users su ON su.id = tm.sender_id
+         WHERE tm.organization_id = $1 
+           AND (tm.recipient_id = $2 OR tm.recipient_role = 'student')
+           AND tm.sender_id != $2
+         ORDER BY tm.created_at DESC LIMIT 5`,
+        [organizationId, studentUserId]
+      );
+      if (msgs && msgs.length > 0) {
+        recentMessages = msgs.map((m: any) => ({
+          id: m.id,
+          senderName: m.sender_name || m.sender_email || 'Teacher / Academic Office',
+          subjectLine: m.subject_line,
+          body: m.body,
+          priority: m.priority || 'normal',
+          isRead: Boolean(m.is_read),
+          date: new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        }));
+      }
+    } catch {}
+
     return {
       enrollment: {
         classSection: classSectionName,
@@ -156,6 +196,7 @@ export class StudentDashboardService {
       timetable,
       pendingTasks,
       alerts,
+      recentMessages,
     };
   }
 }

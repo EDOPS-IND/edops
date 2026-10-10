@@ -5,16 +5,45 @@ import { AcademicHealthComponent } from "../types";
 import { X, CheckCircle2, AlertTriangle, ArrowRight, ShieldCheck } from "lucide-react";
 
 export function AcademicHealthModal({
-  score = 88,
-  components = [],
+  isOpen = true,
+  organizationId,
+  score: propScore,
+  components: propComponents,
   onClose,
   onNavigateAction,
+  onNavigate,
 }: {
+  isOpen?: boolean;
+  organizationId?: string;
   score?: number;
   components?: AcademicHealthComponent[];
   onClose: () => void;
   onNavigateAction?: (target: string) => void;
+  onNavigate?: (pane: string, subTab?: string) => void;
 }) {
+  const [data, setData] = React.useState<{ overallScore: number; components: AcademicHealthComponent[] } | null>(null);
+
+  React.useEffect(() => {
+    if (!isOpen || !organizationId) return;
+    import("../../edops-api").then(({ getPrincipalAcademicHealth }) => {
+      getPrincipalAcademicHealth(organizationId)
+        .then((res) => {
+          if (res) setData({ overallScore: res.overallScore ?? 0, components: res.components || [] });
+        })
+        .catch(() => {});
+    });
+  }, [isOpen, organizationId]);
+
+  if (!isOpen) return null;
+
+  const score = data ? data.overallScore : (propScore ?? 0);
+  const components = data ? data.components : (propComponents ?? []);
+
+  const handleDrillDown = (name: string) => {
+    onClose();
+    if (onNavigateAction) onNavigateAction(name);
+    else if (onNavigate) onNavigate("analytics", "school");
+  };
   return (
     <div className="modal-backdrop" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px" }}>
       <div
@@ -123,13 +152,10 @@ export function AcademicHealthModal({
                     <div style={{ fontSize: "12px", color: "#065F46" }}>
                       <b>Principal Action:</b> {comp.recommendedAction}
                     </div>
-                    {onNavigateAction && (
+                    {(onNavigateAction || onNavigate) && (
                       <button
                         type="button"
-                        onClick={() => {
-                          onClose();
-                          onNavigateAction(comp.name);
-                        }}
+                        onClick={() => handleDrillDown(comp.name)}
                         style={{
                           background: "#F8FAFC",
                           border: "1px solid #CBD5E1",

@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { FileText, Plus } from "lucide-react";
 import { api, createResource, ListResult, updateResource } from "../edops-api";
-import { Assignment, ClassRoom, Role, Submission } from "./types";
+import { Assignment, ClassRoom, Role, RosterStudent, Submission } from "./types";
 import { Banner, dateTime, Empty, FeatureCard, FormActions, Modal, run } from "./shared";
 
 function getUrgency(dueAt: string) {

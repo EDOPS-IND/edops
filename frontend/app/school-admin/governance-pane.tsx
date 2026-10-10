@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { DisciplineIncident, AuditLogItem } from "./types";
+import { getSchoolAdminGovernance } from "../edops-api";
 import {
   ShieldAlert,
   FileText,
@@ -16,23 +17,64 @@ import {
 } from "lucide-react";
 
 export function GovernancePane({
+  organizationId,
   initialTab = "alerts",
 }: {
+  organizationId?: string;
   initialTab?: "discipline" | "documents" | "reports" | "alerts" | "settings" | "audit";
 }) {
   const [subtab, setSubtab] = useState<"discipline" | "documents" | "reports" | "alerts" | "settings" | "audit">(initialTab);
 
-  const incidents: DisciplineIncident[] = [
+  const [incidents, setIncidents] = useState<DisciplineIncident[]>([
     { id: "inc-1", studentName: "Rohan Verma", admissionNo: "ED-2024-089", grade: "9-B", incidentType: "Misconduct", severity: "Medium", reportedBy: "Vikram Mehta (Teacher)", date: "2026-10-02", description: "Classroom disruption during Period 4; verbal warning issued.", status: "Parent Contacted" },
     { id: "inc-2", studentName: "Aryan Gupta", admissionNo: "ED-2023-018", grade: "11-A", incidentType: "Academic Dishonesty", severity: "High", reportedBy: "Dr. K. Saxena", date: "2026-09-22", description: "Unauthorized notes found during Chemistry Half-Yearly examination.", status: "Counselling" },
-  ];
+  ]);
 
-  const auditLogs: AuditLogItem[] = [
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([
     { id: "aud-1", actor: "Sunita Roy", role: "School Accountant", action: "fee.payment_received", resource: "FeePayment", resourceId: "RCP-4092", timestamp: "2026-10-04 11:42 AM", ip: "192.168.1.42", newValue: "₹18,500 Cash collection verified" },
     { id: "aud-2", actor: "Rahul Sharma", role: "HOD Mathematics", action: "result.published", resource: "ExamMarks", resourceId: "EX-10-MATH", timestamp: "2026-10-04 11:20 AM", ip: "192.168.1.18", newValue: "Class 10-A Unit Test 2 marks locked and published" },
     { id: "aud-3", actor: "School Admin (You)", role: "School Administrator", action: "attendance.leave_approved", resource: "StaffLeave", resourceId: "LV-T-09", timestamp: "2026-10-04 09:15 AM", ip: "10.0.0.2", reason: "CBSE official workshop attendance" },
     { id: "aud-4", actor: "Priya Varma", role: "Teacher", action: "attendance.submitted", resource: "AttendanceRegister", resourceId: "REG-9A", timestamp: "2026-10-04 08:35 AM", ip: "192.168.1.88", newValue: "42 Present / 2 Absent" },
-  ];
+  ]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    getSchoolAdminGovernance(organizationId)
+      .then((data) => {
+        if (data?.discipline && Array.isArray(data.discipline) && data.discipline.length > 0) {
+          setIncidents(
+            data.discipline.map((d: any) => ({
+              id: d.id,
+              studentName: d.student_name,
+              admissionNo: d.incident_code || "INC",
+              grade: d.class_section || "Class",
+              incidentType: d.incident_type,
+              severity: d.severity ? (d.severity.charAt(0).toUpperCase() + d.severity.slice(1)) : "Medium",
+              reportedBy: d.reported_by_name || "Staff",
+              date: d.incident_date ? String(d.incident_date).slice(0, 10) : "2026-10-01",
+              description: d.description,
+              status: d.action_taken || "Investigating",
+            }))
+          );
+        }
+        if (data?.auditLogs && Array.isArray(data.auditLogs) && data.auditLogs.length > 0) {
+          setAuditLogs(
+            data.auditLogs.map((a: any) => ({
+              id: a.id,
+              actor: a.actorEmail ? a.actorEmail.split("@")[0] : "Admin",
+              role: "School Staff",
+              action: a.action,
+              resource: "System",
+              resourceId: String(a.id).slice(0, 8),
+              timestamp: new Date(a.createdAt || a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              ip: "10.0.0.1",
+              newValue: typeof a.details === "object" ? JSON.stringify(a.details).slice(0, 60) : "Operational Record",
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, [organizationId]);
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>

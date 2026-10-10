@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TransportVehicle, LibraryBook, SchoolAsset } from "./types";
+import { getSchoolAdminOperations } from "../edops-api";
 import {
   Bus,
   BookMarked,
@@ -14,27 +15,78 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-export function OperationsPane() {
+export function OperationsPane({ organizationId }: { organizationId?: string }) {
   const [subtab, setSubtab] = useState<"transport" | "library" | "inventory" | "ptm">("transport");
 
-  const vehicles: TransportVehicle[] = [
+  const [vehicles, setVehicles] = useState<TransportVehicle[]>([
     { id: "v-1", busNo: "DL-1VA-4401", route: "Route 1: Vasant Kunj → Saket → School", driverName: "Mahesh Singh", driverPhone: "+91 98123 45678", capacity: 42, enrolledStudents: 40, currentStatus: "At School" },
     { id: "v-2", busNo: "DL-1VA-4402", route: "Route 2: Dwarka Sector 6 → Janakpuri → School", driverName: "Rakesh Yadav", driverPhone: "+91 98234 56789", capacity: 42, enrolledStudents: 41, currentStatus: "At School" },
     { id: "v-3", busNo: "DL-1VA-4403", route: "Route 3: Noida Sector 62 → Mayur Vihar → School", driverName: "Satish Kumar", driverPhone: "+91 98345 67890", capacity: 35, enrolledStudents: 32, currentStatus: "At School" },
     { id: "v-4", busNo: "DL-1VA-4404", route: "Route 4: Defence Colony → Lajpat Nagar → School", driverName: "Hari Om", driverPhone: "+91 98456 78901", capacity: 42, enrolledStudents: 38, currentStatus: "On Route" },
-  ];
+  ]);
 
-  const books: LibraryBook[] = [
+  const [books, setBooks] = useState<LibraryBook[]>([
     { id: "b-1", isbn: "978-0143452678", title: "Wings of Fire", author: "Dr. A.P.J. Abdul Kalam", category: "Biography / Science", totalCopies: 12, issuedCopies: 10 },
     { id: "b-2", isbn: "978-0199535569", title: "Great Expectations", author: "Charles Dickens", category: "English Literature", totalCopies: 25, issuedCopies: 18 },
     { id: "b-3", isbn: "978-9352923450", title: "NCERT Exemplar Mathematics X", author: "NCERT Editorial", category: "Academic Reference", totalCopies: 30, issuedCopies: 28 },
-  ];
+  ]);
 
-  const assets: SchoolAsset[] = [
+  const [assets, setAssets] = useState<SchoolAsset[]>([
     { id: "a-1", assetId: "IT-DESK-042", category: "Computers & IT", name: "Dell OptiPlex 7090 Desktop (Computer Lab 1)", location: "IT Tower Lab 1", condition: "Good", assignedTo: "Kunal Mehra (HOD IT)", purchaseDate: "2023-08-15", value: 52000, warrantyUntil: "2026-08-15" },
     { id: "a-2", assetId: "AV-PROJ-012", category: "Audio Visual", name: "Epson 4K Laser Projector (Auditorium)", location: "Main Auditorium", condition: "Good", assignedTo: "AV Team", purchaseDate: "2024-02-10", value: 145000, warrantyUntil: "2027-02-10" },
     { id: "a-3", assetId: "SCI-MIC-088", category: "Lab Equipment", name: "Olympus Binocular Microscope (x1000)", location: "Biology Lab", condition: "Needs Maintenance", assignedTo: "Biology Faculty", purchaseDate: "2022-11-20", value: 38000, warrantyUntil: "Expired" },
-  ];
+  ]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    getSchoolAdminOperations(organizationId)
+      .then((data) => {
+        if (data?.fleet && Array.isArray(data.fleet) && data.fleet.length > 0) {
+          setVehicles(
+            data.fleet.map((v: any) => ({
+              id: v.id,
+              busNo: v.vehicle_number,
+              route: v.route_name,
+              driverName: v.driver_name,
+              driverPhone: v.driver_phone,
+              capacity: v.capacity,
+              enrolledStudents: v.students_assigned,
+              currentStatus: v.status === "on_route" ? "On Route" : "At School",
+            }))
+          );
+        }
+        if (data?.library && Array.isArray(data.library) && data.library.length > 0) {
+          setBooks(
+            data.library.map((b: any) => ({
+              id: b.id,
+              isbn: b.isbn,
+              title: b.title,
+              author: b.author,
+              category: b.category,
+              totalCopies: b.total_copies,
+              issuedCopies: b.issued_copies,
+            }))
+          );
+        }
+        if (data?.assets && Array.isArray(data.assets) && data.assets.length > 0) {
+          setAssets(
+            data.assets.map((a: any) => ({
+              id: a.id,
+              assetId: a.asset_code,
+              category: a.category,
+              name: a.name,
+              location: a.location,
+              condition: a.condition ? (a.condition.charAt(0).toUpperCase() + a.condition.slice(1)) : "Good",
+              assignedTo: a.custodian_name || "Faculty",
+              purchaseDate: "2024-01-01",
+              value: Number(a.purchase_cost || 0),
+              warrantyUntil: "Active",
+            }))
+          );
+        }
+      })
+      .catch(() => {});
+  }, [organizationId]);
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>

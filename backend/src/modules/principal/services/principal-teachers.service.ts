@@ -1,14 +1,14 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { User } from '../../auth/user.entity';
 import { AssignTeacherDevelopmentDto, RecordTeacherObservationDto } from '../dto/principal.dto';
 
 @Injectable()
 export class PrincipalTeachersService {
-  constructor(private readonly source: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getTeachersOverview(orgId: string, _actor: User) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
 
     // Fetch teachers from memberships
     const teachers = await manager.query(
@@ -75,7 +75,7 @@ export class PrincipalTeachersService {
   }
 
   async getTeacherAcademicProfile(orgId: string, _actor: User, teacherId: string) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
 
     const [user] = await manager.query(
       `SELECT u.id, u.name, u.email, COALESCE(m.specialty, 'Academics') as "department"
@@ -171,7 +171,7 @@ export class PrincipalTeachersService {
   }
 
   async recordObservation(orgId: string, actor: User, dto: RecordTeacherObservationDto) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
     const [inserted] = await manager.query(
       `INSERT INTO principal_teacher_observations (
         organization_id, teacher_user_id, observer_user_id, observer_name, observation_date,
@@ -205,7 +205,7 @@ export class PrincipalTeachersService {
   }
 
   async assignDevelopment(orgId: string, actor: User, dto: AssignTeacherDevelopmentDto) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
     const [inserted] = await manager.query(
       `INSERT INTO principal_teacher_developments (
         organization_id, teacher_user_id, title, category, provider, training_hours, status, assigned_by_user_id, notes

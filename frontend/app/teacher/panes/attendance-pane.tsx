@@ -11,11 +11,11 @@ import {
   UserX,
   FileCheck
 } from "lucide-react";
-import { getTeacherAttendance, getTeacherClasses } from "../../edops-api";
+import { getTeacherAttendance, getTeacherClasses, getTeacherTodayTimetable } from "../../edops-api";
 
 interface AttendancePaneProps {
   organizationId: string;
-  onTakeAttendance: (sectionId: string, periodNumber?: number) => void;
+  onTakeAttendance: (sectionId: string, periodNumber?: number, classSection?: string) => void;
   onContactParent?: (studentName: string) => void;
 }
 
@@ -25,41 +25,31 @@ export function AttendancePane({
   onContactParent,
 }: AttendancePaneProps) {
   const [data, setData] = useState<any>(null);
+  const [todaySlots, setTodaySlots] = useState<any[]>([]);
+  const [activeSlot, setActiveSlot] = useState<any>(null);
   const [defaultSectionId, setDefaultSectionId] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadAttendance();
-    loadClasses();
+    loadData();
   }, [organizationId]);
 
-  async function loadClasses() {
+  async function loadData() {
+    setLoading(true);
     try {
-      const clsRes = await getTeacherClasses(organizationId);
+      const [attRes, ttRes, clsRes] = await Promise.all([
+        getTeacherAttendance(organizationId).catch(() => null),
+        getTeacherTodayTimetable(organizationId).catch(() => null),
+        getTeacherClasses(organizationId).catch(() => null),
+      ]);
+      if (attRes) setData(attRes);
+      if (ttRes?.slots) {
+        setTodaySlots(ttRes.slots);
+        setActiveSlot(ttRes.activeSlot || null);
+      }
       if (clsRes?.classes?.length > 0) {
         setDefaultSectionId(clsRes.classes[0].sectionId);
       }
-    } catch {
-      setDefaultSectionId("");
-    }
-  }
-
-  async function loadAttendance() {
-    setLoading(true);
-    try {
-      const res = await getTeacherAttendance(organizationId);
-      setData(res);
-    } catch {
-      setData({
-        todayStatus: {
-          classesTotal: 0,
-          classesMarked: 0,
-          pendingMarking: 0,
-          overallAttendancePct: 0,
-        },
-        recentSessions: [],
-        defaultersAlerts: [],
-      });
     } finally {
       setLoading(false);
     }
@@ -70,21 +60,34 @@ export function AttendancePane({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-gray-900  flex items-center gap-2">
-            <CheckCircle2 className="w-6 h-6 text-indigo-600 " />
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <CheckCircle2 className="w-6 h-6 text-indigo-600" />
             Class Attendance & Register Verification
           </h2>
-          <p className="text-xs text-gray-500  mt-0.5">
+          <p className="text-xs text-gray-500 mt-0.5">
             Real-time period attendance tracking and statutory CBSE 75% minimum threshold monitoring
           </p>
         </div>
 
-        <button
-          onClick={() => onTakeAttendance(defaultSectionId || data?.recentSessions?.[0]?.sectionId || "", 1)}
-          className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition"
-        >
-          + Take Period Attendance
-        </button>
+        {activeSlot ? (
+          <button
+            onClick={() => onTakeAttendance(activeSlot.sectionId, activeSlot.period, activeSlot.classSection)}
+            className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition flex items-center gap-1.5"
+          >
+            <CheckCircle2 className="w-3.5 h-3.5" />
+            Take Attendance: {activeSlot.classSection} (Period {activeSlot.period})
+          </button>
+        ) : todaySlots.length > 0 && todaySlots.every((s) => s.attendanceTaken) ? (
+          <div className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-1.5">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            All Classes Finalized Today
+          </div>
+        ) : (
+          <div className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-gray-400" />
+            No Active Class Right Now
+          </div>
+        )}
       </div>
 
       {/* KPI Cards */}
@@ -113,6 +116,77 @@ export function AttendancePane({
           <span className="text-xs text-red-600 font-semibold">CBSE exam risk</span>
         </div>
       </div>
+
+      {/* Today's Timetable Periods & Attendance Status */}
+      {todaySlots.length > 0 && (
+        <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-indigo-600" />
+              <h3 className="font-bold text-sm text-gray-900">
+                Today's Class Schedule & Register Verification
+              </h3>
+            </div>
+            <span className="text-[11px] text-gray-500 font-medium">
+              Verified by Timetable Schedule
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {todaySlots.map((slot) => {
+              const isFinalized = slot.attendanceTaken;
+              const isActive = slot.status === "active";
+              return (
+                <div
+                  key={slot.id || `${slot.period}-${slot.sectionId}`}
+                  className={`p-3 rounded-xl border transition ${
+                    isFinalized
+                      ? "bg-emerald-50/40 border-emerald-200"
+                      : isActive
+                      ? "bg-indigo-50/50 border-indigo-300 ring-1 ring-indigo-200"
+                      : "bg-gray-50/60 border-gray-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-gray-900">Period {slot.period}: {slot.classSection}</span>
+                    <span className="text-gray-500 font-normal">{slot.startTime} – {slot.endTime}</span>
+                  </div>
+                  <div className="text-[11px] text-gray-500 mt-0.5">{slot.subject} • {slot.room}</div>
+                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
+                    {isFinalized ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded">
+                        <CheckCircle2 className="w-3 h-3" /> Finalized
+                      </span>
+                    ) : isActive ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">
+                        ● Live Period
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                        {slot.status === "upcoming" ? "Upcoming" : "Pending Marking"}
+                      </span>
+                    )}
+
+                    {isFinalized ? (
+                      <span className="text-[11px] font-semibold text-emerald-600">
+                        Recorded ✓
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onTakeAttendance(slot.sectionId, slot.period, slot.classSection)}
+                        className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5"
+                      >
+                        Take Attendance →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Defaulters Alert Docket */}
       <div className="p-4 bg-red-50/50  border border-red-200  rounded-xl space-y-3">

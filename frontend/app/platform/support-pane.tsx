@@ -44,41 +44,49 @@ export function SupportPane({
             </tr>
           </thead>
           <tbody>
-            {tickets.map(t => (
-              <tr key={t.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
-                <td style={{ padding: "10px 8px" }}><b>{t.ticketCode}</b></td>
-                <td style={{ padding: "10px 8px" }}>{t.schoolName}</td>
-                <td style={{ padding: "10px 8px" }}>{t.subject}</td>
-                <td style={{ padding: "10px 8px" }}>
-                  <span style={{
-                    padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, textTransform: "uppercase",
-                    background: t.priority === "high" || t.priority === "urgent" ? "#FEE2E2" : "#FEF3C7",
-                    color: t.priority === "high" || t.priority === "urgent" ? "#991B1B" : "#92400E"
-                  }}>
-                    {t.priority}
-                  </span>
-                </td>
-                <td style={{ padding: "10px 8px" }}>
-                  <span style={{
-                    padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, textTransform: "uppercase",
-                    background: t.status === "resolved" || t.status === "closed" ? "#DEF7EC" : "#FDF9F0",
-                    color: t.status === "resolved" || t.status === "closed" ? "#03543F" : "#064E3B"
-                  }}>
-                    {t.status.replace("_", " ")}
-                  </span>
-                </td>
-                <td style={{ padding: "10px 8px", textAlign: "right" }}>
-                  {t.status !== "resolved" && (
-                    <button
-                      onClick={() => onResolveTicket(t.id)}
-                      style={{ padding: "4px 8px", background: "#FFF", border: "1px solid #D1D5DB", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}
-                    >
-                      Resolve
-                    </button>
-                  )}
+            {tickets.length > 0 ? (
+              tickets.map(t => (
+                <tr key={t.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                  <td style={{ padding: "10px 8px" }}><b>{t.ticketCode}</b></td>
+                  <td style={{ padding: "10px 8px" }}>{t.schoolName}</td>
+                  <td style={{ padding: "10px 8px" }}>{t.subject}</td>
+                  <td style={{ padding: "10px 8px" }}>
+                    <span style={{
+                      padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, textTransform: "uppercase",
+                      background: t.priority === "high" || t.priority === "urgent" ? "#FEE2E2" : "#FEF3C7",
+                      color: t.priority === "high" || t.priority === "urgent" ? "#991B1B" : "#92400E"
+                    }}>
+                      {t.priority}
+                    </span>
+                  </td>
+                  <td style={{ padding: "10px 8px" }}>
+                    <span style={{
+                      padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, textTransform: "uppercase",
+                      background: t.status === "resolved" || t.status === "closed" ? "#DEF7EC" : "#FDF9F0",
+                      color: t.status === "resolved" || t.status === "closed" ? "#03543F" : "#064E3B"
+                    }}>
+                      {t.status.replace("_", " ")}
+                    </span>
+                  </td>
+                  <td style={{ padding: "10px 8px", textAlign: "right" }}>
+                    {t.status !== "resolved" && (
+                      <button
+                        onClick={() => onResolveTicket(t.id)}
+                        style={{ padding: "4px 8px", background: "#FFF", border: "1px solid #D1D5DB", borderRadius: "4px", fontSize: "11px", cursor: "pointer" }}
+                      >
+                        Resolve
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={6} style={{ padding: "20px", textAlign: "center", color: "#6B7280" }}>
+                  No open support tickets. All tenant inquiries resolved.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>
@@ -99,16 +107,22 @@ export function SupportPane({
         </div>
 
         <div style={{ display: "grid", gap: "10px" }}>
-          {announcements.map(a => (
-            <div key={a.id} style={{ padding: "14px", border: "1px solid #E5E7EB", borderRadius: "8px", background: "#F9FAFB" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div style={{ fontWeight: 700, fontSize: "13.5px" }}>{a.title}</div>
-                <span style={{ fontSize: "11px", fontWeight: 700, color: "#10B981" }}>{a.status.toUpperCase()}</span>
+          {announcements.length > 0 ? (
+            announcements.map(a => (
+              <div key={a.id} style={{ padding: "14px", border: "1px solid #E5E7EB", borderRadius: "8px", background: "#F9FAFB" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ fontWeight: 700, fontSize: "13.5px" }}>{a.title}</div>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#10B981" }}>{a.status.toUpperCase()}</span>
+                </div>
+                <p style={{ margin: "6px 0", fontSize: "12.5px", color: "#4B5563" }}>{a.message}</p>
+                <div style={{ fontSize: "11px", color: "#6B7280" }}>Target Audience: <b>{a.audience.toUpperCase()}</b> · Channels: {a.channels ? a.channels.join(", ") : "dashboard"}</div>
               </div>
-              <p style={{ margin: "6px 0", fontSize: "12.5px", color: "#4B5563" }}>{a.message}</p>
-              <div style={{ fontSize: "11px", color: "#6B7280" }}>Target Audience: <b>{a.audience.toUpperCase()}</b> · Channels: {a.channels.join(", ")}</div>
+            ))
+          ) : (
+            <div style={{ padding: "20px", textAlign: "center", color: "#6B7280", background: "#F9FAFB", borderRadius: "8px", border: "1px dashed #E5E7EB" }}>
+              No platform broadcasts published yet. Use &ldquo;+ Create Announcement&rdquo; to notify school tenants.
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

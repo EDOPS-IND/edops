@@ -5,41 +5,29 @@ import { Clock, AlertTriangle, CheckCircle2, User, BookOpen, Layers } from "luci
 
 export function TimetablePane({
   substitutionRecords = [],
+  organizationId,
+  onNavigate,
 }: {
   substitutionRecords?: any[];
+  organizationId?: string;
+  onNavigate?: (pane: string) => void;
 }) {
+  const [liveData, setLiveData] = useState<any>(null);
   const [viewMode, setViewMode] = useState<"substitutions" | "master_grid">("substitutions");
 
-  const records = substitutionRecords.length ? substitutionRecords : [
-    {
-      id: "sub-1",
-      date: new Date().toISOString().split("T")[0],
-      period: 3,
-      className: "Grade 10-A",
-      subject: "Mathematics",
-      originalTeacher: "Rahul Sharma (Attending State Math Symposium)",
-      originalTeacherStatus: "Duty Leave",
-      substituteTeacher: "Sunita Rao",
-      substituteStatus: "Assigned & Active",
-      lessonPlanned: "Chapter 4 Quadratic Equations Problem Worksheet #2",
-      coverageStatus: "In Progress",
-      academicImpact: "Zero instructional loss; practice worksheet supervised and checked.",
-    },
-    {
-      id: "sub-2",
-      date: new Date().toISOString().split("T")[0],
-      period: 5,
-      className: "Grade 9-B",
-      subject: "Science Lab",
-      originalTeacher: "Dr. Anita Desai",
-      originalTeacherStatus: "Medical Leave",
-      substituteTeacher: "Karan Mehra (Lab Demonstrator)",
-      substituteStatus: "Assigned & Active",
-      lessonPlanned: "Optics Reflection Ray Tracing Experiment Protocol",
-      coverageStatus: "Completed",
-      academicImpact: "Full practical protocol executed; logbooks signed.",
-    },
-  ];
+  React.useEffect(() => {
+    if (!organizationId) return;
+    import("../../edops-api").then(({ getPrincipalAcademics }) => {
+      getPrincipalAcademics(organizationId)
+        .then((data) => setLiveData(data))
+        .catch(() => null);
+    });
+  }, [organizationId]);
+
+  const records = (liveData?.substitutionRecords && liveData.substitutionRecords.length > 0)
+    ? liveData.substitutionRecords
+    : substitutionRecords;
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -87,14 +75,20 @@ export function TimetablePane({
 
       {viewMode === "substitutions" ? (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          {records.map((r, idx) => (
-            <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "20px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ background: "#EFF6FF", color: "#1E40AF", fontSize: "11px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px" }}>
-                      Period {r.period} · {r.className}
-                    </span>
+          {records.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "32px 0", color: "#64748B", fontSize: "13px", background: "#FFFFFF", borderRadius: "10px", border: "1px solid #E2E8F0" }}>
+              No faculty substitutions active today. Full teaching coverage verified.
+            </div>
+          ) : (
+            records.map((r: any, idx: number) => (
+              <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "20px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ background: "#EFF6FF", color: "#1E40AF", fontSize: "11px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px" }}>
+                        Period {r.period} · {r.className}
+                      </span>
+
                     <span style={{ fontSize: "13px", fontWeight: 700, color: "#1E293B" }}>{r.subject}</span>
                   </div>
                   <div style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>
@@ -123,8 +117,9 @@ export function TimetablePane({
                 <b>Academic Impact Analysis:</b> {r.academicImpact}
               </div>
             </div>
-          ))}
-        </div>
+          ))
+        )}
+      </div>
       ) : (
         <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "20px" }}>
           <h4 style={{ margin: "0 0 12px", fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>Timetable Clash & Load Diagnostics</h4>

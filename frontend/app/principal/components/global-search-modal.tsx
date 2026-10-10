@@ -5,19 +5,37 @@ import { Search, X, User, GraduationCap, BookOpen, Layers, ArrowRight } from "lu
 import { searchPrincipal } from "../../edops-api";
 
 export function GlobalSearchModal({
+  isOpen = false,
   organizationId,
   onClose,
   onSelectEntity,
+  onSelectTeacher,
+  onSelectStudent,
+  onSelectClass,
 }: {
+  isOpen?: boolean;
   organizationId?: string;
   onClose: () => void;
-  onSelectEntity: (type: string, id: string, name: string) => void;
+  onSelectEntity?: (type: string, id: string, name: string) => void;
+  onSelectTeacher?: (id: string) => void;
+  onSelectStudent?: (id: string) => void;
+  onSelectClass?: (id: string) => void;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
     if (!query.trim() || query.length < 2) {
       setResults([
         { id: "stu-3", title: "Vikas Kumar", subtitle: "Grade 10-A · Roll 03 · At-Risk (Math)", category: "Students", type: "student" },
@@ -62,8 +80,16 @@ export function GlobalSearchModal({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="modal-backdrop" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, paddingTop: "80px", paddingLeft: "16px", paddingRight: "16px" }}>
+    <div
+      className="modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "flex-start", justifyContent: "center", zIndex: 1000, paddingTop: "80px", paddingLeft: "16px", paddingRight: "16px" }}
+    >
       <div
         className="modal-card"
         style={{
@@ -86,7 +112,12 @@ export function GlobalSearchModal({
             placeholder="Search student, teacher, class, subject, exam or action plan..."
             style={{ width: "100%", border: "none", outline: "none", fontSize: "15px", color: "#1E293B" }}
           />
-          <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94A3B8" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close search"
+            style={{ background: "transparent", border: "none", cursor: "pointer", color: "#94A3B8" }}
+          >
             <X size={18} />
           </button>
         </div>
@@ -104,7 +135,10 @@ export function GlobalSearchModal({
                   key={idx}
                   onClick={() => {
                     onClose();
-                    onSelectEntity(item.type, item.id, item.title);
+                    if (item.type === "teacher" && onSelectTeacher) onSelectTeacher(item.id);
+                    else if (item.type === "student" && onSelectStudent) onSelectStudent(item.id);
+                    else if (item.type === "class" && onSelectClass) onSelectClass(item.id);
+                    if (onSelectEntity) onSelectEntity(item.type, item.id, item.title);
                   }}
                   style={{
                     padding: "10px 14px",

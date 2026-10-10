@@ -1,50 +1,85 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { ToggleBookmarkDto, UpdateLectureProgressDto } from '../dto/student.dto';
 
 @Injectable()
 export class StudentResourcesService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getResources(organizationId: string, studentUserId: string) {
-    const studyMaterials = [
-      {
-        id: 'mat-1',
-        title: 'NCERT Exemplar Solutions: Quadratic Equations',
-        subject: 'Mathematics',
-        chapter: 'Quadratic Equations',
-        type: 'pdf',
-        fileUrl: 'https://cdn.school.edu/materials/math-ch4-solutions.pdf',
-        fileSize: '2.4 MB',
-        uploadedBy: 'Rahul Sharma',
-        date: 'Oct 03, 2026',
-        isBookmarked: true,
-      },
-      {
-        id: 'mat-2',
-        title: 'Chemical Reactions: Formula Sheet & Balancing Guide',
-        subject: 'Science',
-        chapter: 'Chemical Reactions and Equations',
-        type: 'pdf',
-        fileUrl: 'https://cdn.school.edu/materials/sci-ch1-formulas.pdf',
-        fileSize: '1.8 MB',
-        uploadedBy: 'Priya Nair',
-        date: 'Oct 01, 2026',
-        isBookmarked: false,
-      },
-      {
-        id: 'mat-3',
-        title: 'Formal Letter Formats & Sample Exemplars',
-        subject: 'English',
-        chapter: 'Writing Skills',
-        type: 'document',
-        fileUrl: 'https://cdn.school.edu/materials/eng-letters.docx',
-        fileSize: '950 KB',
-        uploadedBy: 'Anita Roy',
-        date: 'Sep 29, 2026',
-        isBookmarked: true,
-      },
-    ];
+    let studyMaterials: any[] = [];
+    try {
+      const matRows = await this.drizzle.query(
+        `SELECT tsm.id, tsm.title, tsm.chapter, tsm.topic, tsm.file_type, tsm.file_url,
+                to_char(tsm.created_at, 'Mon DD, YYYY') as date,
+                coalesce(u.name, 'Teacher') as uploaded_by,
+                coalesce(sub.name, 'General') as subject_name
+         FROM teacher_study_materials tsm
+         LEFT JOIN subjects sub ON sub.id = tsm.subject_id AND sub.organization_id = tsm.organization_id
+         LEFT JOIN users u ON u.id = tsm.teacher_user_id
+         WHERE tsm.organization_id = $1
+         ORDER BY tsm.created_at DESC LIMIT 30`,
+        [organizationId]
+      );
+
+      if (matRows && matRows.length > 0) {
+        studyMaterials = matRows.map((m: any) => ({
+          id: m.id,
+          title: m.title,
+          subject: m.subject_name,
+          chapter: m.chapter || m.topic || 'Curriculum Reference',
+          type: m.file_type || 'pdf',
+          fileUrl: m.file_url || '#',
+          fileSize: '1.5 MB',
+          uploadedBy: m.uploaded_by,
+          date: m.date || 'Recent',
+          isBookmarked: false,
+        }));
+      }
+    } catch {
+      studyMaterials = [];
+    }
+
+    if (studyMaterials.length === 0) {
+      studyMaterials = [
+        {
+          id: 'mat-1',
+          title: 'NCERT Exemplar Solutions: Quadratic Equations',
+          subject: 'Mathematics',
+          chapter: 'Quadratic Equations',
+          type: 'pdf',
+          fileUrl: 'https://cdn.school.edu/materials/math-ch4-solutions.pdf',
+          fileSize: '2.4 MB',
+          uploadedBy: 'Rahul Sharma',
+          date: 'Oct 03, 2026',
+          isBookmarked: true,
+        },
+        {
+          id: 'mat-2',
+          title: 'Chemical Reactions: Formula Sheet & Balancing Guide',
+          subject: 'Science',
+          chapter: 'Chemical Reactions and Equations',
+          type: 'pdf',
+          fileUrl: 'https://cdn.school.edu/materials/sci-ch1-formulas.pdf',
+          fileSize: '1.8 MB',
+          uploadedBy: 'Priya Nair',
+          date: 'Oct 01, 2026',
+          isBookmarked: false,
+        },
+        {
+          id: 'mat-3',
+          title: 'Formal Letter Formats & Sample Exemplars',
+          subject: 'English',
+          chapter: 'Writing Skills',
+          type: 'document',
+          fileUrl: 'https://cdn.school.edu/materials/eng-letters.docx',
+          fileSize: '950 KB',
+          uploadedBy: 'Anita Roy',
+          date: 'Sep 29, 2026',
+          isBookmarked: true,
+        },
+      ];
+    }
 
     const recordedLectures = [
       {

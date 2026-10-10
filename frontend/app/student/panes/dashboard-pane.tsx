@@ -13,6 +13,7 @@ import {
   Sparkles,
   Calendar,
   Layers,
+  MessageSquare,
 } from 'lucide-react';
 import { getStudentDashboard } from '../../edops-api';
 import { StudentTab } from '../types';
@@ -95,7 +96,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
       <div className="bg-gradient-to-r from-indigo-700 via-indigo-600 to-indigo-800 rounded-2xl p-6 text-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h2 className="text-xl md:text-2xl font-bold tracking-tight">Good Morning, Vikas 👋</h2>
+            <h2 className="text-xl md:text-2xl font-bold tracking-tight">Good Morning, {data?.studentName || "Student"} 👋</h2>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-white/20 text-white border border-white/20">
               Roll No: {enrollment.rollNumber}
             </span>
@@ -331,6 +332,45 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             ))}
           </div>
         </div>
+      </div>
+
+      {/* Messages from Teachers & Academic Office */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-indigo-600" />
+            <h3 className="font-bold text-slate-900 text-sm">Teacher Directives & In-App Messages</h3>
+          </div>
+          <button
+            onClick={() => onNavigateTab('communication')}
+            className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition"
+          >
+            Open Academic Inbox ({data?.recentMessages?.length || 0}) →
+          </button>
+        </div>
+
+        {data?.recentMessages && data.recentMessages.length > 0 ? (
+          <div className="divide-y divide-slate-100">
+            {data.recentMessages.map((m: any) => (
+              <div
+                key={m.id}
+                onClick={() => onNavigateTab('communication')}
+                className="py-3 cursor-pointer hover:bg-slate-50 rounded-lg px-2 transition space-y-1"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-900">{m.senderName}</span>
+                  <span className="text-[10px] text-slate-400">{m.date}</span>
+                </div>
+                <div className="text-xs font-semibold text-indigo-600">{m.subjectLine}</div>
+                <p className="text-xs text-slate-600 line-clamp-2">{m.body}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="py-4 text-center text-xs text-slate-400">
+            No unread directives or messages. All caught up!
+          </div>
+        )}
       </div>
 
       {/* Academic Alerts Banner */}

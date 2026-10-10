@@ -8,7 +8,7 @@ import {
   updateSchoolLifecycle, getSupportTickets, createSupportTicket,
   updateSupportTicketStatus, startSupportSession, getAnnouncements,
   createAnnouncement, getPayments, refundPayment, globalSearch,
-  getDetailedHealth, getAuditLogs
+  getDetailedHealth, getAuditLogs, getPlatformDashboard, getPlatformStaff
 } from "./edops-api";
 import {
   BarChart3, Building2, Calendar, CreditCard, Sparkles, Layers,
@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import {
   School, Plan, FeatureOverride, SupportTicket, Announcement,
-  PaymentRecord, AuditLog, DEFAULT_SCHOOLS,
+  PaymentRecord, AuditLog,
   OverviewPane, SchoolsPane, OnboardingWizard, PlansPane, SubscriptionsPane,
   BillingPane, UsagePane, ConfigPane, SecurityPane, SupportPane, HealthPane,
   SupportSessionModal, FeatureOverrideModal, CreatePlanModal,
@@ -32,27 +32,19 @@ export function PlatformWorkspace({
   onSelectPanel?: (panel: string) => void;
 }) {
   const [tab, setTab] = useState(activePanel);
-  const [schools, setSchools] = useState<School[]>(DEFAULT_SCHOOLS);
+  const [schools, setSchools] = useState<School[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [schoolOverrides, setSchoolOverrides] = useState<FeatureOverride[]>([]);
 
-  // Tickets & Announcements & Payments
-  const [tickets, setTickets] = useState<SupportTicket[]>([
-    { id: "1", ticketCode: "TCK-10234", schoolName: "Delhi Public XYZ", category: "academic", priority: "high", status: "in_progress", subject: "CBSE term report card format alignment", description: "Need alignment for 9th grade CBSE cumulative scorecards.", createdAt: "2 hours ago" },
-    { id: "2", ticketCode: "TCK-10231", schoolName: "ABC International School", category: "billing", priority: "medium", status: "open", subject: "GST invoice amendment for Q4", description: "Requesting correction in GSTIN registration number.", createdAt: "5 hours ago" },
-    { id: "3", ticketCode: "TCK-10219", schoolName: "XYZ Academy", category: "technical", priority: "low", status: "resolved", subject: "Custom subdomain DNS records verified", description: "CNAME verification complete for portal.xyzacademy.in", createdAt: "1 day ago" },
-  ]);
-  const [announcements, setAnnouncements] = useState<Announcement[]>([
-    { id: "1", title: "Scheduled Maintenance: Sunday 2 AM IST", message: "Database engine optimization and index rebuild window (15 mins expected).", type: "maintenance", priority: "normal", audience: "all", channels: ["dashboard", "email"], status: "published", createdAt: "Yesterday" },
-    { id: "2", title: "New Feature Release: AI Report Card Narrative Generator", message: "Schools on Enterprise and Professional plans can now generate personalized teacher comments.", type: "feature_release", priority: "high", audience: "enterprise", channels: ["dashboard"], status: "published", createdAt: "3 days ago" },
-  ]);
-  const [payments, setPayments] = useState<PaymentRecord[]>([
-    { id: "1", invoiceId: "INV-2026-001", schoolName: "Delhi Public XYZ", amountMinor: 15000000, currency: "INR", status: "success", paymentMethod: "NEFT / RTGS", transactionId: "UTR983210492", createdAt: "2026-03-25" },
-    { id: "2", invoiceId: "INV-2026-002", schoolName: "ABC International School", amountMinor: 7500000, currency: "INR", status: "success", paymentMethod: "Bank Transfer", transactionId: "UTR882103948", createdAt: "2026-03-28" },
-    { id: "3", invoiceId: "INV-2026-003", schoolName: "Heritage Valley High", amountMinor: 3500000, currency: "INR", status: "failed", paymentMethod: "Direct Debit", failureReason: "Insufficient balance", createdAt: "2026-04-01" },
-  ]);
+  // Tickets & Announcements & Payments & Telemetry from backend
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [healthData, setHealthData] = useState<any>(null);
+  const [staffData, setStaffData] = useState<any>({ staff: [], roles: [] });
 
   // Modals state
   const [createPlanModal, setCreatePlanModal] = useState(false);
@@ -77,45 +69,67 @@ export function PlatformWorkspace({
     if (activePanel) setTab(activePanel);
   }, [activePanel]);
 
-  // Initial Data Fetching
+  // Initial Data Fetching from PostgreSQL & backend services
   async function loadInitialData() {
     try {
-      const [schoolsRes, plansRes, ticketsRes, logsRes] = await Promise.all([
+      const [schoolsRes, plansRes, ticketsRes, logsRes, dashRes, healthRes, staffRes, paymentsRes, announcementsRes] = await Promise.all([
         getPlatformSchools(100).catch(() => ({ items: [] })),
         getPlatformPlans(50).catch(() => ({ items: [] })),
         getSupportTickets(50).catch(() => ({ items: [] })),
-        getAuditLogs(50).catch(() => ({ items: [] }))
+        getAuditLogs(50).catch(() => ({ items: [] })),
+        getPlatformDashboard().catch(() => null),
+        getDetailedHealth().catch(() => null),
+        getPlatformStaff().catch(() => ({ staff: [], roles: [] })),
+        getPayments(50).catch(() => ({ items: [] })),
+        getAnnouncements().catch(() => [])
       ]);
 
       if (schoolsRes.items?.length) {
-        const merged = [...DEFAULT_SCHOOLS];
-        for (const s of schoolsRes.items) {
-          if (!merged.some(m => m.id === s.id || m.slug === s.slug)) {
-            merged.push({
-              id: s.id, name: s.name, slug: s.slug, status: s.status, createdAt: s.createdAt,
-              code: s.code || (s.slug || "SCH").slice(0, 3).toUpperCase() + "001",
-              board: s.board || "CBSE", studentsCount: "600", teachersCount: "40", parentsCount: "550",
-              plan: "Professional", healthScore: 92, storageUsageGb: 35, apiRequests: 45000,
-              city: s.city || "New Delhi", state: s.state || "Delhi", officialEmail: s.officialEmail || `admin@${s.slug}.edu`
-            });
-          }
-        }
-        setSchools(merged);
+        setSchools(schoolsRes.items.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          slug: s.slug,
+          status: s.status,
+          createdAt: s.createdAt,
+          code: s.code || (s.slug || "SCH").slice(0, 3).toUpperCase() + "001",
+          board: s.board || "CBSE",
+          studentsCount: String(s.studentsCount ?? "0"),
+          teachersCount: String(s.teachersCount ?? "0"),
+          parentsCount: String(s.parentsCount ?? "0"),
+          plan: s.plan || "Basic",
+          healthScore: s.healthScore ?? 98,
+          storageUsageGb: Number(s.storageUsageGb ?? 0),
+          apiRequests: Number(s.apiRequests ?? 0),
+          city: s.city || "New Delhi",
+          state: s.state || "Delhi",
+          officialEmail: s.officialEmail || `admin@${s.slug}.edu`,
+          principalName: s.principalName || "Principal",
+        })));
+      } else {
+        setSchools([]);
       }
 
       if (plansRes.items?.length) {
         setPlans(plansRes.items);
       } else {
-        const defaultPlans: Plan[] = [
-          { id: "00000000-0000-4000-8000-000000000001", name: "Basic", amountMinor: 2500000, currency: "INR", billingCycle: "monthly", maxStudents: 500, maxTeachers: 35, maxParents: 1000, maxStorageGb: 50, maxApiRequests: 200000, features: { student_management: true, teacher_management: true, attendance: true, exams: true, results: true, report_cards: true, arena: true, recordings: false, communication: true, ai_assistant: false }, active: true, createdAt: "2026-01-01" },
-          { id: "00000000-0000-4000-8000-000000000002", name: "Professional", amountMinor: 6500000, currency: "INR", billingCycle: "monthly", maxStudents: 1500, maxTeachers: 100, maxParents: 3000, maxStorageGb: 200, maxApiRequests: 1000000, features: { student_management: true, teacher_management: true, parent_management: true, attendance: true, timetable: true, homework: true, exams: true, results: true, report_cards: true, arena: true, recordings: true, communication: true, fee_management: true, transport: true, library: true, ai_assistant: false }, active: true, createdAt: "2026-01-01" },
-          { id: "00000000-0000-4000-8000-000000000003", name: "Enterprise", amountMinor: 14500000, currency: "INR", billingCycle: "monthly", maxStudents: 5000, maxTeachers: 350, maxParents: 10000, maxStorageGb: 1024, maxApiRequests: 5000000, features: { student_management: true, teacher_management: true, parent_management: true, attendance: true, timetable: true, homework: true, assignments: true, exams: true, results: true, report_cards: true, arena: true, recordings: true, communication: true, email_service: true, sms_service: true, whatsapp_service: true, fee_management: true, online_payments: true, transport: true, library: true, advanced_analytics: true, ai_assistant: true, ai_reports: true, api_access: true, custom_domain: true, multi_branch: true }, active: true, createdAt: "2026-01-01" },
-        ];
-        setPlans(defaultPlans);
+        setPlans([]);
       }
 
       if (ticketsRes.items?.length) setTickets(ticketsRes.items);
+      else setTickets([]);
+
       if (logsRes.items?.length) setAuditLogs(logsRes.items);
+      else setAuditLogs([]);
+
+      if (paymentsRes.items?.length) setPayments(paymentsRes.items);
+      else setPayments([]);
+
+      if (Array.isArray(announcementsRes)) setAnnouncements(announcementsRes);
+      else setAnnouncements([]);
+
+      if (dashRes) setDashboardData(dashRes);
+      if (healthRes) setHealthData(healthRes);
+      if (staffRes) setStaffData(staffRes);
     } catch (e: any) {
       console.error("Platform load error:", e);
     }
@@ -461,7 +475,12 @@ export function PlatformWorkspace({
 
       {/* PANES RENDERING */}
       {tab === "overview" && (
-        <OverviewPane schools={schools} onNavigateTab={(t) => setTab(t)} />
+        <OverviewPane
+          schools={schools}
+          dashboardData={dashboardData}
+          healthData={healthData}
+          onNavigateTab={(t) => setTab(t)}
+        />
       )}
 
       {tab === "schools" && (
@@ -505,12 +524,15 @@ export function PlatformWorkspace({
       {tab === "billing" && (
         <BillingPane
           payments={payments}
+          revenue={dashboardData?.revenue}
           onProcessRefund={handleProcessRefund}
         />
       )}
 
       {tab === "usage" && (
-        <UsagePane />
+        <UsagePane
+          dashboardData={dashboardData}
+        />
       )}
 
       {tab === "configuration" && (
@@ -522,6 +544,7 @@ export function PlatformWorkspace({
       {tab === "security" && (
         <SecurityPane
           auditLogs={auditLogs}
+          staffData={staffData}
         />
       )}
 
@@ -536,7 +559,9 @@ export function PlatformWorkspace({
       )}
 
       {tab === "health" && (
-        <HealthPane />
+        <HealthPane
+          healthData={healthData}
+        />
       )}
 
       {/* MODALS */}

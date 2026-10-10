@@ -1,12 +1,9 @@
 import { Controller, DynamicModule, Get, Global, Module, ServiceUnavailableException } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { DataSource } from 'typeorm';
 import { APP_CONFIG, AppConfig } from './config';
 import { AuthGuard, Public } from './common/auth.guard';
-import { databaseOptions } from './database/data-source';
 import { AuthModule } from './modules/auth/auth.module';
 import { TenantsModule } from './modules/tenants/tenants.module';
 import { ApiErrors } from './common/api-docs';
@@ -16,6 +13,11 @@ import { CommunicationModule } from './modules/content/communication.controller'
 import { ArenaModule } from './modules/arena/arena.controller';
 import { BillingModule } from './modules/billing/billing.controller';
 import { SchoolAdminModule } from './modules/school-admin/school-admin.module';
+import { PrincipalModule } from './modules/principal/principal.module';
+import { TeacherModule } from './modules/teacher/teacher.module';
+import { StudentModule } from './modules/student/student.module';
+import { DatabaseModule } from './database/database.module';
+import { DrizzleService } from './database/drizzle.service';
 
 @Global()
 @Module({})
@@ -29,7 +31,7 @@ export class ConfigurationModule {
 @Public()
 @Controller('health')
 class HealthController {
-  constructor(private readonly source: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   @Get()
   @ApiOperation({
@@ -43,7 +45,7 @@ class HealthController {
   @ApiErrors(429, 500, 503)
   async health() {
     try {
-      await this.source.query('SELECT 1');
+      await this.drizzle.query('SELECT 1');
       return { status: 'ok', database: 'up' };
     } catch {
       throw new ServiceUnavailableException('Database unavailable');
@@ -58,7 +60,7 @@ export class AppModule {
       module: AppModule,
       imports: [
         ConfigurationModule.register(config),
-        TypeOrmModule.forRoot({ ...databaseOptions(config), retryAttempts: 3, retryDelay: 2000 }),
+        DatabaseModule,
         // ponytail: one API process; use shared throttler storage before deploying multiple replicas.
         ThrottlerModule.forRoot([{
           ttl: 60_000,
@@ -74,6 +76,10 @@ export class AppModule {
         ArenaModule,
         BillingModule,
         SchoolAdminModule,
+        PrincipalModule,
+        TeacherModule,
+        StudentModule,
+        DatabaseModule,
       ],
       controllers: [HealthController],
       providers: [

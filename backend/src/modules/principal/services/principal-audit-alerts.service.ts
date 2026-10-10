@@ -1,14 +1,14 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { User } from '../../auth/user.entity';
 import { ResolveAcademicAlertDto } from '../dto/principal.dto';
 
 @Injectable()
 export class PrincipalAuditAlertsService {
-  constructor(private readonly source: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getAlerts(orgId: string, _actor: User) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
 
     const alerts = await manager.query(
       `SELECT * FROM principal_academic_alerts WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 30`,
@@ -73,7 +73,7 @@ export class PrincipalAuditAlertsService {
   }
 
   async resolveAlert(orgId: string, _actor: User, alertId: string, dto: ResolveAcademicAlertDto) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
     await manager.query(
       `UPDATE principal_academic_alerts
        SET status = $1, resolution_notes = $2, resolved_at = now()
@@ -84,7 +84,7 @@ export class PrincipalAuditAlertsService {
   }
 
   async getAuditOverview(orgId: string, _actor: User) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
 
     // Academic audit by class
     const classAudits = [
@@ -220,14 +220,27 @@ export class PrincipalAuditAlertsService {
   }
 
   async getActivityTimeline(orgId: string, _actor: User) {
-    return {
-      events: [
-        { id: '1', title: 'Periodic Test 2 Physics Results Published and Locked', category: 'Examinations', time: 'Today 09:30 AM', actor: 'Principal', details: 'Locked 42 student marks with cryptographic audit signature.' },
-        { id: '2', title: 'CBSE Question Blueprint Approved for Class 10 Math', category: 'Assessment', time: 'Yesterday 04:15 PM', actor: 'Principal', details: 'Approved 80-mark blueprint submitted by Rahul Sharma.' },
-        { id: '3', title: 'Student Academic Intervention Plan Activated', category: 'Interventions', time: 'Yesterday 11:00 AM', actor: 'Rahul Sharma', details: 'Remedial zero-period assigned for Vikas Kumar (Class 10-A).' },
-        { id: '4', title: 'Formal Classroom Observation Logged', category: 'Observation', time: 'Oct 04, 2026', actor: 'Principal', details: 'Observed Grade 9-B English Literature lesson on poetic devices.' },
-        { id: '5', title: 'Academic Action Plan Created for Math PT2 Recovery', category: 'Action Plans', time: 'Oct 03, 2026', actor: 'Principal', details: 'Targeting 80%+ recovery before Term 1 Midterms.' },
-      ],
-    };
+    const manager = this.drizzle;
+    const auditRows = await manager.query(
+      `SELECT ae.id, ae.action as title, ae.created_at, ae.details, COALESCE(u.name, 'System') as actor
+       FROM audit_events ae
+       LEFT JOIN users u ON u.id = ae.actor_id
+       WHERE ae.organization_id = $1
+       ORDER BY ae.created_at DESC
+       LIMIT 30`,
+      [orgId],
+    ).catch(() => []);
+
+    const events = auditRows.map((r: any) => ({
+      id: r.id,
+      title: r.title,
+      category: 'Audit',
+      time: new Date(r.created_at).toLocaleString(),
+      actor: r.actor,
+      details: typeof r.details === 'object' ? JSON.stringify(r.details) : String(r.details || ''),
+    }));
+
+    return { events };
   }
 }
+

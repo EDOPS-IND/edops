@@ -1,11 +1,11 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-import { Membership, Organization } from '../../tenants/tenant.entity';
-import { Enrollment } from '../../academics/academic.entity';
+import { DrizzleService } from '../../../database/drizzle.service';
+import { organizations, memberships, enrollments } from '../../../database/schema';
+import { and, eq } from 'drizzle-orm';
 
 @Injectable()
 export class StudentGuard implements CanActivate {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
@@ -15,17 +15,16 @@ export class StudentGuard implements CanActivate {
     if (!user) throw new ForbiddenException('Authentication required');
     if (!orgId) throw new NotFoundException('Organization parameter missing');
 
-    const org = await this.dataSource.getRepository(Organization).findOneBy({ id: orgId });
+    const [org] = await this.drizzle.db.select().from(organizations).where(eq(organizations.id, orgId));
     if (!org || org.status !== 'active') {
       throw new ForbiddenException('School organization is not active or not found');
     }
 
     if (user.isPlatformAdmin) return true;
 
-    const membership = await this.dataSource.getRepository(Membership).findOneBy({
-      organizationId: orgId,
-      userId: user.id,
-    });
+    const [membership] = await this.drizzle.db.select().from(memberships).where(
+      and(eq(memberships.organizationId, orgId), eq(memberships.userId, user.id))
+    );
 
     if (!membership || membership.status !== 'active') {
       throw new ForbiddenException('Active student membership required');
@@ -36,13 +35,13 @@ export class StudentGuard implements CanActivate {
     }
 
     // Attach active enrollment if found
-    const enrollment = await this.dataSource.getRepository(Enrollment).findOne({
-      where: {
-        organizationId: orgId,
-        studentUserId: user.id,
-        status: 'active',
-      },
-    });
+    const [enrollment] = await this.drizzle.db.select().from(enrollments).where(
+      and(
+        eq(enrollments.organizationId, orgId),
+        eq(enrollments.studentUserId, user.id),
+        eq(enrollments.status, 'active')
+      )
+    );
 
     request.membership = membership;
     request.enrollment = enrollment;

@@ -1,15 +1,28 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { DeepPartial, EntityManager, EntityTarget, FindOptionsOrder, FindOptionsWhere } from 'typeorm';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service';
 import { User } from '../auth/user.entity';
-import { Membership, SchoolRole } from '../tenants/tenant.entity';
+import { SchoolRole } from '../tenants/tenant.entity';
 import { SchoolWork } from '../tenants/school-work.service';
 import { AcademicRecord, AcademicYear, ClassSubjectAssignment, Enrollment, Program, Section, Subject } from './academic.entity';
 import { AcademicListDto, AcademicYearDto, EnrollmentDto, ProgramDto, SectionDto, SectionListDto, SectionResourceListDto, SubjectDto, TeacherAssignmentDto, TransferEnrollmentDto, UpdateAcademicYearDto, UpdateEnrollmentDto, UpdateProgramDto, UpdateSectionDto, UpdateSubjectDto, UpdateTeacherAssignmentDto } from './academic.dto';
+import { DrizzleService } from '../../database/drizzle.service';
+
+const TABLE_NAMES: Record<string, string> = {
+  AcademicYear: 'academic_years',
+  Program: 'programs',
+  Subject: 'subjects',
+  Section: 'sections',
+  ClassSubjectAssignment: 'class_subject_assignments',
+  Enrollment: 'enrollments',
+};
 
 @Injectable()
 export class AcademicsService {
-  constructor(private readonly work: SchoolWork, private readonly audit: AuditService) {}
+  constructor(
+    private readonly work: SchoolWork,
+    private readonly audit: AuditService,
+    private readonly drizzle: DrizzleService,
+  ) {}
 
   roleWorkspace(org: string, actor: User) {
     let role: SchoolRole;
@@ -31,7 +44,7 @@ export class AcademicsService {
           JOIN users user_account ON user_account.id = enrollment.student_user_id AND user_account.is_active
           WHERE enrollment.organization_id = $1 AND enrollment.status = 'active' AND EXISTS (
             SELECT 1 FROM class_subject_assignments assignment WHERE assignment.organization_id = enrollment.organization_id
-              AND assignment.section_id = enrollment.section_id AND assignment.teacher_user_id = $2)
+               AND assignment.section_id = enrollment.section_id AND assignment.teacher_user_id = $2)
           ORDER BY section.name, enrollment.roll_number, user_account.email`, [org, actor.id]);
         return { role: 'teacher' as const, assignments, students };
       }
@@ -60,49 +73,107 @@ export class AcademicsService {
         const children = await manager.query(`SELECT user_account.id AS "studentUserId",
           COALESCE(NULLIF(user_account.name, ''), split_part(user_account.email, '@', 1)) AS "name",
           user_account.email,
-          COALESCE(enrollment.roll_number, '01') AS "rollNumber",
-          COALESCE(section.name, 'Grade 10-A') AS "sectionName",
-          COALESCE(program.name, 'Grade 10') AS "programName",
+          COALESCE(enrollment.roll_number, '') AS "rollNumber",
+          COALESCE(section.name, '') AS "sectionName",
+          COALESCE(program.name, '') AS "programName",
           COALESCE((
             SELECT ROUND(AVG(CASE WHEN status = 'present' THEN 100.0 ELSE 0 END)::numeric, 1)
             FROM attendance_records ar
             WHERE ar.organization_id = $1 AND ar.student_id = user_account.id
-          ), 97.4) AS "attendancePct",
+          ), 0) AS "attendancePct",
           COALESCE((
             SELECT CASE WHEN ar.status = 'present' THEN 'Present' ELSE 'Absent' END
             FROM attendance_records ar
             JOIN attendance_sessions sess ON sess.id = ar.attendance_session_id
             WHERE ar.organization_id = $1 AND ar.student_id = user_account.id
             ORDER BY sess.date DESC LIMIT 1
-          ), 'Present') AS "todayAttendance"
-          FROM memberships membership
-          JOIN users user_account ON user_account.id = membership.user_id AND user_account.is_active
+          ), 'Unknown') AS "todayAttendance"
+          FROM parent_student_relationships psr
+          JOIN users user_account ON user_account.id = psr.student_id AND user_account.is_active
           LEFT JOIN enrollments enrollment ON enrollment.student_user_id = user_account.id AND enrollment.organization_id = $1 AND enrollment.status = 'active'
           LEFT JOIN sections section ON section.id = enrollment.section_id AND section.organization_id = $1
           LEFT JOIN programs program ON program.id = section.program_id AND program.organization_id = $1
-          WHERE membership.organization_id = $1 AND membership.role = 'student' AND membership.status = 'active'
-          ORDER BY enrollment.roll_number, user_account.email LIMIT 5`, [org]);
-        return { role: 'parent' as const, children };
+          WHERE psr.school_id = $1 AND psr.parent_id = $2 AND psr.verification_status = 'verified' AND psr.status = 'active'
+          ORDER BY enrollment.roll_number, user_account.email`, [org, actor.id]).catch(() => []);
+
+        const messages = await manager.query(
+          `SELECT tm.*, su.name as sender_name, su.email as sender_email
+           FROM teacher_messages tm
+           LEFT JOIN users su ON su.id = tm.sender_id
+           WHERE tm.organization_id = $1 AND (tm.recipient_role = 'parent' OR tm.recipient_id = $2 OR tm.sender_id = $2)
+           ORDER BY tm.created_at DESC LIMIT 20`,
+          [org, actor.id]
+        ).catch(() => []);
+
+        return { role: 'parent' as const, children: children || [], messages: messages || [] };
       }
       return { role } as any;
     }, {
       roles: ['teacher', 'student', 'parent'],
       authorize: async (manager) => {
-        const member = await manager.getRepository(Membership).findOneBy({ organizationId: org, userId: actor.id, status: 'active' });
-        role = member!.role;
+        const [member] = await manager.query(
+          "SELECT role FROM memberships WHERE organization_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1",
+          [org, actor.id]
+        );
+        role = member?.role;
       },
     });
   }
 
-  private async record<T extends AcademicRecord>(manager: EntityManager, type: EntityTarget<T>, org: string, id: string): Promise<T> {
-    const row = await manager.getRepository(type).findOneBy({ organizationId: org, id } as FindOptionsWhere<T>);
+  private getTableName(type: any): string {
+    const name = typeof type === 'function' ? type.name : String(type);
+    return TABLE_NAMES[name] || name.toLowerCase();
+  }
+
+  private async record<T = any>(manager: any, type: any, org: string, id: string): Promise<T> {
+    const tableName = this.getTableName(type);
+    const [row] = await manager.query(`SELECT * FROM ${tableName} WHERE organization_id = $1 AND id = $2 LIMIT 1`, [org, id]);
     if (!row) throw new NotFoundException('Record not found');
     return row;
   }
 
-  private async save<T extends AcademicRecord>(manager: EntityManager, type: EntityTarget<T>, row: DeepPartial<T>, actor: User, action: string, before: T | null = null) {
-    const result = await manager.getRepository(type).save(row);
-    await this.audit.record(manager, { organizationId: result.organizationId, actorId: actor.id, action, details: { before, after: result } });
+  private async saveRecord(manager: any, type: any, row: any, actor: User, action: string, before: any = null) {
+    const tableName = this.getTableName(type);
+    let result: any;
+    if (row.id && before) {
+      // Update
+      const keys = Object.keys(row).filter((k) => k !== 'id' && k !== 'organizationId' && k !== 'createdAt' && row[k] !== undefined);
+      const setClauses: string[] = [];
+      const params: any[] = [];
+      let idx = 1;
+      for (const k of keys) {
+        const col = k.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+        setClauses.push(`${col} = $${idx++}`);
+        params.push(row[k]);
+      }
+      params.push(row.id);
+      params.push(row.organizationId || row.organization_id);
+      const [updated] = await manager.query(
+        `UPDATE ${tableName} SET ${setClauses.join(', ')} WHERE id = $${idx++} AND organization_id = $${idx++} RETURNING *`,
+        params
+      );
+      result = updated;
+    } else {
+      // Insert
+      const keys = Object.keys(row).filter((k) => row[k] !== undefined);
+      const cols: string[] = [];
+      const valPlaceholders: string[] = [];
+      const params: any[] = [];
+      let idx = 1;
+      for (const k of keys) {
+        const col = k.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
+        cols.push(col);
+        valPlaceholders.push(`$${idx++}`);
+        params.push(row[k]);
+      }
+      const [inserted] = await manager.query(
+        `INSERT INTO ${tableName} (${cols.join(', ')}) VALUES (${valPlaceholders.join(', ')}) RETURNING *`,
+        params
+      );
+      result = inserted;
+    }
+    const orgId = result.organization_id || result.organizationId;
+    await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action, details: { before, after: result } });
     return result;
   }
 
@@ -112,12 +183,30 @@ export class AcademicsService {
     return Object.fromEntries(entries) as Partial<T>;
   }
 
-  list<T extends AcademicRecord>(org: string, actor: User, type: EntityTarget<T>, query: AcademicListDto, filter: FindOptionsWhere<T> = {}) {
+  list(org: string, actor: User, type: any, query: AcademicListDto, filter: Record<string, any> = {}) {
     return this.work.run(org, actor, null, null, null, async (manager) => {
-      const [items, total] = await manager.getRepository(type).findAndCount({
-        where: { ...filter, organizationId: org } as FindOptionsWhere<T>,
-        order: { createdAt: 'ASC', id: 'ASC' } as FindOptionsOrder<T>, take: query.limit, skip: query.offset,
-      });
+      const tableName = this.getTableName(type);
+      const whereClause: string[] = ['organization_id = $1'];
+      const params: any[] = [org];
+      let paramIdx = 2;
+
+      for (const [key, val] of Object.entries(filter)) {
+        if (val !== undefined) {
+          const colName = key.replace(/[A-Z]/g, (l) => `_${l.toLowerCase()}`);
+          whereClause.push(`${colName} = $${paramIdx++}`);
+          params.push(val);
+        }
+      }
+
+      const countSql = `SELECT count(*)::int as total FROM ${tableName} WHERE ${whereClause.join(' AND ')}`;
+      const selectSql = `SELECT * FROM ${tableName} WHERE ${whereClause.join(' AND ')} ORDER BY created_at ASC, id ASC LIMIT $${paramIdx++} OFFSET $${paramIdx++}`;
+
+      const [countRes, items] = await Promise.all([
+        manager.query(countSql, params),
+        manager.query(selectSql, [...params, query.limit, query.offset]),
+      ]);
+
+      const total = countRes[0]?.total ?? 0;
       return { items, total, limit: query.limit, offset: query.offset };
     });
   }
@@ -135,44 +224,49 @@ export class AcademicsService {
     return this.work.run(org, actor, 'academic_year.created', dto, key, async (manager) => {
       if (dto.endDate < dto.startDate) throw new BadRequestException('endDate must be on or after startDate');
       if (dto.isCurrent) await this.clearCurrentYear(manager, org, actor);
-      return this.save(manager, AcademicYear, { ...dto, organizationId: org }, actor, 'academic_year.created');
+      return this.saveRecord(manager, AcademicYear, { ...dto, organizationId: org }, actor, 'academic_year.created');
     });
   }
 
-  private async clearCurrentYear(manager: EntityManager, org: string, actor: User, except?: string) {
-    const current = await manager.getRepository(AcademicYear).findOneBy({ organizationId: org, isCurrent: true });
-    if (current && current.id !== except) await this.save(manager, AcademicYear, { ...current, isCurrent: false }, actor, 'academic_year.updated', current);
+  private async clearCurrentYear(manager: any, org: string, actor: User, except?: string) {
+    const [current] = await manager.query(
+      'SELECT * FROM academic_years WHERE organization_id = $1 AND is_current = true LIMIT 1',
+      [org]
+    );
+    if (current && current.id !== except) {
+      await this.saveRecord(manager, AcademicYear, { ...current, isCurrent: false }, actor, 'academic_year.updated', current);
+    }
   }
 
   updateYear(org: string, actor: User, id: string, dto: UpdateAcademicYearDto) {
     return this.work.run(org, actor, 'academic_year.updated', dto, null, async (manager) => {
       const before = await this.record(manager, AcademicYear, org, id);
       const row = { ...before, ...this.fields(dto) };
-      if (row.endDate < row.startDate) throw new BadRequestException('endDate must be on or after startDate');
-      if (row.isCurrent) await this.clearCurrentYear(manager, org, actor, id);
-      return this.save(manager, AcademicYear, row, actor, 'academic_year.updated', before);
+      if (row.endDate < row.startDate || row.end_date < row.start_date) throw new BadRequestException('endDate must be on or after startDate');
+      if (row.isCurrent || row.is_current) await this.clearCurrentYear(manager, org, actor, id);
+      return this.saveRecord(manager, AcademicYear, row, actor, 'academic_year.updated', before);
     });
   }
 
   createProgram(org: string, actor: User, dto: ProgramDto, key?: string) {
-    return this.work.run(org, actor, 'program.created', dto, key, (manager) => this.save(manager, Program, { ...dto, organizationId: org }, actor, 'program.created'));
+    return this.work.run(org, actor, 'program.created', dto, key, (manager) => this.saveRecord(manager, Program, { ...dto, organizationId: org }, actor, 'program.created'));
   }
 
   updateProgram(org: string, actor: User, id: string, dto: UpdateProgramDto) {
     return this.work.run(org, actor, 'program.updated', dto, null, async (manager) => {
       const before = await this.record(manager, Program, org, id);
-      return this.save(manager, Program, { ...before, ...this.fields(dto) }, actor, 'program.updated', before);
+      return this.saveRecord(manager, Program, { ...before, ...this.fields(dto) }, actor, 'program.updated', before);
     });
   }
 
   createSubject(org: string, actor: User, dto: SubjectDto, key?: string) {
-    return this.work.run(org, actor, 'subject.created', dto, key, (manager) => this.save(manager, Subject, { ...dto, organizationId: org }, actor, 'subject.created'));
+    return this.work.run(org, actor, 'subject.created', dto, key, (manager) => this.saveRecord(manager, Subject, { ...dto, organizationId: org }, actor, 'subject.created'));
   }
 
   updateSubject(org: string, actor: User, id: string, dto: UpdateSubjectDto) {
     return this.work.run(org, actor, 'subject.updated', dto, null, async (manager) => {
       const before = await this.record(manager, Subject, org, id);
-      return this.save(manager, Subject, { ...before, ...this.fields(dto) }, actor, 'subject.updated', before);
+      return this.saveRecord(manager, Subject, { ...before, ...this.fields(dto) }, actor, 'subject.updated', before);
     });
   }
 
@@ -180,7 +274,7 @@ export class AcademicsService {
     return this.work.run(org, actor, 'section.created', dto, key, async (manager) => {
       await this.record(manager, AcademicYear, org, dto.academicYearId);
       await this.record(manager, Program, org, dto.programId);
-      return this.save(manager, Section, { ...dto, organizationId: org }, actor, 'section.created');
+      return this.saveRecord(manager, Section, { ...dto, organizationId: org }, actor, 'section.created');
     });
   }
 
@@ -188,16 +282,24 @@ export class AcademicsService {
     return this.work.run(org, actor, 'section.updated', dto, null, async (manager) => {
       const before = await this.record(manager, Section, org, id);
       const row = { ...before, ...this.fields(dto) };
-      const used = await manager.getRepository(Enrollment).countBy({ organizationId: org, sectionId: id, status: 'active' });
+      const [countRes] = await manager.query(
+        "SELECT count(*)::int AS total FROM enrollments WHERE organization_id = $1 AND section_id = $2 AND status = 'active'",
+        [org, id]
+      );
+      const used = countRes?.total ?? 0;
       if (row.capacity < used) throw new ConflictException('Capacity cannot be below active enrollment count');
-      return this.save(manager, Section, row, actor, 'section.updated', before);
+      return this.saveRecord(manager, Section, row, actor, 'section.updated', before);
     });
   }
 
-  private async member(manager: EntityManager, org: string, userId: string, role: 'teacher' | 'student') {
-    const membership = await manager.getRepository(Membership).findOneBy({ organizationId: org, userId });
+  private async member(manager: any, org: string, userId: string, role: 'teacher' | 'student') {
+    const [membership] = await manager.query(
+      'SELECT * FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1',
+      [org, userId]
+    );
     if (!membership) throw new NotFoundException('Member not found');
-    if (membership.role !== role || membership.status !== 'active' || !await manager.getRepository(User).existsBy({ id: userId, isActive: true })) {
+    const [user] = await manager.query('SELECT is_active FROM users WHERE id = $1 LIMIT 1', [userId]);
+    if (membership.role !== role || membership.status !== 'active' || !user?.is_active) {
       throw new ConflictException(`An active ${role} membership and account are required`);
     }
   }
@@ -207,7 +309,7 @@ export class AcademicsService {
       await this.record(manager, Section, org, dto.sectionId);
       await this.record(manager, Subject, org, dto.subjectId);
       await this.member(manager, org, dto.teacherUserId, 'teacher');
-      return this.save(manager, ClassSubjectAssignment, { ...dto, organizationId: org }, actor, 'teacher_assignment.created');
+      return this.saveRecord(manager, ClassSubjectAssignment, { ...dto, organizationId: org }, actor, 'teacher_assignment.created');
     });
   }
 
@@ -215,13 +317,17 @@ export class AcademicsService {
     return this.work.run(org, actor, 'teacher_assignment.updated', dto, null, async (manager) => {
       const before = await this.record(manager, ClassSubjectAssignment, org, id);
       await this.member(manager, org, dto.teacherUserId, 'teacher');
-      return this.save(manager, ClassSubjectAssignment, { ...before, teacherUserId: dto.teacherUserId }, actor, 'teacher_assignment.updated', before);
+      return this.saveRecord(manager, ClassSubjectAssignment, { ...before, teacherUserId: dto.teacherUserId }, actor, 'teacher_assignment.updated', before);
     });
   }
 
-  private async availableSection(manager: EntityManager, org: string, sectionId: string) {
+  private async availableSection(manager: any, org: string, sectionId: string) {
     const section = await this.record(manager, Section, org, sectionId);
-    const count = await manager.getRepository(Enrollment).countBy({ organizationId: org, sectionId, status: 'active' });
+    const [countRes] = await manager.query(
+      "SELECT count(*)::int AS total FROM enrollments WHERE organization_id = $1 AND section_id = $2 AND status = 'active'",
+      [org, sectionId]
+    );
+    const count = countRes?.total ?? 0;
     if (count >= section.capacity) throw new ConflictException('Section capacity reached');
     return section;
   }
@@ -230,7 +336,8 @@ export class AcademicsService {
     return this.work.run(org, actor, 'enrollment.created', dto, key, async (manager) => {
       const section = await this.availableSection(manager, org, dto.sectionId);
       await this.member(manager, org, dto.studentUserId, 'student');
-      return this.save(manager, Enrollment, { ...dto, organizationId: org, academicYearId: section.academicYearId }, actor, 'enrollment.created');
+      const academicYearId = section.academic_year_id || section.academicYearId;
+      return this.saveRecord(manager, Enrollment, { ...dto, organizationId: org, academicYearId }, actor, 'enrollment.created');
     });
   }
 
@@ -238,7 +345,7 @@ export class AcademicsService {
     return this.work.run(org, actor, 'enrollment.updated', dto, null, async (manager) => {
       const before = await this.record(manager, Enrollment, org, id);
       if (before.status !== 'active') throw new ConflictException('Only active enrollments can be updated');
-      return this.save(manager, Enrollment, { ...before, rollNumber: dto.rollNumber }, actor, 'enrollment.updated', before);
+      return this.saveRecord(manager, Enrollment, { ...before, rollNumber: dto.rollNumber }, actor, 'enrollment.updated', before);
     });
   }
 
@@ -246,20 +353,24 @@ export class AcademicsService {
     return this.work.run(org, actor, 'enrollment.withdrawn', { id }, null, async (manager) => {
       const before = await this.record(manager, Enrollment, org, id);
       if (before.status !== 'active') throw new ConflictException('Enrollment is not active');
-      return this.save(manager, Enrollment, { ...before, status: 'withdrawn' }, actor, 'enrollment.withdrawn', before);
+      return this.saveRecord(manager, Enrollment, { ...before, status: 'withdrawn' }, actor, 'enrollment.withdrawn', before);
     });
   }
 
   transfer(org: string, actor: User, id: string, dto: TransferEnrollmentDto, key?: string) {
     return this.work.run(org, actor, 'enrollment.transferred', { id, ...dto }, key, async (manager) => {
       const before = await this.record(manager, Enrollment, org, id);
-      if (before.status !== 'active' || before.sectionId === dto.sectionId) throw new ConflictException('Transfer requires an active enrollment and a different section');
+      const beforeSectionId = before.section_id || before.sectionId;
+      const beforeYearId = before.academic_year_id || before.academicYearId;
+      const beforeStudentId = before.student_user_id || before.studentUserId;
+      if (before.status !== 'active' || beforeSectionId === dto.sectionId) throw new ConflictException('Transfer requires an active enrollment and a different section');
       const section = await this.availableSection(manager, org, dto.sectionId);
-      if (section.academicYearId !== before.academicYearId) throw new ConflictException('Transfer must stay within the academic year; use new enrollment for year rollover');
-      await this.member(manager, org, before.studentUserId, 'student');
-      await this.save(manager, Enrollment, { ...before, status: 'transferred' }, actor, 'enrollment.transferred', before);
-      return this.save(manager, Enrollment, { organizationId: org, studentUserId: before.studentUserId,
-        sectionId: section.id, academicYearId: section.academicYearId, rollNumber: dto.rollNumber }, actor, 'enrollment.created');
+      const sectionYearId = section.academic_year_id || section.academicYearId;
+      if (sectionYearId !== beforeYearId) throw new ConflictException('Transfer must stay within the academic year; use new enrollment for year rollover');
+      await this.member(manager, org, beforeStudentId, 'student');
+      await this.saveRecord(manager, Enrollment, { ...before, status: 'transferred' }, actor, 'enrollment.transferred', before);
+      return this.saveRecord(manager, Enrollment, { organizationId: org, studentUserId: beforeStudentId,
+        sectionId: section.id, academicYearId: sectionYearId, rollNumber: dto.rollNumber }, actor, 'enrollment.created');
     });
   }
 }

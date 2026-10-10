@@ -86,6 +86,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
 
   // Global Modals State
   const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
+  const [attendancePeriod, setAttendancePeriod] = useState(1);
   const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
   const [lessonModalOpen, setLessonModalOpen] = useState(false);
   const [interventionModalOpen, setInterventionModalOpen] = useState(false);
@@ -128,11 +129,12 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
     setMobileMenuOpen(false);
   };
 
-  const handleOpenAttendance = (classSection?: string, sectionId?: string) => {
+  const handleOpenAttendance = (sectionId?: string, period = 1, classSection?: string) => {
     setActiveClassContext((prev) => ({
       classSection: classSection || prev.classSection || '',
       sectionId: sectionId || prev.sectionId || '',
     }));
+    setAttendancePeriod(period);
     setAttendanceModalOpen(true);
   };
 
@@ -443,7 +445,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
                 organizationId={organization.id}
                 onNavigate={(tab) => navigateTo(tab as TeacherTab)}
                 onCreateAssignment={() => setAssignmentModalOpen(true)}
-                onTakeAttendance={(sectionId, period, classSection) => handleOpenAttendance(classSection, sectionId)}
+                onTakeAttendance={handleOpenAttendance}
                 onMarkLessonCompleted={(sectionId, period, classSection) => handleOpenLesson(classSection, sectionId)}
               />
             )}
@@ -453,7 +455,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
                 key={`classes-${attendanceRefreshKey}`}
                 organizationId={organization.id}
                 onOpenStudentDossier={handleViewStudent}
-                onTakeAttendance={(sectionId, className) => handleOpenAttendance(className, sectionId)}
+                onTakeAttendance={(sectionId, className) => handleOpenAttendance(sectionId, 1, className)}
                 onCreateAssignment={(sectionId) => setAssignmentModalOpen(true)}
               />
             )}
@@ -546,6 +548,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
         organizationId={organization.id}
         classSection={activeClassContext.classSection}
         sectionId={activeClassContext.sectionId}
+        periodNumber={attendancePeriod}
         onSuccess={() => setAttendanceRefreshKey((k) => k + 1)}
       />
 
