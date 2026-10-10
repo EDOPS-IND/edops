@@ -49,7 +49,10 @@ export function OnboardingWizard({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const res = await onComplete(onboardData);
+    const cleanData = Object.fromEntries(
+      Object.entries(onboardData).filter(([_, v]) => v !== "")
+    );
+    const res = await onComplete(cleanData);
     if (res) setOnboardResult(res);
   }
 
