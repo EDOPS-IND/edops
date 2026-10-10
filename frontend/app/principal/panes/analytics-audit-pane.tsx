@@ -5,22 +5,29 @@ import { BarChart3, TrendingUp, CheckCircle2, AlertTriangle, Layers, User } from
 
 export function AnalyticsAuditPane({
   auditData,
+  organizationId,
+  onNavigate,
 }: {
   auditData?: any;
+  organizationId?: string;
+  onNavigate?: (pane: string) => void;
 }) {
+  const [liveData, setLiveData] = useState<any>(null);
   const [auditSubTab, setAuditSubTab] = useState<"classes" | "teachers" | "school_analytics">("classes");
 
-  const classesAudited = auditData?.classesAudited || [
-    { className: "Class 10-A", expectedActivities: 120, completedActivities: 112, executionRate: 93.3, attendanceSubmitted: "96.5%", lessonsPlanned: "98%", lessonsDelivered: "94%", assignmentsCreated: 14, assignmentsEvaluated: 13, assessmentsConducted: 4, curriculumProgress: "89%", status: "Compliant" },
-    { className: "Class 10-B", expectedActivities: 120, completedActivities: 108, executionRate: 90.0, attendanceSubmitted: "95.0%", lessonsPlanned: "92%", lessonsDelivered: "88%", assignmentsCreated: 12, assignmentsEvaluated: 11, assessmentsConducted: 4, curriculumProgress: "86%", status: "Minor Delay" },
-    { className: "Class 9-A", expectedActivities: 110, completedActivities: 106, executionRate: 96.4, attendanceSubmitted: "98.0%", lessonsPlanned: "100%", lessonsDelivered: "96%", assignmentsCreated: 15, assignmentsEvaluated: 15, assessmentsConducted: 4, curriculumProgress: "92%", status: "Exemplary" },
-  ];
+  React.useEffect(() => {
+    if (!organizationId) return;
+    import("../../edops-api").then(({ getPrincipalAudit }) => {
+      getPrincipalAudit(organizationId)
+        .then((data) => setLiveData(data))
+        .catch(() => null);
+    });
+  }, [organizationId]);
 
-  const teachersAudited = auditData?.teachersAudited || [
-    { teacherName: "Rahul Sharma", department: "Mathematics", expectedActivities: 40, completedActivities: 37, executionRate: 92.5, lessonPlanRate: 96, assignmentRate: 90, assessmentRate: 88, evaluationTimeliness: 94, curriculumRate: 91 },
-    { teacherName: "Dr. Anita Desai", department: "Science", expectedActivities: 40, completedActivities: 39, executionRate: 97.5, lessonPlanRate: 100, assignmentRate: 96, assessmentRate: 98, evaluationTimeliness: 96, curriculumRate: 94 },
-    { teacherName: "Pooja Verma", department: "English", expectedActivities: 35, completedActivities: 33, executionRate: 94.3, lessonPlanRate: 94, assignmentRate: 95, assessmentRate: 92, evaluationTimeliness: 97, curriculumRate: 92 },
-  ];
+  const effectiveAudit = liveData || auditData;
+  const classesAudited = effectiveAudit?.classesAudited || [];
+  const teachersAudited = effectiveAudit?.teachersAudited || [];
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>

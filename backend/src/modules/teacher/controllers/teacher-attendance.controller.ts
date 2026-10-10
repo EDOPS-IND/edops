@@ -22,7 +22,7 @@ export class TeacherAttendanceController {
     return this.attendanceService.getAttendanceOverview(organizationId, req.user);
   }
 
-  @Post('attendance/quick')
+  @Post(['attendance', 'attendance/quick'])
   @ApiOperation({ summary: 'Record and finalize period attendance for assigned class' })
   recordQuick(
     @Param('organizationId', ParseUUIDPipe) organizationId: string,

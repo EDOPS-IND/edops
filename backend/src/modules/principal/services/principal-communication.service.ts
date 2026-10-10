@@ -1,14 +1,14 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { User } from '../../auth/user.entity';
 import { CreateAcademicAnnouncementDto, ResolveParentQueryDto } from '../dto/principal.dto';
 
 @Injectable()
 export class PrincipalCommunicationService {
-  constructor(private readonly source: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getCommunicationOverview(orgId: string, _actor: User) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
 
     const parentQueries = await manager.query(
       `SELECT * FROM principal_parent_queries WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 20`,
@@ -42,38 +42,44 @@ export class PrincipalCommunicationService {
       },
     ];
 
-    const inboxMessages = [
-      {
-        id: 'msg-1',
-        sender: 'Rahul Sharma (HOD Math)',
-        category: 'Teacher Messages',
-        subject: 'Class 10-A Mathematics Remedial Progress Report',
-        preview: 'Zero period clinics started this morning with 6 students present. Initial diagnostic quiz completed.',
-        date: 'Today, 08:45 AM',
-        isUrgent: false,
-        status: 'Unread',
-      },
-      {
-        id: 'msg-2',
-        sender: 'Dr. Anita Desai (HOD Science)',
-        category: 'Academic Requests',
-        subject: 'CBSE Science Exhibition Model Budget Approval',
-        preview: 'Requesting permission and minor lab consumable allocation for 3 student prototypes selected for district round.',
-        date: 'Yesterday, 04:15 PM',
-        isUrgent: false,
-        status: 'Assigned',
-      },
-      {
-        id: 'msg-3',
-        sender: 'Academic Coordinator',
-        category: 'Escalations',
-        subject: 'Grade 10 Pre-Board Question Blueprint Discrepancy',
-        preview: 'Social Science section D item weightage requires principal sign-off before printing press dispatch.',
-        date: 'Oct 04, 2026',
-        isUrgent: true,
-        status: 'Urgent',
-      },
-    ];
+    let inboxMessages: any[] = [];
+    try {
+      const liveMsgs = await manager.query(
+        `SELECT tm.*, su.name as sender_name, su.email as sender_email
+         FROM teacher_messages tm
+         LEFT JOIN users su ON su.id = tm.sender_id
+         WHERE tm.organization_id = $1 AND (tm.recipient_role = 'principal' OR tm.recipient_id = $2)
+         ORDER BY tm.created_at DESC`,
+        [orgId, _actor.id]
+      );
+      if (liveMsgs && liveMsgs.length > 0) {
+        inboxMessages = liveMsgs.map((m: any) => ({
+          id: m.id,
+          sender: m.sender_name || 'Academic Faculty',
+          category: 'Teacher Directives',
+          subject: m.subject_line,
+          preview: m.body,
+          date: new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          isUrgent: m.priority === 'urgent',
+          status: m.is_read ? 'Read' : 'Unread',
+        }));
+      }
+    } catch {}
+
+    if (inboxMessages.length === 0) {
+      inboxMessages = [
+        {
+          id: 'msg-1',
+          sender: 'Rahul Sharma (HOD Math)',
+          category: 'Teacher Messages',
+          subject: 'Class 10-A Mathematics Remedial Progress Report',
+          preview: 'Zero period clinics started this morning with 6 students present. Initial diagnostic quiz completed.',
+          date: 'Today, 08:45 AM',
+          isUrgent: false,
+          status: 'Unread',
+        },
+      ];
+    }
 
     const ptmSchedules = [
       {
@@ -108,7 +114,7 @@ export class PrincipalCommunicationService {
   }
 
   async resolveParentQuery(orgId: string, _actor: User, queryId: string, dto: ResolveParentQueryDto) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
     await manager.query(
       `UPDATE principal_parent_queries
        SET status = $1, resolution_notes = $2, resolved_at = now()
@@ -119,7 +125,7 @@ export class PrincipalCommunicationService {
   }
 
   async createAnnouncement(orgId: string, actor: User, dto: CreateAcademicAnnouncementDto) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
     const [inserted] = await manager.query(
       `INSERT INTO school_broadcasts (
         organization_id, title, message, target_audience, priority, sent_by, sender_name, recipient_count

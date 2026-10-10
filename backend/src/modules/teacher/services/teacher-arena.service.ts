@@ -1,15 +1,15 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { User } from '../../auth/user.entity';
 import { CreateTeacherArenaQuestionDto } from '../dto/teacher.dto';
 
 @Injectable()
 export class TeacherArenaService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getQuestions(organizationId: string, user: User, sectionId?: string, subjectId?: string) {
     try {
-      const rows = await this.dataSource.query(
+      const rows = await this.drizzle.query(
         `SELECT aq.id, aq.topic, aq.difficulty, aq.status, aq.content, aq.answer_key,
                 to_char(aq.created_at, 'YYYY-MM-DD') as created_at,
                 coalesce(sec.name, 'Class 10-A') as section_name,
@@ -58,13 +58,13 @@ export class TeacherArenaService {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.sectionId);
       if (!isUuid) {
         const cleanName = dto.sectionId.replace(/^sec-/, '').replace('-', ' ');
-        const [sec] = await this.dataSource.query(
+        const [sec] = await this.drizzle.query(
           `SELECT id FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
           [organizationId, `%${cleanName}%`, dto.sectionId]
         );
         if (sec?.id) resolvedSectionId = sec.id;
         else {
-          const [firstSec] = await this.dataSource.query(
+          const [firstSec] = await this.drizzle.query(
             `SELECT id FROM sections WHERE organization_id = $1 LIMIT 1`,
             [organizationId]
           );
@@ -76,7 +76,7 @@ export class TeacherArenaService {
     try {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.subjectId);
       if (!isUuid) {
-        const [sub] = await this.dataSource.query(
+        const [sub] = await this.drizzle.query(
           `SELECT id FROM subjects WHERE organization_id = $1 LIMIT 1`,
           [organizationId]
         );
@@ -86,12 +86,12 @@ export class TeacherArenaService {
 
     let creatorId = user.id;
     try {
-      const [m] = await this.dataSource.query(
+      const [m] = await this.drizzle.query(
         `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
         [organizationId, user.id]
       );
       if (!m) {
-        const [anyMember] = await this.dataSource.query(
+        const [anyMember] = await this.drizzle.query(
           `SELECT user_id FROM memberships WHERE organization_id = $1 LIMIT 1`,
           [organizationId]
         );
@@ -105,7 +105,7 @@ export class TeacherArenaService {
       explanation: dto.explanation || null,
     };
 
-    const [inserted] = await this.dataSource.query(
+    const [inserted] = await this.drizzle.query(
       `INSERT INTO arena_questions (
         organization_id, section_id, subject_id, created_by, topic, difficulty, question_type, content, answer_key, tags, max_score, status, published_at
       )
@@ -142,13 +142,13 @@ export class TeacherArenaService {
     let needsReinforcementTopic = '—';
 
     try {
-      const [qCount] = await this.dataSource.query(
+      const [qCount] = await this.drizzle.query(
         `SELECT COUNT(*)::int as count FROM arena_questions WHERE organization_id = $1`,
         [organizationId]
       );
       totalQuestions = Number(qCount?.count || 0);
 
-      const [stats] = await this.dataSource.query(
+      const [stats] = await this.drizzle.query(
         `SELECT COUNT(*)::int as total_attempts,
                 COALESCE(ROUND(AVG(CASE WHEN is_correct THEN 100.0 ELSE 0.0 END), 1), 0) as overall_accuracy
          FROM arena_attempts
@@ -160,7 +160,7 @@ export class TeacherArenaService {
         overallAccuracy = Number(stats.overall_accuracy || 0);
       }
 
-      const masteryRows = await this.dataSource.query(
+      const masteryRows = await this.drizzle.query(
         `SELECT aq.topic,
                 COUNT(DISTINCT aq.id)::int as questions_count,
                 COALESCE(ROUND(AVG(CASE WHEN aa.is_correct THEN 100.0 ELSE 0.0 END), 1), 0) as accuracy
@@ -191,7 +191,7 @@ export class TeacherArenaService {
         }
       }
 
-      const insightRows = await this.dataSource.query(
+      const insightRows = await this.drizzle.query(
         `SELECT aq.id, aq.topic, aq.content,
                 COUNT(aa.id)::int as attempts,
                 COALESCE(ROUND(AVG(CASE WHEN aa.is_correct THEN 100.0 ELSE 0.0 END), 1), 0) as accuracy

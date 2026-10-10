@@ -4,13 +4,19 @@ import React, { useState } from "react";
 import { X, Send, CheckCircle2 } from "lucide-react";
 
 export function QuickActionModal({
-  actionType,
+  isOpen = false,
+  actionType = "action",
+  organizationId,
   onClose,
   onSubmit,
+  onSuccess,
 }: {
-  actionType: string;
+  isOpen?: boolean;
+  actionType?: string;
+  organizationId?: string;
   onClose: () => void;
-  onSubmit: (type: string, data: any) => Promise<void>;
+  onSubmit?: (type: string, data: any) => Promise<void>;
+  onSuccess?: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [targetScope, setTargetScope] = useState("");
@@ -18,14 +24,35 @@ export function QuickActionModal({
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
-      await onSubmit(actionType, { title, targetScope, notes });
+      if (onSubmit) {
+        await onSubmit(actionType, { title, targetScope, notes });
+      } else if (organizationId) {
+        const { triggerPrincipalAction } = await import("../../edops-api");
+        await triggerPrincipalAction(organizationId, {
+          actionType: actionType || "action",
+          title,
+          targetScope,
+          notes,
+        });
+      }
       setSuccess(true);
+      if (onSuccess) onSuccess();
       setTimeout(() => {
         onClose();
+        setSuccess(false);
       }, 1000);
     } catch {
       alert("Could not complete action. Please check your inputs.");
@@ -46,8 +73,16 @@ export function QuickActionModal({
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div className="modal-backdrop" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px" }}>
+    <div
+      className="modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+      style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px" }}
+    >
       <div
         className="modal-card"
         style={{
@@ -63,7 +98,12 @@ export function QuickActionModal({
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1E293B" }}>
             {getTitle()}
           </h3>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#64748B" }}>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            style={{ background: "transparent", border: "none", cursor: "pointer", color: "#64748B" }}
+          >
             <X size={18} />
           </button>
         </div>

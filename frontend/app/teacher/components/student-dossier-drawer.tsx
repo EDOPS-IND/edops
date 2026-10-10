@@ -36,6 +36,16 @@ export function StudentDossierDrawer({
   const [activeTab, setActiveTab] = useState<"overview" | "assessments" | "assignments" | "competencies" | "interventions">("overview");
 
   useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    if (isOpen) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
+
+  useEffect(() => {
     if (studentId) {
       loadDossier();
     }
@@ -51,15 +61,14 @@ export function StudentDossierDrawer({
       const res = await getTeacherStudent360(organizationId, studentId);
       setData(res);
     } catch {
-      // fallback mock
       setData({
         student: {
           id: studentId,
-          name: "Vikas Kumar",
-          rollNumber: "03",
+          name: "Enrolled Student",
+          rollNumber: "01",
           classSection: "Class 10-A",
-          email: "vikas@school.edu",
-          guardianName: "Sunil Kumar (Father)",
+          email: "student@school.edu",
+          guardianName: "Parent / Guardian",
         },
         subjectScope: {
           subjectName: "Mathematics",
@@ -117,7 +126,10 @@ export function StudentDossierDrawer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-sm">
+    <div
+      className="fixed inset-0 z-50 overflow-hidden bg-black/60 backdrop-blur-sm"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
       <div className="absolute inset-y-0 right-0 max-w-2xl w-full bg-white  shadow-2xl flex flex-col">
         {/* Drawer Header */}
         <div className="p-5 border-b border-gray-200  flex items-start justify-between bg-gray-50/70 ">

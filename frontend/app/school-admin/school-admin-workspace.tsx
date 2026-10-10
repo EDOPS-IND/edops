@@ -400,6 +400,7 @@ export function SchoolAdminWorkspace({
         {/* Dynamic Pane Switcher */}
         {currentTab === "dashboard" && (
           <DashboardPane
+            organizationId={organizationId}
             onNavigate={handleSelectTab}
             onOpenQuickAction={(action) => handleTriggerAction(action)}
           />
@@ -407,6 +408,7 @@ export function SchoolAdminWorkspace({
 
         {["students", "teachers", "staff", "parents", "departments"].includes(currentTab) && (
           <PeoplePane
+            organizationId={organizationId}
             initialSubtab={currentTab as any}
             onOpenQuickAction={(action) => handleTriggerAction(action)}
           />
@@ -414,26 +416,27 @@ export function SchoolAdminWorkspace({
 
         {currentTab === "academics" && (
           <AcademicsPane
+            organizationId={organizationId}
             onOpenQuickAction={(action) => handleTriggerAction(action)}
           />
         )}
 
-        {currentTab === "timetable" && <TimetablePane />}
+        {currentTab === "timetable" && <TimetablePane organizationId={organizationId} />}
 
-        {currentTab === "attendance" && <AttendanceLeavePane />}
+        {currentTab === "attendance" && <AttendanceLeavePane organizationId={organizationId} />}
 
-        {currentTab === "learning" && <LearningExamsPane initialTab="assignments" />}
+        {currentTab === "learning" && <LearningExamsPane organizationId={organizationId} initialTab="assignments" />}
 
-        {currentTab === "examinations" && <LearningExamsPane initialTab="exams" />}
+        {currentTab === "examinations" && <LearningExamsPane organizationId={organizationId} initialTab="exams" />}
 
-        {currentTab === "finance" && <FinancePane />}
+        {currentTab === "finance" && <FinancePane organizationId={organizationId} />}
 
-        {currentTab === "communication" && <CommunicationPane />}
+        {currentTab === "communication" && <CommunicationPane organizationId={organizationId} />}
 
-        {currentTab === "operations" && <OperationsPane />}
+        {currentTab === "operations" && <OperationsPane organizationId={organizationId} />}
 
         {["discipline", "documents", "reports", "alerts", "settings", "audit"].includes(currentTab) && (
-          <GovernancePane initialTab={currentTab as any} />
+          <GovernancePane organizationId={organizationId} initialTab={currentTab as any} />
         )}
       </main>
 

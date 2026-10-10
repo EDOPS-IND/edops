@@ -1,13 +1,14 @@
 import { Injectable, Module } from '@nestjs/common';
-import { DataSource, EntityManager } from 'typeorm';
+import { DrizzleService } from '../../database/drizzle.service';
+import { Queryable } from '../billing/entitlements';
 
 export type EventType = 'assignment.published' | 'submission.graded' | 'attendance.finalized' | 'recording.published';
 
 @Injectable()
 export class OutboxService {
-  constructor(private readonly source: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
-  async append(manager: EntityManager, org: string, actorId: string, type: EventType, resourceId: string, sectionId: string, subjectId: string | null) {
+  async append(manager: Queryable, org: string, actorId: string, type: EventType, resourceId: string, sectionId: string, subjectId: string | null) {
     const [event] = await manager.query(`INSERT INTO domain_events (organization_id,section_id,subject_id,actor_id,event_type,resource_id)
       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`, [org, sectionId, subjectId, actorId, type, resourceId]);
     const audience = {
@@ -24,11 +25,11 @@ export class OutboxService {
 
   async drain(org: string, limit = 50) {
     // Check org status once, not per iteration.
-    const [school] = await this.source.query("SELECT id FROM organizations WHERE id=$1 AND status='active'", [org]);
+    const [school] = await this.drizzle.query("SELECT id FROM organizations WHERE id=$1 AND status='active'", [org]);
     if (!school) return { processed: 0, failed: 0 };
     let processed = 0, failed = 0;
     for (let i = 0; i < limit; i++) {
-      const outcome = await this.source.transaction(async (manager) => {
+      const outcome = await this.drizzle.transaction(async (manager) => {
         await manager.query("SELECT set_config('app.current_org_id',$1,true)", [org]);
         const [event] = await manager.query(`SELECT id,attempts FROM domain_events WHERE organization_id=$1 AND processed_at IS NULL
           AND failed_at IS NULL AND available_at <= now() ORDER BY occurred_at,id FOR UPDATE SKIP LOCKED LIMIT 1`, [org]);
@@ -60,7 +61,7 @@ export class OutboxService {
   }
 
   async retryFailed(org: string) {
-    return this.source.transaction(async (manager) => {
+    return this.drizzle.transaction(async (manager) => {
       await manager.query("SELECT set_config('app.current_org_id',$1,true)", [org]);
       // ponytail: batch to 1000 to avoid locking the entire table on large failure sets.
       const [row] = await manager.query(`WITH reset AS (UPDATE domain_events SET attempts=0,failed_at=NULL,last_error=NULL,available_at=now()

@@ -37,81 +37,9 @@ export function ActivityPane({ organizationId }: ActivityPaneProps) {
       const res = await getPrincipalActivity(organizationId);
       setData(res);
     } catch {
-      setData({
-        events: [
-          {
-            id: "act-1",
-            actor: "Principal Dr. Sharma",
-            role: "Principal",
-            action: "Published Mid-Term Examination Results",
-            target: "Class 10 (All Sections)",
-            category: "exam",
-            timestamp: "Today, 10:45 AM",
-            details: "Digitally locked 148 student dossiers and dispatched automated WhatsApp/SMS notifications to parents."
-          },
-          {
-            id: "act-2",
-            actor: "Principal Dr. Sharma",
-            role: "Principal",
-            action: "Conducted Formal Classroom Observation",
-            target: "Sunita Roy • Class 9-A Chemistry",
-            category: "observation",
-            timestamp: "Today, 09:15 AM",
-            details: "Scored 4.6/5.0 across student engagement and lab safety protocols. Feedback recorded in faculty docket."
-          },
-          {
-            id: "act-3",
-            actor: "HOD Vikram Malhotra",
-            role: "Science HOD",
-            action: "Approved Question Paper Blueprint",
-            target: "Class 12 Physics Pre-Board I",
-            category: "assessment",
-            timestamp: "Yesterday, 04:30 PM",
-            details: "Verified 33% competency-based question ratio conforming to CBSE 2026 guidelines."
-          },
-          {
-            id: "act-4",
-            actor: "Coordinator Anita Joshi",
-            role: "Middle School Coordinator",
-            action: "Created Remedial Bridge Program",
-            target: "Class 8 Quadratic Foundations",
-            category: "intervention",
-            timestamp: "Yesterday, 02:10 PM",
-            details: "14 students enrolled for 10-day after-school booster cohort."
-          },
-          {
-            id: "act-5",
-            actor: "Principal Dr. Sharma",
-            role: "Principal",
-            action: "Resolved Parent Grievance",
-            target: "Ticket #PG-882 • Mr. Verma (Class 7-B)",
-            category: "communication",
-            timestamp: "04 Oct 2026, 05:20 PM",
-            details: "Clarified science project rubric discrepancy with parent; re-assessment agreed."
-          },
-          {
-            id: "act-6",
-            actor: "Ramesh Sharma",
-            role: "Senior Math Faculty",
-            action: "Updated Syllabus Chapter Progress",
-            target: "Class 10-A Mathematics",
-            category: "curriculum",
-            timestamp: "04 Oct 2026, 11:00 AM",
-            details: "Marked Chapter 6 (Triangles) complete with 4 learning outcomes verified via formative quiz."
-          },
-          {
-            id: "act-7",
-            actor: "Principal Dr. Sharma",
-            role: "Principal",
-            action: "Issued School Academic Directive",
-            target: "All Teaching Faculty",
-            category: "communication",
-            timestamp: "03 Oct 2026, 03:00 PM",
-            details: "Mandatory submission of Lesson Plans for upcoming Term II by Friday 5 PM."
-          }
-        ]
-      });
+      setData({ events: [] });
     } finally {
+
       setLoading(false);
     }
   }

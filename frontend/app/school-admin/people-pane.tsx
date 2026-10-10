@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   StudentRecord,
   TeacherRecord,
@@ -8,6 +8,13 @@ import {
   ParentRecord,
   DepartmentRecord,
 } from "./types";
+import {
+  getSchoolAdminStudents,
+  getSchoolAdminTeachers,
+  getSchoolAdminStaff,
+  getSchoolAdminParents,
+  getSchoolAdminDepartments,
+} from "../edops-api";
 import {
   Users,
   GraduationCap,
@@ -37,9 +44,11 @@ import {
 } from "lucide-react";
 
 export function PeoplePane({
+  organizationId,
   initialSubtab = "students",
   onOpenQuickAction,
 }: {
+  organizationId?: string;
   initialSubtab?: "students" | "teachers" | "staff" | "parents" | "departments";
   onOpenQuickAction: (action: string) => void;
 }) {
@@ -62,188 +71,32 @@ export function PeoplePane({
   // Selected Department for Department 360° Dashboard
   const [selectedDept, setSelectedDept] = useState<DepartmentRecord | null>(null);
 
-  // Mock initial dataset
-  const [students, setStudents] = useState<StudentRecord[]>([
-    {
-      id: "std-1",
-      admissionNo: "ED-2024-001",
-      name: "Aarav Sharma",
-      rollNo: "01",
-      grade: "Grade 10",
-      section: "10-A",
-      gender: "Male",
-      house: "Tagore",
-      parentName: "Rajesh Sharma",
-      parentPhone: "+91 98765 43210",
-      attendancePct: 96,
-      feeStatus: "Paid",
-      academicStatus: "Honor Roll",
-      status: "Active",
-      bloodGroup: "O+",
-      dob: "2010-05-14",
-      address: "B-42, Vasant Vihar, New Delhi",
-      emergencyContact: "+91 98765 43210",
-    },
-    {
-      id: "std-2",
-      admissionNo: "ED-2024-042",
-      name: "Ananya Iyer",
-      rollNo: "14",
-      grade: "Grade 10",
-      section: "10-A",
-      gender: "Female",
-      house: "Raman",
-      parentName: "Venkat Iyer",
-      parentPhone: "+91 98112 34567",
-      attendancePct: 71,
-      feeStatus: "Overdue",
-      academicStatus: "Needs Attention",
-      status: "Active",
-      bloodGroup: "B+",
-      dob: "2010-09-21",
-      address: "12/A, Defence Colony, New Delhi",
-      emergencyContact: "+91 98112 34567",
-    },
-    {
-      id: "std-3",
-      admissionNo: "ED-2024-089",
-      name: "Rohan Verma",
-      rollNo: "28",
-      grade: "Grade 9",
-      section: "9-B",
-      gender: "Male",
-      house: "Shivaji",
-      parentName: "Sunil Verma",
-      parentPhone: "+91 97123 98765",
-      attendancePct: 88,
-      feeStatus: "Pending",
-      academicStatus: "Good Standing",
-      status: "Active",
-      bloodGroup: "A+",
-      dob: "2011-02-11",
-      address: "Pocket 4, Mayur Vihar, New Delhi",
-      emergencyContact: "+91 97123 98765",
-    },
-    {
-      id: "std-4",
-      admissionNo: "ED-2023-112",
-      name: "Diya Patel",
-      rollNo: "09",
-      grade: "Grade 11",
-      section: "11-A (Science)",
-      gender: "Female",
-      house: "Ashoka",
-      parentName: "Ketan Patel",
-      parentPhone: "+91 99001 23456",
-      attendancePct: 98,
-      feeStatus: "Paid",
-      academicStatus: "Honor Roll",
-      status: "Active",
-      bloodGroup: "AB+",
-      dob: "2009-11-30",
-      address: "C-101, Greater Kailash 1, New Delhi",
-      emergencyContact: "+91 99001 23456",
-    },
-  ]);
+  const [loading, setLoading] = useState(false);
+  const [students, setStudents] = useState<StudentRecord[]>([]);
+  const [teachers, setTeachers] = useState<TeacherRecord[]>([]);
+  const [staff, setStaff] = useState<StaffRecord[]>([]);
+  const [parents, setParents] = useState<ParentRecord[]>([]);
+  const [departments, setDepartments] = useState<DepartmentRecord[]>([]);
 
-  const [teachers, setTeachers] = useState<TeacherRecord[]>([
-    {
-      id: "tch-1",
-      empId: "EMP-T-01",
-      name: "Rahul Sharma",
-      email: "rahul.sharma@edops.school",
-      phone: "+91 98234 56789",
-      department: "Mathematics",
-      designation: "Head of Department & PGT",
-      subjects: ["Mathematics", "Applied Math"],
-      classes: ["10-A", "10-B", "9-A", "12-A"],
-      joiningDate: "2021-06-15",
-      employmentType: "Full Time",
-      weeklyPeriods: 28,
-      maxPeriods: 30,
-      status: "Active",
-    },
-    {
-      id: "tch-2",
-      empId: "EMP-T-08",
-      name: "Sunita Rao",
-      email: "sunita.rao@edops.school",
-      phone: "+91 98456 12345",
-      department: "Science",
-      designation: "Senior PGT Physics",
-      subjects: ["Physics", "General Science"],
-      classes: ["11-A", "11-B", "12-A"],
-      joiningDate: "2020-04-10",
-      employmentType: "Full Time",
-      weeklyPeriods: 31,
-      maxPeriods: 30,
-      status: "Active",
-    },
-    {
-      id: "tch-3",
-      empId: "EMP-T-14",
-      name: "Pooja Malhotra",
-      email: "pooja.m@edops.school",
-      phone: "+91 98711 22334",
-      department: "English",
-      designation: "TGT English",
-      subjects: ["English Literature", "Grammar"],
-      classes: ["8-A", "8-B", "9-A"],
-      joiningDate: "2022-07-01",
-      employmentType: "Full Time",
-      weeklyPeriods: 22,
-      maxPeriods: 30,
-      status: "Active",
-    },
-  ]);
-
-  const [staff, setStaff] = useState<StaffRecord[]>([
-    { id: "stf-1", empId: "EMP-S-01", name: "Sunita Roy", email: "accounts@edops.school", phone: "+91 98111 22334", department: "Finance", designation: "Chief Accountant", employmentType: "Full Time", joiningDate: "2019-03-01", status: "Active" },
-    { id: "stf-2", empId: "EMP-S-04", name: "Ramesh Chand", email: "transport@edops.school", phone: "+91 98222 33445", department: "Transport", designation: "Transport Manager", employmentType: "Full Time", joiningDate: "2020-08-15", status: "Active" },
-    { id: "stf-3", empId: "EMP-S-09", name: "Deepa Narang", email: "infirmary@edops.school", phone: "+91 98333 44556", department: "Medical", designation: "Campus Nurse", employmentType: "Full Time", joiningDate: "2021-01-10", status: "Active" },
-    { id: "stf-4", empId: "EMP-S-12", name: "Vikram Negi", email: "it@edops.school", phone: "+91 98444 55667", department: "IT", designation: "Systems Administrator", employmentType: "Full Time", joiningDate: "2022-02-01", status: "Active" },
-  ]);
-
-  const [parents, setParents] = useState<ParentRecord[]>([
-    {
-      id: "par-1",
-      name: "Rajesh Sharma",
-      email: "rajesh.sharma@example.com",
-      mobile: "+91 98765 43210",
-      relationship: "Father",
-      occupation: "Chartered Accountant",
-      address: "B-42, Vasant Vihar, New Delhi",
-      emergencyContact: "+91 98765 43211",
-      accountStatus: "Active",
-      invitationStatus: "Accepted",
-      children: [
-        { studentId: "std-1", studentName: "Aarav Sharma", grade: "Grade 10", section: "10-A" },
-        { studentId: "std-x", studentName: "Ananya Sharma", grade: "Grade 5", section: "5-B" },
-      ],
-      permissions: { attendance: true, fees: true, exams: true, assignments: true, communication: true, transport: true },
-    },
-    {
-      id: "par-2",
-      name: "Venkat Iyer",
-      email: "venkat.iyer@example.com",
-      mobile: "+91 98112 34567",
-      relationship: "Father",
-      occupation: "Software Architect",
-      address: "12/A, Defence Colony, New Delhi",
-      emergencyContact: "+91 98112 34568",
-      accountStatus: "Active",
-      invitationStatus: "Accepted",
-      children: [{ studentId: "std-2", studentName: "Ananya Iyer", grade: "Grade 10", section: "10-A" }],
-      permissions: { attendance: true, fees: true, exams: true, assignments: true, communication: true, transport: true },
-    },
-  ]);
-
-  const [departments, setDepartments] = useState<DepartmentRecord[]>([
-    { id: "dept-1", name: "Mathematics", code: "MATH", headName: "Rahul Sharma", headEmail: "rahul.sharma@edops.school", teachersCount: 14, staffCount: 1, studentsCount: 420, classesCount: 12, avgAttendancePct: 95.2, syllabusCompletionPct: 78, status: "Active", location: "Academic Block B, Floor 2" },
-    { id: "dept-2", name: "Science", code: "SCI", headName: "Sunita Rao", headEmail: "sunita.rao@edops.school", teachersCount: 18, staffCount: 4, studentsCount: 520, classesCount: 14, avgAttendancePct: 93.8, syllabusCompletionPct: 72, status: "Active", location: "Science Complex, Floor 1" },
-    { id: "dept-3", name: "English & Languages", code: "LANG", headName: "Pooja Malhotra", headEmail: "pooja.m@edops.school", teachersCount: 16, staffCount: 1, studentsCount: 650, classesCount: 18, avgAttendancePct: 96.0, syllabusCompletionPct: 82, status: "Active", location: "Humanities Wing, Floor 1" },
-    { id: "dept-4", name: "Computer Science & IT", code: "CS", headName: "Kunal Mehra", headEmail: "kunal.m@edops.school", teachersCount: 8, staffCount: 3, studentsCount: 340, classesCount: 10, avgAttendancePct: 97.4, syllabusCompletionPct: 85, status: "Active", location: "IT Tower, Lab 1 & 2" },
-  ]);
+  useEffect(() => {
+    if (!organizationId) return;
+    setLoading(true);
+    Promise.all([
+      getSchoolAdminStudents(organizationId).catch(() => []),
+      getSchoolAdminTeachers(organizationId).catch(() => []),
+      getSchoolAdminStaff(organizationId).catch(() => []),
+      getSchoolAdminParents(organizationId).catch(() => []),
+      getSchoolAdminDepartments(organizationId).catch(() => []),
+    ]).then(([st, tc, sf, pr, dp]) => {
+      setStudents(st || []);
+      setTeachers(tc || []);
+      setStaff(sf || []);
+      setParents(pr || []);
+      setDepartments(dp || []);
+    }).finally(() => {
+      setLoading(false);
+    });
+  }, [organizationId]);
 
   const filteredStudents = students.filter((s) => {
     if (gradeFilter !== "all" && !s.grade.toLowerCase().includes(gradeFilter.toLowerCase())) return false;
@@ -258,11 +111,11 @@ export function PeoplePane({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E2DDD5", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
           {[
-            { id: "students", label: "Students (1,420)", icon: GraduationCap },
-            { id: "teachers", label: "Teachers & Workload (92)", icon: Users },
-            { id: "staff", label: "Staff Intelligence (38)", icon: Briefcase },
-            { id: "parents", label: "Parents & Mappings (1,840)", icon: HeartHandshake },
-            { id: "departments", label: "Departments (8)", icon: Building2 },
+            { id: "students", label: `Students (${students.length})`, icon: GraduationCap },
+            { id: "teachers", label: `Teachers & Workload (${teachers.length})`, icon: Users },
+            { id: "staff", label: `Staff Intelligence (${staff.length})`, icon: Briefcase },
+            { id: "parents", label: `Parents & Mappings (${parents.length})`, icon: HeartHandshake },
+            { id: "departments", label: `Departments (${departments.length})`, icon: Building2 },
           ].map((tab) => {
             const Icon = tab.icon;
             const active = subtab === tab.id;
@@ -366,7 +219,14 @@ export function PeoplePane({
                 </tr>
               </thead>
               <tbody>
-                {filteredStudents.map((s) => (
+                {filteredStudents.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} style={{ padding: "32px 10px", textAlign: "center", color: "var(--muted)" }}>
+                      {loading ? "Loading students..." : "No student records found."}
+                    </td>
+                  </tr>
+                ) : (
+                  filteredStudents.map((s) => (
                   <tr key={s.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
                     <td style={{ padding: "12px 10px" }}>
                       <b>{s.admissionNo}</b>
@@ -432,7 +292,7 @@ export function PeoplePane({
                       </button>
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
@@ -453,7 +313,7 @@ export function PeoplePane({
               </p>
             </div>
             <span style={{ background: "#064E3B", color: "#F8E7C9", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: 700 }}>
-              92 / 92 Calculated
+              {teachers.length} / {teachers.length} Calculated
             </span>
           </div>
 
@@ -472,7 +332,14 @@ export function PeoplePane({
                 </tr>
               </thead>
               <tbody>
-                {teachers.map((t) => {
+                {teachers.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} style={{ padding: "32px 10px", textAlign: "center", color: "var(--muted)" }}>
+                      {loading ? "Loading teachers..." : "No teacher records found."}
+                    </td>
+                  </tr>
+                ) : (
+                  teachers.map((t) => {
                   const workloadPct = Math.round((t.weeklyPeriods / t.maxPeriods) * 100);
                   const isOverloaded = t.weeklyPeriods > t.maxPeriods;
                   const isHeavy = t.weeklyPeriods >= 27 && !isOverloaded;
@@ -526,7 +393,7 @@ export function PeoplePane({
                       </td>
                     </tr>
                   );
-                })}
+                }))}
               </tbody>
             </table>
           </div>
@@ -541,10 +408,10 @@ export function PeoplePane({
           {/* Department Breakdown Mini-Pills */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "12px" }}>
             {[
-              { dept: "Finance & Accounts", count: 6, roles: "Accountants, Cashiers" },
-              { dept: "Administration", count: 8, roles: "Office Staff, Registrar" },
-              { dept: "Transport Fleet", count: 12, roles: "Drivers, Conductors, Route Mgr" },
-              { dept: "Campus Medical", count: 3, roles: "Nurse, Medical Attendant" },
+              { dept: "Finance & Accounts", count: staff.filter(s => /finance|account/i.test(s.department || "")).length, roles: "Accountants, Cashiers" },
+              { dept: "Administration", count: staff.filter(s => /admin/i.test(s.department || "")).length, roles: "Office Staff, Registrar" },
+              { dept: "Transport Fleet", count: staff.filter(s => /transport/i.test(s.department || "")).length, roles: "Drivers, Conductors, Route Mgr" },
+              { dept: "Campus Medical & Operations", count: staff.filter(s => !/finance|account|admin|transport/i.test(s.department || "")).length, roles: "Medical, Security & Support" },
             ].map((d, i) => (
               <div key={i} style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "8px", padding: "14px" }}>
                 <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 650 }}>{d.dept}</span>
@@ -567,26 +434,34 @@ export function PeoplePane({
                 </tr>
               </thead>
               <tbody>
-                {staff.map((s) => (
-                  <tr key={s.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
-                    <td style={{ padding: "12px 10px" }}>
-                      <b>{s.name}</b>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.empId}</div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <span style={{ fontWeight: 650, color: "#064E3B" }}>{s.department}</span>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>{s.designation}</td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <div>{s.phone}</div>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.email}</div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>{s.employmentType}</td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <span style={{ color: "#064E3B", fontWeight: 700 }}>{s.status}</span>
+                {staff.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "32px 10px", textAlign: "center", color: "var(--muted)" }}>
+                      {loading ? "Loading staff records..." : "No staff members recorded."}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  staff.map((s) => (
+                    <tr key={s.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
+                      <td style={{ padding: "12px 10px" }}>
+                        <b>{s.name}</b>
+                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.empId}</div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <span style={{ fontWeight: 650, color: "#064E3B" }}>{s.department}</span>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>{s.designation}</td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <div>{s.phone}</div>
+                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.email}</div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>{s.employmentType}</td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <span style={{ color: "#064E3B", fontWeight: 700 }}>{s.status}</span>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -618,45 +493,57 @@ export function PeoplePane({
                 </tr>
               </thead>
               <tbody>
-                {parents.map((p) => (
-                  <tr key={p.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
-                    <td style={{ padding: "12px 10px" }}>
-                      <b>{p.name}</b>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.occupation}</div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <div>{p.mobile}</div>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.email}</div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>{p.relationship}</td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <div style={{ display: "grid", gap: "4px" }}>
-                        {p.children.map((ch, idx) => (
-                          <span key={idx} style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", padding: "2px 8px", borderRadius: "6px", fontSize: "11.5px" }}>
-                            <b>{ch.studentName}</b> ({ch.grade} · {ch.section})
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <span style={{
-                        padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700,
-                        background: p.invitationStatus === "Accepted" ? "#ECFDF5" : "#FEF3C7",
-                        color: p.invitationStatus === "Accepted" ? "#064E3B" : "#92400E",
-                      }}>
-                        {p.invitationStatus}
-                      </span>
-                    </td>
-                    <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                      <button
-                        onClick={() => alert(`Resending invite link to ${p.email}`)}
-                        style={{ padding: "4px 8px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
-                      >
-                        Resend Invite
-                      </button>
+                {parents.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "32px 10px", textAlign: "center", color: "var(--muted)" }}>
+                      {loading ? "Loading parent records..." : "No parent records registered."}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  parents.map((p) => (
+                    <tr key={p.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
+                      <td style={{ padding: "12px 10px" }}>
+                        <b>{p.name}</b>
+                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.occupation}</div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <div>{p.mobile}</div>
+                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.email}</div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>{p.relationship}</td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <div style={{ display: "grid", gap: "4px" }}>
+                          {p.children && p.children.length > 0 ? (
+                            p.children.map((ch, idx) => (
+                              <span key={idx} style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", padding: "2px 8px", borderRadius: "6px", fontSize: "11.5px" }}>
+                                <b>{ch.studentName}</b> ({ch.grade} · {ch.section})
+                              </span>
+                            ))
+                          ) : (
+                            <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>No ward linked yet</span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <span style={{
+                          padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700,
+                          background: p.invitationStatus === "Accepted" ? "#ECFDF5" : "#FEF3C7",
+                          color: p.invitationStatus === "Accepted" ? "#064E3B" : "#92400E",
+                        }}>
+                          {p.invitationStatus}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px 10px", textAlign: "right" }}>
+                        <button
+                          onClick={() => alert(`Resending invite link to ${p.email}`)}
+                          style={{ padding: "4px 8px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
+                        >
+                          Resend Invite
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -668,52 +555,58 @@ export function PeoplePane({
       {/* ============================================================== */}
       {subtab === "departments" && (
         <div style={{ display: "grid", gap: "20px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
-            {departments.map((d) => (
-              <div
-                key={d.id}
-                style={{
-                  background: "#FFFFFF",
-                  border: "1px solid #E2DDD5",
-                  borderRadius: "10px",
-                  padding: "18px",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>{d.name}</h4>
-                      <span style={{ fontSize: "11.5px", color: "var(--muted)", fontWeight: 650 }}>Code: {d.code}</span>
+          {departments.length === 0 ? (
+            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "32px", textAlign: "center", color: "var(--muted)" }}>
+              {loading ? "Loading departments..." : "No academic departments found."}
+            </div>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+              {departments.map((d) => (
+                <div
+                  key={d.id}
+                  style={{
+                    background: "#FFFFFF",
+                    border: "1px solid #E2DDD5",
+                    borderRadius: "10px",
+                    padding: "18px",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>{d.name}</h4>
+                        <span style={{ fontSize: "11.5px", color: "var(--muted)", fontWeight: 650 }}>Code: {d.code}</span>
+                      </div>
+                      <span style={{ background: "#ECFDF5", color: "#064E3B", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700 }}>
+                        {d.status}
+                      </span>
                     </div>
-                    <span style={{ background: "#ECFDF5", color: "#064E3B", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700 }}>
-                      {d.status}
-                    </span>
-                  </div>
-                  <p style={{ margin: "4px 0 12px", fontSize: "12px", color: "var(--muted)" }}>Head: <b>{d.headName}</b> ({d.headEmail})</p>
+                    <p style={{ margin: "4px 0 12px", fontSize: "12px", color: "var(--muted)" }}>Head: <b>{d.headName}</b> ({d.headEmail})</p>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", background: "#FAF8F5", padding: "10px", borderRadius: "6px", fontSize: "12px", marginBottom: "14px" }}>
-                    <div>Faculty: <b>{d.teachersCount}</b></div>
-                    <div>Students: <b>{d.studentsCount}</b></div>
-                    <div>Attendance: <b>{d.avgAttendancePct}%</b></div>
-                    <div>Syllabus: <b>{d.syllabusCompletionPct}%</b></div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", background: "#FAF8F5", padding: "10px", borderRadius: "6px", fontSize: "12px", marginBottom: "14px" }}>
+                      <div>Faculty: <b>{d.teachersCount}</b></div>
+                      <div>Students: <b>{d.studentsCount}</b></div>
+                      <div>Attendance: <b>{d.avgAttendancePct}%</b></div>
+                      <div>Syllabus: <b>{d.syllabusCompletionPct}%</b></div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #E2DDD5", paddingTop: "10px" }}>
+                    <span style={{ fontSize: "11px", color: "var(--muted)" }}>{d.location}</span>
+                    <button
+                      onClick={() => setSelectedDept(d)}
+                      style={{ padding: "4px 10px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}
+                    >
+                      View Dept 360°
+                    </button>
                   </div>
                 </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #E2DDD5", paddingTop: "10px" }}>
-                  <span style={{ fontSize: "11px", color: "var(--muted)" }}>{d.location}</span>
-                  <button
-                    onClick={() => setSelectedDept(d)}
-                    style={{ padding: "4px 10px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}
-                  >
-                    View Dept 360°
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

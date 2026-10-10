@@ -11,18 +11,36 @@ export function StudentsPane({
   onTriggerIntervention,
   onTriggerRemedial,
   onTriggerEnrichment,
+  organizationId,
+  initialTab,
 }: {
   students?: StudentListItem[];
   atRiskData?: any;
   onOpenStudent360: (studentId: string) => void;
-  onTriggerIntervention: (studentName?: string) => void;
-  onTriggerRemedial: () => void;
-  onTriggerEnrichment: () => void;
+  onTriggerIntervention?: (studentName?: string) => void;
+  onTriggerRemedial?: () => void;
+  onTriggerEnrichment?: () => void;
+  organizationId?: string;
+  initialTab?: string;
 }) {
-  const [subTab, setSubTab] = useState<"all" | "at_risk" | "remedial" | "enrichment">("all");
+  const [liveData, setLiveData] = useState<any>(null);
+  const [subTab, setSubTab] = useState<"all" | "at_risk" | "remedial" | "enrichment">((initialTab as any) || "all");
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filtered = students.filter((s) => s.name.toLowerCase().includes(searchTerm.toLowerCase()) || s.className.toLowerCase().includes(searchTerm.toLowerCase()));
+  React.useEffect(() => {
+    if (!organizationId) return;
+    import("../../edops-api").then(({ getPrincipalStudents }) => {
+      getPrincipalStudents(organizationId)
+        .then((data) => setLiveData(data))
+        .catch(() => null);
+    });
+  }, [organizationId]);
+
+  const studentList = (liveData?.students && liveData.students.length > 0) ? liveData.students : students;
+  const atRisk = liveData?.atRisk || atRiskData;
+
+  const filtered = studentList.filter((s: any) => (s.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || (s.className || "").toLowerCase().includes(searchTerm.toLowerCase()));
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>

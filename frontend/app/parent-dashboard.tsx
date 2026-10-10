@@ -7,10 +7,12 @@ import { ParentChild } from "./edops-api";
 export function ParentDashboard({
   organizationId,
   children,
+  messages = [],
   onNotify,
 }: {
   organizationId: string;
   children: ParentChild[];
+  messages?: any[];
   onNotify?: (msg: string) => void;
 }) {
   const [activeChildIndex, setActiveChildIndex] = useState(0);
@@ -247,20 +249,39 @@ export function ParentDashboard({
             </div>
           </div>
 
-          {/* School Announcements */}
+          {/* School Announcements & Teacher Messages */}
           <div style={{ background: "#FFFFFF", border: "1px solid #CBCBCB", borderRadius: "10px", padding: "20px" }}>
             <h3 style={{ margin: "0 0 12px", fontSize: "15px", fontWeight: 700, color: "#4A4A4A" }}>
-              Recent School Notices
+              School Notices & Teacher Messages
             </h3>
             <div style={{ display: "grid", gap: "10px", fontSize: "12px" }}>
-              <div style={{ borderBottom: "1px solid #F0F0F0", paddingBottom: "8px" }}>
-                <div style={{ fontWeight: 650, color: "#4A4A4A" }}>Inter-School Science Fair 2026</div>
-                <div style={{ color: "#707070", fontSize: "11px" }}>October 22 · Main Auditorium</div>
-              </div>
-              <div>
-                <div style={{ fontWeight: 650, color: "#4A4A4A" }}>Diwali Break Schedule</div>
-                <div style={{ color: "#707070", fontSize: "11px" }}>Classes resume November 4</div>
-              </div>
+              {messages && messages.length > 0 ? (
+                messages.map((m: any, idx: number) => (
+                  <div key={m.id || idx} style={{ borderBottom: "1px solid #F0F0F0", paddingBottom: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontWeight: 650, color: "#064E3B" }}>{m.subject_line}</span>
+                      <span style={{ fontSize: "10px", color: "#888" }}>
+                        {m.created_at ? new Date(m.created_at).toLocaleDateString() : "Recent"}
+                      </span>
+                    </div>
+                    <div style={{ color: "#4A4A4A", fontSize: "11px", margin: "3px 0" }}>{m.body}</div>
+                    <span style={{ color: "#707070", fontSize: "10px" }}>
+                      From: {m.sender_name || "Class Teacher"}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div style={{ borderBottom: "1px solid #F0F0F0", paddingBottom: "8px" }}>
+                    <div style={{ fontWeight: 650, color: "#4A4A4A" }}>Inter-School Science Fair 2026</div>
+                    <div style={{ color: "#707070", fontSize: "11px" }}>October 22 · Main Auditorium</div>
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 650, color: "#4A4A4A" }}>Diwali Break Schedule</div>
+                    <div style={{ color: "#707070", fontSize: "11px" }}>Classes resume November 4</div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

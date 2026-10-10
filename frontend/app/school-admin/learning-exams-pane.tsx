@@ -15,8 +15,10 @@ import {
 } from "lucide-react";
 
 export function LearningExamsPane({
+  organizationId,
   initialTab = "assignments",
 }: {
+  organizationId?: string;
   initialTab?: "assignments" | "exams" | "results";
 }) {
   const [subtab, setSubtab] = useState<"assignments" | "exams" | "results">(initialTab);

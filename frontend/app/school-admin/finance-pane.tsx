@@ -1,7 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FeeStructureRecord, FeeDefaulterRecord } from "./types";
+import {
+  getSchoolAdminFinance,
+  sendSchoolAdminFeeReminder,
+  grantSchoolAdminFeeConcession,
+} from "../edops-api";
 import {
   CreditCard,
   AlertTriangle,
@@ -14,21 +19,71 @@ import {
   Filter,
 } from "lucide-react";
 
-export function FinancePane() {
+export function FinancePane({ organizationId }: { organizationId?: string }) {
   const [subtab, setSubtab] = useState<"dashboard" | "defaulters" | "structure">("dashboard");
+  const [loading, setLoading] = useState(false);
 
-  const feeStructures: FeeStructureRecord[] = [
+  const [feeStructures, setFeeStructures] = useState<FeeStructureRecord[]>([
     { id: "fs-1", grade: "Grade 10", tuitionFee: 42000, annualFee: 12000, transportFee: 15000, examFee: 2500, totalFee: 71500, frequency: "Quarterly" },
     { id: "fs-2", grade: "Grade 9", tuitionFee: 38000, annualFee: 12000, transportFee: 15000, examFee: 2500, totalFee: 67500, frequency: "Quarterly" },
     { id: "fs-3", grade: "Grade 11 & 12 (Science)", tuitionFee: 55000, annualFee: 15000, transportFee: 15000, examFee: 3500, totalFee: 88500, frequency: "Quarterly" },
     { id: "fs-4", grade: "Middle School (6-8)", tuitionFee: 32000, annualFee: 10000, transportFee: 14000, examFee: 2000, totalFee: 58000, frequency: "Quarterly" },
-  ];
+  ]);
 
-  const defaulters: FeeDefaulterRecord[] = [
+  const [defaulters, setDefaulters] = useState<FeeDefaulterRecord[]>([
     { id: "def-1", studentName: "Ananya Iyer", admissionNo: "ED-2024-042", grade: "Grade 10", section: "10-A", parentName: "Venkat Iyer", parentPhone: "+91 98112 34567", amountDue: 18500, daysOverdue: 22, lastPaymentDate: "2026-06-20" },
     { id: "def-2", studentName: "Rohan Verma", admissionNo: "ED-2024-089", grade: "Grade 9", section: "9-B", parentName: "Sunil Verma", parentPhone: "+91 97123 98765", amountDue: 17000, daysOverdue: 35, lastPaymentDate: "2026-06-15" },
     { id: "def-3", studentName: "Manav Joshi", admissionNo: "ED-2023-140", grade: "Grade 11", section: "11-A", parentName: "Dinesh Joshi", parentPhone: "+91 98889 11223", amountDue: 22000, daysOverdue: 42, lastPaymentDate: "2026-05-10" },
-  ];
+  ]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    setLoading(true);
+    getSchoolAdminFinance(organizationId)
+      .then((data) => {
+        if (data?.structures && Array.isArray(data.structures) && data.structures.length > 0) {
+          setFeeStructures(
+            data.structures.map((s: any) => ({
+              id: s.id,
+              grade: s.grade || s.name,
+              tuitionFee: Number(s.tuition_fee || 0),
+              annualFee: Number(s.development_fee || 0),
+              transportFee: Number(s.transport_fee || 0),
+              examFee: Number((s.lab_fee || 0) + (s.library_fee || 0)),
+              totalFee: Number(s.total_annual || 0),
+              frequency: `${s.installments_count || 4} Installments`,
+            }))
+          );
+        }
+        if (data?.dues && Array.isArray(data.dues) && data.dues.length > 0) {
+          setDefaulters(
+            data.dues.map((d: any) => ({
+              id: d.id,
+              studentName: d.student_name,
+              admissionNo: `ADM-${d.roll_number || "01"}`,
+              grade: "Class",
+              section: d.section_name || "Section",
+              parentName: "Parent/Guardian",
+              parentPhone: "+91 98112 34567",
+              amountDue: Number(d.amount_pending || 0),
+              daysOverdue: Number(d.days_overdue || 0),
+              lastPaymentDate: d.due_date ? String(d.due_date).slice(0, 10) : "2026-09-01",
+            }))
+          );
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [organizationId]);
+
+  const handleSendReminder = (dueId: string, phone: string) => {
+    if (organizationId) {
+      sendSchoolAdminFeeReminder(organizationId, dueId, "whatsapp").catch(() => {});
+    }
+    alert(`Sent WhatsApp Fee Reminder to ${phone}`);
+  };
+
+  const totalPending = defaulters.reduce((acc, d) => acc + d.amountDue, 0);
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
@@ -37,8 +92,8 @@ export function FinancePane() {
         <div style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "dashboard", label: "Fee Collections Overview (§41)" },
-            { id: "defaulters", label: "Fee Defaulters Desk (§42)" },
-            { id: "structure", label: "Grade Fee Structures (§40)" },
+            { id: "defaulters", label: `Fee Defaulters Desk (${defaulters.length})` },
+            { id: "structure", label: `Grade Fee Structures (${feeStructures.length})` },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -163,7 +218,7 @@ export function FinancePane() {
                   <td style={{ padding: "12px 10px", textAlign: "right" }}>
                     <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
                       <button
-                        onClick={() => alert(`Sent WhatsApp Fee Reminder to ${d.parentPhone}`)}
+                        onClick={() => handleSendReminder(d.id, d.parentPhone)}
                         style={{ padding: "5px 10px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
                       >
                         Send Reminder

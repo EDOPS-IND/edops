@@ -1,14 +1,14 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { User } from '../../auth/user.entity';
 import { PublishExamResultsDto, ReviewQuestionPaperDto } from '../dto/principal.dto';
 
 @Injectable()
 export class PrincipalAssessmentsService {
-  constructor(private readonly source: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getAssessmentsOverview(orgId: string, _actor: User) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
 
     const questionPapers = await manager.query(
       `SELECT * FROM principal_question_papers WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 20`,
@@ -84,7 +84,7 @@ export class PrincipalAssessmentsService {
   }
 
   async reviewQuestionPaper(orgId: string, actor: User, paperId: string, dto: ReviewQuestionPaperDto) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
     await manager.query(
       `UPDATE principal_question_papers
        SET status = $1, review_comments = $2, approved_by = $3, approved_at = now()
@@ -95,7 +95,7 @@ export class PrincipalAssessmentsService {
   }
 
   async getExaminationsOverview(orgId: string, _actor: User) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
 
     const examResults = await manager.query(
       `SELECT * FROM principal_exam_results WHERE organization_id = $1 ORDER BY percentage DESC LIMIT 30`,
@@ -183,7 +183,7 @@ export class PrincipalAssessmentsService {
   }
 
   async publishResults(orgId: string, actor: User, dto: PublishExamResultsDto) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
 
     // Lock records and publish
     await manager.query(

@@ -1,15 +1,14 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-
 @Injectable()
 export class StudentClassesService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getClassDetails(organizationId: string, studentUserId: string) {
     // 1. Fetch classmates in the same section
     let classmates: any[] = [];
     try {
-      classmates = await this.dataSource.query(
+      classmates = await this.drizzle.query(
         `SELECT e.roll_number as "rollNumber", u.name, e.status
          FROM enrollments e
          JOIN users u ON u.id = e.student_user_id

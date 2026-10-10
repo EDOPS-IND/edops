@@ -1,10 +1,23 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsDateString, IsEnum, IsInt, IsNotEmpty, IsNumber, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import {
+  IsArray,
+  IsBoolean,
+  IsDateString,
+  IsEnum,
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from "class-validator";
 
 export class UpdateLeaveStatusDto {
-  @ApiProperty({ enum: ['approved', 'rejected'] })
-  @IsEnum(['approved', 'rejected'])
-  status!: 'approved' | 'rejected';
+  @ApiProperty({ enum: ["approved", "rejected"] })
+  @IsEnum(["approved", "rejected"])
+  status!: "approved" | "rejected";
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -18,11 +31,11 @@ export class CreateLeaveRequestDto {
   @IsString()
   leaveType!: string;
 
-  @ApiProperty({ format: 'date' })
+  @ApiProperty({ format: "date" })
   @IsDateString()
   startDate!: string;
 
-  @ApiProperty({ format: 'date' })
+  @ApiProperty({ format: "date" })
   @IsDateString()
   endDate!: string;
 
@@ -37,10 +50,10 @@ export class CreateLeaveRequestDto {
   @IsString()
   reason!: string;
 
-  @ApiPropertyOptional({ enum: ['student', 'teacher', 'staff'] })
+  @ApiPropertyOptional({ enum: ["student", "teacher", "staff"] })
   @IsOptional()
-  @IsEnum(['student', 'teacher', 'staff'])
-  applicantRole?: 'student' | 'teacher' | 'staff';
+  @IsEnum(["student", "teacher", "staff"])
+  applicantRole?: "student" | "teacher" | "staff";
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -59,7 +72,7 @@ export class CreateFeeStructureDto {
   @IsString()
   grade!: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   academicYearId?: string;
@@ -98,18 +111,18 @@ export class CreateFeeStructureDto {
 }
 
 export class SendFeeReminderDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   dueId!: string;
 
-  @ApiPropertyOptional({ enum: ['whatsapp', 'sms', 'email'] })
+  @ApiPropertyOptional({ enum: ["whatsapp", "sms", "email"] })
   @IsOptional()
-  @IsEnum(['whatsapp', 'sms', 'email'])
-  channel?: 'whatsapp' | 'sms' | 'email';
+  @IsEnum(["whatsapp", "sms", "email"])
+  channel?: "whatsapp" | "sms" | "email";
 }
 
 export class GrantFeeConcessionDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   dueId!: string;
 
@@ -144,14 +157,14 @@ export class CreateBroadcastDto {
   @IsString()
   targetAudience!: string;
 
-  @ApiPropertyOptional({ enum: ['low', 'normal', 'high', 'urgent'] })
+  @ApiPropertyOptional({ enum: ["low", "normal", "high", "urgent"] })
   @IsOptional()
-  @IsEnum(['low', 'normal', 'high', 'urgent'])
-  priority?: 'low' | 'normal' | 'high' | 'urgent';
+  @IsEnum(["low", "normal", "high", "urgent"])
+  priority?: "low" | "normal" | "high" | "urgent";
 }
 
 export class CreateDisciplineIncidentDto {
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   studentUserId?: string;
@@ -171,9 +184,9 @@ export class CreateDisciplineIncidentDto {
   @IsString()
   incidentType!: string;
 
-  @ApiProperty({ enum: ['minor', 'moderate', 'severe'] })
-  @IsEnum(['minor', 'moderate', 'severe'])
-  severity!: 'minor' | 'moderate' | 'severe';
+  @ApiProperty({ enum: ["minor", "moderate", "severe"] })
+  @IsEnum(["minor", "moderate", "severe"])
+  severity!: "minor" | "moderate" | "severe";
 
   @ApiProperty()
   @IsNotEmpty()
@@ -197,19 +210,19 @@ export class CreateDisciplineIncidentDto {
 }
 
 export class CreateTimetableEntryDto {
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   academicYearId!: string;
 
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   sectionId!: string;
 
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   subjectId!: string;
 
-  @ApiProperty({ format: 'uuid' })
+  @ApiProperty({ format: "uuid" })
   @IsUUID()
   teacherUserId!: string;
 
@@ -241,6 +254,57 @@ export class CreateTimetableEntryDto {
   roomNumber?: string;
 }
 
+export class UpdateTimetableEntryDto {
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  academicYearId?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  sectionId?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  subjectId?: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  teacherUserId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(6)
+  dayOfWeek?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(8)
+  periodNumber?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  startTime?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  endTime?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  roomNumber?: string;
+}
+
 export class CreateDepartmentDto {
   @ApiProperty()
   @IsNotEmpty()
@@ -252,7 +316,7 @@ export class CreateDepartmentDto {
   @IsString()
   code!: string;
 
-  @ApiPropertyOptional({ format: 'uuid' })
+  @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()
   @IsUUID()
   headTeacherId?: string;

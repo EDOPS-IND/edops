@@ -1,43 +1,108 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 
 @Injectable()
 export class StudentAttendanceService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getAttendance(organizationId: string, studentUserId: string) {
-    const summary = {
-      overallPercentage: 94.0,
-      totalWorkingDays: 150,
-      presentDays: 141,
-      absentDays: 7,
-      lateDays: 2,
-      leaveDays: 3,
-      thresholdPercentage: 75.0,
-      isBelowThreshold: false,
-    };
+    try {
+      const records = await this.drizzle.query(
+        `SELECT 
+           r.status,
+           to_char(s.date, 'YYYY-MM-DD') as session_date,
+           s.period,
+           coalesce(sub.name, 'General') as subject_name
+         FROM attendance_records r
+         JOIN attendance_sessions s ON s.id = r.attendance_session_id AND s.organization_id = r.organization_id
+         LEFT JOIN subjects sub ON sub.id = s.subject_id AND sub.organization_id = s.organization_id
+         WHERE r.organization_id = $1 AND r.student_id = $2
+         ORDER BY s.date DESC, s.period DESC`,
+        [organizationId, studentUserId],
+      );
 
-    const subjectWise = [
-      { subject: 'Mathematics', attended: 57, total: 60, percentage: 95.0, status: 'Good' },
-      { subject: 'Science', attended: 53, total: 58, percentage: 91.3, status: 'Good' },
-      { subject: 'English', attended: 48, total: 50, percentage: 96.0, status: 'Excellent' },
-      { subject: 'Social Science', attended: 46, total: 50, percentage: 92.0, status: 'Good' },
-      { subject: 'Hindi', attended: 47, total: 50, percentage: 94.0, status: 'Good' },
-      { subject: 'Computer Science', attended: 29, total: 30, percentage: 96.6, status: 'Excellent' },
-    ];
+      const totalDays = records.length;
+      const presentDays = records.filter((r: any) => r.status === 'present').length;
+      const absentDays = records.filter((r: any) => r.status === 'absent').length;
+      const lateDays = records.filter((r: any) => r.status === 'late').length;
+      const leaveDays = records.filter((r: any) => r.status === 'excused').length;
 
-    // Calendar log for current month
-    const calendarDays = [
-      { date: '2026-10-01', status: 'present', remarks: 'Full Day' },
-      { date: '2026-10-02', status: 'holiday', remarks: 'Gandhi Jayanti' },
-      { date: '2026-10-03', status: 'present', remarks: 'Full Day' },
-      { date: '2026-10-04', status: 'holiday', remarks: 'Sunday' },
-      { date: '2026-10-05', status: 'present', remarks: 'Full Day' },
-      { date: '2026-10-06', status: 'present', remarks: 'Today' },
-      { date: '2026-09-29', status: 'present', remarks: 'Full Day' },
-      { date: '2026-09-30', status: 'absent', remarks: 'Medical Sick Leave' },
-    ];
+      const overallPercentage = totalDays > 0
+        ? Number((((presentDays + lateDays) / totalDays) * 100).toFixed(1))
+        : 100.0;
 
-    return { summary, subjectWise, calendarDays };
+      const summary = {
+        overallPercentage,
+        totalWorkingDays: totalDays,
+        presentDays,
+        absentDays,
+        lateDays,
+        leaveDays,
+        thresholdPercentage: 75.0,
+        isBelowThreshold: overallPercentage < 75.0,
+      };
+
+      // Group subject-wise
+      const subjectMap = new Map<string, { attended: number; total: number }>();
+      for (const rec of records) {
+        const subName = rec.subject_name;
+        const curr = subjectMap.get(subName) || { attended: 0, total: 0 };
+        curr.total += 1;
+        if (rec.status === 'present' || rec.status === 'late') {
+          curr.attended += 1;
+        }
+        subjectMap.set(subName, curr);
+      }
+
+      let subjectWise = Array.from(subjectMap.entries()).map(([subject, counts]) => {
+        const percentage = Number(((counts.attended / counts.total) * 100).toFixed(1));
+        return {
+          subject,
+          attended: counts.attended,
+          total: counts.total,
+          percentage,
+          status: percentage >= 85 ? 'Excellent' : percentage >= 75 ? 'Good' : 'Defaulter',
+        };
+      });
+
+      // If no records yet, list enrolled subjects from database if available
+      if (subjectWise.length === 0) {
+        const subRows = await this.drizzle.query(
+          `SELECT name FROM subjects WHERE organization_id = $1 ORDER BY name ASC LIMIT 6`,
+          [organizationId]
+        ).catch(() => []);
+        subjectWise = subRows.map((s: any) => ({
+          subject: s.name,
+          attended: 0,
+          total: 0,
+          percentage: 100.0,
+          status: 'Good',
+        }));
+      }
+
+      // Calendar log
+      const calendarDays = records.slice(0, 15).map((r: any) => ({
+        date: r.session_date,
+        status: r.status,
+        remarks: `Period ${r.period} • ${r.subject_name}`,
+      }));
+
+      return { summary, subjectWise, calendarDays };
+    } catch {
+      return {
+        summary: {
+          overallPercentage: 100.0,
+          totalWorkingDays: 0,
+          presentDays: 0,
+          absentDays: 0,
+          lateDays: 0,
+          leaveDays: 0,
+          thresholdPercentage: 75.0,
+          isBelowThreshold: false,
+        },
+        subjectWise: [],
+        calendarDays: [],
+      };
+    }
   }
 }

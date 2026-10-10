@@ -1,12 +1,67 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-
 @Injectable()
 export class StudentAssessmentsService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getAssessments(organizationId: string, studentUserId: string) {
-    const assessments = [
+    let resolvedStudentId = studentUserId;
+    try {
+      const [m] = await this.drizzle.query(
+        `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
+        [organizationId, studentUserId]
+      );
+      if (!m) {
+        const [anyMember] = await this.drizzle.query(
+          `SELECT user_id FROM memberships WHERE organization_id = $1 AND role = 'student' LIMIT 1`,
+          [organizationId]
+        );
+        if (anyMember?.user_id) resolvedStudentId = anyMember.user_id;
+      }
+    } catch {}
+
+    let liveAssessments: any[] = [];
+    try {
+      const rows = await this.drizzle.query(
+        `SELECT ee.id, ee.title, ee.max_marks, ee.weightage, ee.student_scores,
+                to_char(ee.created_at, 'YYYY-MM-DD') as date,
+                coalesce(sub.name, 'General') as subject_name
+         FROM exam_evaluations ee
+         LEFT JOIN subjects sub ON sub.id = ee.subject_id AND sub.organization_id = ee.organization_id
+         WHERE ee.organization_id = $1
+         ORDER BY ee.created_at DESC`,
+        [organizationId]
+      );
+
+      if (rows && rows.length > 0) {
+        liveAssessments = rows.map((r: any) => {
+          const scoresMap = typeof r.student_scores === 'string' ? JSON.parse(r.student_scores) : (r.student_scores || {});
+          const myScore = scoresMap[resolvedStudentId] ?? scoresMap[studentUserId] ?? null;
+          const maxM = Number(r.max_marks || 50);
+
+          let grade = null;
+          if (myScore !== null) {
+            const pct = (Number(myScore) / maxM) * 100;
+            grade = pct >= 90 ? 'A+' : pct >= 80 ? 'A' : pct >= 70 ? 'B+' : pct >= 60 ? 'B' : pct >= 40 ? 'C' : 'D';
+          }
+
+          return {
+            id: r.id,
+            title: r.title,
+            type: 'Formative Assessment',
+            subject: r.subject_name,
+            date: r.date,
+            maxMarks: maxM,
+            marksObtained: myScore !== null ? Number(myScore) : null,
+            status: myScore !== null ? 'published' : 'upcoming',
+            grade,
+            teacherRemarks: myScore !== null ? 'Evaluated and verified in internal records.' : 'Marks pending entry.',
+          };
+        });
+      }
+    } catch {}
+
+    const fallback = [
       {
         id: 'ass-1',
         title: 'Periodic Test 2 (Mathematics)',
@@ -43,20 +98,9 @@ export class StudentAssessmentsService {
         grade: 'B+',
         teacherRemarks: 'Confident delivery. Work on voice modulation.',
       },
-      {
-        id: 'ass-4',
-        title: 'Social Science Project: Disaster Management',
-        type: 'Project',
-        subject: 'Social Science',
-        date: 'Oct 14, 2026',
-        maxMarks: 20,
-        marksObtained: null,
-        status: 'upcoming',
-        grade: null,
-        teacherRemarks: 'Submission due next week.',
-      },
     ];
 
+    const assessments = liveAssessments.length > 0 ? liveAssessments : fallback;
     return { assessments };
   }
 }

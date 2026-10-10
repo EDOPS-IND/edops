@@ -1,5 +1,4 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { IsNull } from 'typeorm';
 import { AcademicListDto } from '../academics/academic.dto';
 import { User } from '../auth/user.entity';
 import { AuditService } from '../audit/audit.service';
@@ -8,18 +7,45 @@ import { AttendanceDto, AttendanceMarksDto, ClassQuery } from '../assignments/te
 import { AttendanceSession } from '../assignments/teaching.entity';
 import { ScorecardsService } from '../reports/scorecards.service';
 import { OutboxService } from '../notifications/outbox.service';
+import { DrizzleService } from '../../database/drizzle.service';
 
 @Injectable()
 export class AttendanceService {
-  constructor(private readonly access: TeachingAccess, private readonly audit: AuditService, private readonly scorecards: ScorecardsService, private readonly outbox: OutboxService) {}
+  constructor(
+    private readonly access: TeachingAccess,
+    private readonly audit: AuditService,
+    private readonly scorecards: ScorecardsService,
+    private readonly outbox: OutboxService,
+    private readonly drizzle: DrizzleService,
+  ) {}
 
   list(org: string, actor: User, query: ClassQuery) {
     return this.access.run(org, actor, null, null, null,
       (manager, role) => this.access.classScope(manager, org, actor, role, query.sectionId, query.subjectId ?? null),
       async (manager, role) => {
-        const builder = manager.getRepository(AttendanceSession).createQueryBuilder('a').where({ organizationId: org, sectionId: query.sectionId, subjectId: query.subjectId ?? IsNull() });
-        if (role === 'student') builder.andWhere(`a.status='finalized' AND EXISTS (SELECT 1 FROM attendance_records r WHERE r.organization_id=a.organization_id AND r.attendance_session_id=a.id AND r.student_id=:student)`, { student: actor.id });
-        const [items, total] = await builder.orderBy('a.date', 'DESC').addOrderBy('a.period').addOrderBy('a.id').take(query.limit).skip(query.offset).getManyAndCount();
+        const params: any[] = [org, query.sectionId];
+        let subjFilter = 'subject_id IS NULL';
+        if (query.subjectId) {
+          params.push(query.subjectId);
+          subjFilter = `subject_id = $${params.length}`;
+        }
+
+        let studentFilter = '';
+        if (role === 'student') {
+          params.push(actor.id);
+          studentFilter = ` AND a.status = 'finalized' AND EXISTS (SELECT 1 FROM attendance_records r WHERE r.organization_id = a.organization_id AND r.attendance_session_id = a.id AND r.student_id = $${params.length})`;
+        }
+
+        const baseWhere = `a.organization_id = $1 AND a.section_id = $2 AND ${subjFilter}${studentFilter}`;
+        const [countRes, itemsRes] = await Promise.all([
+          manager.query(`SELECT count(*)::int as total FROM attendance_sessions a WHERE ${baseWhere}`, params),
+          manager.query(
+            `SELECT * FROM attendance_sessions a WHERE ${baseWhere} ORDER BY a.date DESC, a.period ASC, a.id ASC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+            [...params, query.limit, query.offset]
+          ),
+        ]);
+        const total = (countRes[0] || countRes.rows?.[0])?.total ?? 0;
+        const items = itemsRes.rows || itemsRes;
         return { items, total, limit: query.limit, offset: query.offset };
       });
   }
@@ -33,7 +59,11 @@ export class AttendanceService {
           FROM sections s JOIN academic_years y ON y.organization_id=s.organization_id AND y.id=s.academic_year_id
           JOIN organizations o ON o.id=s.organization_id WHERE s.organization_id=$1 AND s.id=$2`, [org, dto.sectionId]);
         if (dto.date > calendar.today || dto.date < calendar.start || dto.date > calendar.end) throw new BadRequestException('Attendance date must be within the academic year and not in the future in the school timezone');
-        const row = await manager.getRepository(AttendanceSession).save({ ...dto, subjectId: dto.subjectId ?? null, organizationId: org, takenBy: actor.id });
+        const [row] = await manager.query(
+          `INSERT INTO attendance_sessions (organization_id, section_id, subject_id, date, period, taken_by, status)
+           VALUES ($1, $2, $3, $4, $5, $6, 'draft') RETURNING *`,
+          [org, dto.sectionId, dto.subjectId ?? null, dto.date, dto.period, actor.id]
+        );
         const students = await manager.query(`INSERT INTO attendance_records (organization_id, attendance_session_id, student_id)
           SELECT e.organization_id, $3, e.student_user_id FROM enrollments e
           JOIN memberships m ON m.organization_id=e.organization_id AND m.user_id=e.student_user_id JOIN users u ON u.id=m.user_id
@@ -59,7 +89,7 @@ export class AttendanceService {
   }
 
   mark(org: string, actor: User, id: string, dto: AttendanceMarksDto) {
-    let session: AttendanceSession;
+    let session: any;
     return this.access.run(org, actor, 'attendance.marked', { id, ...dto }, null,
       async (manager, role) => { session = await this.access.attendance(manager, org, actor, role, id, true); },
       async (manager) => {
@@ -69,7 +99,7 @@ export class AttendanceService {
         await manager.query(`UPDATE attendance_records r SET status=mark.status FROM jsonb_to_recordset($3::jsonb) AS mark("studentId" uuid, status text)
           WHERE r.organization_id=$1 AND r.attendance_session_id=$2 AND r.student_id=mark."studentId"`, [org, id, JSON.stringify(dto.records)]);
         if (session.status === 'finalized') {
-          await this.scorecards.refresh(manager, org, session.sectionId, session.subjectId, dto.records.length === 1 ? dto.records[0].studentId : undefined);
+          await this.scorecards.refresh(manager, org, session.section_id || session.sectionId, session.subject_id || session.subjectId, dto.records.length === 1 ? dto.records[0].studentId : undefined);
         }
         await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'attendance.marked', details: { sessionId: id, before, after: dto.records } });
         return session;
@@ -77,17 +107,22 @@ export class AttendanceService {
   }
 
   finalize(org: string, actor: User, id: string, key?: string) {
-    let session: AttendanceSession;
+    let session: any;
     return this.access.run(org, actor, 'attendance.finalized', { id }, key,
       async (manager, role) => { session = await this.access.attendance(manager, org, actor, role, id, true); },
       async (manager) => {
         if (session.status !== 'draft') throw new ConflictException('Attendance is already finalized');
         const [pending] = await manager.query('SELECT count(*)::int AS count FROM attendance_records WHERE organization_id=$1 AND attendance_session_id=$2 AND status IS NULL', [org, id]);
         if (pending.count) throw new ConflictException('Mark every student before finalizing attendance');
-        const updated = await manager.getRepository(AttendanceSession).save({ ...session, status: 'finalized' as const, finalizedAt: new Date() });
-        await this.scorecards.refresh(manager, org, session.sectionId, session.subjectId);
+        const [updated] = await manager.query(
+          "UPDATE attendance_sessions SET status = 'finalized', finalized_at = now() WHERE organization_id = $1 AND id = $2 RETURNING *",
+          [org, id]
+        );
+        const secId = session.section_id || session.sectionId;
+        const subjId = session.subject_id || session.subjectId;
+        await this.scorecards.refresh(manager, org, secId, subjId);
         await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'attendance.finalized', details: { sessionId: id } });
-        await this.outbox.append(manager, org, actor.id, 'attendance.finalized', id, session.sectionId, session.subjectId);
+        await this.outbox.append(manager, org, actor.id, 'attendance.finalized', id, secId, subjId);
         return updated;
       });
   }

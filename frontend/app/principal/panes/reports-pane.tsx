@@ -37,94 +37,16 @@ export function ReportsPane({ organizationId }: ReportsPaneProps) {
     setLoading(true);
     try {
       const res = await getPrincipalReports(organizationId);
-      setData(res);
-    } catch {
       setData({
-        categories: [
-          { id: "all", name: "All Academic Reports" },
-          { id: "cbse_compliance", name: "CBSE & Statutory Compliance" },
-          { id: "school_performance", name: "School & Term Performance" },
-          { id: "curriculum_outcomes", name: "Curriculum & Learning Outcomes" },
-          { id: "teachers_pedagogy", name: "Faculty Workload & Observations" },
-          { id: "interventions", name: "Remedial & At-Risk Efficacy" }
-        ],
-        reports: [
-          {
-            id: "rep-1",
-            title: "CBSE Annual Pedagogical Plan (APP) Compliance Dossier",
-            category: "cbse_compliance",
-            description: "Statutory mandatory disclosure verifying art-integrated learning, sport-integration, and NEP-2020 competency maps.",
-            frequency: "Annual / Board Audit",
-            lastGenerated: "2026-09-28",
-            format: "PDF (Signed)",
-            pages: 42
-          },
-          {
-            id: "rep-2",
-            title: "Mid-Term Academic Mastery & Grade Distribution Ledger",
-            category: "school_performance",
-            description: "Section-wise comparative analysis of scores across Class 6 to 12 with standard deviation and pass percentages.",
-            frequency: "Term-wise",
-            lastGenerated: "2026-10-01",
-            format: "Excel (.XLSX) / PDF",
-            pages: 18
-          },
-          {
-            id: "rep-3",
-            title: "NEP-2020 Learning Outcomes & Competency Attainment Matrix",
-            category: "curriculum_outcomes",
-            description: "Holistic mapping of grade-level competencies achieved vs pending across STEM and humanities streams.",
-            frequency: "Monthly",
-            lastGenerated: "2026-10-03",
-            format: "Excel (.XLSX)",
-            pages: 25
-          },
-          {
-            id: "rep-4",
-            title: "Faculty Weekly Period Workload & Observation Summary",
-            category: "teachers_pedagogy",
-            description: "Teaching period allocation, substitution burden, lesson plan compliance rate, and principal classroom observation scores.",
-            frequency: "Bi-Weekly",
-            lastGenerated: "2026-10-04",
-            format: "PDF",
-            pages: 12
-          },
-          {
-            id: "rep-5",
-            title: "Remedial Bridge Program & At-Risk Improvement Efficacy",
-            category: "interventions",
-            description: "Pre-intervention vs post-intervention score comparison for 62 enrolled students across Grade 8–10.",
-            frequency: "Bi-Weekly",
-            lastGenerated: "2026-10-02",
-            format: "PDF / CSV",
-            pages: 9
-          },
-          {
-            id: "rep-6",
-            title: "CBSE 75% Mandatory Attendance Defaulters Roll",
-            category: "cbse_compliance",
-            description: "List of students breaching attendance threshold, with parent communication audit and medical certificates.",
-            frequency: "Weekly",
-            lastGenerated: "2026-10-05",
-            format: "PDF / Excel",
-            pages: 6
-          },
-          {
-            id: "rep-7",
-            title: "Holistic Progress Card (HPC) Aggregate School Dossier",
-            category: "curriculum_outcomes",
-            description: "360-degree assessment summary including self-assessment, peer-review, and teacher remarks for parent conferences.",
-            frequency: "Term-wise",
-            lastGenerated: "2026-09-30",
-            format: "PDF Pack",
-            pages: 110
-          }
-        ]
+        reports: res?.availableReports || res?.reports || [],
       });
+    } catch {
+      setData({ reports: [] });
     } finally {
       setLoading(false);
     }
   }
+
 
   function handleTriggerDownload(report: any) {
     setGeneratingId(report.id);
@@ -135,10 +57,12 @@ export function ReportsPane({ organizationId }: ReportsPaneProps) {
     }, 1200);
   }
 
-  const filteredReports = (data?.reports || []).filter((r: any) => {
+  const reportsList = data?.reports || data?.availableReports || [];
+  const filteredReports = reportsList.filter((r: any) => {
     if (category !== "all" && r.category !== category) return false;
     return true;
   });
+
 
   return (
     <div className="space-y-6">
@@ -193,10 +117,13 @@ export function ReportsPane({ organizationId }: ReportsPaneProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {loading ? (
           <div className="col-span-2 py-12 text-center text-gray-400">Loading reports catalog...</div>
+        ) : filteredReports.length === 0 ? (
+          <div className="col-span-2 py-12 text-center text-gray-500">No reports found in this category.</div>
         ) : (
           filteredReports.map((report: any) => {
             const isGenerating = generatingId === report.id;
             const isDownloaded = downloadSuccess === report.id;
+
 
             return (
               <div

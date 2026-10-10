@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedRequest } from '../../common/auth.guard';
 import {
@@ -11,6 +11,7 @@ import {
   GrantFeeConcessionDto,
   SendFeeReminderDto,
   UpdateLeaveStatusDto,
+  UpdateTimetableEntryDto,
 } from './school-admin.dto';
 import { SchoolAdminService } from './school-admin.service';
 
@@ -47,6 +48,18 @@ export class SchoolAdminController {
   @ApiOperation({ summary: 'List teachers with workload and weekly period distribution' })
   teachers(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
     return this.service.getTeachers(orgId, req.user);
+  }
+
+  @Get('people/staff')
+  @ApiOperation({ summary: 'List administrative and operational school staff' })
+  staff(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
+    return this.service.getStaff(orgId, req.user);
+  }
+
+  @Get('people/parents')
+  @ApiOperation({ summary: 'List registered parents with ward mappings' })
+  parents(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
+    return this.service.getParents(orgId, req.user);
   }
 
   @Get('people/departments')
@@ -89,6 +102,27 @@ export class SchoolAdminController {
     @Body() dto: CreateTimetableEntryDto,
   ) {
     return this.service.createTimetableEntry(orgId, req.user, dto);
+  }
+
+  @Patch('timetable/:id')
+  @ApiOperation({ summary: 'Update timetable entry with clash detection' })
+  updateTimetable(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UpdateTimetableEntryDto,
+  ) {
+    return this.service.updateTimetableEntry(orgId, req.user, id, dto);
+  }
+
+  @Delete('timetable/:id')
+  @ApiOperation({ summary: 'Delete timetable entry' })
+  deleteTimetable(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.deleteTimetableEntry(orgId, req.user, id);
   }
 
   @Get('attendance/registers')
@@ -175,6 +209,12 @@ export class SchoolAdminController {
     @Body() dto: CreateBroadcastDto,
   ) {
     return this.service.createBroadcast(orgId, req.user, dto);
+  }
+
+  @Get('communication/tickets')
+  @ApiOperation({ summary: 'List incoming teacher messages and communication tickets' })
+  tickets(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
+    return this.service.getCommunicationTickets(orgId, req.user);
   }
 
   @Get('operations/overview')

@@ -8,18 +8,38 @@ export function AssessmentsPane({
   questionPapers = [],
   assessmentTypes = [],
   onReviewQuestionPaper,
+  organizationId,
+  onNavigate,
 }: {
   questionPapers?: QuestionPaperItem[];
   assessmentTypes?: any[];
-  onReviewQuestionPaper: (paperId: string, status: string, comments: string) => Promise<void>;
+  onReviewQuestionPaper?: (paperId: string, status: string, comments: string) => Promise<void>;
+  organizationId?: string;
+  onNavigate?: (pane: string) => void;
 }) {
+  const [liveData, setLiveData] = useState<any>(null);
   const [commentsInput, setCommentsInput] = useState<{ [key: string]: string }>({});
+
+  React.useEffect(() => {
+    if (!organizationId) return;
+    import("../../edops-api").then(({ getPrincipalAssessments }) => {
+      getPrincipalAssessments(organizationId)
+        .then((data) => setLiveData(data))
+        .catch(() => null);
+    });
+  }, [organizationId]);
+
+  const papers = (liveData?.questionPapers && liveData.questionPapers.length > 0) ? liveData.questionPapers : questionPapers;
+  const types = (liveData?.assessmentTypes && liveData.assessmentTypes.length > 0) ? liveData.assessmentTypes : assessmentTypes;
 
   const handleAction = async (id: string, status: string) => {
     const comment = commentsInput[id] || "Approved by Principal. Blueprint conforms to board guidelines.";
-    await onReviewQuestionPaper(id, status, comment);
+    if (onReviewQuestionPaper) {
+      await onReviewQuestionPaper(id, status, comment);
+    }
     alert(`Question paper updated to ${status}.`);
   };
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -56,8 +76,14 @@ export function AssessmentsPane({
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {questionPapers.map((paper, idx) => (
-            <div key={idx} style={{ border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px 20px", background: paper.status === "Approved" ? "#F0FDF4" : "#FFFFFF" }}>
+          {papers.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px 0", color: "#64748B", fontSize: "13px" }}>
+              No question papers submitted for review.
+            </div>
+          ) : (
+            papers.map((paper: any, idx: number) => (
+              <div key={idx} style={{ border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px 20px", background: paper.status === "Approved" ? "#F0FDF4" : "#FFFFFF" }}>
+
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -125,8 +151,9 @@ export function AssessmentsPane({
                 </div>
               )}
             </div>
-          ))}
-        </div>
+          ))
+        )}
+      </div>
       </div>
     </div>
   );

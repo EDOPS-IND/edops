@@ -1,17 +1,17 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { User } from '../../auth/user.entity';
 import { CreateStudyMaterialDto, RecordLessonDeliveryDto } from '../dto/teacher.dto';
 
 @Injectable()
 export class TeacherLearningService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getLearningHub(organizationId: string, user: User) {
     let materials: any[] = [];
     let deliveries: any[] = [];
     try {
-      const matRows = await this.dataSource.query(
+      const matRows = await this.drizzle.query(
         `SELECT tsm.id, tsm.title, tsm.chapter, tsm.topic, tsm.file_type, tsm.file_url,
                 to_char(tsm.created_at, 'YYYY-MM-DD') as created_at,
                 coalesce(sec.name, 'Class 10-A') as section_name
@@ -38,7 +38,7 @@ export class TeacherLearningService {
     }
 
     try {
-      const delRows = await this.dataSource.query(
+      const delRows = await this.drizzle.query(
         `SELECT tld.id, to_char(tld.delivery_date, 'YYYY-MM-DD') as delivery_date,
                 tld.period_number, tld.topics_covered, tld.participation_pct,
                 tld.homework_assigned, tld.reflection,
@@ -83,13 +83,13 @@ export class TeacherLearningService {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.sectionId);
       if (!isUuid) {
         const cleanName = dto.sectionId.replace(/^sec-/, '').replace('-', ' ');
-        const [sec] = await this.dataSource.query(
+        const [sec] = await this.drizzle.query(
           `SELECT id FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
           [organizationId, `%${cleanName}%`, dto.sectionId]
         );
         if (sec?.id) resolvedSectionId = sec.id;
         else {
-          const [firstSec] = await this.dataSource.query(
+          const [firstSec] = await this.drizzle.query(
             `SELECT id FROM sections WHERE organization_id = $1 LIMIT 1`,
             [organizationId]
           );
@@ -101,7 +101,7 @@ export class TeacherLearningService {
     try {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.subjectId);
       if (!isUuid) {
-        const [sub] = await this.dataSource.query(
+        const [sub] = await this.drizzle.query(
           `SELECT id FROM subjects WHERE organization_id = $1 LIMIT 1`,
           [organizationId]
         );
@@ -111,12 +111,12 @@ export class TeacherLearningService {
 
     let teacherId = user.id;
     try {
-      const [m] = await this.dataSource.query(
+      const [m] = await this.drizzle.query(
         `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
         [organizationId, user.id]
       );
       if (!m) {
-        const [anyMember] = await this.dataSource.query(
+        const [anyMember] = await this.drizzle.query(
           `SELECT user_id FROM memberships WHERE organization_id = $1 LIMIT 1`,
           [organizationId]
         );
@@ -124,7 +124,7 @@ export class TeacherLearningService {
       }
     } catch {}
 
-    const [inserted] = await this.dataSource.query(
+    const [inserted] = await this.drizzle.query(
       `INSERT INTO teacher_lesson_deliveries (
         organization_id, lesson_plan_id, teacher_user_id, section_id, subject_id,
         delivery_date, period_number, topics_covered, participation_pct, homework_assigned, reflection, status
@@ -161,13 +161,13 @@ export class TeacherLearningService {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.sectionId);
       if (!isUuid) {
         const cleanName = dto.sectionId.replace(/^sec-/, '').replace('-', ' ');
-        const [sec] = await this.dataSource.query(
+        const [sec] = await this.drizzle.query(
           `SELECT id FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
           [organizationId, `%${cleanName}%`, dto.sectionId]
         );
         if (sec?.id) resolvedSectionId = sec.id;
         else {
-          const [firstSec] = await this.dataSource.query(
+          const [firstSec] = await this.drizzle.query(
             `SELECT id FROM sections WHERE organization_id = $1 LIMIT 1`,
             [organizationId]
           );
@@ -179,7 +179,7 @@ export class TeacherLearningService {
     try {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.subjectId);
       if (!isUuid) {
-        const [sub] = await this.dataSource.query(
+        const [sub] = await this.drizzle.query(
           `SELECT id FROM subjects WHERE organization_id = $1 LIMIT 1`,
           [organizationId]
         );
@@ -189,12 +189,12 @@ export class TeacherLearningService {
 
     let teacherId = user.id;
     try {
-      const [m] = await this.dataSource.query(
+      const [m] = await this.drizzle.query(
         `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
         [organizationId, user.id]
       );
       if (!m) {
-        const [anyMember] = await this.dataSource.query(
+        const [anyMember] = await this.drizzle.query(
           `SELECT user_id FROM memberships WHERE organization_id = $1 LIMIT 1`,
           [organizationId]
         );
@@ -202,7 +202,7 @@ export class TeacherLearningService {
       }
     } catch {}
 
-    const [inserted] = await this.dataSource.query(
+    const [inserted] = await this.drizzle.query(
       `INSERT INTO teacher_study_materials (
         organization_id, teacher_user_id, section_id, subject_id, unit, chapter, topic, title, description, file_type, file_url
       )

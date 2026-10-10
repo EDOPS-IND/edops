@@ -21,7 +21,7 @@ export function QuickAttendanceModal({
   onClose,
   organizationId,
   sectionId = "",
-  subjectId = "sub-math",
+  subjectId = "",
   classSectionName,
   classSection,
   periodNumber = 1,
@@ -29,9 +29,20 @@ export function QuickAttendanceModal({
 }: QuickAttendanceModalProps) {
   const activeClassName = classSection || classSectionName || "Active Class";
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [period, setPeriod] = useState(periodNumber);
+  const period = periodNumber || 1;
   const [saving, setSaving] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [students, setStudents] = useState<Array<{ id: string; name: string; roll: string; status: "present" | "absent" | "late" | "excused" }>>([]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setErrorMsg(null);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   useEffect(() => {
     if (isOpen && sectionId) {
@@ -71,20 +82,19 @@ export function QuickAttendanceModal({
 
   const handleSave = async () => {
     setSaving(true);
+    setErrorMsg(null);
     try {
       await markTeacherAttendance(organizationId, {
         sectionId,
-        subjectId,
+        subjectId: subjectId || undefined,
         date,
         period,
         records: students.map((s) => ({ studentId: s.id, status: s.status })),
       });
       if (onSuccess) onSuccess();
       onClose();
-    } catch {
-      // optimistic fallback
-      if (onSuccess) onSuccess();
-      onClose();
+    } catch (err: any) {
+      setErrorMsg(err?.message || "Attendance for this class period has already been finalized today. Duplicate attendance is not allowed.");
     } finally {
       setSaving(false);
     }
@@ -94,25 +104,47 @@ export function QuickAttendanceModal({
   const absentCount = students.filter((s) => s.status === "absent").length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white  rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-200  space-y-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-200 space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100 ">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 ">
-              Period Register
-            </span>
-            <h3 className="text-lg font-bold text-gray-900 ">
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600">
+                Period Register
+              </span>
+              <span className="text-[10px] font-mono text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+                Slot: P{period}·{date}
+              </span>
+            </div>
+            <h3 className="text-lg font-bold text-gray-900 mt-0.5">
               Take Attendance — {activeClassName}
             </h3>
-            <p className="text-xs text-gray-500 ">
-              Date: {date} • Period {period}
+            <p className="text-xs text-gray-500">
+              Date: {date} • Period {period} • Unique Schedule Check Active
             </p>
           </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {errorMsg && (
+          <div className="flex items-center gap-2 p-2.5 rounded-xl bg-red-50 text-red-700 text-xs font-medium border border-red-200">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
 
         {/* Quick Bulk Actions */}
         <div className="flex items-center justify-between bg-gray-50  p-2.5 rounded-xl text-xs">

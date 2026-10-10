@@ -1,15 +1,15 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { User } from '../../auth/user.entity';
 
 @Injectable()
 export class TeacherClassesService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getMyClasses(organizationId: string, user: User) {
     let rows: any[] = [];
     try {
-      rows = await this.dataSource.query(
+      rows = await this.drizzle.query(
         `SELECT csa.section_id, csa.subject_id, sec.name as section_name, sec.capacity,
                 sub.name as subject_name, sub.code as subject_code,
                 (SELECT COUNT(*)::int FROM enrollments e WHERE e.organization_id = csa.organization_id AND e.section_id = csa.section_id AND e.status = 'active') as active_students,
@@ -30,7 +30,7 @@ export class TeacherClassesService {
     // If teacher has no direct assignments yet, discover sections in the org
     if (!rows || rows.length === 0) {
       try {
-        const orgSections = await this.dataSource.query(
+        const orgSections = await this.drizzle.query(
           `SELECT sec.id as section_id, sec.name as section_name, sec.capacity,
                   (SELECT COUNT(*)::int FROM enrollments e WHERE e.organization_id = sec.organization_id AND e.section_id = sec.id AND e.status = 'active') as active_students,
                   (SELECT ROUND(AVG(CASE WHEN r.status = 'present' THEN 100.0 ELSE 0.0 END), 1)
@@ -44,7 +44,7 @@ export class TeacherClassesService {
           [organizationId]
         );
         if (orgSections && orgSections.length > 0) {
-          const orgSubjects = await this.dataSource.query(
+          const orgSubjects = await this.drizzle.query(
             `SELECT id, name, code FROM subjects WHERE organization_id = $1 LIMIT 5`,
             [organizationId]
           );
@@ -106,7 +106,7 @@ export class TeacherClassesService {
     try {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(sectionId);
       if (isUuid) {
-        const [sec] = await this.dataSource.query(
+        const [sec] = await this.drizzle.query(
           `SELECT id, name FROM sections WHERE organization_id = $1 AND id = $2 LIMIT 1`,
           [organizationId, sectionId]
         );
@@ -115,7 +115,7 @@ export class TeacherClassesService {
         }
       } else {
         const cleanName = sectionId.replace(/^sec-/, '').replace('-', ' ');
-        const [sec] = await this.dataSource.query(
+        const [sec] = await this.drizzle.query(
           `SELECT id, name FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
           [organizationId, `%${cleanName}%`, sectionId]
         );
@@ -128,7 +128,7 @@ export class TeacherClassesService {
 
     let assignment: any = null;
     try {
-      const rows = await this.dataSource.query(
+      const rows = await this.drizzle.query(
         `SELECT csa.section_id, csa.subject_id, sec.name as section_name, sub.name as subject_name, sub.code as subject_code
          FROM class_subject_assignments csa
          JOIN sections sec ON sec.id = csa.section_id AND sec.organization_id = csa.organization_id
@@ -148,7 +148,7 @@ export class TeacherClassesService {
     // 2. Fetch enrolled students with dynamic attendance stats
     let students: any[] = [];
     try {
-      students = await this.dataSource.query(
+      students = await this.drizzle.query(
         `SELECT e.student_user_id as id, e.roll_number, u.name, u.email,
                 (SELECT ROUND(AVG(CASE WHEN r.status = 'present' THEN 100.0 ELSE 0.0 END), 1)
                  FROM attendance_records r
@@ -185,7 +185,7 @@ export class TeacherClassesService {
 
     let chapters: any[] = [];
     try {
-      const chapRows = await this.dataSource.query(
+      const chapRows = await this.drizzle.query(
         `SELECT id, name, sequence_number
          FROM principal_curriculum_nodes
          WHERE organization_id = $1 AND parent_id IS NULL

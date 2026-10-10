@@ -93,6 +93,19 @@ export function PrincipalWorkspace({
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [healthScore, setHealthScore] = useState<number | null>(null);
+
+  useEffect(() => {
+    import("../edops-api").then(({ getPrincipalDashboard }) => {
+      getPrincipalDashboard(organization.id)
+        .then((data) => {
+          if (data?.academicHealth?.score !== undefined) {
+            setHealthScore(data.academicHealth.score);
+          }
+        })
+        .catch(() => {});
+    });
+  }, [organization.id]);
 
   // Keyboard shortcut for Cmd+K / Ctrl+K
   useEffect(() => {
@@ -422,7 +435,7 @@ export function PrincipalWorkspace({
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50  text-emerald-700  border border-emerald-200  hover:bg-emerald-100 transition"
             >
               <HeartPulse className="w-3.5 h-3.5" />
-              Academic Health: <strong>88/100</strong>
+              Academic Health: <strong>{healthScore !== null ? `${healthScore}/100` : "—"}</strong>
             </button>
           </div>
 

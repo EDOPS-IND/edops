@@ -1,16 +1,16 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { User } from '../../auth/user.entity';
 import { SubmitAssessmentMarksDto } from '../dto/teacher.dto';
 
 @Injectable()
 export class TeacherAssessmentsService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getAssessments(organizationId: string, user: User) {
     let evaluations: any[] = [];
     try {
-      const rows = await this.dataSource.query(
+      const rows = await this.drizzle.query(
         `SELECT ee.id, ee.title, ee.max_marks, ee.weightage, ee.student_scores,
                 to_char(ee.created_at, 'YYYY-MM-DD') as date,
                 coalesce(sec.name, 'Class 10-A') as section_name,
@@ -60,7 +60,7 @@ export class TeacherAssessmentsService {
 
     let examSchedules: any[] = [];
     try {
-      const examRows = await this.dataSource.query(
+      const examRows = await this.drizzle.query(
         `SELECT id, title as name, to_char(created_at, 'YYYY-MM-DD') as date, max_marks
          FROM exam_evaluations
          WHERE organization_id = $1 AND title ILIKE '%exam%'
@@ -99,13 +99,13 @@ export class TeacherAssessmentsService {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.sectionId);
       if (!isUuid) {
         const cleanName = dto.sectionId.replace(/^sec-/, '').replace('-', ' ');
-        const [sec] = await this.dataSource.query(
+        const [sec] = await this.drizzle.query(
           `SELECT id FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
           [organizationId, `%${cleanName}%`, dto.sectionId]
         );
         if (sec?.id) resolvedSectionId = sec.id;
         else {
-          const [firstSec] = await this.dataSource.query(
+          const [firstSec] = await this.drizzle.query(
             `SELECT id FROM sections WHERE organization_id = $1 LIMIT 1`,
             [organizationId]
           );
@@ -117,7 +117,7 @@ export class TeacherAssessmentsService {
     try {
       const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.subjectId);
       if (!isUuid) {
-        const [sub] = await this.dataSource.query(
+        const [sub] = await this.drizzle.query(
           `SELECT id FROM subjects WHERE organization_id = $1 LIMIT 1`,
           [organizationId]
         );
@@ -130,7 +130,7 @@ export class TeacherAssessmentsService {
       scoresRecord[sc.studentId] = sc.score;
     }
 
-    const [inserted] = await this.dataSource.query(
+    const [inserted] = await this.drizzle.query(
       `INSERT INTO exam_evaluations (
         organization_id, section_id, subject_id, title, max_marks, weightage, student_scores
       )

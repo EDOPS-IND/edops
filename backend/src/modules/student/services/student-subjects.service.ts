@@ -1,9 +1,8 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
-import { DataSource } from 'typeorm';
-
 @Injectable()
 export class StudentSubjectsService {
-  constructor(private readonly dataSource: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getSubjects(organizationId: string, studentUserId: string) {
     const subjects = [

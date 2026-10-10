@@ -1,14 +1,14 @@
+import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { DataSource } from 'typeorm';
 import { User } from '../../auth/user.entity';
 import { ReviewLessonPlanDto, UpdateCurriculumProgressDto } from '../dto/principal.dto';
 
 @Injectable()
 export class PrincipalAcademicsService {
-  constructor(private readonly source: DataSource) {}
+  constructor(private readonly drizzle: DrizzleService) {}
 
   async getAcademicsOverview(orgId: string, _actor: User) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
 
     // Fetch classes / sections
     const sections = await manager.query(
@@ -200,7 +200,7 @@ export class PrincipalAcademicsService {
   }
 
   async updateCurriculumProgress(orgId: string, _actor: User, dto: UpdateCurriculumProgressDto) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
     await manager.query(
       `UPDATE principal_curriculum_nodes
        SET actual_completion_percentage = $1, status = $2
@@ -211,7 +211,7 @@ export class PrincipalAcademicsService {
   }
 
   async reviewLessonPlan(orgId: string, actor: User, lessonId: string, dto: ReviewLessonPlanDto) {
-    const manager = this.source.manager;
+    const manager = this.drizzle;
     await manager.query(
       `UPDATE principal_lesson_plans
        SET status = $1, principal_feedback = $2, reviewed_by = $3, reviewed_at = now()

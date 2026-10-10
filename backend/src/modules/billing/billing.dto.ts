@@ -1,7 +1,21 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsDateString, IsIn, IsInt, IsObject, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateNested } from 'class-validator';
-import { trim } from '../academics/academic.dto';
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Transform, Type } from "class-transformer";
+import {
+  IsBoolean,
+  IsDateString,
+  IsIn,
+  IsInt,
+  IsObject,
+  IsString,
+  IsUUID,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+  ValidateNested,
+} from "class-validator";
+import { trim } from "../academics/academic.dto";
 
 export class PlanFeatures {
   @ApiProperty() @IsBoolean() arena!: boolean;
@@ -9,60 +23,165 @@ export class PlanFeatures {
   @ApiProperty() @IsBoolean() communication!: boolean;
 }
 export class CreatePlanDto {
-  @ApiProperty({format:'uuid',description:'Client-generated stable ID; reuse the identical body to recover a lost response.'}) @IsUUID() id!: string;
-  @ApiProperty() @Transform(trim) @IsString() @MinLength(1) @MaxLength(100) name!: string;
-  @ApiProperty({description:'Flat monthly school price in INR paise, not per seat.',minimum:0,maximum:1000000000}) @IsInt() @Min(0) @Max(1000000000) amountMinor!: number;
+  @ApiProperty({
+    format: "uuid",
+    description:
+      "Client-generated stable ID; reuse the identical body to recover a lost response.",
+  })
+  @IsUUID()
+  id!: string;
+  @ApiProperty()
+  @Transform(trim)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  name!: string;
+  @ApiProperty({
+    description: "Flat monthly school price in INR paise, not per seat.",
+    minimum: 0,
+    maximum: 1000000000,
+  })
+  @IsInt()
+  @Min(0)
+  @Max(1000000000)
+  amountMinor!: number;
   @ApiProperty() @IsInt() @Min(1) @Max(100000) maxStudents!: number;
   @ApiProperty() @IsInt() @Min(1) @Max(10000) maxTeachers!: number;
-  @ApiProperty({type:PlanFeatures}) @IsObject() @ValidateNested() @Type(()=>PlanFeatures) features!: PlanFeatures;
+  @ApiProperty({ type: PlanFeatures })
+  @IsObject()
+  @ValidateNested()
+  @Type(() => PlanFeatures)
+  features!: PlanFeatures;
 }
-export class PlanStatusDto { @ApiProperty() @IsBoolean() active!: boolean; }
+export class PlanStatusDto {
+  @ApiProperty() @IsBoolean() active!: boolean;
+}
 export class SubscriptionDto {
-  @ApiProperty({format:'uuid'}) @IsUUID() planId!: string;
-  @ApiProperty({enum:['trialing','active','past_due','canceled']}) @IsIn(['trialing','active','past_due','canceled']) status!: string;
-  @ApiProperty({format:'date-time'}) @Matches(/T.*(?:Z|[+-]\d{2}:\d{2})$/) @IsDateString({strict:true}) periodStart!: string;
-  @ApiProperty({format:'date-time'}) @Matches(/T.*(?:Z|[+-]\d{2}:\d{2})$/) @IsDateString({strict:true}) periodEnd!: string;
+  @ApiProperty({ format: "uuid" }) @IsUUID() planId!: string;
+  @ApiProperty({ enum: ["trialing", "active", "past_due", "canceled"] })
+  @IsIn(["trialing", "active", "past_due", "canceled"])
+  status!: string;
+  @ApiProperty({ format: "date-time" })
+  @Matches(/T.*(?:Z|[+-]\d{2}:\d{2})$/)
+  @IsDateString({ strict: true })
+  periodStart!: string;
+  @ApiProperty({ format: "date-time" })
+  @Matches(/T.*(?:Z|[+-]\d{2}:\d{2})$/)
+  @IsDateString({ strict: true })
+  periodEnd!: string;
 }
 export class FeatureOverrideDto {
-  @ApiProperty({enum:['arena','recordings','communication']}) @IsIn(['arena','recordings','communication']) feature!: 'arena'|'recordings'|'communication';
-  @ApiProperty({description:'Use inherit to remove the override.',enum:['enabled','disabled','inherit']}) @IsIn(['enabled','disabled','inherit']) mode!: string;
+  @ApiProperty({ enum: ["arena", "recordings", "communication"] })
+  @IsIn(["arena", "recordings", "communication"])
+  feature!: "arena" | "recordings" | "communication";
+  @ApiProperty({
+    description: "Use inherit to remove the override.",
+    enum: ["enabled", "disabled", "inherit"],
+  })
+  @IsIn(["enabled", "disabled", "inherit"])
+  mode!: string;
 }
 export class PayInvoiceDto {
-  @ApiProperty({description:'Unique offline payment receipt/reference. Never card or bank account details.'}) @Transform(trim) @IsString() @MinLength(1) @MaxLength(100) paymentReference!: string;
+  @ApiProperty({
+    description:
+      "Unique offline payment receipt/reference. Never card or bank account details.",
+  })
+  @Transform(trim)
+  @IsString()
+  @MinLength(1)
+  @MaxLength(100)
+  paymentReference!: string;
 }
 
 export class CreateSupportTicketDto {
-  @ApiPropertyOptional({format:'uuid'}) @IsUUID() organizationId?: string;
+  @ApiPropertyOptional({ format: "uuid" }) @IsUUID() organizationId?: string;
   @ApiPropertyOptional() @IsString() schoolName?: string;
-  @ApiProperty({enum:['login','billing','technical','academic','feature_request','bug','security','other']}) @IsIn(['login','billing','technical','academic','feature_request','bug','security','other']) category!: string;
-  @ApiProperty({enum:['low','medium','high','urgent']}) @IsIn(['low','medium','high','urgent']) priority!: string;
-  @ApiProperty() @Transform(trim) @IsString() @MinLength(3) @MaxLength(255) subject!: string;
-  @ApiProperty() @Transform(trim) @IsString() @MinLength(5) description!: string;
+  @ApiProperty({
+    enum: [
+      "login",
+      "billing",
+      "technical",
+      "academic",
+      "feature_request",
+      "bug",
+      "security",
+      "other",
+    ],
+  })
+  @IsIn([
+    "login",
+    "billing",
+    "technical",
+    "academic",
+    "feature_request",
+    "bug",
+    "security",
+    "other",
+  ])
+  category!: string;
+  @ApiProperty({ enum: ["low", "medium", "high", "urgent"] })
+  @IsIn(["low", "medium", "high", "urgent"])
+  priority!: string;
+  @ApiProperty()
+  @Transform(trim)
+  @IsString()
+  @MinLength(3)
+  @MaxLength(255)
+  subject!: string;
+  @ApiProperty()
+  @Transform(trim)
+  @IsString()
+  @MinLength(5)
+  description!: string;
 }
 
 export class UpdateSupportTicketStatusDto {
-  @ApiProperty({enum:['open','assigned','in_progress','waiting','resolved','closed']}) @IsIn(['open','assigned','in_progress','waiting','resolved','closed']) status!: string;
-  @ApiPropertyOptional({format:'uuid'}) @IsUUID() assignedTo?: string;
+  @ApiProperty({
+    enum: ["open", "assigned", "in_progress", "waiting", "resolved", "closed"],
+  })
+  @IsIn(["open", "assigned", "in_progress", "waiting", "resolved", "closed"])
+  status!: string;
+  @ApiPropertyOptional({ format: "uuid" }) @IsUUID() assignedTo?: string;
 }
 
 export class StartSupportSessionDto {
-  @ApiProperty({format:'uuid'}) @IsUUID() organizationId!: string;
-  @ApiPropertyOptional({format:'uuid'}) @IsUUID() targetUserId?: string;
-  @ApiProperty() @Transform(trim) @IsString() @MinLength(5) @MaxLength(255) reason!: string;
+  @ApiProperty({ format: "uuid" }) @IsUUID() organizationId!: string;
+  @ApiPropertyOptional({ format: "uuid" }) @IsUUID() targetUserId?: string;
+  @ApiProperty()
+  @Transform(trim)
+  @IsString()
+  @MinLength(5)
+  @MaxLength(255)
+  reason!: string;
 }
 
 export class CreateAnnouncementDto {
-  @ApiProperty() @Transform(trim) @IsString() @MinLength(3) @MaxLength(200) title!: string;
+  @ApiProperty()
+  @Transform(trim)
+  @IsString()
+  @MinLength(3)
+  @MaxLength(200)
+  title!: string;
   @ApiProperty() @Transform(trim) @IsString() @MinLength(5) message!: string;
-  @ApiPropertyOptional({enum:['general','maintenance','security','feature_release','billing']}) @IsIn(['general','maintenance','security','feature_release','billing']) type: string = 'general';
-  @ApiPropertyOptional({enum:['low','normal','high','critical']}) @IsIn(['low','normal','high','critical']) priority: string = 'normal';
-  @ApiPropertyOptional({enum:['all','active','trial','enterprise','professional','selected']}) @IsIn(['all','active','trial','enterprise','professional','selected']) audience: string = 'all';
+  @ApiPropertyOptional({
+    enum: ["general", "maintenance", "security", "feature_release", "billing"],
+  })
+  @IsIn(["general", "maintenance", "security", "feature_release", "billing"])
+  type: string = "general";
+  @ApiPropertyOptional({ enum: ["low", "normal", "high", "critical"] })
+  @IsIn(["low", "normal", "high", "critical"])
+  priority: string = "normal";
+  @ApiPropertyOptional({
+    enum: ["all", "active", "trial", "enterprise", "professional", "selected"],
+  })
+  @IsIn(["all", "active", "trial", "enterprise", "professional", "selected"])
+  audience: string = "all";
   @ApiPropertyOptional() targetPlans?: string[];
   @ApiPropertyOptional() channels?: string[];
 }
 
 export class RecordPaymentDto {
-  @ApiProperty({format:'uuid'}) @IsUUID() invoiceId!: string;
+  @ApiProperty({ format: "uuid" }) @IsUUID() invoiceId!: string;
   @ApiProperty() @IsInt() @Min(1) amountMinor!: number;
   @ApiProperty() @Transform(trim) @IsString() paymentMethod!: string;
   @ApiPropertyOptional() @IsString() transactionId?: string;
@@ -82,14 +201,20 @@ export class DetailedFeatureOverrideDto {
 }
 
 export class SchoolLifecycleTransitionDto {
-  @ApiProperty({enum:['active','suspended','trial','archived']}) @IsIn(['active','suspended','trial','archived']) status!: string;
+  @ApiProperty({ enum: ["active", "suspended", "trial", "archived"] })
+  @IsIn(["active", "suspended", "trial", "archived"])
+  status!: string;
   @ApiPropertyOptional() @Transform(trim) @IsString() reason?: string;
   @ApiPropertyOptional() @IsInt() @Min(1) @Max(90) extendTrialDays?: number;
 }
 
 export class OnboardSchoolFullDto {
   @ApiProperty() @Transform(trim) @IsString() @MinLength(2) name!: string;
-  @ApiProperty() @Transform(trim) @IsString() @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/) slug!: string;
+  @ApiProperty()
+  @Transform(trim)
+  @IsString()
+  @Matches(/^[a-z0-9]+(?:-[a-z0-9]+)*$/)
+  slug!: string;
   @ApiPropertyOptional() @IsString() code?: string;
   @ApiPropertyOptional() @IsString() schoolType?: string;
   @ApiPropertyOptional() @IsString() board?: string;
@@ -114,10 +239,13 @@ export class OnboardSchoolFullDto {
   @ApiPropertyOptional() @IsString() adminPhone?: string;
   @ApiPropertyOptional() @IsString() adminDesignation?: string;
   // Plan
-  @ApiProperty({format:'uuid'}) @IsUUID() planId!: string;
+  @ApiProperty({ format: "uuid" }) @IsUUID() planId!: string;
   @ApiPropertyOptional() @IsBoolean() isTrial?: boolean;
   @ApiPropertyOptional() @IsInt() trialDays?: number;
   // Overrides
-  @ApiPropertyOptional() overrides?: { featureKey: string; enabled: boolean; reason?: string }[];
+  @ApiPropertyOptional() overrides?: {
+    featureKey: string;
+    enabled: boolean;
+    reason?: string;
+  }[];
 }
-

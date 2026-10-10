@@ -1,8 +1,9 @@
 "use client";
 
-import { FormEvent, useState } from "react";
-import { CheckCircle2 } from "lucide-react";
+import { FormEvent, useState, useEffect } from "react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { Plan } from "./types";
+import { getPlatformFeatures } from "../edops-api";
 
 export function OnboardingWizard({
   plans,
@@ -18,13 +19,33 @@ export function OnboardingWizard({
   const [onboardStep, setOnboardStep] = useState(1);
   const [onboardData, setOnboardData] = useState({
     name: "", slug: "", code: "", schoolType: "Private", board: "CBSE",
-    establishedYear: 2020, addressLine1: "", city: "", state: "", pincode: "",
+    establishedYear: new Date().getFullYear(), addressLine1: "", city: "", state: "", pincode: "",
     officialEmail: "", officialPhone: "", website: "",
     principalName: "", principalEmail: "", principalPhone: "",
     adminName: "", adminEmail: "", adminPhone: "", adminDesignation: "Principal",
     planId: plans[0]?.id || "", isTrial: true, trialDays: 30, overrides: [] as { featureKey: string; enabled: boolean; reason: string }[],
   });
   const [onboardResult, setOnboardResult] = useState<any>(null);
+  const [catalogFeatures, setCatalogFeatures] = useState<any[]>([]);
+  const [featureCategory, setFeatureCategory] = useState<string>("all");
+  const [loadingFeatures, setLoadingFeatures] = useState(false);
+
+  useEffect(() => {
+    async function loadCatalog() {
+      setLoadingFeatures(true);
+      try {
+        const res = await getPlatformFeatures();
+        if (Array.isArray(res) && res.length > 0) {
+          setCatalogFeatures(res);
+        }
+      } catch (err) {
+        console.error("Failed to load feature catalog from database:", err);
+      } finally {
+        setLoadingFeatures(false);
+      }
+    }
+    loadCatalog();
+  }, []);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -282,43 +303,84 @@ export function OnboardingWizard({
           <div style={{ display: "grid", gap: "16px" }}>
             <h3 style={{ fontSize: "15px", margin: 0, fontWeight: 700 }}>Step 4: Configure Feature Entitlements & Overrides</h3>
             <p style={{ margin: 0, fontSize: "12px", color: "#6B7280" }}>
-              Features are populated from the Centralized Feature Catalog. Toggle specific modules on or off for this tenant.
+              Features are populated directly from the PostgreSQL Feature Catalog ({catalogFeatures.length} available). Toggle specific modules on or off for this tenant.
             </p>
 
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px" }}>
-              {[
-                { key: "ai_assistant", name: "AI Assistant Copilot", category: "Advanced" },
-                { key: "online_payments", name: "Online Fee Payments", category: "Finance" },
-                { key: "sms_service", name: "DLT SMS Service", category: "Communication" },
-                { key: "whatsapp_service", name: "WhatsApp Business API", category: "Communication" },
-                { key: "transport", name: "GPS Transport Tracking", category: "Operations" },
-                { key: "custom_domain", name: "White-label Custom Domain", category: "Advanced" },
-              ].map(feat => {
-                const active = onboardData.overrides.find(o => o.featureKey === feat.key)?.enabled ?? true;
-                return (
-                  <div key={feat.key} style={{ background: "#F9FAFB", padding: "12px", borderRadius: "8px", border: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ fontSize: "12.5px", fontWeight: 700 }}>{feat.name}</div>
-                      <span style={{ fontSize: "10.5px", color: "#6B7280" }}>{feat.category}</span>
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={active}
-                      onChange={e => {
-                        const val = e.target.checked;
-                        setOnboardData({
-                          ...onboardData,
-                          overrides: [
-                            ...onboardData.overrides.filter(o => o.featureKey !== feat.key),
-                            { featureKey: feat.key, enabled: val, reason: "Configured during onboarding" }
-                          ]
-                        });
+            {/* Category Filter Tabs */}
+            {catalogFeatures.length > 0 && (
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {["all", ...Array.from(new Set(catalogFeatures.map((f: any) => f.category).filter(Boolean)))].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setFeatureCategory(cat)}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "6px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      textTransform: "capitalize",
+                      background: featureCategory === cat ? "#064E3B" : "#F3F4F6",
+                      color: featureCategory === cat ? "#F8E7C9" : "#4B5563",
+                      border: featureCategory === cat ? "1px solid #064E3B" : "1px solid #E5E7EB",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {loadingFeatures ? (
+              <div style={{ padding: "30px", textAlign: "center", color: "#6B7280", fontSize: "12px" }}>
+                <Loader2 className="animate-spin inline-block mr-2" size={16} /> Loading features from database...
+              </div>
+            ) : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: "12px", maxHeight: "380px", overflowY: "auto", paddingRight: "4px" }}>
+                {(featureCategory === "all" ? catalogFeatures : catalogFeatures.filter((f: any) => f.category === featureCategory)).map((feat: any) => {
+                  const active = onboardData.overrides.find((o) => o.featureKey === feat.key)?.enabled ?? true;
+                  return (
+                    <div
+                      key={feat.key}
+                      style={{
+                        background: "#F9FAFB",
+                        padding: "10px 12px",
+                        borderRadius: "8px",
+                        border: "1px solid #E5E7EB",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: "8px",
                       }}
-                    />
-                  </div>
-                );
-              })}
-            </div>
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "12px", fontWeight: 700, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {feat.name}
+                        </div>
+                        <span style={{ fontSize: "10px", textTransform: "capitalize", color: "#6B7280" }}>
+                          {feat.category}
+                        </span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setOnboardData({
+                            ...onboardData,
+                            overrides: [
+                              ...onboardData.overrides.filter((o) => o.featureKey !== feat.key),
+                              { featureKey: feat.key, enabled: val, reason: "Configured during onboarding" },
+                            ],
+                          });
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
               <button type="button" onClick={() => setOnboardStep(3)} style={{ padding: "8px 16px", background: "#F8E7C9", color: "#064E3B", border: "1px solid #E5CCA2", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Back</button>
@@ -335,10 +397,11 @@ export function OnboardingWizard({
             {!onboardResult ? (
               <>
                 <div style={{ background: "#FDF9F0", padding: "18px", borderRadius: "8px", border: "1px solid #E5CCA2", display: "grid", gap: "8px", fontSize: "13px" }}>
-                  <div><b>School:</b> {onboardData.name || "St. Xavier's High"} ({onboardData.board})</div>
-                  <div><b>Admin Invitee:</b> {onboardData.adminName} &lt;{onboardData.adminEmail}&gt;</div>
-                  <div><b>Plan:</b> {plans.find(p => p.id === onboardData.planId)?.name || "Professional"} ({onboardData.isTrial ? "30-Day Trial" : "Active Subscription"})</div>
-                  <div><b>Domain Slug:</b> {onboardData.slug}.edops.in</div>
+                  <div><b>School:</b> {onboardData.name || "Unnamed School"} ({onboardData.board})</div>
+                  <div><b>Admin Invitee:</b> {onboardData.adminName || "Admin"} &lt;{onboardData.adminEmail || "pending@school.edu"}&gt;</div>
+                  <div><b>Plan:</b> {plans.find((p) => p.id === onboardData.planId)?.name || plans[0]?.name || "Standard Plan"} ({onboardData.isTrial ? "30-Day Trial" : "Active Subscription"})</div>
+                  <div><b>Domain Slug:</b> {onboardData.slug ? `${onboardData.slug}.edops.in` : "Pending Slug"}</div>
+                  <div><b>Feature Overrides:</b> {onboardData.overrides.length} customized</div>
                 </div>
 
                 <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>

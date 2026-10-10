@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   ClassSectionRecord,
   CurriculumChapter,
 } from "./types";
+import { getSchoolAdminAcademics } from "../edops-api";
 import {
   Calendar,
   BookOpen,
@@ -19,21 +20,42 @@ import {
 } from "lucide-react";
 
 export function AcademicsPane({
+  organizationId,
   onOpenQuickAction,
 }: {
+  organizationId?: string;
   onOpenQuickAction: (action: string) => void;
 }) {
   const [subtab, setSubtab] = useState<"structure" | "sections" | "subjects" | "curriculum" | "calendar">("structure");
 
-  // Mock Section records with capacity overflow (§25)
-  const [sections, setSections] = useState<ClassSectionRecord[]>([
-    { id: "sec-1", grade: "Grade 10", section: "10-A", room: "Room 201", capacity: 45, studentCount: 42, classTeacher: "Rahul Sharma", shift: "Morning" },
-    { id: "sec-2", grade: "Grade 10", section: "10-B", room: "Room 202", capacity: 45, studentCount: 44, classTeacher: "Sunita Rao", shift: "Morning" },
-    { id: "sec-3", grade: "Grade 10", section: "10-C", room: "Room 203", capacity: 45, studentCount: 47, classTeacher: "Pooja Malhotra", shift: "Morning" }, // Capacity Overflow!
-    { id: "sec-4", grade: "Grade 9", section: "9-A", room: "Room 105", capacity: 40, studentCount: 38, classTeacher: "Vikram Mehta", shift: "Morning" },
-    { id: "sec-5", grade: "Grade 9", section: "9-B", room: "Room 106", capacity: 40, studentCount: 39, classTeacher: "Ananya Sen", shift: "Morning" },
-    { id: "sec-6", grade: "Grade 11", section: "11-A (Science)", room: "Lab Block 1", capacity: 35, studentCount: 32, classTeacher: "Dr. K. Saxena", shift: "Morning" },
-  ]);
+  const [academicData, setAcademicData] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [sections, setSections] = useState<ClassSectionRecord[]>([]);
+
+  useEffect(() => {
+    if (!organizationId) return;
+    setLoading(true);
+    getSchoolAdminAcademics(organizationId)
+      .then((data) => {
+        setAcademicData(data);
+        if (data?.sections && Array.isArray(data.sections) && data.sections.length > 0) {
+          setSections(
+            data.sections.map((s: any) => ({
+              id: s.id,
+              grade: s.programName || "Standard",
+              section: s.name,
+              room: `Room ${s.name}`,
+              capacity: s.capacity || 40,
+              studentCount: Number(s.enrolledCount || 0),
+              classTeacher: "Faculty Assigned",
+              shift: "Morning",
+            }))
+          );
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [organizationId]);
 
   // Curriculum Progress (§29, §30)
   const [curriculum, setCurriculum] = useState<CurriculumChapter[]>([
@@ -51,8 +73,8 @@ export function AcademicsPane({
         <div style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "structure", label: "Academic Year & Structure" },
-            { id: "sections", label: "Classes & Sections (36)" },
-            { id: "subjects", label: "Subjects & Weightage (24)" },
+            { id: "sections", label: `Classes & Sections (${sections.length})` },
+            { id: "subjects", label: `Subjects & Weightage (${academicData?.subjects?.length || 24})` },
             { id: "curriculum", label: "Curriculum Progress (CBSE)" },
             { id: "calendar", label: "Academic Calendar" },
           ].map((tab) => (
@@ -169,7 +191,14 @@ export function AcademicsPane({
                 </tr>
               </thead>
               <tbody>
-                {sections.map((sec) => {
+                {sections.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "32px 10px", textAlign: "center", color: "var(--muted)" }}>
+                      {loading ? "Loading class sections..." : "No class sections configured."}
+                    </td>
+                  </tr>
+                ) : (
+                  sections.map((sec) => {
                   const isOverflow = sec.studentCount > sec.capacity;
                   const isNearFull = sec.studentCount >= sec.capacity - 2 && !isOverflow;
                   return (
@@ -215,7 +244,7 @@ export function AcademicsPane({
                       </td>
                     </tr>
                   );
-                })}
+                }))}
               </tbody>
             </table>
           </div>
@@ -307,12 +336,23 @@ export function AcademicsPane({
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Course Catalog & Evaluation Scheme (§26)</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Core, Electives, Max Marks, Passing Criteria and Theory/Practical split</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "12px" }}>
-            {[
-              { code: "MATH-041", name: "Mathematics", type: "Core", max: 100, pass: 33, theory: 80, practical: 20 },
-              { code: "SCI-086", name: "General Science", type: "Core", max: 100, pass: 33, theory: 80, practical: 20 },
-              { code: "ENG-184", name: "English Language & Lit", type: "Core", max: 100, pass: 33, theory: 80, practical: 20 },
-              { code: "CS-165", name: "Computer Applications", type: "Elective", max: 100, pass: 33, theory: 50, practical: 50 },
-            ].map((sub, i) => (
+            {(academicData?.subjects && academicData.subjects.length > 0
+              ? academicData.subjects.map((sub: any) => ({
+                  code: sub.code || "SUB-01",
+                  name: sub.name,
+                  type: "Core",
+                  max: 100,
+                  pass: 33,
+                  theory: 80,
+                  practical: 20,
+                }))
+              : [
+                  { code: "MATH-041", name: "Mathematics", type: "Core", max: 100, pass: 33, theory: 80, practical: 20 },
+                  { code: "SCI-086", name: "General Science", type: "Core", max: 100, pass: 33, theory: 80, practical: 20 },
+                  { code: "ENG-184", name: "English Language & Lit", type: "Core", max: 100, pass: 33, theory: 80, practical: 20 },
+                  { code: "CS-165", name: "Computer Applications", type: "Elective", max: 100, pass: 33, theory: 50, practical: 50 },
+                ]
+            ).map((sub, i) => (
               <div key={i} style={{ padding: "14px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E2DDD5" }}>
                 <b style={{ color: "#064E3B", fontSize: "14px" }}>{sub.name}</b>
                 <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>{sub.code} · {sub.type}</div>

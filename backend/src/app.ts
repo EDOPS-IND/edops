@@ -6,7 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import express, { NextFunction, Request, Response } from 'express';
 import session from 'express-session';
 import helmet from 'helmet';
-import { DataSource } from 'typeorm';
+import { DrizzleService } from './database/drizzle.service';
 import { AppModule } from './app.module';
 import { AppConfig } from './config';
 import { csrf } from './common/csrf';
@@ -19,7 +19,7 @@ export async function createApp(config: AppConfig) {
   });
   if (config.environment === 'production') {
     try {
-      const [role] = await app.get(DataSource).query('SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user');
+      const [role] = await app.get(DrizzleService).query('SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user');
       if (!role || role.rolsuper || role.rolbypassrls) throw new Error('Production API requires a non-superuser, non-BYPASSRLS database role');
     } catch (error) {
       await app.close();
@@ -30,8 +30,21 @@ export async function createApp(config: AppConfig) {
   app.use(helmet());
   app.enableCors({
     origin: config.corsOrigins, credentials: true,
-    methods: ['GET', 'POST', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Idempotency-Key'],
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'authorization', 'X-CSRF-Token', 'x-csrf-token', 'Idempotency-Key', 'idempotency-key', 'Accept', 'X-Requested-With'],
+  });
+  app.use((request: Request, response: Response, next: NextFunction) => {
+    const origin = request.get('origin');
+    if (origin && config.corsOrigins.includes(origin)) {
+      response.setHeader('Access-Control-Allow-Origin', origin);
+      response.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+    response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, authorization, X-CSRF-Token, x-csrf-token, Idempotency-Key, Accept, X-Requested-With');
+    if (request.method === 'OPTIONS') {
+      return response.sendStatus(204);
+    }
+    next();
   });
   app.use(express.json({ limit: '16kb' }));
   app.use((_request: Request, response: Response, next: NextFunction) => {

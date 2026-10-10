@@ -1,10 +1,13 @@
 import { ConflictException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { EntityManager } from 'typeorm';
+
+export interface Queryable {
+  query: (sql: string, params?: any[]) => Promise<any>;
+}
 
 export type Feature = 'arena' | 'recordings' | 'communication' | string;
 export const featureKeys: Feature[] = ['arena','recordings','communication'];
 
-export async function entitlements(m: EntityManager, org: string) {
+export async function entitlements(m: Queryable, org: string) {
   const [row] = await m.query(`SELECT coalesce(s.status,'trialing') AS status,
     coalesce(s.period_start,o.created_at) AS period_start,coalesce(s.period_end,o.created_at+interval '30 days') AS period_end,
     coalesce(p.max_students,500) AS max_students,coalesce(p.max_teachers,50) AS max_teachers,
@@ -39,11 +42,11 @@ export async function entitlements(m: EntityManager, org: string) {
   return { status: row.status, periodStart: row.period_start, periodEnd: row.period_end, implicitTrial: row.implicit_trial,
     entitled: row.entitled as boolean, maxStudents: row.max_students as number, maxTeachers: row.max_teachers as number, features, overrides };
 }
-export async function requireFeature(m: EntityManager, org: string, feature: Feature) {
+export async function requireFeature(m: Queryable, org: string, feature: Feature) {
   const e = await entitlements(m,org);
   if (!e.features[feature]) throw new ForbiddenException(`Feature '${feature}' is not enabled for this school subscription`);
 }
-export async function seatUsage(m: EntityManager, org: string) {
+export async function seatUsage(m: Queryable, org: string) {
   const [row] = await m.query(`SELECT
     (SELECT count(*)::int FROM memberships WHERE organization_id=$1 AND role='student' AND status='active') AS students,
     (SELECT count(*)::int FROM memberships WHERE organization_id=$1 AND role='teacher' AND status='active') AS teachers,
@@ -51,7 +54,7 @@ export async function seatUsage(m: EntityManager, org: string) {
     (SELECT count(*)::int FROM invitations WHERE organization_id=$1 AND role='teacher' AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at>now()) AS pending_teachers`,[org]);
   return { students:row.students as number, teachers:row.teachers as number, pendingStudents:row.pending_students as number, pendingTeachers:row.pending_teachers as number };
 }
-export async function requireSeats(m: EntityManager, org: string, students: number, teachers: number) {
+export async function requireSeats(m: Queryable, org: string, students: number, teachers: number) {
   const e = await entitlements(m,org), usage = await seatUsage(m,org);
   if (!e.entitled) throw new ForbiddenException('An active subscription or trial is required to add school members');
   if ((students>0 && usage.students+usage.pendingStudents+students>e.maxStudents) ||

@@ -1,14 +1,14 @@
 import { Injectable } from '@nestjs/common';
-import { EntityManager } from 'typeorm';
 import { User } from '../auth/user.entity';
 import { TeachingAccess } from '../assignments/teaching-access.service';
 import { ClassQuery } from '../assignments/teaching.dto';
+import { Queryable } from '../billing/entitlements';
 
 @Injectable()
 export class ScorecardsService {
   constructor(private readonly access: TeachingAccess) {}
 
-  async refresh(manager: EntityManager, org: string, sectionId: string, subjectId: string | null, studentId?: string) {
+  async refresh(manager: Queryable, org: string, sectionId: string, subjectId: string | null, studentId?: string) {
     // ponytail: refresh one class/subject on writes; scope to one student when possible to avoid deadlocks.
     // Aggregate independently before joining, so attendance never multiplies assignment counts.
     const params = [org, sectionId, subjectId, studentId ?? null];
