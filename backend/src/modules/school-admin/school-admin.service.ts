@@ -239,6 +239,10 @@ export class SchoolAdminService {
           feeDefaulters,
         },
         health: healthMetrics,
+        attendancePresent: presentAtt,
+        attendanceTotal: totalAtt,
+        syllabusDone: publishedAssignments,
+        syllabusTotal: totalAssignments,
         attentionItems,
         dailyTimeline,
         recentActivity: recentActivity.map((r: any) => ({
