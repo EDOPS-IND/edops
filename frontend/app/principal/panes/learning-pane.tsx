@@ -36,7 +36,7 @@ export function LearningPane({
 
         <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
           <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Syllabus Completion Rate</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#15803D", margin: "4px 0" }}>{exec?.syllabusCompletion ?? 0}%</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#15803D", margin: "4px 0" }}>{exec?.syllabusCompletion == null ? "—" : `${exec.syllabusCompletion}%`}</div>
           <div style={{ fontSize: "11px", color: "#166534" }}>Target: &gt;85.0%</div>
         </div>
 

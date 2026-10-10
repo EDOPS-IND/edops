@@ -31,6 +31,7 @@ export function DashboardPane({
   recentActivity = [],
   onOpenHealthModal,
   onNavigateTab,
+  onNavigate,
   onTriggerAction,
   organizationId,
 }: {
@@ -50,35 +51,40 @@ export function DashboardPane({
   onOpenStudent360?: (id: string) => void;
 }) {
   const [liveData, setLiveData] = React.useState<any>(null);
+  const [loadError, setLoadError] = React.useState(false);
 
   React.useEffect(() => {
     if (!organizationId) return;
+    let cancelled = false;
     import("../../edops-api").then(({ getPrincipalDashboard }) => {
       getPrincipalDashboard(organizationId)
-        .then((data) => setLiveData(data))
-        .catch(() => null);
+        .then((data) => { if (!cancelled) setLiveData(data); })
+        .catch(() => { if (!cancelled) setLoadError(true); });
     });
+    return () => { cancelled = true; };
   }, [organizationId]);
 
   const kpis = liveData?.schoolKpis || schoolKpis || {
-    totalStudents: 0,
-    totalTeachers: 0,
-    totalClasses: 0,
-    totalSections: 0,
-    totalSubjects: 0,
-    activeAcademicYear: "2026-27",
+    totalStudents: null,
+    totalTeachers: null,
+    totalClasses: null,
+    totalSections: null,
+    totalSubjects: null,
+    activeAcademicYear: null,
   };
 
-  const healthScore = liveData?.academicHealth?.score || academicHealth?.score || 0;
+  const healthScore = liveData?.academicHealth?.score ?? academicHealth?.score ?? null;
   const healthBreakdown = liveData?.academicHealth?.breakdown || academicHealth?.breakdown;
   const operations = liveData?.todayOperations || todayOperations;
   const performance = liveData?.academicPerformance || academicPerformance;
   const execution = liveData?.teachingExecution || teachingExecution;
   const exams = liveData?.examinationStatus || examinationStatus;
-  const activities = (liveData?.recentActivity && liveData.recentActivity.length > 0) ? liveData.recentActivity : recentActivity;
+  const activities = liveData?.recentActivity ?? recentActivity;
+  const metric = (value: number | null | undefined, suffix = "") => value == null ? "—" : `${value}${suffix}`;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      {loadError && <div role="alert">Dashboard data could not be loaded. Please try again.</div>}
       {/* 1. School Academic Header KPI Strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: "12px" }}>
         {[
@@ -108,7 +114,7 @@ export function DashboardPane({
             </div>
             <div>
               <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{item.label}</div>
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>{item.value}</div>
+              <div style={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>{item.value ?? "—"}</div>
             </div>
           </div>
         ))}
@@ -152,26 +158,26 @@ export function DashboardPane({
                 </div>
               </div>
               <span style={{ background: "#DCFCE7", color: "#166534", fontSize: "11px", fontWeight: 700, padding: "4px 8px", borderRadius: "6px" }}>
-                Live Index
+                {healthScore === null ? "Awaiting data" : "Calculated Index"}
               </span>
             </div>
 
             <div style={{ display: "flex", alignItems: "baseline", gap: "10px", margin: "16px 0 12px" }}>
-              <div style={{ fontSize: "44px", fontWeight: 900, color: "#15803D" }}>{healthScore}</div>
+              <div style={{ fontSize: "44px", fontWeight: 900, color: "#15803D" }}>{metric(healthScore)}</div>
               <div style={{ fontSize: "20px", fontWeight: 600, color: "#166534" }}>/ 100</div>
               <span style={{ marginLeft: "auto", fontSize: "12px", color: "#15803D", fontWeight: 700, background: "#F0FDF4", padding: "4px 10px", borderRadius: "100px", border: "1px solid #BBF7D0" }}>
-                {healthScore >= 80 ? "Optimal Academic Health" : "Intervention Indicated"}
+                {healthScore === null ? "Insufficient data" : healthScore >= 80 ? "Optimal Academic Health" : "Intervention Indicated"}
               </span>
             </div>
 
             {/* Metric progress bars */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px", color: "#475569" }}>
-              <div>• Curriculum Execution: <b>{healthBreakdown?.curriculumExecution ?? 0}%</b></div>
-              <div>• Assessment Completion: <b>{healthBreakdown?.assessmentCompletion ?? 0}%</b></div>
-              <div>• Student Learning Index: <b>{healthBreakdown?.studentPerformance ?? 0}%</b></div>
-              <div>• Teacher Activity: <b>{healthBreakdown?.teacherAcademicActivity ?? 0}%</b></div>
-              <div>• Campus Attendance: <b>{healthBreakdown?.attendanceRate ?? 0}%</b></div>
-              <div>• Intervention On-Track: <b>{healthBreakdown?.interventionCompletion ?? 0}%</b></div>
+              <div>• Curriculum Execution: <b>{metric(healthBreakdown?.curriculumExecution, "%")}</b></div>
+              <div>• Papers Published: <b>{metric(healthBreakdown?.assessmentCompletion, "%")}</b></div>
+              <div>• Published Exam Average: <b>{metric(healthBreakdown?.studentPerformance, "%")}</b></div>
+              <div>• Lesson Plan Completion: <b>{metric(healthBreakdown?.teacherAcademicActivity, "%")}</b></div>
+              <div>• Campus Attendance: <b>{metric(healthBreakdown?.attendanceRate, "%")}</b></div>
+              <div>• Interventions Completed: <b>{metric(healthBreakdown?.interventionCompletion, "%")}</b></div>
             </div>
           </div>
 
@@ -189,22 +195,20 @@ export function DashboardPane({
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748B" }}>Real-time instructional delivery & campus coverage snapshot</p>
             </div>
             <span style={{ background: "#F1F5F9", color: "#475569", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 600 }}>
-              Live Roster
+              Current Timetable
             </span>
           </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
             {[
-              { label: "Classes Active", value: operations?.classesRunning ?? 0, sub: "All sections running", color: "#1E293B" },
-              { label: "Faculty Teaching", value: operations?.teachersTeaching ?? 0, sub: "Faculty on active roster", color: "#065F46" },
-              { label: "Exams / Tests Today", value: operations?.examsToday ?? 0, sub: "Scheduled today", color: "#B45309" },
-              { label: "Scheduled Assessments", value: operations?.assessmentsScheduled ?? 0, sub: "Formative & summative", color: "#2563EB" },
-              { label: "Pending Reviews", value: operations?.pendingReviews ?? 0, sub: "Awaiting review", color: "#7C3AED" },
-              { label: "Open Alerts", value: operations?.openAlerts ?? 0, sub: "Action items", color: "#0F766E" },
+              { label: "Classes Active", value: operations?.classesRunning, sub: "Current period", color: "#1E293B" },
+              { label: "Faculty Teaching", value: operations?.teachersTeaching, sub: "Current period", color: "#065F46" },
+              { label: "Pending Reviews", value: operations?.pendingReviews, sub: "Awaiting review", color: "#7C3AED" },
+              { label: "Open Alerts", value: operations?.openAlerts, sub: "Action items", color: "#0F766E" },
             ].map((stat, idx) => (
               <div key={idx} style={{ background: "#F8FAFC", border: "1px solid #F1F5F9", borderRadius: "8px", padding: "10px 12px" }}>
                 <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 600 }}>{stat.label}</div>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: stat.color, margin: "2px 0" }}>{stat.value}</div>
+                <div style={{ fontSize: "20px", fontWeight: 800, color: stat.color, margin: "2px 0" }}>{stat.value ?? "—"}</div>
                 <div style={{ fontSize: "10px", color: "#94A3B8" }}>{stat.sub}</div>
               </div>
             ))}
@@ -212,7 +216,7 @@ export function DashboardPane({
 
           <div style={{ marginTop: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ fontSize: "12px", color: "#B45309", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
-              <AlertTriangle size={14} /> Active instructional operations verified
+              <AlertTriangle size={14} /> Based on the current timetable
             </span>
             <button
               type="button"
@@ -236,23 +240,19 @@ export function DashboardPane({
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "#64748B" }}>Overall Average:</span>
-              <span style={{ fontWeight: 700, color: "#1E293B" }}>{performance?.overallSchoolAverage ?? 0}%</span>
+              <span style={{ fontWeight: 700, color: "#1E293B" }}>{metric(performance?.overallSchoolAverage, "%")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Pass Percentage:</span>
-              <span style={{ fontWeight: 700, color: "#15803D" }}>{performance?.passPercentage ?? 0}%</span>
+              <span style={{ color: "#64748B" }}>Average Graded Submission:</span>
+              <span style={{ fontWeight: 700, color: "#1E293B" }}>{metric(performance?.averageAssessmentScore, "%")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Average Assessment Score:</span>
-              <span style={{ fontWeight: 700, color: "#1E293B" }}>{performance?.averageAssessmentScore ?? 0}%</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Learning Outcome Achievement:</span>
-              <span style={{ fontWeight: 700, color: "#065F46" }}>{performance?.learningOutcomeAchievement ?? 0}%</span>
+              <span style={{ color: "#64748B" }}>Learning Outcome Progress:</span>
+              <span style={{ fontWeight: 700, color: "#065F46" }}>{metric(performance?.learningOutcomeAchievement, "%")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "#64748B" }}>Curriculum Completion:</span>
-              <span style={{ fontWeight: 700, color: "#1E293B" }}>{performance?.curriculumCompletion ?? 0}%</span>
+              <span style={{ fontWeight: 700, color: "#1E293B" }}>{metric(performance?.curriculumCompletion, "%")}</span>
             </div>
           </div>
         </div>
@@ -266,23 +266,23 @@ export function DashboardPane({
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "#64748B" }}>Lesson Plans Completed:</span>
-              <span style={{ fontWeight: 700, color: "#15803D" }}>{execution?.lessonPlansCompleted ?? 0}</span>
+              <span style={{ fontWeight: 700, color: "#15803D" }}>{metric(execution?.lessonPlansCompleted)}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Lessons Delivered on Time:</span>
-              <span style={{ fontWeight: 700, color: "#1E293B" }}>{execution?.lessonsDelivered ?? 0}</span>
+              <span style={{ color: "#64748B" }}>Lessons Delivered:</span>
+              <span style={{ fontWeight: 700, color: "#1E293B" }}>{metric(execution?.lessonsDelivered)}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "#64748B" }}>Syllabus Completion:</span>
-              <span style={{ fontWeight: 700, color: "#065F46" }}>{execution?.syllabusCompletion ?? 0}%</span>
+              <span style={{ fontWeight: 700, color: "#065F46" }}>{metric(execution?.syllabusCompletion, "%")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "#64748B" }}>Pending Lesson Plans:</span>
-              <span style={{ fontWeight: 700, color: "#B45309" }}>{execution?.pendingLessonPlans ?? 0} awaiting review</span>
+              <span style={{ fontWeight: 700, color: "#B45309" }}>{metric(execution?.pendingLessonPlans, " awaiting review")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "#64748B" }}>Pending Evaluations:</span>
-              <span style={{ fontWeight: 700, color: (execution?.pendingEvaluations ?? 0) > 0 ? "#DC2626" : "#15803D" }}>{execution?.pendingEvaluations ?? 0} items</span>
+              <span style={{ fontWeight: 700, color: (execution?.pendingEvaluations ?? 0) > 0 ? "#DC2626" : "#15803D" }}>{metric(execution?.pendingEvaluations, " items")}</span>
             </div>
           </div>
         </div>
@@ -295,24 +295,20 @@ export function DashboardPane({
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Upcoming Major Exams:</span>
-              <span style={{ fontWeight: 700, color: "#1E293B" }}>{exams?.upcomingExams ?? 0} scheduled</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Results Verification Status:</span>
-              <span style={{ fontWeight: 700, color: "#065F46" }}>{exams?.resultsPublished ?? 0} Published</span>
+              <span style={{ color: "#64748B" }}>Published Results:</span>
+              <span style={{ fontWeight: 700, color: "#065F46" }}>{metric(exams?.resultsPublished, " published")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "#64748B" }}>Results Published & Locked:</span>
-              <span style={{ fontWeight: 700, color: "#15803D" }}>{exams?.resultsPublished ?? 0} locked</span>
+              <span style={{ fontWeight: 700, color: "#15803D" }}>{metric(exams?.resultsLocked, " locked")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: "#64748B" }}>Pending Principal Approval:</span>
-              <span style={{ fontWeight: 700, color: "#B45309" }}>{exams?.resultsPending ?? 0} records</span>
+              <span style={{ fontWeight: 700, color: "#B45309" }}>{metric(exams?.resultsPending, " records")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Papers Evaluated:</span>
-              <span style={{ fontWeight: 700, color: "#1E293B" }}>{exams?.papersEvaluated ?? 0} evaluated</span>
+              <span style={{ color: "#64748B" }}>Exam Evaluations:</span>
+              <span style={{ fontWeight: 700, color: "#1E293B" }}>{metric(exams?.papersEvaluated, " evaluations")}</span>
             </div>
           </div>
         </div>
@@ -338,22 +334,15 @@ export function DashboardPane({
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {[
-              {
-                title: "Active Academic Operations Verified",
-                desc: `${kpis.totalClasses} grade sections and ${kpis.totalTeachers} teaching faculty currently configured.`,
-                action: "View Faculty",
-                actionType: "people",
-              },
-              {
-                title: "Curriculum Tracking Status",
-                desc: `${performance?.curriculumCompletion ?? 0}% overall syllabus completion logged in system.`,
-                action: "Curriculum View",
-                actionType: "academics",
-              },
-            ].map((alert, idx) => (
+            {operations?.openAlerts === 0 && <div style={{ fontSize: "12px", color: "#64748B" }}>No open academic alerts.</div>}
+            {(operations?.openAlerts ?? 0) > 0 && [{
+              title: "Open Academic Alerts",
+              desc: `${operations.openAlerts} alerts require review.`,
+              action: "View Alerts",
+              actionType: "alerts",
+            }].map((alert) => (
               <div
-                key={idx}
+                key={alert.actionType}
                 style={{
                   border: "1px solid #FEF3C7",
                   background: "#FFFBEB",
@@ -399,7 +388,7 @@ export function DashboardPane({
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {activities.length === 0 ? (
-              <div style={{ fontSize: "12px", color: "#94A3B8", textAlign: "center", padding: "16px 0" }}>No recent audit events logged.</div>
+              <div style={{ fontSize: "12px", color: "#94A3B8", textAlign: "center", padding: "16px 0" }}>{liveData || loadError ? "No recent audit events logged." : "Loading recent activity…"}</div>
             ) : (
               activities.map((act: any) => (
                 <div key={act.id} style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "12px" }}>

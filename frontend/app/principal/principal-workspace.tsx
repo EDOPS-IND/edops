@@ -94,14 +94,14 @@ export function PrincipalWorkspace({
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [healthScore, setHealthScore] = useState<number | null>(null);
+  const [academicYear, setAcademicYear] = useState<string | null>(null);
 
   useEffect(() => {
     import("../edops-api").then(({ getPrincipalDashboard }) => {
       getPrincipalDashboard(organization.id)
         .then((data) => {
-          if (data?.academicHealth?.score !== undefined) {
-            setHealthScore(data.academicHealth.score);
-          }
+          setHealthScore(data?.academicHealth?.score ?? null);
+          setAcademicYear(data?.schoolKpis?.activeAcademicYear ?? null);
         })
         .catch(() => {});
     });
@@ -331,7 +331,7 @@ export function PrincipalWorkspace({
               </div>
               <div className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                CBSE Affiliated • 2026-27
+                {academicYear ? `Academic session: ${academicYear}` : "No active academic session"}
               </div>
             </div>
           </div>
@@ -499,6 +499,7 @@ export function PrincipalWorkspace({
           ) : <>
           {activePane === "dashboard" && (
             <DashboardPane
+              key={organization.id}
               organizationId={organization.id}
               onNavigate={navigateTo}
               onOpenHealthModal={() => setHealthModalOpen(true)}

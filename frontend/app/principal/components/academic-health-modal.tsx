@@ -21,14 +21,14 @@ export function AcademicHealthModal({
   onNavigateAction?: (target: string) => void;
   onNavigate?: (pane: string, subTab?: string) => void;
 }) {
-  const [data, setData] = React.useState<{ overallScore: number; components: AcademicHealthComponent[] } | null>(null);
+  const [data, setData] = React.useState<{ overallScore: number | null; status: string; components: AcademicHealthComponent[] } | null>(null);
 
   React.useEffect(() => {
     if (!isOpen || !organizationId) return;
     import("../../edops-api").then(({ getPrincipalAcademicHealth }) => {
       getPrincipalAcademicHealth(organizationId)
         .then((res) => {
-          if (res) setData({ overallScore: res.overallScore ?? 0, components: res.components || [] });
+          if (res) setData({ overallScore: res.overallScore ?? null, status: res.status, components: res.components || [] });
         })
         .catch(() => {});
     });
@@ -36,7 +36,7 @@ export function AcademicHealthModal({
 
   if (!isOpen) return null;
 
-  const score = data ? data.overallScore : (propScore ?? 0);
+  const score = data ? data.overallScore : (propScore ?? null);
   const components = data ? data.components : (propComponents ?? []);
 
   const handleDrillDown = (name: string) => {
@@ -91,10 +91,10 @@ export function AcademicHealthModal({
             <div>
               <div style={{ fontSize: "12px", color: "#166534", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.5px" }}>Current Academic Health Rating</div>
               <div style={{ fontSize: "36px", fontWeight: 800, color: "#15803D", margin: "4px 0" }}>
-                {score} <span style={{ fontSize: "18px", fontWeight: 500, color: "#166534" }}>/ 100</span>
+                {score ?? "—"} <span style={{ fontSize: "18px", fontWeight: 500, color: "#166534" }}>/ 100</span>
               </div>
               <div style={{ fontSize: "13px", color: "#166534" }}>
-                Status: <b>Strong Academic Health</b> · Above CBSE Quality Standard (Benchmark: 80)
+                Status: <b>{data?.status ?? (score === null ? "Insufficient data" : score >= 80 ? "Strong Academic Health" : "Intervention Needed")}</b>
               </div>
             </div>
             <div style={{ textAlign: "right" }}>
@@ -118,12 +118,12 @@ export function AcademicHealthModal({
                     border: "1px solid #E2E8F0",
                     borderRadius: "10px",
                     padding: "14px 16px",
-                    background: comp.score < 85 ? "#FFFBEB" : "#FFFFFF",
+                    background: comp.score !== null && comp.score < 80 ? "#FFFBEB" : "#FFFFFF",
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      {comp.score < 85 ? (
+                      {comp.score !== null && comp.score < 80 ? (
                         <AlertTriangle size={18} color="#D97706" />
                       ) : (
                         <CheckCircle2 size={18} color="#16A34A" />
@@ -133,8 +133,8 @@ export function AcademicHealthModal({
                         Weight: {comp.weight}
                       </span>
                     </div>
-                    <div style={{ fontSize: "16px", fontWeight: 800, color: comp.score < 85 ? "#B45309" : "#15803D" }}>
-                      {comp.score}%
+                    <div style={{ fontSize: "16px", fontWeight: 800, color: comp.score !== null && comp.score < 80 ? "#B45309" : "#15803D" }}>
+                      {comp.score === null ? "—" : `${comp.score}%`}
                     </div>
                   </div>
 

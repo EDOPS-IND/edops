@@ -34,25 +34,25 @@ export function AttendancePane({
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
         <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
           <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Campus Student Attendance</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#15803D", margin: "4px 0" }}>{att?.overallStudentAttendance ?? 0}%</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#15803D", margin: "4px 0" }}>{att?.overallStudentAttendance == null ? "—" : `${att.overallStudentAttendance}%`}</div>
           <div style={{ fontSize: "11px", color: "#166534" }}>Calculated from active sessions</div>
         </div>
 
         <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
           <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Faculty Attendance Today</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#1E293B", margin: "4px 0" }}>{att?.teacherAttendance ?? 0}%</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#1E293B", margin: "4px 0" }}>{att?.teacherAttendance == null ? "—" : `${att.teacherAttendance}%`}</div>
           <div style={{ fontSize: "11px", color: "#64748B" }}>Active faculty roster rate</div>
         </div>
 
         <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "16px" }}>
           <div style={{ fontSize: "12px", color: "#991B1B", fontWeight: 600 }}>Below 75% CBSE Threshold</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#DC2626", margin: "4px 0" }}>{att?.studentsBelowThreshold ?? 0} Students</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#DC2626", margin: "4px 0" }}>{att?.studentsBelowThreshold == null ? "—" : `${att.studentsBelowThreshold} Students`}</div>
           <div style={{ fontSize: "11px", color: "#991B1B" }}>Risk of board admit card hold</div>
         </div>
 
         <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: "10px", padding: "16px" }}>
           <div style={{ fontSize: "12px", color: "#92400E", fontWeight: 600 }}>Pending Class Registers</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#D97706", margin: "4px 0" }}>{att?.classesMissingAttendance ?? 0} Sections</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#D97706", margin: "4px 0" }}>{att?.classesMissingAttendance == null ? "—" : `${att.classesMissingAttendance} Sections`}</div>
           <div style={{ fontSize: "11px", color: "#92400E" }}>Awaiting roll call submission</div>
         </div>
       </div>

@@ -1,5 +1,5 @@
 import { DrizzleService } from '../../../database/drizzle.service';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { User } from '../../auth/user.entity';
 
 @Injectable()
@@ -32,96 +32,160 @@ export class PrincipalDashboardService {
     const totalClasses = Number(academicStats?.totalClasses || 0);
     const totalSections = Number(academicStats?.totalSections || 0);
     const totalSubjects = Number(academicStats?.totalSubjects || 0);
-    const activeYear = academicStats?.activeYear || '2026-27';
+    const activeYear = academicStats?.activeYear ?? null;
 
     // Alerts count
     const [alertsCount] = await manager.query(
       `SELECT COUNT(*)::int as "openAlerts" FROM principal_academic_alerts WHERE organization_id = $1 AND status != 'resolved'`,
       [orgId],
-    ).catch(() => [{ openAlerts: 0 }]);
+    );
 
     // Attendance stats from live attendance tables
     const [attStats] = await manager.query(
       `SELECT
         COUNT(*)::int as total_records,
-        COUNT(*) FILTER (WHERE status IN ('present', 'late'))::int as present_records,
-        COUNT(DISTINCT student_id) FILTER (WHERE status = 'absent')::int as absent_students
+        COUNT(*) FILTER (WHERE ar.status IN ('present', 'late'))::int as present_records
        FROM attendance_records ar
        JOIN attendance_sessions as_sess ON ar.attendance_session_id = as_sess.id
-       WHERE as_sess.organization_id = $1`,
+       WHERE as_sess.organization_id = $1
+         AND as_sess.date = (NOW() AT TIME ZONE
+           (SELECT time_zone FROM organizations WHERE id = $1))::date`,
       [orgId],
-    ).catch(() => [{ total_records: 0, present_records: 0, absent_students: 0 }]);
+    );
 
     const totalAtt = Number(attStats?.total_records ?? 0);
     const presentAtt = Number(attStats?.present_records ?? 0);
-    const studentAttendanceRate = totalAtt > 0 ? Number(((presentAtt / totalAtt) * 100).toFixed(1)) : 100.0;
-    const studentsBelowThreshold = Number(attStats?.absent_students ?? 0);
+    const studentAttendanceRate = totalAtt > 0 ? Number(((presentAtt / totalAtt) * 100).toFixed(1)) : null;
+    const [riskStats] = await manager.query(
+      `SELECT COUNT(*)::int as students FROM (
+         SELECT ar.student_id FROM attendance_records ar
+         JOIN attendance_sessions sess ON sess.id = ar.attendance_session_id
+         WHERE sess.organization_id = $1
+         GROUP BY ar.student_id
+         HAVING COUNT(*) FILTER (WHERE ar.status IN ('present', 'late')) * 100.0 / COUNT(*) < 75
+       ) at_risk`, [orgId],
+    );
+    const studentsBelowThreshold = Number(riskStats?.students ?? 0);
 
-    // Live assignment & curriculum stats
-    const [assignmentsStats] = await manager.query(
-      `SELECT
-        COUNT(*)::int as total,
-        COUNT(*) FILTER (WHERE status = 'published')::int as published
-       FROM assignments WHERE organization_id = $1`,
-      [orgId],
-    ).catch(() => [{ total: 0, published: 0 }]);
-
-    const totalAssign = Number(assignmentsStats?.total ?? 0);
-    const pubAssign = Number(assignmentsStats?.published ?? 0);
-    const curriculumCompletion = totalAssign > 0 ? Number(((pubAssign / totalAssign) * 100).toFixed(1)) : 100.0;
+    // Curriculum progress comes from recorded curriculum nodes.
+    const [curriculumStats] = await manager.query(
+      `SELECT ROUND(AVG(actual_completion_percentage), 1) as completion,
+              ROUND(AVG(actual_completion_percentage) FILTER (WHERE cardinality(learning_outcomes) > 0), 1) as learning,
+              ROUND(AVG(actual_completion_percentage) FILTER (WHERE cardinality(competencies) > 0), 1) as competency
+       FROM principal_curriculum_nodes WHERE organization_id = $1`, [orgId],
+    );
+    const curriculumCompletion = curriculumStats?.completion == null ? null : Number(curriculumStats.completion);
+    const learningProgress = curriculumStats?.learning == null ? null : Number(curriculumStats.learning);
+    const competencyProgress = curriculumStats?.competency == null ? null : Number(curriculumStats.competency);
 
     const [submissionsStats] = await manager.query(
       `SELECT
         COUNT(*)::int as total_submissions,
-        COUNT(*) FILTER (WHERE graded_at IS NOT NULL)::int as graded_submissions
+        COUNT(*) FILTER (WHERE graded_at IS NOT NULL)::int as graded_submissions,
+        ROUND(AVG((100 * sub.score / NULLIF(a.max_score, 0))::numeric) FILTER (WHERE sub.graded_at IS NOT NULL), 1) as average_score
        FROM submissions sub
        JOIN assignments a ON a.id = sub.assignment_id
        WHERE a.organization_id = $1`,
       [orgId],
-    ).catch(() => [{ total_submissions: 0, graded_submissions: 0 }]);
+    );
 
     const totalSubs = Number(submissionsStats?.total_submissions ?? 0);
     const gradedSubs = Number(submissionsStats?.graded_submissions ?? 0);
-    const assignmentCompletion = totalSubs > 0 ? Number(((gradedSubs / totalSubs) * 100).toFixed(1)) : 100.0;
+    const averageAssessmentScore = submissionsStats?.average_score == null ? null : Number(submissionsStats.average_score);
+    const assignmentCompletion = totalSubs > 0 ? Number(((gradedSubs / totalSubs) * 100).toFixed(1)) : null;
+
+    const [resultStats] = await manager.query(
+      `SELECT ROUND(AVG(percentage) FILTER (WHERE status = 'Published'), 1) as average,
+              COUNT(*) FILTER (WHERE status = 'Published')::int as published,
+              COUNT(*) FILTER (WHERE status = 'Published' AND is_locked)::int as locked,
+              COUNT(*) FILTER (WHERE status IN ('Entered', 'Verified', 'Approved'))::int as pending
+       FROM principal_exam_results WHERE organization_id = $1`, [orgId],
+    );
+    const schoolAverage = resultStats?.average == null ? null : Number(resultStats.average);
+
+    const [paperStats] = await manager.query(
+      `SELECT COUNT(*)::int as total,
+              COUNT(*) FILTER (WHERE status = 'Published')::int as published,
+              COUNT(*) FILTER (WHERE status IN ('Submitted', 'Under Review'))::int as pending
+       FROM principal_question_papers WHERE organization_id = $1`, [orgId],
+    );
+    const assessmentCompletion = Number(paperStats?.total) > 0
+      ? Math.round(100 * Number(paperStats.published) / Number(paperStats.total)) : null;
+
+    const [planStats] = await manager.query(
+      `SELECT COUNT(*)::int as total,
+              COUNT(*) FILTER (WHERE status IN ('Approved', 'Completed'))::int as completed,
+              COUNT(*) FILTER (WHERE status IN ('Submitted', 'Needs Revision'))::int as pending
+       FROM principal_lesson_plans WHERE organization_id = $1`, [orgId],
+    );
+    const teacherActivity = Number(planStats?.total) > 0
+      ? Math.round(100 * Number(planStats.completed) / Number(planStats.total)) : null;
+
+    const [interventionStats] = await manager.query(
+      `SELECT COUNT(*)::int as total,
+              COUNT(*) FILTER (WHERE status IN ('Improved', 'Closed'))::int as completed
+       FROM principal_student_interventions WHERE organization_id = $1`, [orgId],
+    );
+    const interventionCompletion = Number(interventionStats?.total) > 0
+      ? Math.round(100 * Number(interventionStats.completed) / Number(interventionStats.total)) : null;
+
+    const [todayStats] = await manager.query(
+      `WITH local_now AS (
+         SELECT NOW() AT TIME ZONE time_zone AS at_school FROM organizations WHERE id = $1
+       ), slots AS (
+         SELECT t.section_id, t.teacher_user_id, false AS is_substitution, t.start_time, t.end_time
+         FROM timetable_entries t, local_now
+         WHERE t.organization_id = $1 AND t.day_of_week = EXTRACT(ISODOW FROM local_now.at_school)
+         UNION ALL
+         SELECT t.section_id, t.teacher_user_id, t.is_substitution, t.start_time, t.end_time
+         FROM teacher_timetable_slots t, local_now
+         WHERE t.organization_id = $1
+           AND t.day_of_week = LOWER(TRIM(TO_CHAR(local_now.at_school, 'Day')))
+           AND NOT EXISTS (SELECT 1 FROM timetable_entries WHERE organization_id = $1)
+       )
+       SELECT COUNT(DISTINCT section_id)::int as classes,
+              COUNT(DISTINCT teacher_user_id)::int as teachers,
+              COUNT(*) FILTER (WHERE is_substitution)::int as substitutions
+       FROM slots, local_now
+       WHERE start_time <= TO_CHAR(local_now.at_school, 'HH24:MI')
+         AND end_time > TO_CHAR(local_now.at_school, 'HH24:MI')`, [orgId],
+    );
 
     // Live exams stats
     const [examStats] = await manager.query(
       `SELECT COUNT(*)::int as total_evaluations FROM exam_evaluations WHERE organization_id = $1`,
       [orgId],
-    ).catch(() => [{ total_evaluations: 0 }]);
+    );
     const totalExams = Number(examStats?.total_evaluations ?? 0);
 
     // Live teaching delivery stats from teacher_lesson_deliveries
     const [deliveryStats] = await manager.query(
       `SELECT
-        COUNT(*)::int as total_delivered,
-        COUNT(*) FILTER (WHERE delivery_date = CURRENT_DATE)::int as delivered_today
+        COUNT(*) FILTER (WHERE status = 'conducted')::int as total_delivered,
+        COUNT(*) FILTER (WHERE status = 'conducted' AND delivery_date = (NOW() AT TIME ZONE
+          (SELECT time_zone FROM organizations WHERE id = $1))::date)::int as delivered_today
        FROM teacher_lesson_deliveries
        WHERE organization_id = $1`,
       [orgId],
-    ).catch(() => [{ total_delivered: 0, delivered_today: 0 }]);
+    );
     const totalDelivered = Number(deliveryStats?.total_delivered ?? 0);
     const deliveredToday = Number(deliveryStats?.delivered_today ?? 0);
 
     // Explainable Academic Health Score factors
     const healthBreakdown = {
-      curriculumExecution: Math.round(curriculumCompletion),
-      assessmentCompletion: 90,
-      studentPerformance: 85,
-      teacherAcademicActivity: 92,
-      attendanceRate: Math.round(studentAttendanceRate),
-      assignmentCompletion: Math.round(assignmentCompletion),
-      interventionCompletion: 85,
+      curriculumExecution: curriculumCompletion,
+      assessmentCompletion,
+      studentPerformance: schoolAverage,
+      teacherAcademicActivity: teacherActivity,
+      attendanceRate: studentAttendanceRate,
+      assignmentCompletion,
+      interventionCompletion,
     };
-    const overallHealthScore = Math.round(
-      (healthBreakdown.curriculumExecution * 0.2) +
-      (healthBreakdown.assessmentCompletion * 0.15) +
-      (healthBreakdown.studentPerformance * 0.2) +
-      (healthBreakdown.teacherAcademicActivity * 0.15) +
-      (healthBreakdown.attendanceRate * 0.15) +
-      (healthBreakdown.assignmentCompletion * 0.1) +
-      (healthBreakdown.interventionCompletion * 0.05)
-    );
+    const healthFactors = Object.values(healthBreakdown);
+    const healthWeights = [0.2, 0.15, 0.2, 0.15, 0.15, 0.1, 0.05];
+    const overallHealthScore = healthFactors.every((value) => value !== null)
+      ? Math.round(healthFactors.reduce((sum, value, index) => sum + Number(value) * healthWeights[index], 0))
+      : null;
 
     // Live recent activity from audit_events
     const recentAuditRows = await manager.query(
@@ -132,7 +196,7 @@ export class PrincipalDashboardService {
        ORDER BY ae.created_at DESC
        LIMIT 5`,
       [orgId],
-    ).catch(() => []);
+    );
 
     const recentActivity = recentAuditRows.map((r: any) => ({
       id: r.id,
@@ -152,50 +216,49 @@ export class PrincipalDashboardService {
         activeAcademicYear: activeYear,
       },
       academicPerformance: {
-        overallSchoolAverage: 82.4,
-        passPercentage: 96.8,
-        averageAssessmentScore: 78.5,
-        learningOutcomeAchievement: 84.0,
-        competencyAchievement: 81.2,
+        overallSchoolAverage: schoolAverage,
+        averageAssessmentScore,
+        learningOutcomeAchievement: learningProgress,
+        competencyAchievement: competencyProgress,
         curriculumCompletion,
         assignmentCompletion,
       },
       academicHealth: {
         score: overallHealthScore,
-        status: overallHealthScore >= 85 ? 'Strong Academic Health' : 'Intervention Needed',
+        status: overallHealthScore === null ? 'Insufficient data' : overallHealthScore >= 80 ? 'Strong Academic Health' : 'Intervention Needed',
         breakdown: healthBreakdown,
       },
       todayOperations: {
-        classesRunning: totalClasses,
-        teachersTeaching: totalTeachers,
-        teachersAbsent: 0,
-        substitutionsCovered: 0,
-        examsToday: totalExams,
-        assessmentsScheduled: totalAssign,
-        pendingReviews: Math.max(0, totalSubs - gradedSubs),
+        classesRunning: Number(todayStats?.classes ?? 0),
+        teachersTeaching: Number(todayStats?.teachers ?? 0),
+        teachersAbsent: null,
+        substitutionsCovered: Number(todayStats?.substitutions ?? 0),
+        examsToday: null,
+        assessmentsScheduled: null,
+        pendingReviews: Number(planStats?.pending ?? 0) + Number(paperStats?.pending ?? 0),
         openAlerts: Number(alertsCount?.openAlerts || 0),
-        ptmMeetingsToday: 0,
       },
       attendance: {
         overallStudentAttendance: studentAttendanceRate,
         studentsBelowThreshold,
-        classesMissingAttendance: 0,
-        teacherAttendance: 100.0,
+        classesMissingAttendance: null,
+        teacherAttendance: null,
       },
       teachingExecution: {
-        lessonPlansCompleted: Math.max(pubAssign, totalDelivered),
-        lessonsDelivered: totalDelivered > 0 ? totalDelivered : pubAssign,
+        lessonPlansCompleted: Number(planStats?.completed ?? 0),
+        lessonsDelivered: totalDelivered,
         deliveredToday,
         syllabusCompletion: curriculumCompletion,
-        pendingLessonPlans: Math.max(0, totalAssign - pubAssign),
+        pendingLessonPlans: Number(planStats?.pending ?? 0),
         pendingEvaluations: Math.max(0, totalSubs - gradedSubs),
       },
       examinationStatus: {
-        upcomingExams: totalExams,
-        resultsPending: 0,
-        resultsPublished: totalExams,
+        upcomingExams: null,
+        resultsPending: Number(resultStats?.pending ?? 0),
+        resultsPublished: Number(resultStats?.published ?? 0),
+        resultsLocked: Number(resultStats?.locked ?? 0),
         papersEvaluated: totalExams,
-        internalAssessmentsPending: 0,
+        internalAssessmentsPending: Number(paperStats?.pending ?? 0),
       },
       recentActivity,
     };
@@ -208,26 +271,26 @@ export class PrincipalDashboardService {
     const bd = dash.academicHealth.breakdown;
     const components = [
       { name: 'Curriculum Execution', score: bd.curriculumExecution, weight: '20%' },
-      { name: 'Assessment Completion', score: bd.assessmentCompletion, weight: '15%' },
-      { name: 'Student Performance', score: bd.studentPerformance, weight: '20%' },
-      { name: 'Teacher Academic Activity', score: bd.teacherAcademicActivity, weight: '15%' },
+      { name: 'Papers Published', score: bd.assessmentCompletion, weight: '15%' },
+      { name: 'Published Exam Average', score: bd.studentPerformance, weight: '20%' },
+      { name: 'Lesson Plan Completion', score: bd.teacherAcademicActivity, weight: '15%' },
       { name: 'Attendance Stability', score: bd.attendanceRate, weight: '15%' },
       { name: 'Assignment Completion', score: bd.assignmentCompletion, weight: '10%' },
-      { name: 'Intervention Completion', score: bd.interventionCompletion, weight: '5%' },
+      { name: 'Interventions Completed', score: bd.interventionCompletion, weight: '5%' },
     ].map((b) => ({
       name: b.name,
       score: b.score,
       weight: b.weight,
-      status: b.score >= 80 ? 'Good' : 'Needs Focus',
-      underlyingMetric: `${b.score}% recorded metric in active academic session`,
+      status: b.score === null ? 'No data' : b.score >= 80 ? 'Good' : 'Needs Focus',
+      underlyingMetric: b.score === null ? 'No recorded evidence yet' : `${b.score}% from recorded school data`,
       flaggedClasses: [],
-      recommendedAction: b.score < 80 ? 'Review performance metrics and schedule support session.' : 'Maintain current instructional pace.',
+      recommendedAction: b.score === null ? 'Record activity to calculate this factor.' : b.score < 80 ? 'Review performance metrics and schedule support session.' : 'Maintain current instructional pace.',
     }));
 
     return {
       overallScore: score,
       benchmark: 80,
-      status: score >= 80 ? 'Strong Academic Health' : 'Intervention Needed',
+      status: score === null ? 'Insufficient data' : score >= 80 ? 'Strong Academic Health' : 'Intervention Needed',
       components,
     };
   }
