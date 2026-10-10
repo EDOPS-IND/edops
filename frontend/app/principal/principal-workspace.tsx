@@ -286,6 +286,23 @@ export function PrincipalWorkspace({
     }
   ];
 
+  // Sidebar IDs differ from a few pane tab IDs. Only open views the panes actually provide.
+  const paneTabs: Record<string, Record<string, string>> = {
+    planning: { app: "annual_plan", targets: "targets", action_plans: "action_plans" },
+    people: { teachers: "teachers", workload: "teachers" },
+    academics: { classes: "classes", sections: "classes", subjects: "subjects", curriculum: "curriculum", outcomes: "competencies", lesson_plans: "lesson_plans", progress: "curriculum" },
+    timetable: { academic_tt: "master_grid", substitution: "substitutions" },
+    attendance: { student_att: "attendance", low: "attendance" },
+    learning: { assignments: "assignments" },
+    assessment: { assessments: "assessments", question_papers: "assessments" },
+    examinations: { schedule: "schedule", results: "results" },
+    students: { performance: "all", at_risk: "at_risk", remedial: "remedial", enrichment: "enrichment" },
+    communication: { inbox: "inbox", parent_msgs: "parent_queries", ptm: "ptm" },
+    analytics: { school: "school_analytics", class: "classes", subject: "school_analytics", teacher: "teachers", audit: "classes" },
+  };
+  const selectedSubItem = navItems.find((item) => item.id === activePane)?.subItems?.find((sub) => sub.id === activeSubTab);
+  const activeView = paneTabs[activePane]?.[activeSubTab];
+
   return (
     <div className="flex h-screen bg-gray-50  text-gray-900  overflow-hidden font-sans">
       {/* SIDEBAR NAVIGATION (Desktop) */}
@@ -474,6 +491,12 @@ export function PrincipalWorkspace({
 
         {/* WORKSPACE BODY VIEW */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {selectedSubItem && !activeView ? (
+            <div className="rounded-xl border border-gray-200 bg-white p-6">
+              <h2 className="text-lg font-bold">{selectedSubItem.label}</h2>
+              <p className="mt-2 text-sm text-gray-600">This view is not available yet.</p>
+            </div>
+          ) : <>
           {activePane === "dashboard" && (
             <DashboardPane
               organizationId={organization.id}
@@ -486,8 +509,9 @@ export function PrincipalWorkspace({
 
           {activePane === "planning" && (
             <PlanningPane
+              key={activeView}
               organizationId={organization.id}
-              initialTab={activeSubTab}
+              initialTab={activeView}
             />
           )}
 
@@ -500,15 +524,18 @@ export function PrincipalWorkspace({
 
           {activePane === "academics" && (
             <AcademicsPane
+              key={activeView}
               organizationId={organization.id}
-              initialTab={activeSubTab}
+              initialTab={activeView}
               onOpenTeacherProfile={(id) => setSelectedTeacherId(id)}
             />
           )}
 
           {activePane === "timetable" && (
             <TimetablePane
+              key={activeView}
               organizationId={organization.id}
+              initialTab={activeView}
               onNavigate={navigateTo}
             />
           )}
@@ -543,22 +570,26 @@ export function PrincipalWorkspace({
 
           {activePane === "students" && (
             <StudentsPane
+              key={activeView}
               organizationId={organization.id}
               onOpenStudent360={(id) => setSelectedStudentId(id)}
-              initialTab={activeSubTab}
+              initialTab={activeView}
             />
           )}
 
           {activePane === "communication" && (
             <CommunicationPane
+              key={activeView}
               organizationId={organization.id}
-              initialTab={activeSubTab}
+              initialTab={activeView}
             />
           )}
 
           {activePane === "analytics" && (
             <AnalyticsAuditPane
+              key={activeView}
               organizationId={organization.id}
+              initialTab={activeView}
               onNavigate={navigateTo}
             />
           )}
@@ -581,6 +612,7 @@ export function PrincipalWorkspace({
               organizationId={organization.id}
             />
           )}
+          </>}
         </main>
       </div>
 

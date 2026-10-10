@@ -6,14 +6,16 @@ import { BarChart3, TrendingUp, CheckCircle2, AlertTriangle, Layers, User } from
 export function AnalyticsAuditPane({
   auditData,
   organizationId,
+  initialTab,
   onNavigate,
 }: {
   auditData?: any;
   organizationId?: string;
+  initialTab?: string;
   onNavigate?: (pane: string) => void;
 }) {
   const [liveData, setLiveData] = useState<any>(null);
-  const [auditSubTab, setAuditSubTab] = useState<"classes" | "teachers" | "school_analytics">("classes");
+  const [auditSubTab, setAuditSubTab] = useState<"classes" | "teachers" | "school_analytics">(initialTab === "teachers" || initialTab === "school_analytics" ? initialTab : "classes");
 
   React.useEffect(() => {
     if (!organizationId) return;

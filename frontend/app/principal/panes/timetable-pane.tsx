@@ -6,14 +6,16 @@ import { Clock, AlertTriangle, CheckCircle2, User, BookOpen, Layers } from "luci
 export function TimetablePane({
   substitutionRecords = [],
   organizationId,
+  initialTab,
   onNavigate,
 }: {
   substitutionRecords?: any[];
   organizationId?: string;
+  initialTab?: string;
   onNavigate?: (pane: string) => void;
 }) {
   const [liveData, setLiveData] = useState<any>(null);
-  const [viewMode, setViewMode] = useState<"substitutions" | "master_grid">("substitutions");
+  const [viewMode, setViewMode] = useState<"substitutions" | "master_grid">(initialTab === "master_grid" ? "master_grid" : "substitutions");
 
   React.useEffect(() => {
     if (!organizationId) return;
