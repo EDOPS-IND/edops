@@ -1,14 +1,16 @@
 "use client";
 
-import { Plan } from "./types";
+import { FeatureCatalogItem, Plan } from "./types";
 
 export function PlansPane({
   plans,
+  features,
   onOpenCreatePlanModal,
   onRetirePlan,
   onUpdatePlanFeatures
 }: {
   plans: Plan[];
+  features: FeatureCatalogItem[];
   onOpenCreatePlanModal: () => void;
   onRetirePlan: (planId: string) => void;
   onUpdatePlanFeatures: (planId: string, features: Record<string, boolean>) => void;
@@ -80,27 +82,7 @@ export function PlansPane({
               </tr>
             </thead>
             <tbody>
-              {[
-                { key: "student_management", name: "Student Management", category: "Academic" },
-                { key: "teacher_management", name: "Teacher Management", category: "Academic" },
-                { key: "attendance", name: "Attendance Registers", category: "Academic" },
-                { key: "exams", name: "Exams & Marks Entry", category: "Academic" },
-                { key: "report_cards", name: "CBSE Report Cards", category: "Academic" },
-                { key: "arena", name: "Objective Practice Arena", category: "Academic" },
-                { key: "recordings", name: "Class Video Recordings", category: "Academic" },
-                { key: "fee_management", name: "Fee Management & Invoicing", category: "Finance" },
-                { key: "online_payments", name: "Online Payment Gateway", category: "Finance" },
-                { key: "transport", name: "Transport & GPS Routes", category: "Operations" },
-                { key: "library", name: "Library Catalog & Barcode", category: "Operations" },
-                { key: "internal_chat", name: "Staff Encrypted Chat", category: "Communication" },
-                { key: "email_service", name: "Bulk Email Engine", category: "Communication" },
-                { key: "sms_service", name: "DLT SMS Alerts", category: "Communication" },
-                { key: "whatsapp_service", name: "WhatsApp Business API", category: "Communication" },
-                { key: "ai_assistant", name: "AI Assistant Copilot", category: "Advanced" },
-                { key: "ai_reports", name: "AI Report Narrative Generator", category: "Advanced" },
-                { key: "api_access", name: "REST API Access Keys", category: "Advanced" },
-                { key: "custom_domain", name: "Custom Domain White-label", category: "Advanced" },
-              ].map(feat => (
+              {features.map(feat => (
                 <tr key={feat.key} style={{ borderBottom: "1px solid #F3F4F6" }}>
                   <td style={{ padding: "10px", fontWeight: 600 }}>{feat.name}</td>
                   <td style={{ padding: "10px", color: "#6B7280" }}>{feat.category}</td>

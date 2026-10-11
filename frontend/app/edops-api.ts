@@ -1,4 +1,6 @@
-export type OrganizationSummary = { id: string; name: string; slug: string; status: "active" | "suspended"; role: "school_admin" | "principal" | "teacher" | "student" | "parent" };
+export type OrganizationSummary = { id: string; name: string; slug: string; status: "active" | "suspended"; role: "school_admin" | "principal" | "teacher" | "student" | "parent"; features?: string[] };
+export type DashboardItem = { key: string; sectionKey: string; label: string; featureKey: string; sortOrder: number; enabled: boolean; effectiveEnabled: boolean };
+export type DashboardSection = { key: string; label: string; sortOrder: number; enabled: boolean; items: DashboardItem[] };
 export type Profile = { user: { id: string; email: string; isPlatformAdmin: boolean }; organizations: OrganizationSummary[]; csrfToken?: string };
 export type Organization = OrganizationSummary & { timeZone: string; locale: "en-IN" | "hi-IN" | "en-US"; createdAt: string; updatedAt: string };
 export type ListResult<T> = { items: T[]; total: number; limit: number; offset: number };
@@ -21,43 +23,60 @@ export type ParentChild = {
 };
 export type TeacherWorkspaceData = { role: "teacher"; assignments: { id: string; sectionId: string; sectionName: string; subjectId: string; subjectName: string; subjectCode: string }[]; students: { studentUserId: string; email: string; sectionId: string; sectionName: string; rollNumber: string }[] };
 export type StudentWorkspaceData = { role: "student"; enrollment: null | { id: string; sectionId: string; sectionName: string; rollNumber: string; programName: string; academicYearName: string }; subjects: { subjectId: string; subjectName: string; subjectCode: string; teacherUserId: string; teacherEmail: string }[] };
-export type ParentWorkspaceData = { role: "parent"; children: ParentChild[] };
+export type ParentWorkspaceData = { role: "parent"; children: ParentChild[]; messages: { id: string; subject?: string; body?: string; sender_name?: string; created_at?: string }[] };
 export type RoleWorkspaceData = TeacherWorkspaceData | StudentWorkspaceData | ParentWorkspaceData;
 export type InvitationBatch = { id: string; organizationId: string; count: number; createdAt: string };
 export type SchoolData = { organization: Organization; years: ListResult<AcademicYear>; programs: ListResult<Program>; subjects: ListResult<Subject>; sections: ListResult<Section>; members: ListResult<Member>; enrollments: ListResult<Enrollment>; assignments: ListResult<Assignment>; batches: ListResult<InvitationBatch> };
 
-let csrfToken: string | undefined;
 let jwtAccessToken: string | undefined;
+let jwtRefreshToken: string | undefined;
 
 if (typeof window !== "undefined") {
   jwtAccessToken = localStorage.getItem("edops_jwt_token") || undefined;
+  jwtRefreshToken = localStorage.getItem("edops_refresh_token") || undefined;
 }
 
 function baseUrl() {
+  if (typeof window !== "undefined") {
+    if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+      return `${window.location.origin}/api/v1`;
+    }
+  }
   const configured = process.env.NEXT_PUBLIC_EDOPS_API_URL?.replace(/\/$/, "");
-  if (configured) return configured;
-  return window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? `${window.location.protocol}//${window.location.hostname}:3001/api/v1` : `${window.location.origin}/api/v1`;
+  if (configured && !configured.includes("localhost")) return configured;
+  return typeof window !== "undefined"
+    ? `${window.location.protocol}//${window.location.hostname}:3001/api/v1`
+    : "http://127.0.0.1:3001/api/v1";
 }
 
 export async function api<T>(path: string, options: { method?: "GET" | "POST" | "PATCH" | "DELETE"; body?: unknown; idempotent?: boolean } = {}): Promise<T> {
   const method = options.method ?? "GET";
-  if (method !== "GET" && !csrfToken) await csrf();
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = {
+    "ngrok-skip-browser-warning": "true",
+  };
   if (options.body !== undefined) headers["Content-Type"] = "application/json";
-  if (method !== "GET") headers["X-CSRF-Token"] = csrfToken ?? "";
   if (jwtAccessToken) headers["Authorization"] = `Bearer ${jwtAccessToken}`;
-  if (options.idempotent) headers["Idempotency-Key"] = crypto.randomUUID();
+  if (options.idempotent) headers["Idempotency-Key"] = typeof crypto?.randomUUID === "function" ? crypto.randomUUID() : Math.random().toString(36).slice(2);
   let response = await fetch(`${baseUrl()}${path}`, { method, credentials: "include", headers, body: options.body === undefined ? undefined : JSON.stringify(options.body) });
   
   // Silent auto-refresh on 401 when using JWT
-  if (response.status === 401 && jwtAccessToken && path !== "/auth/refresh" && path !== "/auth/login") {
+  if (response.status === 401 && (jwtAccessToken || jwtRefreshToken) && path !== "/auth/refresh" && path !== "/auth/login") {
     try {
-      const refreshRes = await fetch(`${baseUrl()}/auth/refresh`, { method: "POST", credentials: "include" });
+      const refreshRes = await fetch(`${baseUrl()}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+        body: JSON.stringify({ refreshToken: jwtRefreshToken }),
+      });
       if (refreshRes.ok) {
         const refreshData = await refreshRes.json();
         if (refreshData?.accessToken) {
           jwtAccessToken = refreshData.accessToken;
-          if (typeof window !== "undefined") localStorage.setItem("edops_jwt_token", refreshData.accessToken);
+          if (refreshData.refreshToken) jwtRefreshToken = refreshData.refreshToken;
+          if (typeof window !== "undefined") {
+            localStorage.setItem("edops_jwt_token", refreshData.accessToken);
+            if (refreshData.refreshToken) localStorage.setItem("edops_refresh_token", refreshData.refreshToken);
+          }
           headers["Authorization"] = `Bearer ${jwtAccessToken}`;
           response = await fetch(`${baseUrl()}${path}`, { method, credentials: "include", headers, body: options.body === undefined ? undefined : JSON.stringify(options.body) });
         }
@@ -72,24 +91,31 @@ export async function api<T>(path: string, options: { method?: "GET" | "POST" | 
     const message = Array.isArray(data?.message) ? data.message.join("; ") : data?.message;
     throw new Error(message || `Request failed (${response.status})`);
   }
-  if (data?.csrfToken) csrfToken = data.csrfToken;
   if (data?.accessToken) {
     jwtAccessToken = data.accessToken;
     if (typeof window !== "undefined") localStorage.setItem("edops_jwt_token", data.accessToken);
   }
+  if (data?.refreshToken) {
+    jwtRefreshToken = data.refreshToken;
+    if (typeof window !== "undefined") localStorage.setItem("edops_refresh_token", data.refreshToken);
+  }
   if (path === "/auth/logout") {
-    csrfToken = undefined;
     jwtAccessToken = undefined;
-    if (typeof window !== "undefined") localStorage.removeItem("edops_jwt_token");
+    jwtRefreshToken = undefined;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("edops_jwt_token");
+      localStorage.removeItem("edops_refresh_token");
+    }
   }
   return data as T;
 }
 
-export async function csrf() { const result = await api<{ csrfToken: string }>("/auth/csrf"); csrfToken = result.csrfToken; return result; }
-export async function login(email: string, password: string) { await csrf(); return api<Profile & { accessToken?: string }>("/auth/login", { method: "POST", body: { email, password } }); }
-export function logout() { return api<null>("/auth/logout", { method: "POST" }); }
+export async function csrf() { return { csrfToken: "" }; }
+export async function login(email: string, password: string) { return api<Profile & { accessToken?: string; refreshToken?: string }>("/auth/login", { method: "POST", body: { email, password } }); }
+export function logout() { return api<null>("/auth/logout", { method: "POST", body: { refreshToken: jwtRefreshToken } }); }
 export function switchSchool(schoolId: string) { return api<{ accessToken: string; activeSchoolId: string; role?: string }>("/auth/switch-school", { method: "POST", body: { schoolId } }); }
 export function profile() { return api<Profile>("/auth/me"); }
+export function getDashboardNavigation(orgId: string, role: OrganizationSummary["role"]) { return api<DashboardSection[]>(`/organizations/${orgId}/dashboard-navigation/${role}`); }
 export function loadRoleWorkspace(organizationId: string) { return api<RoleWorkspaceData>(`/organizations/${organizationId}/academics/my-workspace`); }
 
 export async function loadSchool(organizationId: string): Promise<SchoolData> {
@@ -119,8 +145,13 @@ export function getPlatformFeatureMatrix() { return api<{ plans: any[]; features
 export function updatePlanFeatures(planId: string, features: Record<string, boolean>) { return api<any>(`/platform/plans/${planId}/features`, { method: "PATCH", body: { features } }); }
 export function getSchoolBilling(orgId: string) { return api<any>(`/platform/organizations/${orgId}/billing`); }
 export function getSchoolDetailedOverrides(orgId: string) { return api<any[]>(`/platform/organizations/${orgId}/detailed-overrides`); }
+export function getSchoolRoleFeatureMatrix(orgId: string) { return api<any>(`/platform/organizations/${orgId}/role-feature-matrix`); }
+export function getPlatformDashboardNavigation(orgId: string, role: OrganizationSummary["role"]) { return api<DashboardSection[]>(`/platform/organizations/${orgId}/dashboard-navigation/${role}`); }
+export function savePlatformDashboardSection(orgId: string, role: OrganizationSummary["role"], key: string, body: {label?: string; sortOrder?: number; enabled?: boolean}) { return api<DashboardSection[]>(`/platform/organizations/${orgId}/dashboard-navigation/${role}/sections/${encodeURIComponent(key)}`, { method: "POST", body }); }
+export function savePlatformDashboardItem(orgId: string, role: OrganizationSummary["role"], key: string, body: {sectionKey?: string; sortOrder?: number; enabled?: boolean}) { return api<DashboardSection[]>(`/platform/organizations/${orgId}/dashboard-navigation/${role}/items/${encodeURIComponent(key)}`, { method: "PATCH", body }); }
+export function updateSchoolRoleFeatureMatrix(orgId: string, payload: { featureKey: string; role?: string | null; enabled: boolean | null; reason?: string }) { return api<any>(`/platform/organizations/${orgId}/role-feature-matrix`, { method: "PATCH", body: payload }); }
 export function setSchoolDetailedOverride(orgId: string, override: any) { return api<any>(`/platform/organizations/${orgId}/detailed-overrides`, { method: "POST", body: override }); }
-export function removeSchoolDetailedOverride(orgId: string, featureKey: string) { return api<any>(`/platform/organizations/${orgId}/detailed-overrides/${featureKey}/remove`, { method: "PATCH", body: {} }); }
+export function removeSchoolDetailedOverride(orgId: string, featureKey: string, role?: string) { return api<any>(`/platform/organizations/${orgId}/detailed-overrides/${featureKey}/remove${role ? `?role=${role}` : ''}`, { method: "PATCH", body: {} }); }
 export function onboardSchool(data: any) { return api<any>("/platform/organizations/onboard", { method: "POST", body: data }); }
 export function updateSchoolLifecycle(orgId: string, data: any) { return api<any>(`/platform/organizations/${orgId}/lifecycle`, { method: "PATCH", body: data }); }
 export function getSupportTickets(limit = 50, offset = 0) { return api<ListResult<any>>(`/platform/support/tickets?limit=${limit}&offset=${offset}`); }
@@ -168,12 +199,41 @@ export function createSchoolAdminDiscipline(orgId: string, data: any) { return a
 
 // Principal Control Center APIs
 export function getPrincipalDashboard(orgId: string) { return api<any>(`/organizations/${orgId}/principal/dashboard`); }
+export function getPrincipalAttendance(orgId: string) { return api<any>(`/organizations/${orgId}/principal/attendance`); }
+export function getPrincipalLearningRoster(orgId: string) { return api<any[]>(`/organizations/${orgId}/principal/learning-roster`); }
+export function getPrincipalLearningOverview(orgId: string) { return api<any>(`/organizations/${orgId}/principal/learning-overview`); }
 export function getPrincipalAcademicHealth(orgId: string) { return api<any>(`/organizations/${orgId}/principal/academic-health`); }
 export function getPrincipalPlanning(orgId: string) { return api<any>(`/organizations/${orgId}/principal/planning`); }
+export function createPrincipalAcademicPlan(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/planning/academic-plans`, { method: "POST", body: data }); }
+export function createPrincipalAcademicTarget(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/planning/targets`, { method: "POST", body: data }); }
+export function updatePrincipalAcademicTarget(orgId: string, targetId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/planning/targets/${targetId}`, { method: "PATCH", body: data }); }
+export function createPrincipalActionPlan(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/planning/action-plans`, { method: "POST", body: data }); }
+export function createPrincipalReviewMeeting(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/planning/review-meetings`, { method: "POST", body: data }); }
 export function getPrincipalTeachers(orgId: string) { return api<any>(`/organizations/${orgId}/principal/teachers`); }
+export function getPrincipalTeacherProfile(orgId: string, teacherId: string) { return api<any>(`/organizations/${orgId}/principal/teachers/${teacherId}/academic-profile`); }
+export function recordPrincipalObservation(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/observations`, { method: "POST", body: data }); }
+export function assignPrincipalDevelopment(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/development`, { method: "POST", body: data }); }
+export function completePrincipalDevelopment(orgId: string, id: string) { return api<any>(`/organizations/${orgId}/principal/teachers/development/${id}/complete`, { method: "PATCH" }); }
+export function createPrincipalDepartment(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/departments`, { method: "POST", body: data }); }
+export function assignPrincipalDepartmentHead(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/department-heads`, { method: "POST", body: data }); }
+export function assignPrincipalCoordinator(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/coordinators`, { method: "POST", body: data }); }
+export function assignPrincipalTeacher(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/assignments`, { method: "POST", body: data }); }
 export function getPrincipalAcademics(orgId: string) { return api<any>(`/organizations/${orgId}/principal/academics`); }
+export function getPrincipalTimetable(orgId: string) { return api<any>(`/organizations/${orgId}/principal/timetable`); }
+export function createPrincipalTimetableEntry(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/timetable`, { method: "POST", body: data }); }
+export function updatePrincipalTimetableEntry(orgId: string, id: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/timetable/${id}`, { method: "PATCH", body: data }); }
+export function deletePrincipalTimetableEntry(orgId: string, id: string) { return api<any>(`/organizations/${orgId}/principal/timetable/${id}`, { method: "DELETE" }); }
+export function getPrincipalSubstituteSuggestions(orgId: string, id: string, date: string) { return api<any[]>(`/organizations/${orgId}/principal/timetable/${id}/suggestions?date=${encodeURIComponent(date)}`); }
+export function assignPrincipalSubstitute(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/timetable/substitutions`, { method: "POST", body: data }); }
 export function getPrincipalAssessments(orgId: string) { return api<any>(`/organizations/${orgId}/principal/assessments`); }
+export function createPrincipalQuestionPaper(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/assessments/question-papers`, { method: "POST", body: data }); }
+export function reviewPrincipalQuestionPaper(orgId: string, paperId: string, data: { status: string; reviewComments?: string }) { return api<any>(`/organizations/${orgId}/principal/assessments/question-papers/${paperId}/status`, { method: "PATCH", body: data }); }
 export function getPrincipalExaminations(orgId: string) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations`); }
+export function createPrincipalExamPlan(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/plans`, { method: "POST", body: data }); }
+export function updatePrincipalExamPlan(orgId: string, id: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/plans/${id}`, { method: "PATCH", body: data }); }
+export function importPrincipalTeacherMarks(orgId: string, id: string) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/evaluations/${id}/import`, { method: "POST" }); }
+export function reviewPrincipalExamResult(orgId: string, id: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/results/${id}`, { method: "PATCH", body: data }); }
+export function publishPrincipalExamResults(orgId: string, data: { term: string; examName: string; className: string; sectionName: string }) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/publish-results`, { method: "POST", body: data }); }
 export function getPrincipalStudents(orgId: string) { return api<any>(`/organizations/${orgId}/principal/students`); }
 export function getPrincipalCommunication(orgId: string) { return api<any>(`/organizations/${orgId}/principal/communication`); }
 export function getPrincipalAudit(orgId: string) { return api<any>(`/organizations/${orgId}/principal/academic-audit`); }

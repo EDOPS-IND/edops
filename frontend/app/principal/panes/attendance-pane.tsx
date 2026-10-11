@@ -1,130 +1,80 @@
 "use client";
 
-import React, { useState } from "react";
-import { Users, CalendarCheck, AlertTriangle, ArrowRight, UserCheck } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getPrincipalAttendance } from "../../edops-api";
 
-export function AttendancePane({
-  onTriggerIntervention,
-  organizationId,
-  onOpenStudent360,
-}: {
-  onTriggerIntervention?: (studentName: string) => void;
-  organizationId?: string;
-  onOpenStudent360?: (id: string) => void;
+type Student = { id: string; name: string; className: string; roll: string; markedRecords: number; attendanceRate: number; daysAbsent: number; unexcusedAbsences: number };
+type TrendDay = { date: string; markedRecords: number; presentRecords: number; attendanceRate: number | null };
+type Teacher = { id: string; name: string; approvedLeave: boolean; recordedClasses: number };
+type Attendance = { enrolledStudents: number; markedRecords: number; studentAttendanceRate: number | null; pendingRegisters: number; atRisk: Student[]; trend: TrendDay[]; teachers: Teacher[] };
+type View = "students" | "trends" | "teachers";
+
+export function AttendancePane({ organizationId, initialTab = "students" }: {
+  organizationId: string; initialTab?: View;
 }) {
-  const [liveData, setLiveData] = useState<any>(null);
-  const [filterMode, setFilterMode] = useState<"defaulters" | "trends">("defaulters");
-
-  React.useEffect(() => {
-    if (!organizationId) return;
-    import("../../edops-api").then(({ getPrincipalDashboard }) => {
-      getPrincipalDashboard(organizationId)
-        .then((data) => setLiveData(data))
-        .catch(() => null);
-    });
+  const [data, setData] = useState<Attendance | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    getPrincipalAttendance(organizationId)
+      .then((result) => { if (active) setData(result); })
+      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Could not load attendance"); });
+    return () => { active = false; };
   }, [organizationId]);
 
-  const att = liveData?.attendance;
-  const defaulters: any[] = [];
+  const view = initialTab;
+  const date = (value: string) => value?.slice(0, 10) || "—";
+  const rate = (value: number | null | undefined) => value == null ? "—" : `${value}%`;
+  const card = (label: string, value: string | number, detail: string) =>
+    <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-600">{label}</p>
+      <p className="mt-1 text-2xl font-bold text-slate-900">{value}</p><p className="text-xs text-slate-500">{detail}</p></div>;
 
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* 1. Header Metrics Strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
-          <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Campus Student Attendance</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#15803D", margin: "4px 0" }}>{att?.overallStudentAttendance ?? 0}%</div>
-          <div style={{ fontSize: "11px", color: "#166534" }}>Calculated from active sessions</div>
-        </div>
-
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
-          <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Faculty Attendance Today</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#1E293B", margin: "4px 0" }}>{att?.teacherAttendance ?? 0}%</div>
-          <div style={{ fontSize: "11px", color: "#64748B" }}>Active faculty roster rate</div>
-        </div>
-
-        <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "16px" }}>
-          <div style={{ fontSize: "12px", color: "#991B1B", fontWeight: 600 }}>Below 75% CBSE Threshold</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#DC2626", margin: "4px 0" }}>{att?.studentsBelowThreshold ?? 0} Students</div>
-          <div style={{ fontSize: "11px", color: "#991B1B" }}>Risk of board admit card hold</div>
-        </div>
-
-        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: "10px", padding: "16px" }}>
-          <div style={{ fontSize: "12px", color: "#92400E", fontWeight: 600 }}>Pending Class Registers</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#D97706", margin: "4px 0" }}>{att?.classesMissingAttendance ?? 0} Sections</div>
-          <div style={{ fontSize: "11px", color: "#92400E" }}>Awaiting roll call submission</div>
-        </div>
+  return <section className="space-y-5 text-sm">
+    <h2 className="text-xl font-semibold">{{ students: "Student Attendance", trends: "Attendance Trends", teachers: "Teacher Activity and Leave" }[view]}</h2>
+    {error && <p role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-red-700">{error}</p>}
+    {!data && !error && <p>Loading attendance…</p>}
+    {data && view === "students" && <>
+      <p className="text-slate-600">Current academic year. Attendance comes from finalized class registers; below 75% identifies students who may need follow-up.</p>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {card("Campus student attendance today", rate(data.studentAttendanceRate), `${data.markedRecords} recorded student periods`)}
+        {card("Active enrolled students", data.enrolledStudents, "Current academic year")}
+        {card("Below 75% attendance", data.atRisk.length, "Students with recorded attendance")}
+        {card("Pending class registers today", data.pendingRegisters, "Scheduled periods without a finalized register")}
       </div>
-
-      {/* 2. Defaulters Desk & Action Table */}
-      <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", overflow: "hidden" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>
-              Chronic Absenteeism Intervention Desk (&lt;75% Attendance)
-            </h3>
-            <span style={{ fontSize: "12px", color: "#64748B" }}>
-              Direct drill-down to assign counselor check-ins and academic welfare alerts
-            </span>
-          </div>
-          <span style={{ background: "#FEE2E2", color: "#991B1B", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 700 }}>
-            Mandatory Board Threshold: 75%
-          </span>
-        </div>
-
-        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-          <thead>
-            <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0", color: "#64748B", fontWeight: 700 }}>
-              <th style={{ padding: "12px 16px" }}>Student Name</th>
-              <th style={{ padding: "12px 16px" }}>Class / Section</th>
-              <th style={{ padding: "12px 16px" }}>Attendance Rate</th>
-              <th style={{ padding: "12px 16px" }}>Days Absent (Total)</th>
-              <th style={{ padding: "12px 16px" }}>Unexcused Absences</th>
-              <th style={{ padding: "12px 16px" }}>Guardian Details</th>
-              <th style={{ padding: "12px 16px", textAlign: "right" }}>Intervention Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {defaulters.length === 0 ? (
-              <tr>
-                <td colSpan={7} style={{ padding: "24px 16px", textAlign: "center", color: "#64748B" }}>
-                  No chronic attendance defaulters detected below threshold.
-                </td>
-              </tr>
-            ) : (
-              defaulters.map((d: any, idx: number) => (
-                <tr key={idx} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1E293B" }}>{d.name}</td>
-                  <td style={{ padding: "12px 16px", color: "#64748B" }}>{d.className} (Roll {d.roll})</td>
-                  <td style={{ padding: "12px 16px", fontWeight: 800, color: "#DC2626" }}>{d.attPct}%</td>
-                  <td style={{ padding: "12px 16px", color: "#475569" }}>{d.daysAbsent} days</td>
-                  <td style={{ padding: "12px 16px", color: "#B91C1C", fontWeight: 600 }}>{d.unexcused} days unexcused</td>
-                  <td style={{ padding: "12px 16px", color: "#64748B" }}>{d.guardian}</td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                    <button
-                      onClick={() => onTriggerIntervention && onTriggerIntervention(d.name)}
-                      style={{
-                        background: "#064E3B",
-                        color: "#F8E7C9",
-                        border: "none",
-                        borderRadius: "6px",
-                        padding: "6px 12px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      + Assign Intervention
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-
-        </table>
+      <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <h3 className="p-4 font-semibold">Students below 75%</h3>
+        {data.atRisk.length ? <table className="w-full text-left"><thead className="bg-slate-50"><tr>
+          <th className="p-3">Student</th><th className="p-3">Class / roll</th><th className="p-3">Attendance</th>
+          <th className="p-3">Days absent</th><th className="p-3">Unexcused records</th>
+        </tr></thead><tbody>{data.atRisk.map((student) => <tr key={student.id} className="border-t border-slate-100">
+          <td className="p-3">{student.name}</td><td className="p-3">{student.className} · {student.roll}</td>
+          <td className="p-3">{rate(student.attendanceRate)} ({student.markedRecords} records)</td>
+          <td className="p-3">{student.daysAbsent}</td><td className="p-3">{student.unexcusedAbsences}</td>
+        </tr>)}</tbody></table> : <p className="p-4 text-slate-500">No student with recorded attendance is below 75%.</p>}
       </div>
-    </div>
-  );
+    </>}
+    {data && view === "trends" && <>
+      <p className="text-slate-600">Daily attendance across finalized registers for the last 14 calendar days. A dash means no student attendance was recorded that day.</p>
+      <div className="grid grid-cols-7 gap-2 rounded-lg border border-slate-200 bg-white p-4 lg:grid-cols-14">
+        {data.trend.map((day) => <div key={date(day.date)} className="flex flex-col items-center gap-1" title={`${date(day.date)}: ${rate(day.attendanceRate)}, ${day.markedRecords} records`}>
+          <span className="text-xs font-semibold">{rate(day.attendanceRate)}</span>
+          <div className="flex h-32 w-full items-end rounded bg-slate-100"><div className="w-full rounded bg-blue-600" style={{ height: day.attendanceRate == null ? 0 : `${day.attendanceRate}%` }} /></div>
+          <span className="text-[10px] text-slate-600">{date(day.date).slice(5)}</span>
+        </div>)}
+      </div>
+      <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-left"><thead><tr><th className="p-3">Date</th><th className="p-3">Present / late</th><th className="p-3">Recorded</th><th className="p-3">Rate</th></tr></thead>
+        <tbody>{data.trend.map((day) => <tr key={date(day.date)} className="border-t"><td className="p-3">{date(day.date)}</td><td className="p-3">{day.presentRecords}</td><td className="p-3">{day.markedRecords}</td><td className="p-3">{rate(day.attendanceRate)}</td></tr>)}</tbody></table></div>
+    </>}
+    {data && view === "teachers" && <>
+      <p className="text-slate-600">Recorded teaching comes from finalized class registers. Approved leave comes from leave requests. No recorded class does not establish that a teacher was absent.</p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {card("Active teachers", data.teachers.length, "School roster")}
+        {card("Recorded teaching today", data.teachers.filter((teacher) => teacher.recordedClasses > 0).length, "At least one finalized register")}
+        {card("Approved leave today", data.teachers.filter((teacher) => teacher.approvedLeave).length, "Approved leave requests")}
+      </div>
+      <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-left"><thead><tr><th className="p-3">Teacher</th><th className="p-3">Recorded classes today</th><th className="p-3">Approved leave</th></tr></thead>
+        <tbody>{data.teachers.map((teacher) => <tr key={teacher.id} className="border-t"><td className="p-3">{teacher.name}</td><td className="p-3">{teacher.recordedClasses}</td><td className="p-3">{teacher.approvedLeave ? "Yes" : "No"}</td></tr>)}</tbody></table>
+        {!data.teachers.length && <p className="p-4 text-slate-500">No active teachers in this school.</p>}</div>
+    </>}
+  </section>;
 }

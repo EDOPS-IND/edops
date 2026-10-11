@@ -30,6 +30,24 @@ export class PrincipalDashboardController {
     return this.service.getDashboard(orgId, req.user);
   }
 
+  @Get("learning-roster")
+  @ApiOperation({ summary: "Published coursework and evaluation roster" })
+  learningRoster(@Param("organizationId", ParseUUIDPipe) orgId: string) {
+    return this.service.getLearningRoster(orgId);
+  }
+
+  @Get("learning-overview")
+  @ApiOperation({ summary: "Published assignments, submissions, study materials, and lesson activities" })
+  learningOverview(@Param("organizationId", ParseUUIDPipe) orgId: string) {
+    return this.service.getLearningOverview(orgId);
+  }
+
+  @Get("attendance")
+  @ApiOperation({ summary: "Student attendance, daily trend, register gaps, and faculty activity" })
+  attendance(@Param("organizationId", ParseUUIDPipe) orgId: string) {
+    return this.service.getAttendance(orgId);
+  }
+
   @Get("academic-health")
   @ApiOperation({
     summary: "Explainable Academic Health Score & Factor Drill-down",

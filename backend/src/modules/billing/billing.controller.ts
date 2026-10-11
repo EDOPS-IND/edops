@@ -295,6 +295,62 @@ export class PlatformBillingController {
     return this.billing.getDetailedOverrides(req.user, org);
   }
 
+  @Get("organizations/:organizationId/role-feature-matrix")
+  getRoleFeatureMatrix(
+    @Req() req: AuthenticatedRequest,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+  ) {
+    return this.billing.getRoleFeatureMatrix(req.user, org);
+  }
+
+  @Get("organizations/:organizationId/dashboard-navigation/:role")
+  dashboardNavigation(
+    @Req() req: AuthenticatedRequest,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Param("role") role: string,
+  ) {
+    return this.billing.dashboardNavigation(org, req.user, role, true);
+  }
+
+  @Post("organizations/:organizationId/dashboard-navigation/:role/sections/:key")
+  saveDashboardSection(
+    @Req() req: AuthenticatedRequest,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Param("role") role: string,
+    @Param("key") key: string,
+    @Body() body: { label?: string; sortOrder?: number; enabled?: boolean },
+  ) {
+    return this.billing.saveDashboardSection(req.user, org, role, key, body);
+  }
+
+  @Patch("organizations/:organizationId/dashboard-navigation/:role/items/:key")
+  saveDashboardItem(
+    @Req() req: AuthenticatedRequest,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Param("role") role: string,
+    @Param("key") key: string,
+    @Body() body: { sectionKey?: string; sortOrder?: number; enabled?: boolean },
+  ) {
+    return this.billing.saveDashboardItem(req.user, org, role, key, body);
+  }
+
+  @Patch("organizations/:organizationId/role-feature-matrix")
+  updateRoleFeatureMatrix(
+    @Req() req: AuthenticatedRequest,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Body() dto: { featureKey: string; role?: string | null; enabled: boolean | null; reason?: string },
+  ) {
+    if (dto.enabled === null) {
+      return this.billing.removeDetailedOverride(req.user, org, dto.featureKey, dto.role);
+    }
+    return this.billing.setDetailedOverride(req.user, org, {
+      featureKey: dto.featureKey,
+      role: dto.role ?? undefined,
+      enabled: dto.enabled,
+      reason: dto.reason || 'Configured via Platform Admin matrix',
+    });
+  }
+
   @Post("organizations/:organizationId/detailed-overrides")
   setDetailedOverride(
     @Req() req: AuthenticatedRequest,
@@ -309,8 +365,9 @@ export class PlatformBillingController {
     @Req() req: AuthenticatedRequest,
     @Param("organizationId", ParseUUIDPipe) org: string,
     @Param("featureKey") featureKey: string,
+    @Query("role") role?: string,
   ) {
-    return this.billing.removeDetailedOverride(req.user, org, featureKey);
+    return this.billing.removeDetailedOverride(req.user, org, featureKey, role);
   }
 
   // §3, §4, §5, §6, §29: Full School Onboarding Wizard
@@ -439,9 +496,19 @@ export class SchoolBillingController {
     return this.billing.invoices(org, req.user, q, false);
   }
 }
+@Controller({ path: 'organizations/:organizationId/dashboard-navigation', version: '1' })
+export class DashboardNavigationController {
+  constructor(private readonly billing: BillingService) {}
+
+  @Get(':role')
+  get(@Param('organizationId', ParseUUIDPipe) org: string,
+    @Param('role') role: string, @Req() req: AuthenticatedRequest) {
+    return this.billing.dashboardNavigation(org, req.user, role);
+  }
+}
 @Module({
   imports: [TenantsModule, AuditModule],
-  controllers: [PlatformBillingController, SchoolBillingController],
+  controllers: [PlatformBillingController, SchoolBillingController, DashboardNavigationController],
   providers: [BillingService],
 })
 export class BillingModule {}

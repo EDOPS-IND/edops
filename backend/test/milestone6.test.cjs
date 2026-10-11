@@ -29,7 +29,7 @@ test('M6 billing and entitlements with real PostgreSQL', { timeout: 120_000 }, a
   const source = createDataSource(config); await source.initialize();
   try {
     const sixth = source.migrations.pop();
-    assert.equal((await source.runMigrations()).length, 5);
+    assert.equal((await source.runMigrations()).length, 13);
     await db.query("INSERT INTO organizations(name,slug,created_at) VALUES('Legacy','m6-legacy',now()-interval '1 year')");
     source.migrations.push(sixth);
     assert.equal((await source.runMigrations()).length, 1);

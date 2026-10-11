@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -15,6 +16,7 @@ import {
   CreateAcademicTargetDto,
   CreateActionPlanDto,
   RecordAcademicMeetingDto,
+  UpdateAcademicTargetDto,
 } from "../dto/principal.dto";
 import { PrincipalGuard } from "../guards/principal.guard";
 import { PrincipalPlanningService } from "../services/principal-planning.service";
@@ -59,6 +61,16 @@ export class PrincipalPlanningController {
     @Body() dto: CreateAcademicTargetDto,
   ) {
     return this.service.createTarget(orgId, req.user, dto);
+  }
+
+  @Patch("targets/:targetId")
+  @ApiOperation({ summary: "Record measured progress on a school or learning target" })
+  updateTarget(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("targetId", ParseUUIDPipe) targetId: string,
+    @Body() dto: UpdateAcademicTargetDto,
+  ) {
+    return this.service.updateTarget(orgId, targetId, dto);
   }
 
   @Post("action-plans")

@@ -21,22 +21,22 @@ export interface PrincipalSchoolKpis {
   totalClasses: number;
   totalSections: number;
   totalSubjects: number;
-  activeAcademicYear: string;
+  activeAcademicYear: string | null;
 }
 
 export interface AcademicHealthBreakdown {
-  curriculumExecution: number;
-  assessmentCompletion: number;
-  studentPerformance: number;
-  teacherAcademicActivity: number;
-  attendanceRate: number;
-  assignmentCompletion: number;
-  interventionCompletion: number;
+  curriculumExecution: number | null;
+  assessmentCompletion: number | null;
+  studentPerformance: number | null;
+  teacherAcademicActivity: number | null;
+  attendanceRate: number | null;
+  assignmentCompletion: number | null;
+  interventionCompletion: number | null;
 }
 
 export interface AcademicHealthComponent {
   name: string;
-  score: number;
+  score: number | null;
   weight: string;
   status: string;
   underlyingMetric: string;
@@ -47,13 +47,12 @@ export interface AcademicHealthComponent {
 export interface TodayAcademicOperations {
   classesRunning: number;
   teachersTeaching: number;
-  teachersAbsent: number;
+  teachersAbsent: number | null;
   substitutionsCovered: number;
-  examsToday: number;
-  assessmentsScheduled: number;
+  examsToday: number | null;
+  assessmentsScheduled: number | null;
   pendingReviews: number;
   openAlerts: number;
-  ptmMeetingsToday: number;
 }
 
 export interface TeacherAcademicItem {

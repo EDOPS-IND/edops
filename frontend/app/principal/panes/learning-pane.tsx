@@ -1,110 +1,103 @@
 "use client";
 
-import React from "react";
-import { ClipboardCheck, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getPrincipalLearningOverview } from "../../edops-api";
 
-export function LearningPane({
-  organizationId,
-  onNavigate,
-}: {
-  organizationId?: string;
-  onNavigate?: (pane: string) => void;
-}) {
-  const [liveData, setLiveData] = React.useState<any>(null);
+type Assignment = { id: string; title: string; className: string; subjectName: string; teacherName: string; dueAt: string; assigned: number; submitted: number; evaluated: number; pendingEvaluation: number };
+type Submission = { id: string; assignmentTitle: string; className: string; studentName: string; status: string; submittedAt: string; gradedAt: string | null; score: number | null; maxScore: number; dueAt: string };
+type Material = { id: string; title: string; description: string | null; chapter: string; topic: string; fileType: string; fileUrl: string; createdAt: string; className: string; subjectName: string; teacherName: string };
+type Activity = { id: string; date: string; period: number; topicsCovered: string; participationPct: number; homeworkAssigned: string | null; reflection: string | null; status: string; className: string; subjectName: string; teacherName: string };
+type Data = { assignments: Assignment[]; submissions: Submission[]; materials: Material[]; activities: Activity[] };
+type View = "assignments" | "submissions" | "materials" | "activities";
+const showDate = (value: string | null) => value ? new Date(value).toLocaleDateString() : "—";
 
-  React.useEffect(() => {
-    if (!organizationId) return;
-    import("../../edops-api").then(({ getPrincipalDashboard }) => {
-      getPrincipalDashboard(organizationId)
-        .then((data) => setLiveData(data))
-        .catch(() => null);
-    });
+export function LearningPane({ organizationId, initialTab = "assignments" }: { organizationId: string; initialTab?: View }) {
+  const [data, setData] = useState<Data | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let active = true;
+    getPrincipalLearningOverview(organizationId)
+      .then((result) => { if (active) setData(result); })
+      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Could not load learning records"); });
+    return () => { active = false; };
   }, [organizationId]);
 
-  const exec = liveData?.teachingExecution;
-  const assignments: any[] = [];
+  const assignments = data?.assignments ?? [];
+  const submissions = data?.submissions ?? [];
+  const materials = data?.materials ?? [];
+  const activities = data?.activities ?? [];
+  const assigned = assignments.reduce((sum, item) => sum + Number(item.assigned), 0);
+  const submitted = assignments.reduce((sum, item) => sum + Number(item.submitted), 0);
+  const pending = assignments.reduce((sum, item) => sum + Number(item.pendingEvaluation), 0);
+  const kpi = (label: string, value: string | number, detail: string) =>
+    <div className="rounded-lg border border-slate-200 bg-white p-4"><p className="text-xs font-semibold text-slate-600">{label}</p>
+      <p className="mt-1 text-2xl font-bold">{value}</p><p className="text-xs text-slate-500">{detail}</p></div>;
+  const cell = "p-3 text-left align-top";
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* 1. Metric Overview Strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
-          <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Active Coursework Units</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#1E293B", margin: "4px 0" }}>{exec?.lessonPlansCompleted ?? 0}</div>
-          <div style={{ fontSize: "11px", color: "#64748B" }}>Across active sections</div>
-        </div>
+  return <section className="space-y-5 text-sm">
+    <h2 className="text-xl font-semibold">{{ assignments: "Assignments", submissions: "Submissions", materials: "Study Materials", activities: "Classroom Activities" }[initialTab]}</h2>
+    {error && <p role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-red-700">{error}</p>}
+    {!data && !error && <p>Loading learning records…</p>}
 
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
-          <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Syllabus Completion Rate</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#15803D", margin: "4px 0" }}>{exec?.syllabusCompletion ?? 0}%</div>
-          <div style={{ fontSize: "11px", color: "#166534" }}>Target: &gt;85.0%</div>
-        </div>
-
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
-          <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Lessons Delivered On-Time</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#065F46", margin: "4px 0" }}>{exec?.lessonsDelivered ?? 0}</div>
-          <div style={{ fontSize: "11px", color: "#065F46" }}>Instructional milestones verified</div>
-        </div>
-
-        <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: "10px", padding: "16px" }}>
-          <div style={{ fontSize: "12px", color: "#92400E", fontWeight: 600 }}>Overdue Evaluations (&gt;48h)</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#B45309", margin: "4px 0" }}>{exec?.pendingEvaluations ?? 0} Submissions</div>
-          <div style={{ fontSize: "11px", color: "#92400E" }}>Flagged in Academic Audit</div>
-        </div>
+    {data && initialTab === "assignments" && <>
+      <p className="text-slate-600">Published assignments for the current academic year. Assigned counts use active students in each class.</p>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {kpi("Published assignments", assignments.length, "Current academic year")}
+        {kpi("Submitted / assigned", `${submitted} / ${assigned}`, "Student submissions")}
+        {kpi("Submission completion", assigned ? `${Math.round(100 * submitted / assigned)}%` : "—", "Across published assignments")}
+        {kpi("Pending evaluation", pending, "Submitted but not graded")}
       </div>
+      <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full"><thead className="bg-slate-50"><tr>
+        <th className={cell}>Assignment</th><th className={cell}>Class / subject</th><th className={cell}>Teacher</th><th className={cell}>Due</th>
+        <th className={cell}>Submitted / assigned</th><th className={cell}>Evaluated</th><th className={cell}>Pending</th>
+      </tr></thead><tbody>{assignments.map((item) => <tr key={item.id} className="border-t">
+        <td className={cell}>{item.title}</td><td className={cell}>{item.className} · {item.subjectName}</td><td className={cell}>{item.teacherName}</td>
+        <td className={cell}>{showDate(item.dueAt)}</td><td className={cell}>{item.submitted} / {item.assigned}</td>
+        <td className={cell}>{item.evaluated}</td><td className={cell}>{item.pendingEvaluation}</td>
+      </tr>)}</tbody></table>{!assignments.length && <p className="p-4 text-slate-500">No published assignments in the current academic year.</p>}</div>
+    </>}
 
-
-      {/* 2. Class-by-Class Execution Table */}
-      <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", overflow: "hidden" }}>
-        <div style={{ padding: "16px 20px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>
-            Coursework & Assignment Evaluation Timeliness Roster
-          </h3>
-          <span style={{ fontSize: "12px", color: "#64748B" }}>SLA: 48 hours for teacher return feedback</span>
-        </div>
-
-        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-          <thead>
-            <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0", color: "#64748B", fontWeight: 700 }}>
-              <th style={{ padding: "12px 16px" }}>Class Section</th>
-              <th style={{ padding: "12px 16px" }}>Subject</th>
-              <th style={{ padding: "12px 16px" }}>Assigned Faculty</th>
-              <th style={{ padding: "12px 16px" }}>Submitted / Assigned</th>
-              <th style={{ padding: "12px 16px" }}>Submission Rate</th>
-              <th style={{ padding: "12px 16px" }}>Evaluated</th>
-              <th style={{ padding: "12px 16px" }}>Pending Evaluation</th>
-              <th style={{ padding: "12px 16px" }}>Turnaround SLA</th>
-            </tr>
-          </thead>
-          <tbody>
-            {assignments.length === 0 ? (
-              <tr>
-                <td colSpan={8} style={{ padding: "24px 16px", textAlign: "center", color: "#64748B" }}>
-                  No active coursework assignments currently pending evaluation.
-                </td>
-              </tr>
-            ) : (
-              assignments.map((a: any, idx: number) => (
-                <tr key={idx} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1E293B" }}>{a.class}</td>
-                  <td style={{ padding: "12px 16px", color: "#334155" }}>{a.subject}</td>
-                  <td style={{ padding: "12px 16px", color: "#64748B" }}>{a.teacher}</td>
-                  <td style={{ padding: "12px 16px", fontWeight: 600 }}>{a.submitted} / {a.assigned}</td>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: parseFloat(a.submissionRate) < 80 ? "#DC2626" : "#15803D" }}>
-                    {a.submissionRate}
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "#15803D", fontWeight: 600 }}>{a.evaluated}</td>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: a.pendingEval > 0 ? "#D97706" : "#15803D" }}>
-                    {a.pendingEval} {a.pendingEval > 0 ? "pending" : "clear"}
-                  </td>
-                  <td style={{ padding: "12px 16px", fontWeight: 600, color: "#065F46" }}>{a.timeliness}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-
-        </table>
+    {data && initialTab === "submissions" && <>
+      <p className="text-slate-600">Individual student work received for published assignments. Missing submissions appear in the outstanding count.</p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        {kpi("Received", submitted, "Across published assignments")}
+        {kpi("Awaiting submission", Math.max(0, assigned - submitted), "Assigned less received")}
+        {kpi("Awaiting evaluation", pending, "Received but not graded")}
       </div>
-    </div>
-  );
+      <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full"><thead className="bg-slate-50"><tr>
+        <th className={cell}>Student</th><th className={cell}>Assignment</th><th className={cell}>Class</th><th className={cell}>Submitted</th><th className={cell}>Timing</th><th className={cell}>Evaluation</th>
+      </tr></thead><tbody>{submissions.map((item) => <tr key={item.id} className="border-t">
+        <td className={cell}>{item.studentName}</td><td className={cell}>{item.assignmentTitle}</td><td className={cell}>{item.className}</td>
+        <td className={cell}>{showDate(item.submittedAt)}</td><td className={cell}>{new Date(item.submittedAt) <= new Date(item.dueAt) ? "On time" : "Late"}</td>
+        <td className={cell}>{item.gradedAt ? `${item.score} / ${item.maxScore}` : "Pending"}</td>
+      </tr>)}</tbody></table>{!submissions.length && <p className="p-4 text-slate-500">No student submissions recorded for published assignments.</p>}</div>
+      {submissions.length === 100 && <p className="text-xs text-slate-500">Showing the 100 most recent submissions.</p>}
+    </>}
+
+    {data && initialTab === "materials" && <>
+      <p className="text-slate-600">Resources teachers have saved for a class and subject: documents, videos, presentations, images, or links.</p>
+      <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full"><thead className="bg-slate-50"><tr>
+        <th className={cell}>Material</th><th className={cell}>Class / subject</th><th className={cell}>Chapter / topic</th><th className={cell}>Teacher</th><th className={cell}>Type</th><th className={cell}>Added</th>
+      </tr></thead><tbody>{materials.map((item) => {
+        const safeUrl = /^https?:\/\//i.test(item.fileUrl) || /^\/(?!\/)/.test(item.fileUrl);
+        return <tr key={item.id} className="border-t"><td className={cell}>{safeUrl ? <a href={item.fileUrl} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">{item.title}</a> : item.title}
+          {item.description && <p className="text-xs text-slate-500">{item.description}</p>}</td>
+          <td className={cell}>{item.className} · {item.subjectName}</td><td className={cell}>{item.chapter} · {item.topic}</td>
+          <td className={cell}>{item.teacherName}</td><td className={cell}>{item.fileType}</td><td className={cell}>{showDate(item.createdAt)}</td></tr>;
+      })}</tbody></table>{!materials.length && <p className="p-4 text-slate-500">No study materials saved for current classes.</p>}</div>
+      {materials.length === 100 && <p className="text-xs text-slate-500">Showing the 100 most recent materials.</p>}
+    </>}
+
+    {data && initialTab === "activities" && <>
+      <p className="text-slate-600">Teacher-recorded lesson delivery and classroom participation, including covered topics and assigned homework.</p>
+      <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full"><thead className="bg-slate-50"><tr>
+        <th className={cell}>Date / period</th><th className={cell}>Class / subject</th><th className={cell}>Teacher</th><th className={cell}>Topics covered</th><th className={cell}>Participation</th><th className={cell}>Homework / reflection</th>
+      </tr></thead><tbody>{activities.map((item) => <tr key={item.id} className="border-t">
+        <td className={cell}>{item.date} · {item.period}</td><td className={cell}>{item.className} · {item.subjectName}</td>
+        <td className={cell}>{item.teacherName}</td><td className={cell}>{item.topicsCovered}</td><td className={cell}>{item.participationPct}% ({item.status})</td>
+        <td className={cell}>{item.homeworkAssigned || "—"}{item.reflection && <p className="text-xs text-slate-500">{item.reflection}</p>}</td>
+      </tr>)}</tbody></table>{!activities.length && <p className="p-4 text-slate-500">No classroom activity recorded for current classes.</p>}</div>
+      {activities.length === 100 && <p className="text-xs text-slate-500">Showing the 100 most recent activities.</p>}
+    </>}
+  </section>;
 }

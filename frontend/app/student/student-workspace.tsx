@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 
 import { OrganizationSummary } from '../edops-api';
+import { useDashboardNavigation } from '../dashboard-navigation';
 import { StudentTab } from './types';
 
 // Panes
@@ -69,6 +70,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   organizations,
 }) => {
   const [activeTab, setActiveTab] = useState<StudentTab>('dashboard');
+  const navigation = useDashboardNavigation(organization.id, 'student');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Modals state
@@ -85,6 +87,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const [goalModalOpen, setGoalModalOpen] = useState(false);
 
   const navigateTo = (tab: StudentTab) => {
+    if (!navigation.sections.some(section => section.items.some(item => item.key.endsWith(`.${tab}`)))) return;
     setActiveTab(tab);
     setMobileMenuOpen(false);
   };
@@ -150,7 +153,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     setLectureModalOpen(true);
   };
 
-  const navItems = [
+  const baseNavItems = [
     { id: 'dashboard', label: 'Student Command Center', icon: LayoutDashboard, tab: 'dashboard' as StudentTab },
     { id: 'class', label: 'My Class', icon: Users, tab: 'class' as StudentTab },
     { id: 'subjects', label: 'Prescribed Subjects', icon: BookOpen, tab: 'subjects' as StudentTab },
@@ -168,6 +171,11 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     { id: 'progress', label: 'Personal Growth & Goals', icon: Target, tab: 'progress' as StudentTab },
     { id: 'profile', label: 'Student Profile & Vault', icon: User, tab: 'profile' as StudentTab },
   ];
+  const navSections = navigation.sections.map(section => ({ ...section, entries: section.items.flatMap(item => {
+    const source = baseNavItems.find(candidate => item.key.endsWith(`.${candidate.id}`));
+    return source ? [{ ...source, label: item.label }] : [];
+  }) })).filter(section => section.entries.length);
+  const availableTabs = new Set(navSections.flatMap(section => section.entries.map(item => item.tab)));
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col antialiased text-slate-800">
@@ -203,6 +211,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         {/* Quick Actions Header */}
         <div className="flex items-center gap-2 sm:gap-3">
           <button
+            disabled={!navigation.has('academics.assignments')}
             onClick={() => handleOpenSubmit()}
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-2xs"
           >
@@ -211,6 +220,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           </button>
 
           <button
+            disabled={!navigation.has('academics.arena')}
             onClick={() => handleOpenArena()}
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-2xs"
           >
@@ -219,6 +229,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           </button>
 
           <button
+            disabled={!availableTabs.has('communication')}
             onClick={() => setSupportModalOpen(true)}
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#090D16] hover:bg-[#1E293B] text-white text-xs font-semibold rounded-lg transition-colors shadow-xs border border-[#2A3756]"
           >
@@ -272,7 +283,9 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           }`}
         >
           <div className="p-3 space-y-1">
-            {navItems.map((item) => {
+            {navSections.map(section => <div key={section.key} className="space-y-1">
+              <p className="px-3 pt-3 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{section.label}</p>
+              {section.entries.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.tab;
               return (
@@ -293,7 +306,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                   <span className="truncate">{item.label}</span>
                 </button>
               );
-            })}
+              })}
+            </div>)}
           </div>
 
           {/* Enrollment Identity Card */}
@@ -303,13 +317,13 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               <span>Active Enrolled Learner</span>
             </div>
             <p className="text-slate-300">Class 10-A • Roll No. 17</p>
-            <p className="text-[10px] text-slate-500">Class Teacher: Rahul Sharma</p>
           </div>
         </aside>
 
         {/* Main Content Pane */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
+            {navigation.loading ? <p>Loading dashboard navigation…</p> : navigation.error ? <p role="alert">{navigation.error}</p> : !availableTabs.has(activeTab) ? <p>This feature is unavailable for this school or role.</p> : <>
             {activeTab === 'dashboard' && (
               <DashboardPane
                 organizationId={organization.id}
@@ -395,6 +409,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
             {activeTab === 'profile' && (
               <ProfilePane organizationId={organization.id} />
             )}
+            </>}
           </div>
         </main>
       </div>

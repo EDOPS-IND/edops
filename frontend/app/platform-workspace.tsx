@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import {
-  getPlatformSchools, getPlatformPlans, createPlatformPlan,
+  getPlatformSchools, getPlatformPlans, getPlatformFeatures, createPlatformPlan,
   updatePlanStatus, updatePlanFeatures, getSchoolDetailedOverrides,
-  setSchoolDetailedOverride, removeSchoolDetailedOverride, onboardSchool,
+  removeSchoolDetailedOverride, onboardSchool,
   updateSchoolLifecycle, getSupportTickets, createSupportTicket,
   updateSupportTicketStatus, startSupportSession, getAnnouncements,
   createAnnouncement, getPayments, refundPayment, globalSearch,
@@ -16,11 +16,11 @@ import {
   Bell, AlertTriangle, AlertCircle, CheckCircle2, X
 } from "lucide-react";
 import {
-  School, Plan, FeatureOverride, SupportTicket, Announcement,
+  School, Plan, FeatureCatalogItem, FeatureOverride, SupportTicket, Announcement,
   PaymentRecord, AuditLog,
   OverviewPane, SchoolsPane, OnboardingWizard, PlansPane, SubscriptionsPane,
   BillingPane, UsagePane, ConfigPane, SecurityPane, SupportPane, HealthPane,
-  SupportSessionModal, FeatureOverrideModal, CreatePlanModal,
+  SupportSessionModal, CreatePlanModal,
   BroadcastAnnouncementModal, CreateTicketModal
 } from "./platform";
 
@@ -34,6 +34,7 @@ export function PlatformWorkspace({
   const [tab, setTab] = useState(activePanel);
   const [schools, setSchools] = useState<School[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [featureCatalog, setFeatureCatalog] = useState<FeatureCatalogItem[]>([]);
   const [selectedSchool, setSelectedSchool] = useState<School | null>(null);
   const [schoolOverrides, setSchoolOverrides] = useState<FeatureOverride[]>([]);
 
@@ -48,7 +49,6 @@ export function PlatformWorkspace({
 
   // Modals state
   const [createPlanModal, setCreatePlanModal] = useState(false);
-  const [overrideModal, setOverrideModal] = useState(false);
   const [ticketModal, setTicketModal] = useState(false);
   const [announcementModal, setAnnouncementModal] = useState(false);
   const [supportSessionModal, setSupportSessionModal] = useState<School | null>(null);
@@ -72,9 +72,10 @@ export function PlatformWorkspace({
   // Initial Data Fetching from PostgreSQL & backend services
   async function loadInitialData() {
     try {
-      const [schoolsRes, plansRes, ticketsRes, logsRes, dashRes, healthRes, staffRes, paymentsRes, announcementsRes] = await Promise.all([
+      const [schoolsRes, plansRes, featuresRes, ticketsRes, logsRes, dashRes, healthRes, staffRes, paymentsRes, announcementsRes] = await Promise.all([
         getPlatformSchools(100).catch(() => ({ items: [] })),
         getPlatformPlans(50).catch(() => ({ items: [] })),
+        getPlatformFeatures().catch(() => []),
         getSupportTickets(50).catch(() => ({ items: [] })),
         getAuditLogs(50).catch(() => ({ items: [] })),
         getPlatformDashboard().catch(() => null),
@@ -114,6 +115,7 @@ export function PlatformWorkspace({
       } else {
         setPlans([]);
       }
+      setFeatureCatalog(Array.isArray(featuresRes) ? featuresRes : []);
 
       if (ticketsRes.items?.length) setTickets(ticketsRes.items);
       else setTickets([]);
@@ -219,29 +221,13 @@ export function PlatformWorkspace({
     }
   }
 
-  async function handleAddOverride(overrideData: any) {
+  async function handleRemoveOverride(featureKey: string, role?: string) {
     if (!selectedSchool) return;
     setBusy(true);
     try {
-      await setSchoolDetailedOverride(selectedSchool.id, overrideData);
-      setOverrideModal(false);
-      setSuccessMsg(`Override for ${overrideData.featureKey} applied successfully`);
-      const updated = await getSchoolDetailedOverrides(selectedSchool.id);
-      setSchoolOverrides(updated);
-    } catch (err: any) {
-      setError(err.message || "Failed to save override");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function handleRemoveOverride(featureKey: string) {
-    if (!selectedSchool) return;
-    setBusy(true);
-    try {
-      await removeSchoolDetailedOverride(selectedSchool.id, featureKey);
+      await removeSchoolDetailedOverride(selectedSchool.id, featureKey, role);
       setSuccessMsg(`Override for ${featureKey} removed`);
-      setSchoolOverrides(prev => prev.filter(o => o.featureKey !== featureKey));
+      setSchoolOverrides(await getSchoolDetailedOverrides(selectedSchool.id));
     } catch (err: any) {
       setError(err.message || "Failed to remove override");
     } finally {
@@ -489,8 +475,8 @@ export function PlatformWorkspace({
           selectedSchool={selectedSchool}
           onSelectSchool={handleSelectSchool}
           schoolOverrides={schoolOverrides}
-          onOpenOverrideModal={() => setOverrideModal(true)}
           onRemoveOverride={handleRemoveOverride}
+          onOverridesChanged={() => { if (selectedSchool) getSchoolDetailedOverrides(selectedSchool.id).then(setSchoolOverrides).catch(() => {}); }}
           onLifecycleChange={handleLifecycleChange}
           onOpenSupportSessionModal={(s) => setSupportSessionModal(s)}
         />
@@ -508,6 +494,7 @@ export function PlatformWorkspace({
       {tab === "plans" && (
         <PlansPane
           plans={plans}
+          features={featureCatalog}
           onOpenCreatePlanModal={() => setCreatePlanModal(true)}
           onRetirePlan={handleRetirePlan}
           onUpdatePlanFeatures={handleUpdatePlanFeatures}
@@ -570,15 +557,6 @@ export function PlatformWorkspace({
           school={supportSessionModal}
           onClose={() => setSupportSessionModal(null)}
           onConfirm={handleStartSupportSession}
-          busy={busy}
-        />
-      )}
-
-      {overrideModal && selectedSchool && (
-        <FeatureOverrideModal
-          school={selectedSchool}
-          onClose={() => setOverrideModal(false)}
-          onSave={handleAddOverride}
           busy={busy}
         />
       )}

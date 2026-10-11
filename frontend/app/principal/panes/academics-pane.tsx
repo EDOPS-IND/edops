@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { ClassPerformanceItem, SubjectPerformanceItem, CurriculumNodeItem, LessonPlanItem } from "../types";
 import { Search, Layers, BookOpen, CheckCircle2, AlertTriangle, ArrowRight, MessageSquare, Award } from "lucide-react";
+import { api, getPrincipalAcademics } from "../../edops-api";
 
 export function AcademicsPane({
   classes = [],
@@ -25,6 +26,7 @@ export function AcademicsPane({
   onOpenTeacherProfile?: (id: string) => void;
 }) {
   const [liveData, setLiveData] = useState<any>(null);
+  const [loadError, setLoadError] = useState(false);
   const [subTab, setSubTab] = useState<"classes" | "subjects" | "curriculum" | "lesson_plans" | "competencies">(
     (initialTab as any) || "classes"
   );
@@ -32,27 +34,33 @@ export function AcademicsPane({
 
   React.useEffect(() => {
     if (!organizationId) return;
-    import("../../edops-api").then(({ getPrincipalAcademics }) => {
-      getPrincipalAcademics(organizationId)
-        .then((data) => setLiveData(data))
-        .catch(() => null);
-    });
+    setLoadError(false);
+    getPrincipalAcademics(organizationId)
+      .then((data) => setLiveData(data))
+      .catch(() => setLoadError(true));
   }, [organizationId]);
 
   const classList = (liveData?.classes && liveData.classes.length > 0) ? liveData.classes : classes;
   const subjectList = (liveData?.subjects && liveData.subjects.length > 0) ? liveData.subjects : subjects;
-  const nodeList = (liveData?.curriculumNodes && liveData.curriculumNodes.length > 0) ? liveData.curriculumNodes : curriculumNodes;
-  const planList = (liveData?.lessonPlans && liveData.lessonPlans.length > 0) ? liveData.lessonPlans : lessonPlans;
+  const nodeList = liveData?.curriculumNodes ?? curriculumNodes;
+  const planList = liveData?.lessonPlans ?? lessonPlans;
+  const percent = (value: number | null) => value == null ? "—" : `${value}%`;
 
 
   const handleSendFeedback = async (id: string, status: string) => {
     const text = feedbackInput[id] || "Approved by Principal.";
-    await onReviewLessonPlan(id, status, text);
-    alert(`Lesson plan marked as ${status}.`);
+    try {
+      if (onReviewLessonPlan) await onReviewLessonPlan(id, status, text);
+      else await api(`/organizations/${organizationId}/principal/academics/lesson-plans/${id}/feedback`, { method: "POST", body: { status, principalFeedback: text } });
+      setLiveData(await getPrincipalAcademics(organizationId!));
+    } catch {
+      alert("Could not update the lesson plan. Please try again.");
+    }
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {loadError && <p>Could not load academic data. Please try again.</p>}
       {/* Sub Navigation Strip */}
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
         {[
@@ -100,6 +108,7 @@ export function AcademicsPane({
               </tr>
             </thead>
             <tbody>
+              {classList.length === 0 && <tr><td colSpan={9} style={{ padding: "16px" }}>No classes or sections found.</td></tr>}
               {classList.map((c: any, idx: number) => (
                 <tr key={idx} style={{ borderBottom: "1px solid #F1F5F9" }}>
                   <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1E293B" }}>
@@ -107,14 +116,14 @@ export function AcademicsPane({
                   </td>
                   <td style={{ padding: "12px 16px", color: "#64748B" }}>{c.studentCount} students</td>
                   <td style={{ padding: "12px 16px", fontWeight: 800, color: c.averageScore < 75 ? "#DC2626" : "#1E293B" }}>
-                    {c.averageScore}%
+                    {percent(c.averageScore)}
                   </td>
-                  <td style={{ padding: "12px 16px", fontWeight: 600, color: "#15803D" }}>{c.passRate}%</td>
+                  <td style={{ padding: "12px 16px", fontWeight: 600, color: "#15803D" }}>{percent(c.passRate)}</td>
                   <td style={{ padding: "12px 16px", fontWeight: 600, color: c.attendanceRate < 90 ? "#D97706" : "#475569" }}>
-                    {c.attendanceRate}%
+                    {percent(c.attendanceRate)}
                   </td>
-                  <td style={{ padding: "12px 16px", color: "#475569" }}>{c.assignmentCompletion}%</td>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: "#065F46" }}>{c.curriculumCompletion}%</td>
+                  <td style={{ padding: "12px 16px", color: "#475569" }}>{percent(c.assignmentCompletion)}</td>
+                  <td style={{ padding: "12px 16px", fontWeight: 700, color: "#065F46" }}>{percent(c.curriculumCompletion)}</td>
                   <td style={{ padding: "12px 16px" }}>
                     <span
                       style={{
@@ -126,7 +135,7 @@ export function AcademicsPane({
                         color: c.trend === "Requires intervention" ? "#991B1B" : c.trend === "Improving" ? "#166534" : "#475569",
                       }}
                     >
-                      {c.trend}
+                      {c.trend || "—"}
                     </span>
                   </td>
                   <td style={{ padding: "12px 16px", textAlign: "right" }}>
@@ -147,6 +156,7 @@ export function AcademicsPane({
       {/* 2. Subjects Performance Tab */}
       {subTab === "subjects" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
+          {subjectList.length === 0 && <p>No subjects found for this school.</p>}
           {subjectList.map((sub: any, idx: number) => (
             <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
@@ -171,16 +181,16 @@ export function AcademicsPane({
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginTop: "12px", fontSize: "12px" }}>
                 <div style={{ background: "#F8FAFC", padding: "8px 10px", borderRadius: "6px" }}>
                   <div style={{ color: "#64748B" }}>Subject Average</div>
-                  <div style={{ fontSize: "18px", fontWeight: 800, color: "#1E293B" }}>{sub.average}%</div>
+                  <div style={{ fontSize: "18px", fontWeight: 800, color: "#1E293B" }}>{percent(sub.average)}</div>
                 </div>
                 <div style={{ background: "#F8FAFC", padding: "8px 10px", borderRadius: "6px" }}>
                   <div style={{ color: "#64748B" }}>Curriculum Actual</div>
-                  <div style={{ fontSize: "18px", fontWeight: 800, color: "#065F46" }}>{sub.curriculum}%</div>
+                  <div style={{ fontSize: "18px", fontWeight: 800, color: "#065F46" }}>{percent(sub.curriculum)}</div>
                 </div>
                 <div style={{ background: "#F8FAFC", padding: "8px 10px", borderRadius: "6px" }}>
                   <div style={{ color: "#64748B" }}>Syllabus Gap</div>
                   <div style={{ fontSize: "18px", fontWeight: 800, color: sub.gap < 0 ? "#DC2626" : "#15803D" }}>
-                    {sub.gap > 0 ? `+${sub.gap}%` : `${sub.gap}%`}
+                    {sub.gap == null ? "—" : sub.gap > 0 ? `+${sub.gap}%` : `${sub.gap}%`}
                   </div>
                 </div>
               </div>
@@ -192,7 +202,8 @@ export function AcademicsPane({
       {/* 3. Curriculum Gap Engine Tab */}
       {subTab === "curriculum" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          {curriculumNodes.map((node, idx) => (
+          {nodeList.length === 0 && <p>No curriculum chapters have been added for this school yet.</p>}
+          {nodeList.map((node: CurriculumNodeItem, idx: number) => (
             <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                 <div>
@@ -213,13 +224,13 @@ export function AcademicsPane({
                     color: node.gap < -5 ? "#991B1B" : "#166534",
                   }}
                 >
-                  {node.status} (Gap: {node.gap}%)
+                  {node.status} (Gap: {percent(node.gap)})
                 </span>
               </div>
 
               <div style={{ margin: "10px 0" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#64748B", marginBottom: "4px" }}>
-                  <span>Expected Week: <b>Week {node.expectedWeek} ({node.expectedProgress}%)</b></span>
+                  <span>Expected Week: <b>Week {node.expectedWeek} ({percent(node.expectedProgress)})</b></span>
                   <span>Actual Progress: <b>{node.actualProgress}%</b></span>
                 </div>
                 <div style={{ height: "6px", width: "100%", background: "#E2E8F0", borderRadius: "3px", overflow: "hidden" }}>
@@ -238,7 +249,8 @@ export function AcademicsPane({
       {/* 4. Lesson Plans & Principal Review Tab */}
       {subTab === "lesson_plans" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          {lessonPlans.map((lp, idx) => (
+          {planList.length === 0 && <p>No lesson plans have been submitted for review yet.</p>}
+          {planList.map((lp: LessonPlanItem, idx: number) => (
             <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px 20px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                 <div>
@@ -294,18 +306,12 @@ export function AcademicsPane({
       {/* 5. Competencies & Learning Outcomes Tab */}
       {subTab === "competencies" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
-          {[
-            { dim: "Conceptual Understanding", score: 86.4, desc: "Grasp of fundamental mathematical and scientific axioms without rote reliance." },
-            { dim: "Application of Knowledge", score: 82.0, desc: "Translating theoretical concepts to laboratory apparatus and real-world problems." },
-            { dim: "Critical Problem Solving", score: 79.5, desc: "Formulating multi-step solutions in non-standard unfamiliar scenarios." },
-            { dim: "Communication & Expression", score: 88.0, desc: "Structured written clarity in language and scientific notation." },
-          ].map((c, idx) => (
-            <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>{c.dim}</h4>
-                <span style={{ fontSize: "16px", fontWeight: 800, color: "#065F46" }}>{c.score}%</span>
-              </div>
-              <p style={{ margin: 0, fontSize: "12px", color: "#64748B" }}>{c.desc}</p>
+          {nodeList.length === 0 && <p>No curriculum learning outcomes or competencies have been added yet.</p>}
+          {nodeList.map((node: CurriculumNodeItem) => (
+            <div key={node.id} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px" }}>
+              <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700 }}>{node.subject}: {node.chapter}</h4>
+              <p style={{ fontSize: "12px" }}>Competencies: {node.competency || "Not mapped"}</p>
+              <p style={{ fontSize: "12px" }}>Learning outcomes: {node.learningOutcomes.join(" · ") || "Not mapped"}</p>
             </div>
           ))}
         </div>

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { SchoolAdminTab } from "./types";
+import { useDashboardNavigation } from "../dashboard-navigation";
 import { DashboardPane } from "./dashboard-pane";
 import { PeoplePane } from "./people-pane";
 import { AcademicsPane } from "./academics-pane";
@@ -173,6 +174,15 @@ export function SchoolAdminWorkspace({
   onLogout?: () => void;
 }) {
   const [currentTab, setCurrentTab] = useState<SchoolAdminTab>(activeTab);
+  const navigation = useDashboardNavigation(organizationId ?? "", "school_admin");
+  const available = (tab: SchoolAdminTab) => navigation.sections.some(section => section.items.some(item => item.key.endsWith(`.${tab}`)));
+  const navIcons: Record<SchoolAdminTab, React.ElementType> = {
+    dashboard: LayoutDashboard, students: GraduationCap, teachers: Users, staff: Briefcase, parents: HeartHandshake,
+    departments: Building2, academics: BookOpen, timetable: CalendarDays, attendance: CalendarCheck2,
+    learning: BookOpen, examinations: Award, finance: CreditCard, communication: MessageSquare,
+    operations: Bus, alerts: ShieldAlert, discipline: FileText, documents: FileText,
+    reports: BarChart3, settings: Sliders, audit: History,
+  };
   const [quickActionModal, setQuickActionModal] = useState<string | null>(null);
   const [actionTitle, setActionTitle] = useState("");
   const [actionScope, setActionScope] = useState("");
@@ -183,6 +193,7 @@ export function SchoolAdminWorkspace({
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   const go = (tab: SchoolAdminTab) => {
+    if (!available(tab)) return;
     setCurrentTab(tab);
     if (onTabChange) onTabChange(tab);
   };
@@ -290,36 +301,16 @@ export function SchoolAdminWorkspace({
 
         {/* ── Navigation ──────────────────────────────── */}
         <nav style={{ flex: 1, padding: "2px 8px 12px", display: "flex", flexDirection: "column" }}>
-
-          <NavGroup label="Overview" />
-          <NavItem icon={LayoutDashboard} label="Dashboard" active={currentTab === "dashboard"} onClick={() => go("dashboard")} />
-
-          <NavGroup label="People" />
-          <NavItem icon={GraduationCap} label="Students" active={currentTab === "students"} onClick={() => go("students")} />
-          <NavItem icon={Users} label="Teachers & Workload" active={currentTab === "teachers"} onClick={() => go("teachers")} />
-          <NavItem icon={Briefcase} label="School Staff" active={currentTab === "staff"} onClick={() => go("staff")} />
-          <NavItem icon={HeartHandshake} label="Parents & Guardians" active={currentTab === "parents"} onClick={() => go("parents")} />
-          <NavItem icon={Building2} label="Departments" active={currentTab === "departments"} onClick={() => go("departments")} />
-
-          <NavGroup label="Academics" />
-          <NavItem icon={BookOpen} label="Academic Structure" active={currentTab === "academics"} onClick={() => go("academics")} />
-          <NavItem icon={CalendarDays} label="Timetable" active={currentTab === "timetable"} onClick={() => go("timetable")} />
-          <NavItem icon={CalendarCheck2} label="Attendance & Leave" active={currentTab === "attendance"} onClick={() => go("attendance")} />
-          <NavItem icon={BookOpen} label="Curriculum" active={currentTab === "learning"} onClick={() => go("learning")} />
-          <NavItem icon={Award} label="Exams & Results" active={currentTab === "examinations"} onClick={() => go("examinations")} />
-
-          <NavGroup label="Finance & Comms" />
-          <NavItem icon={CreditCard} label="Fee Management" active={currentTab === "finance"} onClick={() => go("finance")} />
-          <NavItem icon={MessageSquare} label="Communication" active={currentTab === "communication"} badge={4} onClick={() => go("communication")} />
-          <NavItem icon={Bus} label="Transport & Facilities" active={currentTab === "operations"} onClick={() => go("operations")} />
-
-          <NavGroup label="Governance" />
-          <NavItem icon={ShieldAlert} label="Alert Center" active={currentTab === "alerts"} badge={4} badgeVariant="amber" onClick={() => go("alerts")} />
-          <NavItem icon={FileText} label="Discipline Register" active={currentTab === "discipline"} onClick={() => go("discipline")} />
-          <NavItem icon={FileText} label="Documents & Policies" active={currentTab === "documents"} onClick={() => go("documents")} />
-          <NavItem icon={BarChart3} label="Reports & Analytics" active={currentTab === "reports"} onClick={() => go("reports")} />
-          <NavItem icon={Sliders} label="Settings" active={currentTab === "settings"} onClick={() => go("settings")} />
-          <NavItem icon={History} label="Audit Log" active={currentTab === "audit"} onClick={() => go("audit")} />
+          {navigation.error && <p role="alert" style={{ color: "#FCA5A5", padding: "12px", fontSize: "12px" }}>{navigation.error}</p>}
+          {navigation.sections.map(section => (
+            <React.Fragment key={section.key}>
+              <NavGroup label={section.label} />
+              {section.items.map(item => {
+                const tab = item.key.split(".").at(-1) as SchoolAdminTab;
+                return <NavItem key={item.key} icon={navIcons[tab]} label={item.label} active={currentTab === tab} onClick={() => go(tab)} />;
+              })}
+            </React.Fragment>
+          ))}
         </nav>
 
         {/* ── Sign out ────────────────────────────────── */}
@@ -550,6 +541,7 @@ export function SchoolAdminWorkspace({
 
         {/* ── Page content ────────────────────────────── */}
         <div style={{ flex: 1, padding: "28px 28px 56px" }}>
+          {!available(currentTab) ? <p role="status">{navigation.loading ? "Loading dashboard navigation…" : "This dashboard feature is unavailable for this school."}</p> : <>
           {currentTab === "dashboard" && (
             <DashboardPane organizationId={organizationId} onNavigate={go} onOpenQuickAction={triggerAction} />
           )}
@@ -567,6 +559,7 @@ export function SchoolAdminWorkspace({
           {["discipline","documents","reports","alerts","settings","audit"].includes(currentTab) && (
             <GovernancePane organizationId={organizationId} initialTab={currentTab as any} />
           )}
+          </>}
         </div>
       </main>
 

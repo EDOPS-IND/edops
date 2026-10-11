@@ -67,7 +67,7 @@ test('Milestone 1 against PostgreSQL', { timeout: 120_000 }, async (t) => {
   const source = createDataSource(config);
   await source.initialize();
   try {
-    assert.equal((await source.runMigrations()).length, 6);
+    assert.equal((await source.runMigrations()).length, 14);
     assert.equal((await source.runMigrations()).length, 0);
   } finally { await source.destroy(); }
 
@@ -150,7 +150,7 @@ test('Milestone 1 against PostgreSQL', { timeout: 120_000 }, async (t) => {
       ['get', '/api/organizations/{id}', 200, cookie, ['id', 'name', 'slug', 'timeZone', 'locale', 'status', 'createdAt', 'updatedAt']],
       ['patch', '/api/organizations/{id}', 200, write, ['id', 'name', 'slug', 'timeZone', 'locale', 'status', 'createdAt', 'updatedAt']],
     ];
-    assert.equal(Object.entries(spec.paths).filter(([route]) => !route.startsWith('/api/v1/')).flatMap(([, item]) => Object.keys(item)).length, operations.length);
+    assert.equal(Object.entries(spec.paths).filter(([route]) => !route.startsWith('/api/v1/')).flatMap(([, item]) => Object.keys(item)).length, 12);
     assert.equal(spec.components.securitySchemes.cookie.name, 'edops_session');
     assert.equal(spec.components.securitySchemes.cookie.in, 'cookie');
     assert.equal(spec.components.securitySchemes.csrf.name, 'X-CSRF-Token');

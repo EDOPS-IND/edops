@@ -1,5 +1,5 @@
 import { Transform } from "class-transformer";
-import { IsEmail, IsString, MaxLength, MinLength } from "class-validator";
+import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
 export const normalizeEmail = ({ value }: { value: unknown }) =>
@@ -31,3 +31,24 @@ export class LoginDto {
   @MaxLength(128)
   password!: string;
 }
+
+export class RefreshDto {
+  @ApiProperty({ required: false, description: "Refresh token string" })
+  @IsOptional()
+  @IsString()
+  refreshToken?: string;
+}
+
+export class LogoutDto {
+  @ApiProperty({ required: false, description: "Refresh token string to revoke" })
+  @IsOptional()
+  @IsString()
+  refreshToken?: string;
+}
+
+export class SwitchSchoolDto {
+  @ApiProperty({ description: "School ID" })
+  @IsString()
+  schoolId!: string;
+}
+

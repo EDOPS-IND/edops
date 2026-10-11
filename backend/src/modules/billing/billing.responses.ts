@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { CreatePlanDto, PlanFeatures, SubscriptionDto } from "./billing.dto";
+import { CreatePlanDto, SubscriptionDto } from "./billing.dto";
 
 export class PlanView extends CreatePlanDto {
   @ApiProperty({ enum: ["INR"] }) currency!: string;
@@ -31,7 +31,7 @@ export class EntitlementView {
   entitled!: boolean;
   @ApiProperty() maxStudents!: number;
   @ApiProperty() maxTeachers!: number;
-  @ApiProperty({ type: PlanFeatures }) features!: PlanFeatures;
+  @ApiProperty({ type: 'object', additionalProperties: { type: 'boolean' } }) features!: Record<string, boolean>;
 }
 class OverrideView {
   @ApiProperty({ enum: ["arena", "recordings", "communication"] })

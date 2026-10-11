@@ -4,14 +4,11 @@ import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import express, { NextFunction, Request, Response } from 'express';
-import session from 'express-session';
 import helmet from 'helmet';
 import { DrizzleService } from './database/drizzle.service';
 import { AppModule } from './app.module';
 import { AppConfig } from './config';
-import { csrf } from './common/csrf';
 import { HttpErrorFilter } from './common/http-error.filter';
-import { AuthService } from './modules/auth/auth.service';
 
 export async function createApp(config: AppConfig) {
   const app = await NestFactory.create<NestExpressApplication>(AppModule.register(config), {
@@ -51,13 +48,6 @@ export async function createApp(config: AppConfig) {
     response.setHeader('Cache-Control', 'no-store');
     next();
   });
-  app.use(session({
-    name: config.cookieName,
-    secret: config.sessionSecret,
-    store: app.get(AuthService).sessionStore,
-    resave: false, saveUninitialized: false, rolling: false,
-    cookie: { httpOnly: true, sameSite: 'lax', secure: config.environment === 'production', path: '/', maxAge: config.sessionMaxAge },
-  }));
   app.use((request: Request, _response: Response, next: NextFunction) => {
     const origin = request.get('origin');
     if (!['GET', 'HEAD', 'OPTIONS'].includes(request.method) && origin && !config.corsOrigins.includes(origin)) {
@@ -65,7 +55,6 @@ export async function createApp(config: AppConfig) {
     }
     next();
   });
-  app.use(csrf.csrfSynchronisedProtection);
   app.setGlobalPrefix('api');
   app.enableVersioning({ type: VersioningType.URI, defaultVersion: ['1', VERSION_NEUTRAL] });
   app.useGlobalPipes(new ValidationPipe({

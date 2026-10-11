@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { AuditModule } from "../audit/audit.module";
 import { TenantsModule } from "../tenants/tenants.module";
+import { SchoolAdminModule } from "../school-admin/school-admin.module";
 
 // Controllers
 import { PrincipalDashboardController } from "./controllers/principal-dashboard.controller";
@@ -11,6 +12,7 @@ import { PrincipalAssessmentsController } from "./controllers/principal-assessme
 import { PrincipalStudentsController } from "./controllers/principal-students.controller";
 import { PrincipalCommunicationController } from "./controllers/principal-communication.controller";
 import { PrincipalAuditAlertsController } from "./controllers/principal-audit-alerts.controller";
+import { PrincipalTimetableController } from "./controllers/principal-timetable.controller";
 
 // Services
 import { PrincipalDashboardService } from "./services/principal-dashboard.service";
@@ -21,12 +23,13 @@ import { PrincipalAssessmentsService } from "./services/principal-assessments.se
 import { PrincipalStudentsService } from "./services/principal-students.service";
 import { PrincipalCommunicationService } from "./services/principal-communication.service";
 import { PrincipalAuditAlertsService } from "./services/principal-audit-alerts.service";
+import { PrincipalTimetableService } from "./services/principal-timetable.service";
 
 // Guards
 import { PrincipalGuard } from "./guards/principal.guard";
 
 @Module({
-  imports: [TenantsModule, AuditModule],
+  imports: [TenantsModule, AuditModule, SchoolAdminModule],
   controllers: [
     PrincipalDashboardController,
     PrincipalPlanningController,
@@ -36,6 +39,7 @@ import { PrincipalGuard } from "./guards/principal.guard";
     PrincipalStudentsController,
     PrincipalCommunicationController,
     PrincipalAuditAlertsController,
+    PrincipalTimetableController,
   ],
   providers: [
     PrincipalGuard,
@@ -47,6 +51,7 @@ import { PrincipalGuard } from "./guards/principal.guard";
     PrincipalStudentsService,
     PrincipalCommunicationService,
     PrincipalAuditAlertsService,
+    PrincipalTimetableService,
   ],
   exports: [
     PrincipalDashboardService,

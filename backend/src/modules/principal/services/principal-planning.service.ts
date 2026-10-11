@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { DrizzleService } from "../../../database/drizzle.service";
 import { User } from "../../auth/user.entity";
 import {
@@ -6,6 +6,7 @@ import {
   CreateAcademicTargetDto,
   CreateActionPlanDto,
   RecordAcademicMeetingDto,
+  UpdateAcademicTargetDto,
 } from "../dto/principal.dto";
 
 @Injectable()
@@ -13,158 +14,24 @@ export class PrincipalPlanningService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async getPlanningOverview(orgId: string, _actor: User) {
-    const manager = this.drizzle;
-
-    const plans = await manager
-      .query(
-        `SELECT * FROM principal_academic_plans WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 20`,
-        [orgId],
-      )
-      .catch(() => []);
-
-    const targets = await manager
-      .query(
-        `SELECT * FROM principal_academic_targets WHERE organization_id = $1 ORDER BY deadline ASC LIMIT 20`,
-        [orgId],
-      )
-      .catch(() => []);
-
-    const actionPlans = await manager
-      .query(
-        `SELECT * FROM principal_action_plans WHERE organization_id = $1 ORDER BY review_date ASC LIMIT 20`,
-        [orgId],
-      )
-      .catch(() => []);
-
-    const meetings = await manager
-      .query(
-        `SELECT * FROM principal_academic_meetings WHERE organization_id = $1 ORDER BY meeting_date DESC LIMIT 20`,
-        [orgId],
-      )
-      .catch(() => []);
-
-    // Seed defaults if empty
-    const fallbackPlans = plans.length
-      ? plans
-      : [
-          {
-            id: "plan-1",
-            title: "CBSE Annual Pedagogical Plan 2026-27",
-            board: "CBSE",
-            academicObjectives:
-              "Attain 100% pass percentage with 40%+ students scoring above 85% aggregate across Grade 10 and 12.",
-            teachingPedagogyStrategy:
-              "Experiential learning, inquiry-based science labs, competency-based item integration.",
-            assessmentStrategy:
-              "Continuous formative assessments, 2 periodic tests, pre-boards, rubric-based project portfolios.",
-            status: "Approved",
-            createdAt: new Date().toISOString(),
-          },
-        ];
-
-    const fallbackTargets = targets.length
-      ? targets
-      : [
-          {
-            id: "target-1",
-            title: "Class 10 Mathematics Board Average >= 82%",
-            baselineValue: "72%",
-            targetValue: "82%",
-            currentValue: "78.5%",
-            progressPercentage: 65,
-            ownerName: "Mathematics Department (Rahul Sharma)",
-            deadline: "2027-03-31",
-            status: "In Progress",
-          },
-          {
-            id: "target-2",
-            title: "Science Practical Experiential Hours >= 40h/student",
-            baselineValue: "22h",
-            targetValue: "40h",
-            currentValue: "34h",
-            progressPercentage: 85,
-            ownerName: "Science Faculty (Dr. Anita Desai)",
-            deadline: "2027-02-15",
-            status: "In Progress",
-          },
-          {
-            id: "target-3",
-            title: "Zero Chronic Absenteeism in Senior Secondary",
-            baselineValue: "8.4%",
-            targetValue: "< 2.0%",
-            currentValue: "3.1%",
-            progressPercentage: 70,
-            ownerName: "Academic Counseling & Class Teachers",
-            deadline: "2027-01-30",
-            status: "In Progress",
-          },
-        ];
-
-    const fallbackActionPlans = actionPlans.length
-      ? actionPlans
-      : [
-          {
-            id: "act-1",
-            issue:
-              "Class 10-A Mathematics average dropped 11% in Periodic Test 2",
-            evidence:
-              "Class PT2 average was 69% compared to 80% baseline. Lowest scores in Quadratic Equations.",
-            rootCause:
-              "Pacing gap caused by missed days during athletic meet; inadequate guided practice.",
-            action:
-              "4 zero-period booster sessions assigned; peer tutoring triads established; re-test on Nov 2.",
-            ownerName: "Rahul Sharma",
-            deadline: "2026-11-05",
-            reviewDate: "2026-10-28",
-            expectedResult: "Class average recovery to 80%+",
-            status: "Active",
-          },
-          {
-            id: "act-2",
-            issue: "Science lab logbook evaluation backlog in Class 11-B",
-            evidence:
-              "28 physics logbooks pending verification for over 10 days.",
-            rootCause:
-              "Laboratory assistant on leave during exam creation cycle.",
-            action:
-              "Assigned relief coordinator; lab evaluation clinic conducted this Saturday.",
-            ownerName: "Dr. Anita Desai",
-            deadline: "2026-10-24",
-            reviewDate: "2026-10-22",
-            expectedResult: "100% evaluated and recorded in LMS",
-            status: "Active",
-          },
-        ];
-
-    const fallbackMeetings = meetings.length
-      ? meetings
-      : [
-          {
-            id: "meet-1",
-            meetingType: "Weekly Academic Review",
-            meetingDate: new Date().toISOString().split("T")[0],
-            participants: [
-              "Principal",
-              "Rahul Sharma (Math HOD)",
-              "Dr. Anita Desai (Science HOD)",
-              "Pooja Verma (English HOD)",
-            ],
-            agenda:
-              "Review of Periodic Test 2 outcomes, syllabus tracking, and CBSE pre-board timeline alignment.",
-            findings:
-              "Science syllabus is 1 week ahead; Math requires 2 remedial periods in Grade 10-A.",
-            decisions:
-              "Approved additional Saturday practical sessions for physics and remedial hours for math.",
-            status: "Completed",
-          },
-        ];
-
-    return {
-      plans: fallbackPlans,
-      targets: fallbackTargets,
-      actionPlans: fallbackActionPlans,
-      meetings: fallbackMeetings,
-    };
+    const [plans, targets, actionPlans, meetings] = await Promise.all([
+      this.drizzle.query(`SELECT id, title, board, academic_objectives AS "academicObjectives",
+        teaching_pedagogy_strategy AS "teachingPedagogyStrategy", assessment_strategy AS "assessmentStrategy",
+        remedial_plan AS "remedialPlan", status, created_at AS "createdAt"
+        FROM principal_academic_plans WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 100`, [orgId]),
+      this.drizzle.query(`SELECT id, title, category, baseline_value AS "baselineValue",
+        target_value AS "targetValue", current_value AS "currentValue",
+        progress_percentage AS "progressPercentage", owner_name AS "ownerName", deadline, status
+        FROM principal_academic_targets WHERE organization_id = $1 ORDER BY deadline ASC LIMIT 100`, [orgId]),
+      this.drizzle.query(`SELECT id, issue, evidence, root_cause AS "rootCause", action,
+        owner_name AS "ownerName", deadline, review_date AS "reviewDate",
+        expected_result AS "expectedResult", status
+        FROM principal_action_plans WHERE organization_id = $1 ORDER BY review_date ASC LIMIT 100`, [orgId]),
+      this.drizzle.query(`SELECT id, meeting_type AS "meetingType", meeting_date AS "meetingDate",
+        participants, agenda, findings, decisions, status
+        FROM principal_academic_meetings WHERE organization_id = $1 ORDER BY meeting_date DESC LIMIT 100`, [orgId]),
+    ]);
+    return { plans, targets, actionPlans, meetings };
   }
 
   async createAcademicPlan(
@@ -181,12 +48,12 @@ export class PrincipalPlanningService {
       [
         orgId,
         dto.title,
-        dto.board || "CBSE",
+        dto.board,
         dto.academicObjectives || "",
         dto.teachingPedagogyStrategy || "",
         dto.assessmentStrategy || "",
         dto.status || "Draft",
-        actor.id,
+        dto.status === "Approved" ? actor.id : null,
       ],
     );
     return inserted;
@@ -200,22 +67,33 @@ export class PrincipalPlanningService {
     const manager = this.drizzle;
     const [inserted] = await manager.query(
       `INSERT INTO principal_academic_targets (
-        organization_id, title, baseline_value, target_value, owner_name, deadline, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, 'In Progress')
+        organization_id, title, category, baseline_value, target_value, owner_name, deadline, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'Not Started')
       RETURNING *`,
       [
         orgId,
         dto.title,
+        dto.category || "School",
         dto.baselineValue,
         dto.targetValue,
-        dto.ownerName || "Academic Council",
+        dto.ownerName,
         dto.deadline,
       ],
     );
     return inserted;
   }
 
-  async createActionPlan(orgId: string, actor: User, dto: CreateActionPlanDto) {
+  async updateTarget(orgId: string, targetId: string, dto: UpdateAcademicTargetDto) {
+    const [target] = await this.drizzle.query(`UPDATE principal_academic_targets
+      SET current_value = $3, progress_percentage = $4,
+        status = CASE WHEN $4 = 100 THEN 'Achieved' ELSE 'In Progress' END
+      WHERE organization_id = $1 AND id = $2 RETURNING id`,
+      [orgId, targetId, dto.currentValue, dto.progressPercentage]);
+    if (!target) throw new NotFoundException("Target not found");
+    return target;
+  }
+
+  async createActionPlan(orgId: string, _actor: User, dto: CreateActionPlanDto) {
     const manager = this.drizzle;
     const [inserted] = await manager.query(
       `INSERT INTO principal_action_plans (
@@ -229,7 +107,7 @@ export class PrincipalPlanningService {
         dto.rootCause || "",
         dto.action,
         dto.ownerName,
-        actor.id,
+        null,
         dto.deadline,
         dto.reviewDate,
         dto.expectedResult || "",
@@ -247,7 +125,7 @@ export class PrincipalPlanningService {
     const [inserted] = await manager.query(
       `INSERT INTO principal_academic_meetings (
         organization_id, meeting_type, meeting_date, participants, agenda, findings, decisions, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'Completed')
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *`,
       [
         orgId,
@@ -257,6 +135,7 @@ export class PrincipalPlanningService {
         dto.agenda,
         dto.findings || "",
         dto.decisions || "",
+        dto.meetingDate > new Date().toISOString().slice(0, 10) ? "Scheduled" : "Completed",
       ],
     );
     return inserted;

@@ -13,31 +13,22 @@ export class TeacherTimetableService {
 
     let slots: any[] = [];
     try {
-      const liveEntries = await this.drizzle.query(
+      slots = await this.drizzle.query(
         `SELECT t.id, t.period_number, t.start_time, t.end_time, t.room_number as room,
                 sec.id as section_id, sec.name as section_name,
                 sub.id as subject_id, sub.name as subject_name
          FROM timetable_entries t
-         JOIN sections sec ON sec.id = t.section_id
-         JOIN subjects sub ON sub.id = t.subject_id
-         WHERE t.organization_id = $1 AND t.teacher_user_id = $2 AND t.day_of_week = $3
+         JOIN academic_years y ON y.id = t.academic_year_id AND y.organization_id = t.organization_id AND y.is_current = true
+         JOIN sections sec ON sec.id = t.section_id AND sec.organization_id = t.organization_id
+         JOIN subjects sub ON sub.id = t.subject_id AND sub.organization_id = t.organization_id
+         LEFT JOIN principal_timetable_substitutions ps ON ps.organization_id = t.organization_id
+           AND ps.timetable_entry_id = t.id AND ps.event_date = CURRENT_DATE
+         WHERE t.organization_id = $1 AND t.day_of_week = $3
+           AND CURRENT_DATE BETWEEN y.start_date AND y.end_date
+           AND COALESCE(ps.substitute_teacher_user_id, t.teacher_user_id) = $2
          ORDER BY t.period_number ASC`,
         [organizationId, user?.id, todayNum],
       );
-
-      if (liveEntries && liveEntries.length > 0) {
-        slots = liveEntries;
-      } else {
-        slots = await this.drizzle.query(
-          `SELECT tts.*, sec.name as section_name, sub.name as subject_name
-           FROM teacher_timetable_slots tts
-           JOIN sections sec ON sec.id = tts.section_id AND sec.organization_id = tts.organization_id
-           JOIN subjects sub ON sub.id = tts.subject_id AND sub.organization_id = tts.organization_id
-           WHERE tts.organization_id = $1 AND tts.teacher_user_id = $2 AND tts.day_of_week = $3
-           ORDER BY tts.period_number ASC`,
-          [organizationId, user?.id, today],
-        );
-      }
     } catch {
       slots = [];
     }
@@ -85,15 +76,14 @@ export class TeacherTimetableService {
       return {
         id: s.id,
         period: Number(s.period_number),
-        startTime: s.start_time || '09:00',
-        endTime: s.end_time || '09:45',
+        startTime: s.start_time,
+        endTime: s.end_time,
         classSection: s.section_name,
         sectionId: s.section_id,
         subject: s.subject_name,
-        room: s.room || 'Classroom',
+        room: s.room || null,
         status: slotStatus,
         attendanceTaken: isMarked,
-        lessonPlanReady: true,
       };
     });
 
@@ -121,47 +111,24 @@ export class TeacherTimetableService {
         `SELECT t.id, t.day_of_week, t.period_number, t.room_number as room,
                 sec.name as section_name, sub.name as subject_name
          FROM timetable_entries t
-         JOIN sections sec ON sec.id = t.section_id
-         JOIN subjects sub ON sub.id = t.subject_id
+         JOIN academic_years y ON y.id = t.academic_year_id AND y.organization_id = t.organization_id AND y.is_current = true
+         JOIN sections sec ON sec.id = t.section_id AND sec.organization_id = t.organization_id
+         JOIN subjects sub ON sub.id = t.subject_id AND sub.organization_id = t.organization_id
          WHERE t.organization_id = $1 AND t.teacher_user_id = $2
          ORDER BY t.day_of_week ASC, t.period_number ASC`,
         [organizationId, user?.id],
       );
 
-      if (liveEntries && liveEntries.length > 0) {
-        for (const s of liveEntries) {
-          const dayName = days[Number(s.day_of_week) - 1];
-          if (dayName && grid[dayName]) {
-            grid[dayName].push({
-              id: s.id,
-              period: s.period_number,
-              class: s.section_name,
-              subject: s.subject_name,
-              room: s.room || 'Classroom',
-            });
-          }
-        }
-      } else {
-        const allSlots = await this.drizzle.query(
-          `SELECT tts.*, sec.name as section_name, sub.name as subject_name
-           FROM teacher_timetable_slots tts
-           JOIN sections sec ON sec.id = tts.section_id AND sec.organization_id = tts.organization_id
-           JOIN subjects sub ON sub.id = tts.subject_id AND sub.organization_id = tts.organization_id
-           WHERE tts.organization_id = $1 AND tts.teacher_user_id = $2
-           ORDER BY tts.period_number ASC`,
-          [organizationId, user?.id],
-        );
-        for (const s of (allSlots || [])) {
-          const day = (s.day_of_week || '').toLowerCase();
-          if (grid[day]) {
-            grid[day].push({
-              id: s.id,
-              period: s.period_number,
-              class: s.section_name,
-              subject: s.subject_name,
-              room: s.room || 'Classroom',
-            });
-          }
+      for (const s of liveEntries || []) {
+        const dayName = days[Number(s.day_of_week) - 1];
+        if (dayName && grid[dayName]) {
+          grid[dayName].push({
+            id: s.id,
+            period: s.period_number,
+            class: s.section_name,
+            subject: s.subject_name,
+            room: s.room || null,
+          });
         }
       }
     } catch {}

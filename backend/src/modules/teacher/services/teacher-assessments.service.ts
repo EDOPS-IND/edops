@@ -154,4 +154,31 @@ export class TeacherAssessmentsService {
       message: dto.lockMarks ? 'Marks submitted and locked for report card processing.' : 'Draft marks recorded successfully.',
     };
   }
+
+  async submitQuestionPaper(organizationId: string, user: User, dto: any) {
+    const [row] = await this.drizzle.query(
+      `INSERT INTO principal_question_papers (
+        organization_id, title, subject_name, grade, term, total_marks, duration_minutes,
+        difficulty_easy_pct, difficulty_medium_pct, difficulty_hard_pct, competency_mapped,
+        submitted_by_name, submitted_by_user_id, status, review_comments
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'Under Review', '')
+      RETURNING *`,
+      [
+        organizationId,
+        dto.title,
+        dto.subjectName || 'General',
+        dto.grade || 'Grade 10',
+        dto.term || 'Term 1 Midterm',
+        dto.totalMarks || 80,
+        dto.durationMinutes || 180,
+        dto.difficultyEasyPct ?? 30,
+        dto.difficultyMediumPct ?? 50,
+        dto.difficultyHardPct ?? 20,
+        dto.competencyMapped ?? true,
+        user.name || user.email || 'Teacher',
+        user.id,
+      ]
+    );
+    return row;
+  }
 }

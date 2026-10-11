@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -13,6 +14,9 @@ import { AuthenticatedRequest } from "../../../common/auth.guard";
 import {
   AssignTeacherDevelopmentDto,
   RecordTeacherObservationDto,
+  PrincipalDepartmentDto,
+  PrincipalTeacherLinkDto,
+  PrincipalTeacherAssignmentDto,
 } from "../dto/principal.dto";
 import { PrincipalGuard } from "../guards/principal.guard";
 import { PrincipalTeachersService } from "../services/principal-teachers.service";
@@ -72,5 +76,30 @@ export class PrincipalTeachersController {
     @Body() dto: AssignTeacherDevelopmentDto,
   ) {
     return this.service.assignDevelopment(orgId, req.user, dto);
+  }
+
+  @Patch("development/:id/complete")
+  completeDevelopment(@Param("organizationId", ParseUUIDPipe) orgId: string, @Param("id", ParseUUIDPipe) id: string) {
+    return this.service.completeDevelopment(orgId, id);
+  }
+
+  @Post("departments")
+  createDepartment(@Param("organizationId", ParseUUIDPipe) orgId: string, @Body() dto: PrincipalDepartmentDto) {
+    return this.service.createDepartment(orgId, dto.name, dto.code);
+  }
+
+  @Post("department-heads")
+  assignDepartmentHead(@Param("organizationId", ParseUUIDPipe) orgId: string, @Body() dto: PrincipalTeacherLinkDto) {
+    return this.service.assignDepartmentHead(orgId, dto.departmentId, dto.teacherUserId);
+  }
+
+  @Post("coordinators")
+  assignCoordinator(@Param("organizationId", ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest, @Body() dto: PrincipalTeacherLinkDto) {
+    return this.service.assignCoordinator(orgId, req.user, dto.departmentId, dto.teacherUserId);
+  }
+
+  @Post("assignments")
+  assignTeacher(@Param("organizationId", ParseUUIDPipe) orgId: string, @Body() dto: PrincipalTeacherAssignmentDto) {
+    return this.service.assignTeacher(orgId, dto.sectionId, dto.subjectId, dto.teacherUserId);
   }
 }

@@ -1,246 +1,137 @@
 "use client";
 
-import React, { useState } from "react";
-import { TeacherAcademicItem } from "../types";
-import { Search, Plus, Eye, Award, CheckCircle2, AlertTriangle, ShieldCheck, UserCheck } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Eye, Plus } from "lucide-react";
+import {
+  assignPrincipalCoordinator, assignPrincipalDepartmentHead, assignPrincipalDevelopment,
+  assignPrincipalTeacher, completePrincipalDevelopment, createPrincipalDepartment, getPrincipalTeachers, recordPrincipalObservation,
+} from "../../edops-api";
 
-export function TeachersPane({
-  teachers = [],
-  workloadSummary,
-  onOpenTeacherProfile,
-  onOpenProfile,
-  onTriggerObservation,
-  onTriggerDevelopment,
-  organizationId,
-}: {
-  teachers?: TeacherAcademicItem[];
-  workloadSummary?: any;
-  onOpenTeacherProfile?: (teacherId: string) => void;
-  onOpenProfile?: (teacherId: string) => void;
-  onTriggerObservation?: () => void;
-  onTriggerDevelopment?: () => void;
-  organizationId?: string;
+type View = "hods" | "coordinators" | "assignments" | "workload" | "development";
+type Action = "observation" | "development" | "department" | "head" | "coordinator" | "assignment";
+type Teacher = { id: string; name: string; email: string; department: string | null; classes: string[]; weeklyPeriods: number; lessonPlanCompliance: number | null; observationsCount: number };
+type Assignment = { id: string; teacherUserId: string; teacherName: string; className: string; subjectName: string };
+type Department = { id: string; name: string; code: string; headTeacherId: string | null; headName: string | null };
+type Coordinator = { id: string; teacherUserId: string; teacherName: string; departmentName: string; assignedAt: string };
+type Development = { id: string; teacherUserId: string; teacherName: string; title: string; provider: string; trainingHours: number; status: string };
+type Option = { id: string; name: string };
+type PeopleData = { teachers: Teacher[]; assignments: Assignment[]; departments: Department[]; coordinators: Coordinator[]; developments: Development[]; sections: Option[]; subjects: Option[] };
+
+export function TeachersPane({ organizationId, view = "workload", onOpenProfile }: {
+  organizationId: string;
+  view?: View;
+  onOpenProfile: (teacherId: string) => void;
 }) {
-  const handleOpenProfile = onOpenTeacherProfile || onOpenProfile;
-  const [liveData, setLiveData] = useState<any>(null);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [deptFilter, setDeptFilter] = useState("all");
-  const [workloadFilter, setWorkloadFilter] = useState("all");
+  const [data, setData] = useState<PeopleData | null>(null);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [action, setAction] = useState<Action | null>(null);
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
 
-  React.useEffect(() => {
-    if (!organizationId) return;
-    import("../../edops-api").then(({ getPrincipalTeachers }) => {
-      getPrincipalTeachers(organizationId)
-        .then((data) => setLiveData(data))
-        .catch(() => null);
-    });
+  const reload = () => getPrincipalTeachers(organizationId).then(setData);
+  useEffect(() => {
+    let active = true;
+    getPrincipalTeachers(organizationId).then((result) => { if (active) setData(result); })
+      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Could not load people data"); });
+    return () => { active = false; };
   }, [organizationId]);
 
-  const teacherList = (liveData?.teachers && liveData.teachers.length > 0) ? liveData.teachers : teachers;
-  const summary = liveData?.workloadSummary || workloadSummary;
+  const teachers = data?.teachers ?? [];
+  const assignments = data?.assignments ?? [];
+  const departments = data?.departments ?? [];
+  const coordinators = data?.coordinators ?? [];
+  const developments = data?.developments ?? [];
+  const sections = data?.sections ?? [];
+  const subjects = data?.subjects ?? [];
+  const filtered = teachers.filter((teacher) => `${teacher.name} ${teacher.email} ${teacher.department ?? ""}`.toLowerCase().includes(search.toLowerCase()));
+  const ownAssignments = assignments.filter((assignment) => assignment.teacherUserId === form.teacherUserId);
+  const field = (name: string, value: string) => setForm((current) => ({ ...current, [name]: value }));
+  const open = (next: Action) => { setError(""); setForm({}); setAction(next); };
+  const teacherSelect = <label>Teacher<select required value={form.teacherUserId ?? ""} onChange={(event) => field("teacherUserId", event.target.value)}><option value="">Select teacher</option>{teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name || teacher.email}</option>)}</select></label>;
+  const departmentSelect = <label>Department<select required value={form.departmentId ?? ""} onChange={(event) => field("departmentId", event.target.value)}><option value="">Select department</option>{departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></label>;
 
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!action) return;
+    setSaving(true); setError("");
+    try {
+      if (action === "observation") {
+        const assignment = assignments.find((item) => item.id === form.assignmentId && item.teacherUserId === form.teacherUserId);
+        if (!assignment) throw new Error("Choose an assigned class and subject");
+        await recordPrincipalObservation(organizationId, {
+          teacherUserId: form.teacherUserId, className: assignment.className, subjectName: assignment.subjectName,
+          lessonTopic: form.lessonTopic, overallRating: form.overallRating,
+          planningScore: Number(form.planningScore), pedagogyScore: Number(form.pedagogyScore),
+          engagementScore: Number(form.engagementScore), differentiationScore: Number(form.differentiationScore),
+          assessmentScore: Number(form.assessmentScore), strengths: form.strengths ?? "",
+          areasForImprovement: form.areasForImprovement ?? "", actionItems: form.actionItems ?? "",
+        });
+      } else if (action === "development") {
+        await assignPrincipalDevelopment(organizationId, { teacherUserId: form.teacherUserId, title: form.title,
+          category: form.category, provider: form.provider, trainingHours: Number(form.trainingHours), notes: form.notes ?? "" });
+      } else if (action === "department") {
+        await createPrincipalDepartment(organizationId, { name: form.name, code: form.code });
+      } else if (action === "head") {
+        await assignPrincipalDepartmentHead(organizationId, { teacherUserId: form.teacherUserId, departmentId: form.departmentId });
+      } else if (action === "coordinator") {
+        await assignPrincipalCoordinator(organizationId, { teacherUserId: form.teacherUserId, departmentId: form.departmentId });
+      } else {
+        await assignPrincipalTeacher(organizationId, { teacherUserId: form.teacherUserId, sectionId: form.sectionId, subjectId: form.subjectId });
+      }
+      await reload();
+      setAction(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not save changes");
+    } finally { setSaving(false); }
+  }
 
-  const filtered = teacherList.filter((t: any) => {
-    const matchesSearch = (t.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || (t.department || "").toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDept = deptFilter === "all" || t.department === deptFilter;
-    const matchesWorkload = workloadFilter === "all" || t.workloadStatus === workloadFilter;
-    return matchesSearch && matchesDept && matchesWorkload;
-  });
+  async function markCompleted(id: string) {
+    setError("");
+    try { await completePrincipalDevelopment(organizationId, id); await reload(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Could not complete training"); }
+  }
 
-  const getWorkloadBadge = (status: string) => {
-    switch (status) {
-      case "Balanced": return { bg: "#DCFCE7", color: "#166534" };
-      case "Heavy": return { bg: "#FEF3C7", color: "#92400E" };
-      case "Overloaded": return { bg: "#FEE2E2", color: "#991B1B" };
-      case "Underutilized": return { bg: "#E0F2FE", color: "#075985" };
-      default: return { bg: "#F1F5F9", color: "#475569" };
-    }
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* 1. Workload Engine Balance Summary Cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
-        {[
-          { label: "Optimal / Balanced", count: summary?.balancedCount ?? 0, note: "20-26 periods/week", bg: "#F0FDF4", color: "#15803D" },
-          { label: "Heavy Load", count: summary?.heavyCount ?? 0, note: "28-30 periods/week", bg: "#FFFBEB", color: "#B45309" },
-          { label: "Overloaded (>30)", count: summary?.overloadedCount ?? 0, note: "Requires co-faculty relief", bg: "#FEF2F2", color: "#B91C1C" },
-          { label: "Underutilized (<20)", count: summary?.underutilizedCount ?? 0, note: "Available for relief duty", bg: "#F0F9FF", color: "#0369A1" },
-        ].map((item, idx) => (
-          <div key={idx} style={{ background: item.bg, border: "1px solid rgba(0,0,0,0.06)", borderRadius: "10px", padding: "16px" }}>
-            <div style={{ fontSize: "12px", color: item.color, fontWeight: 600 }}>{item.label}</div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: item.color, margin: "4px 0" }}>{item.count}</div>
-            <div style={{ fontSize: "11px", color: "#64748B" }}>{item.note}</div>
-          </div>
-        ))}
+  const button = (label: string, next: Action) => <button type="button" onClick={() => open(next)}><Plus size={14} /> {label}</button>;
+  const empty = (label: string) => <p className="text-sm text-slate-500">{data ? label : error ? "Data unavailable" : "Loading…"}</p>;
+  return <section className="people-pane space-y-5 text-sm">
+    {error && <div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
+    {view === "workload" && <>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div><h2 className="text-lg font-semibold">Teacher Workload</h2><p className="text-slate-500">{teachers.length} active teachers · {assignments.length} class assignments</p></div>
+        <div className="flex gap-2">{button("Classroom Observation", "observation")}{button("Assign Training", "development")}</div>
       </div>
-
-      {/* 2. Filter & Action Strip */}
-      <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "14px 18px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", flex: 1, minWidth: "260px" }}>
-          <div style={{ position: "relative", width: "260px" }}>
-            <Search size={16} color="#94A3B8" style={{ position: "absolute", left: "10px", top: "10px" }} />
-            <input
-              type="text"
-              placeholder="Search faculty name or dept..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: "100%", padding: "8px 10px 8px 32px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
-            />
-          </div>
-
-          <select
-            value={deptFilter}
-            onChange={(e) => setDeptFilter(e.target.value)}
-            style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", background: "#FFFFFF", color: "#334155" }}
-          >
-            <option value="all">All Departments</option>
-            <option value="Mathematics">Mathematics</option>
-            <option value="Science">Science</option>
-            <option value="English">English</option>
-            <option value="Social Science">Social Science</option>
-            <option value="Computer Science">Computer Science</option>
-          </select>
-
-          <select
-            value={workloadFilter}
-            onChange={(e) => setWorkloadFilter(e.target.value)}
-            style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", background: "#FFFFFF", color: "#334155" }}
-          >
-            <option value="all">All Workload States</option>
-            <option value="Balanced">Balanced</option>
-            <option value="Heavy">Heavy</option>
-            <option value="Overloaded">Overloaded</option>
-            <option value="Underutilized">Underutilized</option>
-          </select>
-        </div>
-
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button
-            onClick={onTriggerObservation}
-            style={{
-              background: "#064E3B",
-              color: "#F8E7C9",
-              border: "none",
-              borderRadius: "6px",
-              padding: "8px 14px",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <Plus size={14} />
-            + Classroom Observation
-          </button>
-          <button
-            onClick={onTriggerDevelopment}
-            style={{
-              background: "#F8FAFC",
-              color: "#1E293B",
-              border: "1px solid #CBD5E1",
-              borderRadius: "6px",
-              padding: "8px 14px",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-            }}
-          >
-            <Award size={14} />
-            Assign CBE Training
-          </button>
-        </div>
+      <input aria-label="Search teachers" placeholder="Search teachers" value={search} onChange={(event) => setSearch(event.target.value)} className="rounded border border-slate-300 p-2" />
+      {filtered.length ? <div className="overflow-x-auto rounded border border-slate-200 bg-white"><table className="w-full text-left"><thead><tr className="bg-slate-50"><th>Teacher</th><th>Department</th><th>Classes</th><th>Weekly periods</th><th>Lesson plans</th><th>Observations</th><th></th></tr></thead><tbody>{filtered.map((teacher) => <tr key={teacher.id}><td><b>{teacher.name || teacher.email}</b><br /><small>{teacher.email}</small></td><td>{teacher.department || "—"}</td><td>{teacher.classes.join(", ") || "—"}</td><td>{teacher.weeklyPeriods}</td><td>{teacher.lessonPlanCompliance == null ? "—" : `${teacher.lessonPlanCompliance}%`}</td><td>{teacher.observationsCount}</td><td><button type="button" onClick={() => onOpenProfile(teacher.id)}><Eye size={14} /> View Dossier</button></td></tr>)}</tbody></table></div> : empty("No active teachers found.")}
+    </>}
+    {view === "hods" && <>
+      <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Department Heads</h2><div className="flex gap-2">{button("Add Department", "department")}{departments.length > 0 && button("Assign Head", "head")}</div></div>
+      {departments.length ? <div className="rounded border border-slate-200 bg-white"><table className="w-full text-left"><thead><tr><th>Department</th><th>Code</th><th>Head</th></tr></thead><tbody>{departments.map((department) => <tr key={department.id}><td>{department.name}</td><td>{department.code}</td><td>{department.headTeacherId ? <button type="button" onClick={() => onOpenProfile(department.headTeacherId!)}>{department.headName}</button> : "Unassigned"}</td></tr>)}</tbody></table></div> : empty("No departments have been created.")}
+    </>}
+    {view === "coordinators" && <>
+      <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Coordinators</h2>{departments.length > 0 && button("Assign Coordinator", "coordinator")}</div>
+      {coordinators.length ? <div className="rounded border border-slate-200 bg-white"><table className="w-full text-left"><thead><tr><th>Teacher</th><th>Department</th><th>Assigned</th></tr></thead><tbody>{coordinators.map((item) => <tr key={item.id}><td><button type="button" onClick={() => onOpenProfile(item.teacherUserId)}>{item.teacherName}</button></td><td>{item.departmentName}</td><td>{new Date(item.assignedAt).toLocaleDateString()}</td></tr>)}</tbody></table></div> : empty("No coordinators assigned. Create a department first if needed.")}
+    </>}
+    {view === "assignments" && <>
+      <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Teacher Assignments</h2>{button("Assign Teacher", "assignment")}</div>
+      {assignments.length ? <div className="rounded border border-slate-200 bg-white"><table className="w-full text-left"><thead><tr><th>Class</th><th>Subject</th><th>Teacher</th></tr></thead><tbody>{assignments.map((item) => <tr key={item.id}><td>{item.className}</td><td>{item.subjectName}</td><td><button type="button" onClick={() => onOpenProfile(item.teacherUserId)}>{item.teacherName}</button></td></tr>)}</tbody></table></div> : empty("No teachers are assigned to a class and subject.")}
+    </>}
+    {view === "development" && <>
+      <div className="flex items-center justify-between"><h2 className="text-lg font-semibold">Teacher Development</h2>{button("Assign Training", "development")}</div>
+      {developments.length ? <div className="rounded border border-slate-200 bg-white"><table className="w-full text-left"><thead><tr><th>Teacher</th><th>Training</th><th>Provider</th><th>Hours</th><th>Status</th><th></th></tr></thead><tbody>{developments.map((item) => <tr key={item.id}><td><button type="button" onClick={() => onOpenProfile(item.teacherUserId)}>{item.teacherName}</button></td><td>{item.title}</td><td>{item.provider || "—"}</td><td>{item.trainingHours}</td><td>{item.status}</td><td>{item.status !== "Completed" && <button type="button" onClick={() => markCompleted(item.id)}>Mark Completed</button>}</td></tr>)}</tbody></table></div> : empty("No professional development assigned.")}
+    </>}
+    {action && <div className="modal-backdrop"><form onSubmit={submit} role="dialog" aria-modal="true" className="action-modal people-form" style={{ maxWidth: 520 }}><button type="button" className="modal-close" aria-label="Close" onClick={() => setAction(null)}>×</button><h2 className="text-lg font-semibold">{{ observation: "Record Classroom Observation", development: "Assign Teacher Training", department: "Add Department", head: "Assign Department Head", coordinator: "Assign Coordinator", assignment: "Assign Teacher" }[action]}</h2>
+      {error && <div role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-red-700">{error}</div>}
+      <div className="modal-form">
+        {action !== "department" && teacherSelect}
+        {(action === "head" || action === "coordinator") && departmentSelect}
+        {action === "department" && <><label>Department name<input required maxLength={100} value={form.name ?? ""} onChange={(event) => field("name", event.target.value)} /></label><label>Code<input required maxLength={30} value={form.code ?? ""} onChange={(event) => field("code", event.target.value)} /></label></>}
+        {action === "assignment" && <><label>Class<select required value={form.sectionId ?? ""} onChange={(event) => field("sectionId", event.target.value)}><option value="">Select class</option>{sections.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Subject<select required value={form.subjectId ?? ""} onChange={(event) => field("subjectId", event.target.value)}><option value="">Select subject</option>{subjects.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label></>}
+        {action === "observation" && <><label>Assigned class and subject<select required value={form.assignmentId ?? ""} onChange={(event) => field("assignmentId", event.target.value)}><option value="">Select assignment</option>{ownAssignments.map((item) => <option key={item.id} value={item.id}>{item.className} · {item.subjectName}</option>)}</select></label>{form.teacherUserId && ownAssignments.length === 0 && <p>Assign this teacher to a class and subject first.</p>}<label>Lesson topic<input required maxLength={200} value={form.lessonTopic ?? ""} onChange={(event) => field("lessonTopic", event.target.value)} /></label><label>Overall rating<select required value={form.overallRating ?? ""} onChange={(event) => field("overallRating", event.target.value)}><option value="">Select rating</option>{["Needs Support", "Satisfactory", "Good", "Exemplary"].map((rating) => <option key={rating}>{rating}</option>)}</select></label>{["planning", "pedagogy", "engagement", "differentiation", "assessment"].map((name) => <label key={name}>{name[0].toUpperCase() + name.slice(1)} score (1–5)<input type="number" required min={1} max={5} value={form[`${name}Score`] ?? ""} onChange={(event) => field(`${name}Score`, event.target.value)} /></label>)}<label>Strengths<textarea value={form.strengths ?? ""} onChange={(event) => field("strengths", event.target.value)} /></label><label>Areas for improvement<textarea value={form.areasForImprovement ?? ""} onChange={(event) => field("areasForImprovement", event.target.value)} /></label><label>Action items<textarea value={form.actionItems ?? ""} onChange={(event) => field("actionItems", event.target.value)} /></label></>}
+        {action === "development" && <><label>Training title<input required maxLength={200} value={form.title ?? ""} onChange={(event) => field("title", event.target.value)} /></label><label>Category<input maxLength={80} value={form.category ?? ""} onChange={(event) => field("category", event.target.value)} /></label><label>Provider<input maxLength={150} value={form.provider ?? ""} onChange={(event) => field("provider", event.target.value)} /></label><label>Hours<input type="number" required min={1} max={100} value={form.trainingHours ?? ""} onChange={(event) => field("trainingHours", event.target.value)} /></label><label>Notes<textarea value={form.notes ?? ""} onChange={(event) => field("notes", event.target.value)} /></label></>}
+        <div className="modal-actions"><button type="button" onClick={() => setAction(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</button></div>
       </div>
-
-      {/* 3. Academic Teacher Roster Table */}
-      <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-          <thead>
-            <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0", color: "#64748B", fontWeight: 700 }}>
-              <th style={{ padding: "12px 16px" }}>Faculty Name</th>
-              <th style={{ padding: "12px 16px" }}>Dept / Subjects</th>
-              <th style={{ padding: "12px 16px" }}>Weekly Periods</th>
-              <th style={{ padding: "12px 16px" }}>Workload Status</th>
-              <th style={{ padding: "12px 16px" }}>Lesson Plans</th>
-              <th style={{ padding: "12px 16px" }}>Curriculum %</th>
-              <th style={{ padding: "12px 16px" }}>Student Avg</th>
-              <th style={{ padding: "12px 16px" }}>Observations</th>
-              <th style={{ padding: "12px 16px", textAlign: "right" }}>Academic Dossier</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((t, idx) => {
-              const badge = getWorkloadBadge(t.workloadStatus);
-              return (
-                <tr
-                  key={idx}
-                  style={{ borderBottom: "1px solid #F1F5F9", cursor: "pointer", transition: "background 0.15s" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#F8FAFC")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
-                  onClick={() => onOpenTeacherProfile(t.id)}
-                >
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ fontWeight: 700, color: "#1E293B" }}>{t.name}</div>
-                    <div style={{ color: "#94A3B8", fontSize: "11px" }}>{t.employeeId} · {t.email}</div>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ fontWeight: 600, color: "#334155" }}>{t.department}</div>
-                    <div style={{ color: "#64748B", fontSize: "11px" }}>{t.classes.join(", ")}</div>
-                  </td>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1E293B" }}>
-                    {t.weeklyPeriods} / {t.maxWeeklyPeriods}
-                  </td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <span style={{ background: badge.bg, color: badge.color, padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>
-                      {t.workloadStatus}
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px 16px", fontWeight: 600, color: t.lessonPlanCompliance >= 90 ? "#15803D" : "#B45309" }}>
-                    {t.lessonPlanCompliance}%
-                  </td>
-                  <td style={{ padding: "12px 16px", fontWeight: 600, color: "#065F46" }}>
-                    {t.curriculumCompletion}%
-                  </td>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1E293B" }}>
-                    {t.studentAverageScore}%
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "#64748B" }}>
-                    {t.observationsCount} logged
-                  </td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenProfile?.(t.id);
-                      }}
-                      style={{
-                        background: "#F1F5F9",
-                        border: "1px solid #CBD5E1",
-                        borderRadius: "6px",
-                        padding: "5px 10px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        color: "#334155",
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                      }}
-                    >
-                      <Eye size={12} /> View Dossier
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
+    </form></div>}
+    <style>{`.people-form .modal-form { max-height: 70vh; overflow: auto } .people-form label { display: grid; gap: 4px; margin: 8px 0 } .people-form input, .people-form select, .people-form textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px } .people-form textarea { min-height: 64px } .people-pane table th, .people-pane table td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; vertical-align: top } .people-pane button:not(.modal-close) { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; background: white; cursor: pointer }`}</style>
+  </section>;
 }

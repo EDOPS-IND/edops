@@ -38,7 +38,7 @@ test('M2 academic structure and provisioning with a non-BYPASSRLS runtime role',
   const source = createDataSource(adminConfig);
   await source.initialize();
   try {
-    assert.equal((await source.runMigrations()).length, 6);
+    assert.equal((await source.runMigrations()).length, 14);
     await bootstrapAdmin(source, 'owner@m2.example', password);
   } finally { await source.destroy(); }
   await db.query(`CREATE ROLE "${role}" LOGIN PASSWORD '${runtimePassword}' NOSUPERUSER NOBYPASSRLS`);

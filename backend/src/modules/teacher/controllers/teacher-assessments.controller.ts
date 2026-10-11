@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { AuthenticatedRequest } from '../../../common/auth.guard';
+import { AuthenticatedRequest, RequireFeature } from '../../../common/auth.guard';
 import { SubmitAssessmentMarksDto } from '../dto/teacher.dto';
 import { TeacherGuard } from '../guards/teacher.guard';
 import { TeacherAssessmentsService } from '../services/teacher-assessments.service';
@@ -8,6 +8,7 @@ import { TeacherAssessmentsService } from '../services/teacher-assessments.servi
 @ApiTags('Teacher Command Center')
 @ApiBearerAuth()
 @UseGuards(TeacherGuard)
+@RequireFeature('assessments')
 @ApiParam({ name: 'organizationId', format: 'uuid' })
 @Controller({ path: 'organizations/:organizationId/teacher', version: '1' })
 export class TeacherAssessmentsController {
@@ -30,5 +31,15 @@ export class TeacherAssessmentsController {
     @Body() dto: SubmitAssessmentMarksDto
   ) {
     return this.assessmentsService.submitMarks(organizationId, req.user, dto);
+  }
+
+  @Post('assessments/question-papers')
+  @ApiOperation({ summary: 'Draft and submit question paper blueprint for Principal review' })
+  submitQuestionPaper(
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: any
+  ) {
+    return this.assessmentsService.submitQuestionPaper(organizationId, req.user, dto);
   }
 }

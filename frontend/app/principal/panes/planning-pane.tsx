@@ -1,224 +1,127 @@
 "use client";
 
-import React, { useState } from "react";
-import { Plus, Target, Calendar, CheckCircle2, Clock, AlertCircle, FileText } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Plus } from "lucide-react";
+import { createPrincipalAcademicPlan, createPrincipalAcademicTarget, createPrincipalActionPlan, createPrincipalReviewMeeting, getPrincipalPlanning, updatePrincipalAcademicTarget } from "../../edops-api";
 
-export function PlanningPane({
-  plans = [],
-  targets = [],
-  actionPlans = [],
-  meetings = [],
-  onTriggerAction,
-  organizationId,
-  initialTab,
-}: {
-  plans?: any[];
-  targets?: any[];
-  actionPlans?: any[];
-  meetings?: any[];
-  onTriggerAction?: (actionType: string) => void;
-  organizationId?: string;
-  initialTab?: string;
-}) {
-  const [liveData, setLiveData] = useState<any>(null);
-  const [subTab, setSubTab] = useState<"annual_plan" | "targets" | "action_plans" | "meetings">((initialTab as any) || "annual_plan");
+type Plan = { id: string; title: string; board: string; academicObjectives: string; teachingPedagogyStrategy: string; assessmentStrategy: string; remedialPlan: string; status: string };
+type Target = { id: string; title: string; category: string; baselineValue: string; targetValue: string; currentValue: string; progressPercentage: number; ownerName: string; deadline: string; status: string };
+type ActionPlan = { id: string; issue: string; evidence: string; rootCause: string; action: string; ownerName: string; deadline: string; reviewDate: string; expectedResult: string; status: string };
+type Meeting = { id: string; meetingType: string; meetingDate: string; participants: string[]; agenda: string; findings: string; decisions: string; status: string };
+type PlanningData = { plans: Plan[]; targets: Target[]; actionPlans: ActionPlan[]; meetings: Meeting[] };
+type FormKind = "plan" | "target" | "action" | "meeting" | "progress";
+const date = (value: string) => value?.slice(0, 10) || "—";
 
-  React.useEffect(() => {
-    if (!organizationId) return;
-    import("../../edops-api").then(({ getPrincipalPlanning }) => {
-      getPrincipalPlanning(organizationId)
-        .then((data) => setLiveData(data))
-        .catch(() => null);
-    });
+export function PlanningPane({ organizationId, initialTab = "annual_plan" }: { organizationId: string; initialTab?: string }) {
+  const [data, setData] = useState<PlanningData | null>(null);
+  const [error, setError] = useState("");
+  const [formKind, setFormKind] = useState<FormKind | null>(null);
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+  const [showActions, setShowActions] = useState(false);
+  const [selectedTargetId, setSelectedTargetId] = useState("");
+  const view = initialTab;
+
+  const reload = () => getPrincipalPlanning(organizationId).then(setData);
+  useEffect(() => {
+    let active = true;
+    getPrincipalPlanning(organizationId).then((result) => { if (active) setData(result); })
+      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Could not load academic planning"); });
+    return () => { active = false; };
   }, [organizationId]);
 
-  const planList = (liveData?.plans && liveData.plans.length > 0) ? liveData.plans : plans;
-  const targetList = (liveData?.targets && liveData.targets.length > 0) ? liveData.targets : targets;
-  const actionList = (liveData?.actionPlans && liveData.actionPlans.length > 0) ? liveData.actionPlans : actionPlans;
-  const meetingList = (liveData?.meetings && liveData.meetings.length > 0) ? liveData.meetings : meetings;
+  const field = (name: string, value: string) => setForm((previous) => ({ ...previous, [name]: value }));
+  const open = (kind: FormKind) => { setError(""); setForm({}); setFormKind(kind); };
+  const input = (name: string, label: string, required = true, type = "text") =>
+    <label>{label}<input type={type} required={required} value={form[name] ?? ""} onChange={(event) => field(name, event.target.value)} /></label>;
+  const area = (name: string, label: string, required = false) =>
+    <label>{label}<textarea required={required} value={form[name] ?? ""} onChange={(event) => field(name, event.target.value)} /></label>;
 
+  async function submit(event: FormEvent) {
+    event.preventDefault();
+    if (!formKind) return;
+    setSaving(true); setError("");
+    try {
+      if (formKind === "plan") await createPrincipalAcademicPlan(organizationId, { ...form, status: "Draft" });
+      if (formKind === "target") await createPrincipalAcademicTarget(organizationId, { ...form, category: view === "learning_goals" ? "Learning" : "School" });
+      if (formKind === "action") await createPrincipalActionPlan(organizationId, form);
+      if (formKind === "meeting") await createPrincipalReviewMeeting(organizationId, {
+        ...form, participants: (form.participants ?? "").split(",").map((name) => name.trim()).filter(Boolean),
+      });
+      if (formKind === "progress") await updatePrincipalAcademicTarget(organizationId, selectedTargetId, {
+        currentValue: form.currentValue, progressPercentage: Number(form.progressPercentage),
+      });
+      await reload();
+      setFormKind(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not save planning record");
+    } finally { setSaving(false); }
+  }
 
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Sub-navigation & Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-        <div style={{ display: "flex", gap: "8px" }}>
-          {[
-            { id: "annual_plan", label: "Annual Pedagogical Plan" },
-            { id: "targets", label: "School Academic Targets" },
-            { id: "action_plans", label: "Academic Action Plans" },
-            { id: "meetings", label: "Academic Review Meetings" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setSubTab(tab.id as any)}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "8px",
-                border: "1px solid",
-                borderColor: subTab === tab.id ? "#064E3B" : "#CBD5E1",
-                background: subTab === tab.id ? "#064E3B" : "#FFFFFF",
-                color: subTab === tab.id ? "#F8E7C9" : "#475569",
-                fontSize: "13px",
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+  const plans = data?.plans ?? [];
+  const targets = (data?.targets ?? []).filter((item) => view === "learning_goals" ? item.category === "Learning" : item.category !== "Learning");
+  const actions = data?.actionPlans ?? [];
+  const meetings = data?.meetings ?? [];
+  const calendar = [
+    ...meetings.map((item) => ({ id: `meeting-${item.id}`, when: item.meetingDate, kind: "Academic review", title: item.meetingType, detail: item.agenda })),
+    ...(data?.targets ?? []).map((item) => ({ id: `target-${item.id}`, when: item.deadline, kind: "Target deadline", title: item.title, detail: item.ownerName })),
+    ...actions.map((item) => ({ id: `review-${item.id}`, when: item.reviewDate, kind: "Action review", title: item.issue, detail: item.ownerName })),
+  ].sort((a, b) => date(a.when).localeCompare(date(b.when)));
+  const empty = (message: string) => <p className="text-sm text-slate-500">{data ? message : error ? "Data unavailable" : "Loading…"}</p>;
+  const heading = view === "annual_plan" ? "Annual Academic Plan" : view === "calendar" ? "Academic Calendar" : view === "learning_goals" ? "Learning Goals & Targets" : view === "action_plans" ? "Academic Action Plans" : "School Academic Targets";
 
-        <button
-          onClick={() => onTriggerAction(subTab === "annual_plan" ? "plan" : "action")}
-          style={{
-            background: "#064E3B",
-            color: "#F8E7C9",
-            border: "none",
-            borderRadius: "8px",
-            padding: "8px 16px",
-            fontSize: "13px",
-            fontWeight: 600,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-          }}
-        >
-          <Plus size={16} />
-          {subTab === "annual_plan" ? "New Academic Plan" : "+ Create Action Plan"}
+  return <section className="planning-pane space-y-5 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-lg font-semibold">{heading}</h2>
+      <div className="flex flex-wrap gap-2">
+        {view === "school_targets" && <button type="button" onClick={() => setShowActions(!showActions)}>{showActions ? "View Targets" : "View Action Plans"}</button>}
+        <button type="button" onClick={() => open(view === "annual_plan" ? "plan" : view === "calendar" ? "meeting" : view === "action_plans" || showActions && view === "school_targets" ? "action" : "target")}>
+          <Plus size={14} /> {view === "annual_plan" ? "New Academic Plan" : view === "calendar" ? "Record Review Meeting" : view === "action_plans" || showActions && view === "school_targets" ? "Create Action Plan" : "Create Target"}
         </button>
       </div>
-
-      {/* 1. Annual Pedagogical Plan Tab */}
-      {subTab === "annual_plan" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          {planList.map((plan: any, idx: number) => (
-            <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "12px", padding: "24px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
-                <div>
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#166534", background: "#DCFCE7", padding: "2px 8px", borderRadius: "4px" }}>
-                    {plan.board || "CBSE"} Mandatory Filing
-                  </span>
-                  <h3 style={{ margin: "6px 0 2px", fontSize: "18px", fontWeight: 700, color: "#1E293B" }}>{plan.title}</h3>
-                  <span style={{ fontSize: "12px", color: "#64748B" }}>Academic Session 2026-27 · Status: <b>{plan.status}</b></span>
-                </div>
-                <span style={{ background: "#F1F5F9", color: "#334155", padding: "6px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 700 }}>
-                  Approved by Principal
-                </span>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", fontSize: "13px" }}>
-                <div style={{ background: "#F8FAFC", padding: "14px", borderRadius: "8px", border: "1px solid #F1F5F9" }}>
-                  <div style={{ fontWeight: 700, color: "#1E293B", marginBottom: "4px" }}>🎯 Academic Objectives</div>
-                  <div style={{ color: "#475569" }}>{plan.academicObjectives}</div>
-                </div>
-                <div style={{ background: "#F8FAFC", padding: "14px", borderRadius: "8px", border: "1px solid #F1F5F9" }}>
-                  <div style={{ fontWeight: 700, color: "#1E293B", marginBottom: "4px" }}>👨‍🏫 Teaching & Pedagogy Strategy</div>
-                  <div style={{ color: "#475569" }}>{plan.teachingPedagogyStrategy}</div>
-                </div>
-                <div style={{ background: "#F8FAFC", padding: "14px", borderRadius: "8px", border: "1px solid #F1F5F9" }}>
-                  <div style={{ fontWeight: 700, color: "#1E293B", marginBottom: "4px" }}>📊 Assessment & Evaluation Scheme</div>
-                  <div style={{ color: "#475569" }}>{plan.assessmentStrategy}</div>
-                </div>
-                <div style={{ background: "#F8FAFC", padding: "14px", borderRadius: "8px", border: "1px solid #F1F5F9" }}>
-                  <div style={{ fontWeight: 700, color: "#1E293B", marginBottom: "4px" }}>🌱 Student Support & Remedial Plan</div>
-                  <div style={{ color: "#475569" }}>{plan.remedialPlan || "Tier-1 Classroom differentiation; Tier-2 Scheduled zero-period booster clinics; Tier-3 Special educator mentoring."}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 2. School Academic Targets Tab */}
-      {subTab === "targets" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
-          {targetList.map((tgt: any, idx: number) => (
-            <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-              <div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#2563EB", background: "#EFF6FF", padding: "2px 6px", borderRadius: "4px" }}>Target</span>
-                  <span style={{ fontSize: "11px", fontWeight: 600, color: tgt.status === "Achieved" ? "#15803D" : "#B45309" }}>{tgt.status}</span>
-                </div>
-                <h4 style={{ margin: "0 0 10px", fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>{tgt.title}</h4>
-                <div style={{ fontSize: "12px", color: "#64748B", marginBottom: "12px" }}>Owner: <b>{tgt.ownerName}</b></div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "4px" }}>
-                  <span>Baseline: <b>{tgt.baselineValue}</b></span>
-                  <span>Target: <b>{tgt.targetValue}</b></span>
-                </div>
-                <div style={{ height: "6px", width: "100%", background: "#E2E8F0", borderRadius: "3px", overflow: "hidden", marginBottom: "6px" }}>
-                  <div style={{ height: "100%", width: `${tgt.progressPercentage || 65}%`, background: "#065F46" }} />
-                </div>
-                <div style={{ fontSize: "11px", color: "#64748B", textAlign: "right" }}>Progress: <b>{tgt.progressPercentage || 65}%</b></div>
-              </div>
-
-              <div style={{ marginTop: "14px", paddingTop: "10px", borderTop: "1px solid #F1F5F9", fontSize: "11px", color: "#64748B", display: "flex", justifyContent: "space-between" }}>
-                <span>Target Deadline:</span>
-                <b>{tgt.deadline}</b>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 3. Academic Action Plans Tab */}
-      {subTab === "action_plans" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {actionList.map((act: any, idx: number) => (
-            <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px 20px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ background: "#FEE2E2", color: "#991B1B", fontSize: "11px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px" }}>Intervention Plan</span>
-                    <span style={{ fontSize: "12px", color: "#64748B" }}>Owner: <b>{act.ownerName}</b></span>
-                  </div>
-                  <h4 style={{ margin: "6px 0 2px", fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>{act.issue}</h4>
-                </div>
-                <span style={{ background: act.status === "Active" ? "#DCFCE7" : "#F1F5F9", color: act.status === "Active" ? "#166534" : "#475569", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: 700 }}>
-                  {act.status}
-                </span>
-              </div>
-
-              <div style={{ fontSize: "13px", color: "#334155", display: "flex", flexDirection: "column", gap: "6px" }}>
-                <div><b>Evidence Base:</b> {act.evidence}</div>
-                <div><b>Root Cause:</b> {act.rootCause}</div>
-                <div><b>Prescribed Action:</b> <span style={{ color: "#065F46", fontWeight: 600 }}>{act.action}</span></div>
-                <div><b>Expected Result:</b> {act.expectedResult}</div>
-              </div>
-
-              <div style={{ marginTop: "12px", paddingTop: "8px", borderTop: "1px dashed #E2E8F0", display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#64748B" }}>
-                <span>Scheduled Review Date: <b>{act.reviewDate}</b></span>
-                <span>Final Target Deadline: <b>{act.deadline}</b></span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* 4. Academic Review Meetings Tab */}
-      {subTab === "meetings" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {meetingList.map((meet: any, idx: number) => (
-
-            <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px 20px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>{meet.meetingType}</h4>
-                  <span style={{ fontSize: "12px", color: "#64748B" }}>Date: <b>{meet.meetingDate}</b> · Participants: {Array.isArray(meet.participants) ? meet.participants.join(", ") : meet.participants}</span>
-                </div>
-                <span style={{ background: "#DCFCE7", color: "#166534", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 600 }}>{meet.status}</span>
-              </div>
-              <div style={{ fontSize: "13px", color: "#334155", marginTop: "10px" }}>
-                <div><b>Agenda:</b> {meet.agenda}</div>
-                <div style={{ marginTop: "4px" }}><b>Findings:</b> {meet.findings}</div>
-                <div style={{ marginTop: "4px" }}><b>Decisions / Resolutions:</b> <span style={{ color: "#065F46" }}>{meet.decisions}</span></div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
     </div>
-  );
+    {error && <p role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-red-700">{error}</p>}
+
+    {view === "annual_plan" && (plans.length ? <div className="grid gap-3">{plans.map((item) => <article key={item.id} className="rounded border bg-white p-4">
+      <div className="flex justify-between gap-3"><h3 className="font-semibold">{item.title}</h3><span>{item.status}</span></div>
+      <p className="text-slate-500">{item.board}</p>
+      {item.academicObjectives && <p><b>Objectives:</b> {item.academicObjectives}</p>}
+      {item.teachingPedagogyStrategy && <p><b>Teaching strategy:</b> {item.teachingPedagogyStrategy}</p>}
+      {item.assessmentStrategy && <p><b>Assessment:</b> {item.assessmentStrategy}</p>}
+      {item.remedialPlan && <p><b>Student support:</b> {item.remedialPlan}</p>}
+    </article>)}</div> : empty("No annual plan has been recorded."))}
+
+    {view === "calendar" && (calendar.length ? <div className="grid gap-3">{calendar.map((item) => <article key={item.id} className="rounded border bg-white p-4">
+      <p className="text-slate-500">{date(item.when)} · {item.kind}</p><h3 className="font-semibold">{item.title}</h3><p>{item.detail}</p>
+    </article>)}</div> : empty("No academic dates have been recorded."))}
+
+    {(view === "learning_goals" || view === "school_targets") && !showActions && (targets.length ? <div className="grid gap-3 sm:grid-cols-2">{targets.map((item) => <article key={item.id} className="rounded border bg-white p-4">
+      <div className="flex justify-between gap-3"><h3 className="font-semibold">{item.title}</h3><span>{item.status}</span></div>
+      <p>Owner: {item.ownerName || "—"}</p><p>Baseline: {item.baselineValue} · Target: {item.targetValue}</p>
+      <p>{item.status === "Not Started" || (item.progressPercentage === 0 && item.currentValue === "0%") ? "Progress not recorded" : `Current: ${item.currentValue} · Progress: ${item.progressPercentage}%`}</p><p>Deadline: {date(item.deadline)}</p>
+      <button type="button" onClick={() => { setSelectedTargetId(item.id); setForm({}); setFormKind("progress"); }}>Record Progress</button>
+    </article>)}</div> : empty("No targets have been recorded."))}
+
+    {(view === "action_plans" || view === "school_targets" && showActions) && (actions.length ? <div className="grid gap-3">{actions.map((item) => <article key={item.id} className="rounded border bg-white p-4">
+      <div className="flex justify-between gap-3"><h3 className="font-semibold">{item.issue}</h3><span>{item.status}</span></div>
+      <p>Owner: {item.ownerName}</p><p><b>Action:</b> {item.action}</p>
+      {item.evidence && <p><b>Evidence:</b> {item.evidence}</p>}{item.rootCause && <p><b>Root cause:</b> {item.rootCause}</p>}
+      {item.expectedResult && <p><b>Expected result:</b> {item.expectedResult}</p>}
+      <p>Review: {date(item.reviewDate)} · Deadline: {date(item.deadline)}</p>
+    </article>)}</div> : empty("No academic action plans have been recorded."))}
+
+    {formKind && <div className="modal-backdrop"><form role="dialog" aria-modal="true" onSubmit={submit} className="action-modal planning-form">
+      <button type="button" className="modal-close" aria-label="Close" onClick={() => setFormKind(null)}>×</button>
+      <h2 className="text-lg font-semibold">{{ plan: "New Academic Plan", target: "Create Target", action: "Create Action Plan", meeting: "Record Review Meeting", progress: "Record Target Progress" }[formKind]}</h2>
+      <div className="modal-form">
+        {formKind === "plan" && <>{input("title", "Plan title")}{input("board", "Board")}{area("academicObjectives", "Academic objectives")}{area("teachingPedagogyStrategy", "Teaching strategy")}{area("assessmentStrategy", "Assessment strategy")}</>}
+        {formKind === "target" && <>{input("title", "Target title")}{input("ownerName", "Owner")}{input("baselineValue", "Baseline")}{input("targetValue", "Target")}{input("deadline", "Deadline", true, "date")}</>}
+        {formKind === "action" && <>{input("issue", "Issue")}{input("ownerName", "Owner")}{area("evidence", "Evidence")}{area("rootCause", "Root cause")}{area("action", "Action", true)}{area("expectedResult", "Expected result")}{input("reviewDate", "Review date", true, "date")}{input("deadline", "Deadline", true, "date")}</>}
+        {formKind === "meeting" && <>{input("meetingType", "Meeting title")}{input("meetingDate", "Date", true, "date")}{input("participants", "Participants (comma separated)", false)}{area("agenda", "Agenda", true)}{area("findings", "Findings")}{area("decisions", "Decisions")}</>}
+        {formKind === "progress" && <>{input("currentValue", "Measured current value")}{input("progressPercentage", "Progress (0–100%)", true, "number")}</>}
+        <div className="modal-actions"><button type="button" onClick={() => setFormKind(null)}>Cancel</button><button type="submit" disabled={saving}>{saving ? "Saving…" : "Save"}</button></div>
+      </div>
+    </form></div>}
+    <style>{`.planning-form { max-width: 520px } .planning-form .modal-form { max-height: 70vh; overflow: auto } .planning-form label { display: grid; gap: 4px; margin: 8px 0 } .planning-form input, .planning-form textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px } .planning-form textarea { min-height: 64px } .planning-pane button:not(.modal-close) { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px 10px; background: white; cursor: pointer }`}</style>
+  </section>;
 }

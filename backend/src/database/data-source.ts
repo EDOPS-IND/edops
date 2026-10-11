@@ -15,6 +15,13 @@ import { SchoolAdminControlCenter1789430400000 } from './migrations/178943040000
 import { PrincipalControlCenter1789516800000 } from './migrations/1789516800000-PrincipalControlCenter';
 import { TeacherControlCenter1789603200000 } from './migrations/1789603200000-TeacherControlCenter';
 import { StudentControlCenter1789689600000 } from './migrations/1789689600000-StudentControlCenter';
+import { PrincipalPeople1789776000000 } from './migrations/1789776000000-PrincipalPeople';
+import { PrincipalObservationClassName1789862400000 } from './migrations/1789862400000-PrincipalObservationClassName';
+import { PrincipalTimetableSubstitutions1789948800000 } from './migrations/1789948800000-PrincipalTimetableSubstitutions';
+import { RoleFeatureOverrides1790035200000 } from './migrations/1790035200000-RoleFeatureOverrides';
+import { PrincipalExamPlans1790121600000 } from './migrations/1790121600000-PrincipalExamPlans';
+import { PrincipalExamTermScope1790208000000 } from './migrations/1790208000000-PrincipalExamTermScope';
+import { DashboardNavigation1790294400000 } from './migrations/1790294400000-DashboardNavigation';
 import { ArenaAttempt, ArenaQuestion } from '../modules/arena/arena.entity';
 import { Recording } from '../modules/content/recording.entity';
 import { Assignment, AttendanceSession, ExamEvaluation, Submission } from '../modules/assignments/teaching.entity';
@@ -40,6 +47,13 @@ export function databaseOptions(config: AppConfig): DataSourceOptions {
       PrincipalControlCenter1789516800000,
       TeacherControlCenter1789603200000,
       StudentControlCenter1789689600000,
+      PrincipalPeople1789776000000,
+      PrincipalObservationClassName1789862400000,
+      PrincipalTimetableSubstitutions1789948800000,
+      RoleFeatureOverrides1790035200000,
+      PrincipalExamPlans1790121600000,
+      PrincipalExamTermScope1790208000000,
+      DashboardNavigation1790294400000,
     ],
     migrationsTransactionMode: 'all',
     synchronize: false,

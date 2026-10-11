@@ -1,151 +1,190 @@
 "use client";
 
-import React, { useState } from "react";
-import { Clock, AlertTriangle, CheckCircle2, User, BookOpen, Layers } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Plus } from "lucide-react";
+import {
+  assignPrincipalSubstitute, createPrincipalTimetableEntry, deletePrincipalTimetableEntry,
+  getPrincipalSubstituteSuggestions, getPrincipalTeachers, getPrincipalTimetable, updatePrincipalTimetableEntry,
+} from "../../edops-api";
 
-export function TimetablePane({
-  substitutionRecords = [],
-  organizationId,
-  onNavigate,
-}: {
-  substitutionRecords?: any[];
-  organizationId?: string;
-  onNavigate?: (pane: string) => void;
-}) {
-  const [liveData, setLiveData] = useState<any>(null);
-  const [viewMode, setViewMode] = useState<"substitutions" | "master_grid">("substitutions");
+type Entry = { id: string; academic_year_id: string; section_id: string; subject_id: string; teacher_user_id: string; day_of_week: number; period_number: number; start_time: string; end_time: string; room_number: string; sectionName: string; programName: string; subjectName: string; teacherName: string };
+type Substitute = { id: string; timetableEntryId: string; eventDate: string; dayOfWeek: number; periodNumber: number; sectionName: string; programName: string; subjectName: string; originalTeacher: string; substituteTeacher: string; absenceType: string | null; impactNote: string };
+type Uncovered = { timetableEntryId: string; eventDate: string; periodNumber: number; sectionName: string; programName: string; subjectName: string; originalTeacher: string; absenceType: string };
+type Option = { id: string; name: string; email?: string };
+type Data = { entries: Entry[]; substitutions: Substitute[]; uncovered: Uncovered[] };
+type People = { teachers: Option[]; sections: Option[]; subjects: Option[] };
+type View = "academic" | "teacher" | "class" | "substitutions";
+const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const date = (value: string) => value?.slice(0, 10) || "—";
 
-  React.useEffect(() => {
-    if (!organizationId) return;
-    import("../../edops-api").then(({ getPrincipalAcademics }) => {
-      getPrincipalAcademics(organizationId)
-        .then((data) => setLiveData(data))
-        .catch(() => null);
-    });
+function ConflictMatrix({ entries }: { entries: Entry[] }) {
+  // ponytail: pairwise scan is fine for one school's weekly grid; group by slot if it grows large.
+  const clashes: string[] = [];
+  const loads = new Map<string, { teacher: string; count: number }>();
+  for (const entry of entries) {
+    const load = loads.get(entry.teacher_user_id) ?? { teacher: entry.teacherName, count: 0 };
+    load.count++;
+    loads.set(entry.teacher_user_id, load);
+    for (const other of entries) {
+      if (other.id >= entry.id || other.academic_year_id !== entry.academic_year_id ||
+        other.day_of_week !== entry.day_of_week ||
+        (other.period_number !== entry.period_number && !(other.start_time < entry.end_time && other.end_time > entry.start_time))) continue;
+      const subject = other.teacher_user_id === entry.teacher_user_id ? `Teacher ${entry.teacherName}`
+        : other.section_id === entry.section_id ? `Class ${entry.programName} - ${entry.sectionName}`
+        : entry.room_number && other.room_number === entry.room_number ? `Room ${entry.room_number}` : "";
+      if (subject) clashes.push(`${subject}: ${days[entry.day_of_week - 1]}, period ${entry.period_number}`);
+    }
+  }
+  return <section className="rounded border border-slate-200 bg-white p-4">
+    <h3 className="font-semibold">Timetable conflict and load matrix</h3>
+    {!entries.length ? <p className="text-slate-500">No timetable entries to analyse.</p> : <>
+      <p>{clashes.length} scheduling conflicts across {entries.length} saved periods</p>
+      {clashes.length > 0 && <ul className="list-disc pl-5 text-red-700">{clashes.map((item, index) => <li key={index}>{item}</li>)}</ul>}
+      <div className="mt-3 flex flex-wrap gap-2">{[...loads.entries()].map(([id, load]) =>
+        <span key={id} className="rounded bg-slate-100 px-2 py-1">{load.teacher}: {load.count} periods/week</span>)}</div>
+    </>}
+  </section>;
+}
+
+export function TimetablePane({ organizationId, initialTab = "academic" }: { organizationId: string; initialTab?: string }) {
+  const view = initialTab as View;
+  const [data, setData] = useState<Data | null>(null);
+  const [people, setPeople] = useState<People | null>(null);
+  const [error, setError] = useState("");
+  const [teacherId, setTeacherId] = useState("");
+  const [sectionId, setSectionId] = useState("");
+  const [editing, setEditing] = useState<Entry | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState<Record<string, string>>({});
+  const [subFormOpen, setSubFormOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<Option[]>([]);
+  const [searchedSuggestions, setSearchedSuggestions] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const reload = () => getPrincipalTimetable(organizationId).then(setData);
+  useEffect(() => {
+    let active = true;
+    Promise.all([getPrincipalTimetable(organizationId), getPrincipalTeachers(organizationId)])
+      .then(([timetable, roster]) => { if (active) { setData(timetable); setPeople(roster); } })
+      .catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Could not load timetable"); });
+    return () => { active = false; };
   }, [organizationId]);
 
-  const records = (liveData?.substitutionRecords && liveData.substitutionRecords.length > 0)
-    ? liveData.substitutionRecords
-    : substitutionRecords;
+  const entries = data?.entries ?? [];
+  const filtered = entries.filter((item) => view === "teacher" ? !teacherId || item.teacher_user_id === teacherId
+    : view === "class" ? !sectionId || item.section_id === sectionId : true);
+  const heading = { academic: "Academic Timetable", teacher: "Teacher Timetable", class: "Class Timetable", substitutions: "Substitution Overview" }[view];
+  const field = (name: string, value: string) => setForm((previous) => ({ ...previous, [name]: value }));
+  const openEntry = (entry: Entry | null) => {
+    setEditing(entry); setError("");
+    setForm(entry ? { sectionId: entry.section_id, subjectId: entry.subject_id, teacherUserId: entry.teacher_user_id,
+      dayOfWeek: String(entry.day_of_week), periodNumber: String(entry.period_number), startTime: entry.start_time,
+      endTime: entry.end_time, roomNumber: entry.room_number } : {});
+    setFormOpen(true);
+  };
+  const openSubstitute = (timetableEntryId = "", eventDate = "", impactNote = "") => {
+    setError(""); setForm({ timetableEntryId, eventDate, impactNote }); setSuggestions([]); setSearchedSuggestions(false); setSubFormOpen(true);
+  };
+  async function saveEntry(event: FormEvent) {
+    event.preventDefault(); setSaving(true); setError("");
+    try {
+      const body = { ...form, dayOfWeek: Number(form.dayOfWeek), periodNumber: Number(form.periodNumber) };
+      if (editing) await updatePrincipalTimetableEntry(organizationId, editing.id, body);
+      else await createPrincipalTimetableEntry(organizationId, body);
+      await reload(); setFormOpen(false);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Could not save timetable entry"); }
+    finally { setSaving(false); }
+  }
+  async function removeEntry(id: string) {
+    if (!window.confirm("Delete this timetable period?")) return;
+    setError("");
+    try { await deletePrincipalTimetableEntry(organizationId, id); await reload(); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Could not delete timetable entry"); }
+  }
+  async function findSuggestions() {
+    setError(""); setSuggestions([]); setSearchedSuggestions(false);
+    try { setSuggestions(await getPrincipalSubstituteSuggestions(organizationId, form.timetableEntryId, form.eventDate)); setSearchedSuggestions(true); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Could not find available teachers"); }
+  }
+  async function saveSubstitute(event: FormEvent) {
+    event.preventDefault(); setSaving(true); setError("");
+    try { await assignPrincipalSubstitute(organizationId, form); await reload(); setSubFormOpen(false); }
+    catch (reason) { setError(reason instanceof Error ? reason.message : "Could not assign substitute"); }
+    finally { setSaving(false); }
+  }
+  const select = (name: string, label: string, options: Option[]) =>
+    <label>{label}<select required value={form[name] ?? ""} onChange={(event) => field(name, event.target.value)}>
+      <option value="">Select {label.toLowerCase()}</option>{options.map((item) => <option key={item.id} value={item.id}>{item.name || item.email}</option>)}
+    </select></label>;
 
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* View Switcher */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", gap: "8px" }}>
-          <button
-            onClick={() => setViewMode("substitutions")}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "8px",
-              border: "1px solid",
-              borderColor: viewMode === "substitutions" ? "#064E3B" : "#CBD5E1",
-              background: viewMode === "substitutions" ? "#064E3B" : "#FFFFFF",
-              color: viewMode === "substitutions" ? "#F8E7C9" : "#475569",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Teacher Absence & Substitution Academic Impact View
-          </button>
-          <button
-            onClick={() => setViewMode("master_grid")}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "8px",
-              border: "1px solid",
-              borderColor: viewMode === "master_grid" ? "#064E3B" : "#CBD5E1",
-              background: viewMode === "master_grid" ? "#064E3B" : "#FFFFFF",
-              color: viewMode === "master_grid" ? "#F8E7C9" : "#475569",
-              fontSize: "13px",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Academic Timetable Conflict Matrix
-          </button>
-        </div>
-
-        <span style={{ fontSize: "12px", color: "#166534", background: "#DCFCE7", padding: "4px 10px", borderRadius: "6px", fontWeight: 700 }}>
-          Live Substitution Monitoring
-        </span>
-      </div>
-
-      {viewMode === "substitutions" ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          {records.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "32px 0", color: "#64748B", fontSize: "13px", background: "#FFFFFF", borderRadius: "10px", border: "1px solid #E2E8F0" }}>
-              No faculty substitutions active today. Full teaching coverage verified.
-            </div>
-          ) : (
-            records.map((r: any, idx: number) => (
-              <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "20px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                  <div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ background: "#EFF6FF", color: "#1E40AF", fontSize: "11px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px" }}>
-                        Period {r.period} · {r.className}
-                      </span>
-
-                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#1E293B" }}>{r.subject}</span>
-                  </div>
-                  <div style={{ fontSize: "12px", color: "#64748B", marginTop: "4px" }}>
-                    Original Faculty: <b>{r.originalTeacher}</b> ({r.originalTeacherStatus})
-                  </div>
-                </div>
-                <span style={{ background: "#DCFCE7", color: "#166534", padding: "4px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>
-                  {r.coverageStatus}
-                </span>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", fontSize: "12px", background: "#F8FAFC", padding: "12px", borderRadius: "8px" }}>
-                <div>
-                  <div style={{ color: "#64748B" }}>Substitute Assigned:</div>
-                  <div style={{ fontWeight: 700, color: "#1E293B" }}>{r.substituteTeacher}</div>
-                  <div style={{ color: "#15803D", fontSize: "11px" }}>{r.substituteStatus}</div>
-                </div>
-                <div>
-                  <div style={{ color: "#64748B" }}>Instructional Coverage Task:</div>
-                  <div style={{ fontWeight: 600, color: "#334155" }}>{r.lessonPlanned}</div>
-                </div>
-              </div>
-
-              <div style={{ marginTop: "10px", fontSize: "12px", color: "#065F46", display: "flex", alignItems: "center", gap: "6px" }}>
-                <CheckCircle2 size={14} />
-                <b>Academic Impact Analysis:</b> {r.academicImpact}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-      ) : (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "20px" }}>
-          <h4 style={{ margin: "0 0 12px", fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>Timetable Clash & Load Diagnostics</h4>
-          <p style={{ margin: "0 0 16px", fontSize: "13px", color: "#64748B" }}>
-            Real-time conflict detection engine running across 36 sections and 42 faculty schedules.
-          </p>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px", fontSize: "13px" }}>
-            <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", padding: "14px", borderRadius: "8px" }}>
-              <div style={{ fontWeight: 700, color: "#166534", marginBottom: "4px" }}>Faculty Clashes</div>
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "#15803D" }}>0 Detected</div>
-              <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px" }}>Zero double-bookings</div>
-            </div>
-            <div style={{ background: "#F0FDF4", border: "1px solid #BBF7D0", padding: "14px", borderRadius: "8px" }}>
-              <div style={{ fontWeight: 700, color: "#166534", marginBottom: "4px" }}>Room Clashes</div>
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "#15803D" }}>0 Detected</div>
-              <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px" }}>Labs & classrooms clear</div>
-            </div>
-            <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", padding: "14px", borderRadius: "8px" }}>
-              <div style={{ fontWeight: 700, color: "#92400E", marginBottom: "4px" }}>Load Imbalances</div>
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "#B45309" }}>3 Faculty Overloaded</div>
-              <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px" }}>Periods &gt;30 assigned</div>
-            </div>
-          </div>
-        </div>
-      )}
+  return <section className="principal-timetable space-y-4 text-sm">
+    <div className="flex flex-wrap items-center justify-between gap-3">
+      <h2 className="text-lg font-semibold">{heading}</h2>
+      <button type="button" onClick={() => view === "substitutions" ? openSubstitute() : openEntry(null)}>
+        <Plus size={14} /> {view === "substitutions" ? "Assign substitute" : "Add period"}
+      </button>
     </div>
-  );
+    {error && <p role="alert" className="rounded border border-red-200 bg-red-50 p-3 text-red-700">{error}</p>}
+    {view === "teacher" && <label>Teacher <select value={teacherId} onChange={(event) => setTeacherId(event.target.value)}>
+      <option value="">All teachers</option>{(people?.teachers ?? []).map((item) => <option key={item.id} value={item.id}>{item.name || item.email}</option>)}
+    </select></label>}
+    {view === "class" && <label>Class <select value={sectionId} onChange={(event) => setSectionId(event.target.value)}>
+      <option value="">All classes</option>{(people?.sections ?? []).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+    </select></label>}
+    {view === "academic" && <ConflictMatrix entries={entries} />}
+    {view !== "substitutions" && (filtered.length ? <div className="overflow-x-auto rounded border bg-white"><table className="w-full text-left">
+      <thead><tr><th>Day</th><th>Period</th><th>Time</th><th>Class</th><th>Subject</th><th>Teacher</th><th>Room</th><th>Actions</th></tr></thead>
+      <tbody>{filtered.map((entry) => <tr key={entry.id}>
+        <td>{days[entry.day_of_week - 1]}</td><td>{entry.period_number}</td><td>{entry.start_time}–{entry.end_time}</td>
+        <td>{entry.programName} - {entry.sectionName}</td><td>{entry.subjectName}</td><td>{entry.teacherName}</td><td>{entry.room_number || "—"}</td>
+        <td><div className="flex gap-2"><button type="button" onClick={() => openEntry(entry)}>Edit</button><button type="button" onClick={() => removeEntry(entry.id)}>Delete</button></div></td>
+      </tr>)}</tbody></table></div> : <p className="text-slate-500">{data ? "No timetable periods recorded." : error ? "Timetable unavailable." : "Loading timetable…"}</p>)}
+    {view === "substitutions" && <section className="space-y-2"><h3 className="font-semibold">Uncovered teacher absences</h3>
+      {(data?.uncovered ?? []).length ? <div className="overflow-x-auto rounded border bg-white"><table className="w-full text-left">
+        <thead><tr><th>Date</th><th>Class / subject</th><th>Period</th><th>Absent teacher</th><th>Leave type</th><th></th></tr></thead>
+        <tbody>{data!.uncovered.map((item) => <tr key={item.timetableEntryId + date(item.eventDate)}>
+          <td>{date(item.eventDate)}</td><td>{item.programName} - {item.sectionName} · {item.subjectName}</td>
+          <td>{item.periodNumber}</td><td>{item.originalTeacher}</td><td>{item.absenceType}</td>
+          <td><button type="button" onClick={() => openSubstitute(item.timetableEntryId, date(item.eventDate))}>Assign substitute</button></td>
+        </tr>)}</tbody></table></div> : <p className="text-slate-500">{data ? "No uncovered approved teacher absences in the current window." : error ? "Absences unavailable." : "Loading absences…"}</p>}
+    </section>}
+    {view === "substitutions" && <section className="space-y-2"><h3 className="font-semibold">Recorded substitutions</h3>{(data?.substitutions ?? []).length ? <div className="overflow-x-auto rounded border bg-white"><table className="w-full text-left">
+      <thead><tr><th>Date</th><th>Class / subject</th><th>Period</th><th>Original teacher</th><th>Absence</th><th>Substitute</th><th>Impact note</th><th></th></tr></thead>
+      <tbody>{data!.substitutions.map((item) => <tr key={item.id}><td>{date(item.eventDate)}</td>
+        <td>{item.programName} - {item.sectionName} · {item.subjectName}</td><td>{item.periodNumber}</td>
+        <td>{item.originalTeacher}</td><td>{item.absenceType || "Not recorded"}</td><td>{item.substituteTeacher}</td>
+        <td>{item.impactNote || "—"}</td><td><button type="button" onClick={() => openSubstitute(item.timetableEntryId, date(item.eventDate), item.impactNote)}>Change</button></td></tr>)}</tbody></table></div>
+      : <p className="text-slate-500">{data ? "No substitutions recorded." : error ? "Substitutions unavailable." : "Loading substitutions…"}</p>}</section>}
+
+    {formOpen && <div className="modal-backdrop"><form role="dialog" aria-modal="true" onSubmit={saveEntry} className="action-modal timetable-form">
+      <button type="button" className="modal-close" aria-label="Close" onClick={() => setFormOpen(false)}>×</button>
+      <h2 className="font-semibold">{editing ? "Edit period" : "Add period"}</h2><div className="modal-form">
+        {error && <p role="alert" className="text-red-700">{error}</p>}
+        {select("sectionId", "Class", people?.sections ?? [])}{select("subjectId", "Subject", people?.subjects ?? [])}{select("teacherUserId", "Teacher", people?.teachers ?? [])}
+        <label>Day<select required value={form.dayOfWeek ?? ""} onChange={(event) => field("dayOfWeek", event.target.value)}><option value="">Select day</option>
+          {days.map((day, index) => <option key={day} value={index + 1}>{day}</option>)}</select></label>
+        <label>Period<input type="number" min={1} max={8} required value={form.periodNumber ?? ""} onChange={(event) => field("periodNumber", event.target.value)} /></label>
+        <label>Start time<input type="time" required value={form.startTime ?? ""} onChange={(event) => field("startTime", event.target.value)} /></label>
+        <label>End time<input type="time" required value={form.endTime ?? ""} onChange={(event) => field("endTime", event.target.value)} /></label>
+        <label>Room<input value={form.roomNumber ?? ""} onChange={(event) => field("roomNumber", event.target.value)} /></label>
+        <div className="modal-actions"><button type="button" onClick={() => setFormOpen(false)}>Cancel</button><button disabled={saving}>{saving ? "Saving…" : "Save"}</button></div>
+      </div></form></div>}
+
+    {subFormOpen && <div className="modal-backdrop"><form role="dialog" aria-modal="true" onSubmit={saveSubstitute} className="action-modal timetable-form">
+      <button type="button" className="modal-close" aria-label="Close" onClick={() => setSubFormOpen(false)}>×</button>
+      <h2 className="font-semibold">Assign substitute</h2><div className="modal-form">
+        {error && <p role="alert" className="text-red-700">{error}</p>}
+        <label>Date<input type="date" required value={form.eventDate ?? ""} onChange={(event) => { setForm((previous) => ({ ...previous, eventDate: event.target.value, timetableEntryId: "", substituteTeacherUserId: "" })); setSuggestions([]); setSearchedSuggestions(false); }} /></label>
+        <label>Timetable period<select required value={form.timetableEntryId ?? ""} onChange={(event) => { setForm((previous) => ({ ...previous, timetableEntryId: event.target.value, substituteTeacherUserId: "" })); setSuggestions([]); setSearchedSuggestions(false); }}>
+          <option value="">Select period</option>{entries.filter((entry) => !form.eventDate || entry.day_of_week === (new Date(`${form.eventDate}T12:00:00Z`).getUTCDay() || 7))
+            .map((entry) => <option key={entry.id} value={entry.id}>{days[entry.day_of_week - 1]} · Period {entry.period_number} · {entry.programName} - {entry.sectionName} · {entry.teacherName}</option>)}
+        </select></label>
+        <button type="button" disabled={!form.eventDate || !form.timetableEntryId} onClick={findSuggestions}>Find available teachers</button>
+        {form.eventDate && form.timetableEntryId && suggestions.length === 0 && !error && <p className="text-slate-500">{searchedSuggestions ? "No teachers are available for this period." : "Find available teachers to load options."}</p>}
+        {select("substituteTeacherUserId", "Substitute teacher", suggestions)}
+        <label>Academic impact note<textarea value={form.impactNote ?? ""} onChange={(event) => field("impactNote", event.target.value)} /></label>
+        <div className="modal-actions"><button type="button" onClick={() => setSubFormOpen(false)}>Cancel</button><button disabled={saving}>{saving ? "Saving…" : "Save"}</button></div>
+      </div></form></div>}
+    <style>{`.principal-timetable table th, .principal-timetable table td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0 } .principal-timetable button:not(.modal-close) { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; background: white } .principal-timetable select { border: 1px solid #cbd5e1; border-radius: 6px; padding: 6px } .timetable-form { max-width: 520px } .timetable-form .modal-form { max-height: 70vh; overflow: auto } .timetable-form label { display: grid; gap: 4px; margin: 8px 0 } .timetable-form input, .timetable-form select, .timetable-form textarea { width: 100%; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px }`}</style>
+  </section>;
 }

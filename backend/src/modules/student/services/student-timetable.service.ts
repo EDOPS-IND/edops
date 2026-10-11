@@ -17,7 +17,9 @@ export class StudentTimetableService {
 
     try {
       const [enrollment] = await this.drizzle.query(
-        `SELECT section_id FROM enrollments WHERE organization_id = $1 AND student_user_id = $2 AND status = 'active' LIMIT 1`,
+        `SELECT e.section_id FROM enrollments e
+         JOIN academic_years y ON y.id = e.academic_year_id AND y.organization_id = e.organization_id AND y.is_current = true
+         WHERE e.organization_id = $1 AND e.student_user_id = $2 AND e.status = 'active' LIMIT 1`,
         [organizationId, studentUserId],
       );
 
@@ -27,7 +29,8 @@ export class StudentTimetableService {
           `SELECT t.id, t.day_of_week, t.period_number, t.start_time, t.end_time, t.room_number,
                   sub.name as "subjectName", COALESCE(u.name, split_part(u.email, '@', 1)) as "teacherName"
            FROM timetable_entries t
-           JOIN subjects sub ON sub.id = t.subject_id
+           JOIN academic_years y ON y.id = t.academic_year_id AND y.organization_id = t.organization_id AND y.is_current = true
+           JOIN subjects sub ON sub.id = t.subject_id AND sub.organization_id = t.organization_id
            JOIN users u ON u.id = t.teacher_user_id
            WHERE t.organization_id = $1 AND t.section_id = $2
            ORDER BY t.day_of_week, t.period_number`,

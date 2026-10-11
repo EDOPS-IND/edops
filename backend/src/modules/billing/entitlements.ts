@@ -7,7 +7,7 @@ export interface Queryable {
 export type Feature = 'arena' | 'recordings' | 'communication' | string;
 export const featureKeys: Feature[] = ['arena','recordings','communication'];
 
-export async function entitlements(m: Queryable, org: string) {
+export async function entitlements(m: Queryable, org: string, role?: string | null) {
   const [row] = await m.query(`SELECT coalesce(s.status,'trialing') AS status,
     coalesce(s.period_start,o.created_at) AS period_start,coalesce(s.period_end,o.created_at+interval '30 days') AS period_end,
     coalesce(p.max_students,500) AS max_students,coalesce(p.max_teachers,50) AS max_teachers,
@@ -19,7 +19,7 @@ export async function entitlements(m: Queryable, org: string) {
   if (!row) throw new NotFoundException('Organization not found');
   const flags = await m.query('SELECT feature_key,enabled FROM feature_flags WHERE organization_id=$1',[org]);
   const overrides = await m.query(
-    `SELECT feature_key, enabled, custom_limit, custom_quota FROM feature_overrides 
+    `SELECT feature_key, role, enabled, custom_limit, custom_quota FROM feature_overrides
      WHERE organization_id=$1 AND (expiry_date IS NULL OR expiry_date > now())`, [org]
   );
   
@@ -31,20 +31,32 @@ export async function entitlements(m: Queryable, org: string) {
   // Catalog features from plan JSONB if present
   if (row.features && typeof row.features === 'object') {
     for (const [k, v] of Object.entries(row.features)) {
-      if (typeof v === 'boolean') features[k] = row.entitled && v;
+      if (typeof v === 'boolean') features[k] = row.entitled && (flags.find((x: {feature_key: string}) => x.feature_key === k)?.enabled ?? v);
     }
   }
-  // Apply school overrides
-  for (const ov of overrides) {
+  // Navigation destinations are available by default while a school is entitled.
+  // Plans, school flags and overrides can still turn each destination off.
+  const navigationKeys = await m.query("SELECT key FROM feature_catalog WHERE key LIKE 'nav:%'");
+  for (const { key } of navigationKeys as { key: string }[]) {
+    features[key] = row.entitled && (flags.find((x: {feature_key: string}) => x.feature_key === key)?.enabled ?? row.features?.[key] ?? true);
+  }
+  // 1. Apply school-wide overrides (where role is NULL or 'ALL')
+  for (const ov of overrides.filter((o: any) => !o.role || o.role === 'ALL')) {
     features[ov.feature_key] = row.entitled && ov.enabled;
+  }
+  // 2. Apply role-specific override if role requested
+  if (role) {
+    for (const ov of overrides.filter((o: any) => o.role === role)) {
+      features[ov.feature_key] = row.entitled && ov.enabled;
+    }
   }
 
   return { status: row.status, periodStart: row.period_start, periodEnd: row.period_end, implicitTrial: row.implicit_trial,
     entitled: row.entitled as boolean, maxStudents: row.max_students as number, maxTeachers: row.max_teachers as number, features, overrides };
 }
-export async function requireFeature(m: Queryable, org: string, feature: Feature) {
-  const e = await entitlements(m,org);
-  if (!e.features[feature]) throw new ForbiddenException(`Feature '${feature}' is not enabled for this school subscription`);
+export async function requireFeature(m: Queryable, org: string, feature: Feature, role?: string | null) {
+  const e = await entitlements(m, org, role);
+  if (!e.features[feature]) throw new ForbiddenException(`Feature '${feature}' is not enabled for this school subscription or role`);
 }
 export async function seatUsage(m: Queryable, org: string) {
   const [row] = await m.query(`SELECT

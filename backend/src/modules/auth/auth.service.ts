@@ -1,50 +1,18 @@
-import { ConflictException, Injectable, Logger, OnModuleDestroy, UnauthorizedException } from '@nestjs/common';
-import session, { Session, SessionData } from 'express-session';
-import connectPgSimple from 'connect-pg-simple';
+import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import type { Request } from 'express';
 import { AppConfig, InjectConfig } from '../../config';
 import { AuditService } from '../audit/audit.service';
 import { User } from './user.entity';
 import { hashPassword, verifyPassword } from './password';
 import { DrizzleService } from '../../database/drizzle.service';
 
-declare module 'express-session' {
-  interface SessionData {
-    userId?: string;
-    authenticatedAt?: number;
-  }
-}
-
 @Injectable()
-export class AuthService implements OnModuleDestroy {
-  readonly sessionStore: connectPgSimple.PGStore;
-  private readonly logger = new Logger(AuthService.name);
-
+export class AuthService {
   constructor(
     public readonly drizzle: DrizzleService,
     private readonly audit: AuditService,
     @InjectConfig() private readonly config: AppConfig,
-  ) {
-    const PgStore = connectPgSimple(session);
-    this.sessionStore = new PgStore({
-      conObject: {
-        connectionString: config.databaseUrl,
-        ssl: config.databaseSsl ? { rejectUnauthorized: true } : false,
-        options: '-c timezone=UTC',
-        max: 5,
-        connectionTimeoutMillis: 5000,
-        idleTimeoutMillis: 30000,
-      },
-      schemaName: config.databaseSchema,
-      tableName: 'sessions',
-      createTableIfMissing: false,
-      disableTouch: true,
-      errorLog: () => this.logger.error('Session store unavailable'),
-    });
-  }
-
-  async onModuleDestroy() {
-    await this.sessionStore.close();
-  }
+  ) {}
 
   async verifyCredentials(email: string, password: string): Promise<User> {
     const [user] = await this.drizzle.query(
@@ -59,17 +27,6 @@ export class AuthService implements OnModuleDestroy {
 
   async recordLogin(user: User) {
     await this.audit.record(this.drizzle, { organizationId: null, actorId: user.id, action: 'auth.login' });
-  }
-
-  async currentUser(currentSession: Session & Partial<SessionData>): Promise<User | null> {
-    if (!currentSession.userId || !currentSession.authenticatedAt ||
-        currentSession.authenticatedAt + this.config.sessionMaxAge <= Date.now()) return null;
-    const [user] = await this.drizzle.query(
-      `SELECT id, email, name, phone, is_platform_admin AS "isPlatformAdmin", is_active AS "isActive", created_at AS "createdAt"
-       FROM users WHERE id = $1 AND is_active = true LIMIT 1`,
-      [currentSession.userId]
-    );
-    return user ?? null;
   }
 
   async userFromJwt(token: string): Promise<User | null> {
@@ -88,6 +45,15 @@ export class AuthService implements OnModuleDestroy {
     }
   }
 
+  async userFromRequest(request: Request): Promise<User | null> {
+    const authHeader = request.headers?.['authorization'] || request.headers?.['Authorization'];
+    const authString = typeof authHeader === 'string' ? authHeader : '';
+    if (authString.startsWith('Bearer ')) {
+      return this.userFromJwt(authString.substring(7).trim());
+    }
+    return null;
+  }
+
   async createRefreshToken(userId: string): Promise<string> {
     const { generateRefreshToken } = await import('./jwt.util');
     const { token, hash } = generateRefreshToken();
@@ -97,6 +63,18 @@ export class AuthService implements OnModuleDestroy {
       [userId, hash, expiresAt]
     ).catch(() => null); // graceful fallback if table not yet migrated
     return token;
+  }
+
+  async revokeRefreshToken(token: string, userId: string): Promise<void> {
+    const { hashToken } = await import('./jwt.util');
+    await this.drizzle.query(
+      `UPDATE identity.user_refresh_tokens SET revoked_at = NOW()
+       WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL`,
+      [hashToken(token), userId],
+    ).catch((error: unknown) => {
+      // Token creation also tolerates deployments without this table.
+      if ((error as { code?: string }).code !== '42P01' && (error as { code?: string }).code !== '3F000') throw error;
+    });
   }
 
   async rotateRefreshToken(oldToken: string): Promise<{ user: User; newRefreshToken: string; accessToken: string } | null> {
@@ -139,7 +117,13 @@ export class AuthService implements OnModuleDestroy {
        ORDER BY o.name ASC`,
       [user.id]
     );
-    return { user: { id: user.id, email: user.email, name: user.name || '', phone: user.phone || null, isPlatformAdmin: user.isPlatformAdmin }, organizations };
+    const { entitlements } = await import('../billing/entitlements');
+    const orgsWithFeatures = await Promise.all(organizations.map(async (org: any) => {
+      const ent = await entitlements(this.drizzle, org.id, org.role).catch(() => null);
+      const enabledFeatures = ent?.features ? Object.keys(ent.features).filter(k => ent.features[k]) : [];
+      return { ...org, features: enabledFeatures };
+    }));
+    return { user: { id: user.id, email: user.email, name: user.name || '', phone: user.phone || null, isPlatformAdmin: user.isPlatformAdmin }, organizations: orgsWithFeatures };
   }
 
   async recordLogout(user: User) {

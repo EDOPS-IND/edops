@@ -27,9 +27,11 @@ import {
   Plus,
   Bell,
   Sparkles,
+  type LucideIcon,
 } from 'lucide-react';
 
 import { OrganizationSummary, getTeacherClasses } from '../edops-api';
+import { useDashboardNavigation } from '../dashboard-navigation';
 import { TeacherTab } from './types';
 
 // Panes
@@ -150,7 +152,11 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
     setSelectedStudentId(studentId);
   };
 
-  const navItems = [
+  const navigation = useDashboardNavigation(organization.id, 'teacher');
+  const isFeatureEnabled = (key: string) => navigation.sections.some(section => section.items.some(item => item.featureKey === key));
+
+  type TeacherNavItem = { id: string; label: string; icon: LucideIcon; tab?: TeacherTab; children?: { label: string; tab: TeacherTab }[] };
+  const baseNavItems: TeacherNavItem[] = [
     {
       id: 'dashboard',
       label: 'Teacher Command Center',
@@ -254,6 +260,30 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
     },
   ];
 
+  const sourceItems = new Map<string, { tab: TeacherTab; icon: LucideIcon; direct: boolean }>();
+  for (const group of baseNavItems) {
+    if (group.children?.length) for (const child of group.children) {
+      const key = group.id === 'teaching' && child.tab === 'timetable' ? 'today' : child.tab;
+      sourceItems.set(`${group.id}.${key}`, { tab: child.tab, icon: group.icon, direct: false });
+    }
+    else if (group.tab) sourceItems.set(`${group.id === 'dashboard' ? 'overview' : ['curriculum', 'workload', 'calendar', 'reports', 'activity'].includes(group.id) ? 'management' : group.id}.${group.id}`,
+      { tab: group.tab, icon: group.icon, direct: true });
+  }
+  const navItems: TeacherNavItem[] = navigation.sections.flatMap<TeacherNavItem>(section => {
+    const entries = section.items.flatMap(item => {
+      const source = sourceItems.get(item.key);
+      return source ? [{ source, label: item.label }] : [];
+    });
+    if (!entries.length) return [];
+    if (entries.length === 1 && entries[0].source.direct) return [{ id: section.key, label: entries[0].label, icon: entries[0].source.icon, tab: entries[0].source.tab }];
+    return [{ id: section.key, label: section.label, icon: entries[0].source.icon,
+      children: entries.map(entry => ({ label: entry.label, tab: entry.source.tab })) }];
+  });
+  const availableTabs = new Set(navigation.sections.flatMap(section => section.items.flatMap(item => {
+    const tab = sourceItems.get(item.key)?.tab;
+    return tab ? [tab] : [];
+  })));
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col antialiased text-slate-800">
       {/* Top Header */}
@@ -289,6 +319,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Quick Action Buttons */}
           <button
+            disabled={!availableTabs.has('attendance')}
             onClick={() => handleOpenAttendance()}
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-2xs"
           >
@@ -297,6 +328,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
           </button>
 
           <button
+            disabled={!availableTabs.has('assignments')}
             onClick={() => setAssignmentModalOpen(true)}
             className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#090D16] hover:bg-[#131C31] text-xs font-semibold rounded-lg transition-colors shadow-xs border border-[#1A243D]"
             style={{ color: "#FFFFFF" }}
@@ -439,6 +471,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
         {/* Main Content Area */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
+            {navigation.loading ? <p>Loading dashboard navigation…</p> : navigation.error ? <p role="alert">{navigation.error}</p> : !availableTabs.has(activeTab) ? <p>This feature is unavailable for this school or role.</p> : <>
             {activeTab === 'dashboard' && (
               <DashboardPane
                 key={`dash-${attendanceRefreshKey}`}
@@ -498,7 +531,16 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
             )}
 
             {activeTab === 'assessment' && (
-              <AssessmentsPane organizationId={organization.id} />
+              !isFeatureEnabled('assessments') ? (
+                <div style={{ padding: "40px", textAlign: "center", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "8px", margin: "20px" }}>
+                  <h3 style={{ color: "#991B1B", margin: "0 0 8px" }}>Feature Disabled</h3>
+                  <p style={{ color: "#7F1D1D", margin: 0, fontSize: "14px" }}>
+                    Assessments are currently disabled for teachers in this institution by the platform administrator.
+                  </p>
+                </div>
+              ) : (
+                <AssessmentsPane organizationId={organization.id} />
+              )
             )}
 
             {activeTab === 'exams' && (
@@ -537,6 +579,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
             {activeTab === 'activity' && (
               <ActivityPane organizationId={organization.id} />
             )}
+            </>}
           </div>
         </main>
       </div>
