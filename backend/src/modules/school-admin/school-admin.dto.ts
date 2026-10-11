@@ -11,6 +11,8 @@ import {
   IsString,
   IsUUID,
   Max,
+  Matches,
+  MaxLength,
   Min,
 } from "class-validator";
 
@@ -210,9 +212,10 @@ export class CreateDisciplineIncidentDto {
 }
 
 export class CreateTimetableEntryDto {
-  @ApiProperty({ format: "uuid" })
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
   @IsUUID()
-  academicYearId!: string;
+  academicYearId?: string;
 
   @ApiProperty({ format: "uuid" })
   @IsUUID()
@@ -241,16 +244,19 @@ export class CreateTimetableEntryDto {
   @ApiProperty()
   @IsNotEmpty()
   @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   startTime!: string;
 
   @ApiProperty()
   @IsNotEmpty()
   @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   endTime!: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   roomNumber?: string;
 }
 
@@ -292,16 +298,19 @@ export class UpdateTimetableEntryDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   startTime?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
   endTime?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(50)
   roomNumber?: string;
 }
 

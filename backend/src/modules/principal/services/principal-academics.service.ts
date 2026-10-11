@@ -113,44 +113,11 @@ export class PrincipalAcademicsService {
       principalFeedback: p.principal_feedback,
     }));
 
-    // Timetable & Substitutions Academic Impact view
-    const substitutionOverview = [
-      {
-        id: 'sub-rec-1',
-        date: new Date().toISOString().split('T')[0],
-        period: 3,
-        className: 'Grade 10-A',
-        subject: 'Mathematics',
-        originalTeacher: 'Rahul Sharma (Attending State Math Symposium)',
-        originalTeacherStatus: 'Duty Leave',
-        substituteTeacher: 'Sunita Rao',
-        substituteStatus: 'Assigned',
-        lessonPlanned: 'Chapter 4 Practice Worksheet',
-        coverageStatus: 'In Progress',
-        academicImpact: 'Zero instructional loss; practice worksheet supervised.',
-      },
-      {
-        id: 'sub-rec-2',
-        date: new Date().toISOString().split('T')[0],
-        period: 5,
-        className: 'Grade 9-B',
-        subject: 'Science Lab',
-        originalTeacher: 'Dr. Anita Desai',
-        originalTeacherStatus: 'Medical Leave',
-        substituteTeacher: 'Karan Mehra (Lab Demonstrator)',
-        substituteStatus: 'Assigned',
-        lessonPlanned: 'Optics Reflection Ray Tracing Experiment',
-        coverageStatus: 'Confirmed',
-        academicImpact: 'Full lab protocol completed on schedule.',
-      },
-    ];
-
     return {
       classes: classesList,
       subjects,
       curriculumNodes,
       lessonPlans,
-      substitutionOverview,
     };
   }
 

@@ -120,13 +120,19 @@ export class AuthController {
   @HttpCode(204)
   @ApiOperation({
     summary: 'Sign out of the current session', security: [{ cookie: [], csrf: [] }],
-    description: 'Deletes this session from PostgreSQL, clears its cookie and records auth.logout. Other sessions and school memberships are unchanged. No request body is needed. The old cookie no longer authenticates; call /auth/csrf again before another login. Repeating logout after revocation does not return a second success. Limit: 120 requests/minute per IP.',
+    description: 'Deletes this session, revokes its refresh token, clears both cookies and records auth.logout. Other sessions and school memberships are unchanged. No request body is needed. Call /auth/csrf again before another login. Limit: 120 requests/minute per IP.',
   })
   @ApiNoContentResponse({ description: 'Session revoked and cookie cleared. Empty body; do not parse it as JSON.' })
   @ApiErrors(400, 401, 403, 413)
   async logout(@Req() request: AuthenticatedRequest, @Res({ passthrough: true }) response: Response) {
+    if (request.cookies?.edops_refresh_token) {
+      await this.auth.revokeRefreshToken(request.cookies.edops_refresh_token, request.user.id);
+    }
     await promisify(request.session.destroy.bind(request.session))();
     response.clearCookie(this.config.cookieName, {
+      path: '/', httpOnly: true, sameSite: 'lax', secure: this.config.environment === 'production',
+    });
+    response.clearCookie('edops_refresh_token', {
       path: '/', httpOnly: true, sameSite: 'lax', secure: this.config.environment === 'production',
     });
     await this.auth.recordLogout(request.user);

@@ -168,10 +168,30 @@ export function createSchoolAdminDiscipline(orgId: string, data: any) { return a
 
 // Principal Control Center APIs
 export function getPrincipalDashboard(orgId: string) { return api<any>(`/organizations/${orgId}/principal/dashboard`); }
+export function getPrincipalLearningRoster(orgId: string) { return api<any[]>(`/organizations/${orgId}/principal/learning-roster`); }
 export function getPrincipalAcademicHealth(orgId: string) { return api<any>(`/organizations/${orgId}/principal/academic-health`); }
 export function getPrincipalPlanning(orgId: string) { return api<any>(`/organizations/${orgId}/principal/planning`); }
+export function createPrincipalAcademicPlan(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/planning/academic-plans`, { method: "POST", body: data }); }
+export function createPrincipalAcademicTarget(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/planning/targets`, { method: "POST", body: data }); }
+export function updatePrincipalAcademicTarget(orgId: string, targetId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/planning/targets/${targetId}`, { method: "PATCH", body: data }); }
+export function createPrincipalActionPlan(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/planning/action-plans`, { method: "POST", body: data }); }
+export function createPrincipalReviewMeeting(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/planning/review-meetings`, { method: "POST", body: data }); }
 export function getPrincipalTeachers(orgId: string) { return api<any>(`/organizations/${orgId}/principal/teachers`); }
+export function getPrincipalTeacherProfile(orgId: string, teacherId: string) { return api<any>(`/organizations/${orgId}/principal/teachers/${teacherId}/academic-profile`); }
+export function recordPrincipalObservation(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/observations`, { method: "POST", body: data }); }
+export function assignPrincipalDevelopment(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/development`, { method: "POST", body: data }); }
+export function completePrincipalDevelopment(orgId: string, id: string) { return api<any>(`/organizations/${orgId}/principal/teachers/development/${id}/complete`, { method: "PATCH" }); }
+export function createPrincipalDepartment(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/departments`, { method: "POST", body: data }); }
+export function assignPrincipalDepartmentHead(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/department-heads`, { method: "POST", body: data }); }
+export function assignPrincipalCoordinator(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/coordinators`, { method: "POST", body: data }); }
+export function assignPrincipalTeacher(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/principal/teachers/assignments`, { method: "POST", body: data }); }
 export function getPrincipalAcademics(orgId: string) { return api<any>(`/organizations/${orgId}/principal/academics`); }
+export function getPrincipalTimetable(orgId: string) { return api<any>(`/organizations/${orgId}/principal/timetable`); }
+export function createPrincipalTimetableEntry(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/timetable`, { method: "POST", body: data }); }
+export function updatePrincipalTimetableEntry(orgId: string, id: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/timetable/${id}`, { method: "PATCH", body: data }); }
+export function deletePrincipalTimetableEntry(orgId: string, id: string) { return api<any>(`/organizations/${orgId}/principal/timetable/${id}`, { method: "DELETE" }); }
+export function getPrincipalSubstituteSuggestions(orgId: string, id: string, date: string) { return api<any[]>(`/organizations/${orgId}/principal/timetable/${id}/suggestions?date=${encodeURIComponent(date)}`); }
+export function assignPrincipalSubstitute(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/timetable/substitutions`, { method: "POST", body: data }); }
 export function getPrincipalAssessments(orgId: string) { return api<any>(`/organizations/${orgId}/principal/assessments`); }
 export function getPrincipalExaminations(orgId: string) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations`); }
 export function getPrincipalStudents(orgId: string) { return api<any>(`/organizations/${orgId}/principal/students`); }

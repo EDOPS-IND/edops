@@ -1,12 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   CalendarCheck,
   Users,
   BookOpen,
-  Calendar,
   Clock,
   ClipboardList,
   GraduationCap,
@@ -19,11 +18,8 @@ import {
   Activity,
   Search,
   Plus,
-  ShieldCheck,
   ChevronDown,
-  ChevronRight,
   LogOut,
-  Building,
   Menu,
   X,
   HeartPulse
@@ -48,7 +44,6 @@ import { ActivityPane } from "./panes/activity-pane";
 
 // Modals & Drawers
 import { AcademicHealthModal } from "./components/academic-health-modal";
-import { QuickActionModal } from "./components/quick-action-modal";
 import { GlobalSearchModal } from "./components/global-search-modal";
 import { TeacherProfileDrawer } from "./panes/teacher-profile-drawer";
 import { Student360Modal } from "./panes/student-360-modal";
@@ -57,7 +52,7 @@ import { OrganizationSummary } from "../edops-api";
 
 interface PrincipalWorkspaceProps {
   organization: OrganizationSummary;
-  onLogout: () => void;
+  onLogout: () => Promise<void>;
   onSwitchOrganization: (orgId: string) => void;
   organizations: OrganizationSummary[];
 }
@@ -65,8 +60,6 @@ interface PrincipalWorkspaceProps {
 export function PrincipalWorkspace({
   organization,
   onLogout,
-  onSwitchOrganization,
-  organizations
 }: PrincipalWorkspaceProps) {
   // Navigation State
   const [activePane, setActivePane] = useState<string>("dashboard");
@@ -89,12 +82,21 @@ export function PrincipalWorkspace({
 
   // Global Dialog States
   const [healthModalOpen, setHealthModalOpen] = useState(false);
-  const [quickActionModalOpen, setQuickActionModalOpen] = useState(false);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [healthScore, setHealthScore] = useState<number | null>(null);
   const [academicYear, setAcademicYear] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
+  const [logoutError, setLogoutError] = useState("");
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    setLogoutError("");
+    try { await onLogout(); }
+    catch (reason) { setLogoutError(reason instanceof Error ? reason.message : "Could not sign out"); }
+    finally { setSigningOut(false); }
+  };
 
   useEffect(() => {
     import("../edops-api").then(({ getPrincipalDashboard }) => {
@@ -125,7 +127,7 @@ export function PrincipalWorkspace({
 
   const navigateTo = (pane: string, subTab: string = "") => {
     setActivePane(pane);
-    setActiveSubTab(subTab);
+    setActiveSubTab(pane === "people" && !subTab ? "workload" : subTab);
     setMobileMenuOpen(false);
   };
 
@@ -143,7 +145,7 @@ export function PrincipalWorkspace({
         { id: "app", label: "Annual Academic Plan" },
         { id: "calendar", label: "Academic Calendar" },
         { id: "targets", label: "Learning Goals & Targets" },
-        { id: "action_plans", label: "School Academic Targets" }
+        { id: "school_targets", label: "School Academic Targets" }
       ]
     },
     {
@@ -151,11 +153,10 @@ export function PrincipalWorkspace({
       label: "People – Academic",
       icon: <Users className="w-4 h-4" />,
       subItems: [
-        { id: "teachers", label: "Teachers" },
+        { id: "workload", label: "Teacher Workload" },
         { id: "hods", label: "Department Heads" },
         { id: "coordinators", label: "Coordinators" },
         { id: "assignments", label: "Teacher Assignments" },
-        { id: "workload", label: "Teacher Workload" },
         { id: "development", label: "Teacher Development" }
       ]
     },
@@ -288,10 +289,10 @@ export function PrincipalWorkspace({
 
   // Sidebar IDs differ from a few pane tab IDs. Only open views the panes actually provide.
   const paneTabs: Record<string, Record<string, string>> = {
-    planning: { app: "annual_plan", targets: "targets", action_plans: "action_plans" },
-    people: { teachers: "teachers", workload: "teachers" },
+    planning: { app: "annual_plan", calendar: "calendar", targets: "learning_goals", school_targets: "school_targets", action_plans: "action_plans" },
+    people: { hods: "hods", coordinators: "coordinators", assignments: "assignments", workload: "workload", development: "development" },
     academics: { classes: "classes", sections: "classes", subjects: "subjects", curriculum: "curriculum", outcomes: "competencies", lesson_plans: "lesson_plans", progress: "curriculum" },
-    timetable: { academic_tt: "master_grid", substitution: "substitutions" },
+    timetable: { academic_tt: "academic", teacher_tt: "teacher", class_tt: "class", substitution: "substitutions" },
     attendance: { student_att: "attendance", low: "attendance" },
     learning: { assignments: "assignments" },
     assessment: { assessments: "assessments", question_papers: "assessments" },
@@ -407,22 +408,6 @@ export function PrincipalWorkspace({
           })}
         </nav>
 
-        {/* Footer info & Logout */}
-        <div className="p-3 border-t border-[#1A243D] bg-[#090D16] space-y-2">
-          <div className="flex items-center justify-between px-2 text-xs text-slate-400">
-            <span className="font-medium">Principal Office</span>
-            <span className="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-1.5 py-0.5 rounded font-bold">
-              VERIFIED
-            </span>
-          </div>
-          <button
-            onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 px-3 py-1.5 text-xs font-semibold text-slate-400 hover:text-rose-400 hover:bg-[#131C31] rounded-lg transition"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            Sign Out
-          </button>
-        </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
@@ -437,16 +422,11 @@ export function PrincipalWorkspace({
             >
               <Menu className="w-5 h-5" />
             </button>
-            <span className="font-bold text-sm">EdOps Principal</span>
+            <span className="hidden sm:inline font-bold text-sm">EdOps Principal</span>
           </div>
 
           {/* Quick Academic Status Badge */}
           <div className="hidden sm:flex items-center gap-2">
-            <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-50  text-indigo-700  border border-indigo-200  flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              Term 1 Ongoing • 182 Instructional Days
-            </span>
-            <span className="text-xs text-gray-400">|</span>
             <button
               onClick={() => setHealthModalOpen(true)}
               className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50  text-emerald-700  border border-emerald-200  hover:bg-emerald-100 transition"
@@ -470,11 +450,11 @@ export function PrincipalWorkspace({
             </button>
 
             <button
-              onClick={() => setQuickActionModalOpen(true)}
+              onClick={() => navigateTo("planning", "action_plans")}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-[#090D16] hover:bg-[#131C31] rounded-xl shadow-xs border border-[#1A243D] transition" style={{ color: "#FFFFFF" }}
             >
               <Plus className="w-4 h-4 text-indigo-400" />
-              <span className="hidden sm:inline">Quick Action</span>
+              <span className="hidden sm:inline">Action Plans</span>
             </button>
 
             <button
@@ -486,8 +466,15 @@ export function PrincipalWorkspace({
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-600 animate-ping" />
               <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-600" />
             </button>
+            <button type="button" onClick={handleSignOut} disabled={signingOut}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              aria-label={signingOut ? "Signing out" : "Sign out"}>
+              <LogOut className="w-4 h-4" /><span className="hidden sm:inline">{signingOut ? "Signing out…" : "Sign out"}</span>
+            </button>
           </div>
         </header>
+
+        {logoutError && <div role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">Sign out failed: {logoutError}</div>}
 
         {/* WORKSPACE BODY VIEW */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
@@ -518,7 +505,9 @@ export function PrincipalWorkspace({
 
           {activePane === "people" && (
             <TeachersPane
+              key={activeView}
               organizationId={organization.id}
+              view={activeView as "hods" | "coordinators" | "assignments" | "workload" | "development"}
               onOpenProfile={(id) => setSelectedTeacherId(id)}
             />
           )}
@@ -537,7 +526,6 @@ export function PrincipalWorkspace({
               key={activeView}
               organizationId={organization.id}
               initialTab={activeView}
-              onNavigate={navigateTo}
             />
           )}
 
@@ -620,7 +608,7 @@ export function PrincipalWorkspace({
       {/* MOBILE DRAWER */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden">
-          <div
+          <button type="button" aria-label="Close navigation"
             className="fixed inset-0 bg-black/50"
             onClick={() => setMobileMenuOpen(false)}
           />
@@ -663,13 +651,6 @@ export function PrincipalWorkspace({
         onNavigate={navigateTo}
       />
 
-      <QuickActionModal
-        isOpen={quickActionModalOpen}
-        onClose={() => setQuickActionModalOpen(false)}
-        organizationId={organization.id}
-        onSuccess={() => {}}
-      />
-
       <GlobalSearchModal
         isOpen={searchModalOpen}
         onClose={() => setSearchModalOpen(false)}
@@ -682,6 +663,7 @@ export function PrincipalWorkspace({
       {/* TEACHER PROFILE DRAWER */}
       {selectedTeacherId && (
         <TeacherProfileDrawer
+          key={selectedTeacherId}
           teacherId={selectedTeacherId}
           organizationId={organization.id}
           onClose={() => setSelectedTeacherId(null)}

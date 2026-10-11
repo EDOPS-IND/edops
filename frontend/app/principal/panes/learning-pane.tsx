@@ -1,54 +1,54 @@
 "use client";
 
 import React from "react";
-import { ClipboardCheck, CheckCircle2, Clock, AlertTriangle } from "lucide-react";
+import { getPrincipalDashboard, getPrincipalLearningRoster } from "../../edops-api";
+
+type RosterItem = { id: string; className: string; subjectName: string; teacherName: string; assigned: number; submitted: number; evaluated: number; pendingEvaluation: number };
 
 export function LearningPane({
   organizationId,
-  onNavigate,
 }: {
   organizationId?: string;
   onNavigate?: (pane: string) => void;
 }) {
-  const [liveData, setLiveData] = React.useState<any>(null);
+  const [liveData, setLiveData] = React.useState<{ teachingExecution: { lessonPlansCompleted: number; syllabusCompletion: number | null; lessonsDelivered: number; pendingEvaluations: number } } | null>(null);
+  const [assignments, setAssignments] = React.useState<RosterItem[]>([]);
+  const [error, setError] = React.useState("");
 
   React.useEffect(() => {
     if (!organizationId) return;
-    import("../../edops-api").then(({ getPrincipalDashboard }) => {
-      getPrincipalDashboard(organizationId)
-        .then((data) => setLiveData(data))
-        .catch(() => null);
-    });
+    Promise.all([getPrincipalDashboard(organizationId), getPrincipalLearningRoster(organizationId)])
+      .then(([dashboard, roster]) => { setLiveData(dashboard); setAssignments(roster); })
+      .catch((reason) => setError(reason instanceof Error ? reason.message : "Could not load coursework"));
   }, [organizationId]);
 
   const exec = liveData?.teachingExecution;
-  const assignments: any[] = [];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {error && <p role="alert">{error}</p>}
       {/* 1. Metric Overview Strip */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
         <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
-          <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Active Coursework Units</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#1E293B", margin: "4px 0" }}>{exec?.lessonPlansCompleted ?? 0}</div>
+          <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Published Assignments</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#1E293B", margin: "4px 0" }}>{liveData ? assignments.length : "—"}</div>
           <div style={{ fontSize: "11px", color: "#64748B" }}>Across active sections</div>
         </div>
 
         <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
           <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Syllabus Completion Rate</div>
           <div style={{ fontSize: "28px", fontWeight: 800, color: "#15803D", margin: "4px 0" }}>{exec?.syllabusCompletion == null ? "—" : `${exec.syllabusCompletion}%`}</div>
-          <div style={{ fontSize: "11px", color: "#166534" }}>Target: &gt;85.0%</div>
         </div>
 
         <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
           <div style={{ fontSize: "12px", color: "#64748B", fontWeight: 600 }}>Lessons Delivered On-Time</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#065F46", margin: "4px 0" }}>{exec?.lessonsDelivered ?? 0}</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#065F46", margin: "4px 0" }}>{exec?.lessonsDelivered ?? "—"}</div>
           <div style={{ fontSize: "11px", color: "#065F46" }}>Instructional milestones verified</div>
         </div>
 
         <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: "10px", padding: "16px" }}>
-          <div style={{ fontSize: "12px", color: "#92400E", fontWeight: 600 }}>Overdue Evaluations (&gt;48h)</div>
-          <div style={{ fontSize: "28px", fontWeight: 800, color: "#B45309", margin: "4px 0" }}>{exec?.pendingEvaluations ?? 0} Submissions</div>
+          <div style={{ fontSize: "12px", color: "#92400E", fontWeight: 600 }}>Pending Evaluations</div>
+          <div style={{ fontSize: "28px", fontWeight: 800, color: "#B45309", margin: "4px 0" }}>{exec?.pendingEvaluations ?? "—"} Submissions</div>
           <div style={{ fontSize: "11px", color: "#92400E" }}>Flagged in Academic Audit</div>
         </div>
       </div>
@@ -60,7 +60,6 @@ export function LearningPane({
           <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>
             Coursework & Assignment Evaluation Timeliness Roster
           </h3>
-          <span style={{ fontSize: "12px", color: "#64748B" }}>SLA: 48 hours for teacher return feedback</span>
         </div>
 
         <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
@@ -73,31 +72,29 @@ export function LearningPane({
               <th style={{ padding: "12px 16px" }}>Submission Rate</th>
               <th style={{ padding: "12px 16px" }}>Evaluated</th>
               <th style={{ padding: "12px 16px" }}>Pending Evaluation</th>
-              <th style={{ padding: "12px 16px" }}>Turnaround SLA</th>
             </tr>
           </thead>
           <tbody>
             {assignments.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ padding: "24px 16px", textAlign: "center", color: "#64748B" }}>
-                  No active coursework assignments currently pending evaluation.
+                <td colSpan={7} style={{ padding: "24px 16px", textAlign: "center", color: "#64748B" }}>
+                  {error ? "Coursework unavailable." : liveData ? "No published coursework assignments." : "Loading coursework…"}
                 </td>
               </tr>
             ) : (
-              assignments.map((a: any, idx: number) => (
-                <tr key={idx} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1E293B" }}>{a.class}</td>
-                  <td style={{ padding: "12px 16px", color: "#334155" }}>{a.subject}</td>
-                  <td style={{ padding: "12px 16px", color: "#64748B" }}>{a.teacher}</td>
+              assignments.map((a) => (
+                <tr key={a.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
+                  <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1E293B" }}>{a.className}</td>
+                  <td style={{ padding: "12px 16px", color: "#334155" }}>{a.subjectName}</td>
+                  <td style={{ padding: "12px 16px", color: "#64748B" }}>{a.teacherName}</td>
                   <td style={{ padding: "12px 16px", fontWeight: 600 }}>{a.submitted} / {a.assigned}</td>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: parseFloat(a.submissionRate) < 80 ? "#DC2626" : "#15803D" }}>
-                    {a.submissionRate}
+                  <td style={{ padding: "12px 16px", fontWeight: 700, color: "#15803D" }}>
+                    {a.assigned ? `${Math.round(100 * a.submitted / a.assigned)}%` : "—"}
                   </td>
                   <td style={{ padding: "12px 16px", color: "#15803D", fontWeight: 600 }}>{a.evaluated}</td>
-                  <td style={{ padding: "12px 16px", fontWeight: 700, color: a.pendingEval > 0 ? "#D97706" : "#15803D" }}>
-                    {a.pendingEval} {a.pendingEval > 0 ? "pending" : "clear"}
+                  <td style={{ padding: "12px 16px", fontWeight: 700, color: a.pendingEvaluation > 0 ? "#D97706" : "#15803D" }}>
+                    {a.pendingEvaluation} {a.pendingEvaluation > 0 ? "pending" : "clear"}
                   </td>
-                  <td style={{ padding: "12px 16px", fontWeight: 600, color: "#065F46" }}>{a.timeliness}</td>
                 </tr>
               ))
             )}

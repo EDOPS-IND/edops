@@ -99,6 +99,18 @@ export class AuthService implements OnModuleDestroy {
     return token;
   }
 
+  async revokeRefreshToken(token: string, userId: string): Promise<void> {
+    const { hashToken } = await import('./jwt.util');
+    await this.drizzle.query(
+      `UPDATE identity.user_refresh_tokens SET revoked_at = NOW()
+       WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL`,
+      [hashToken(token), userId],
+    ).catch((error: unknown) => {
+      // Token creation also tolerates deployments without this table.
+      if ((error as { code?: string }).code !== '42P01' && (error as { code?: string }).code !== '3F000') throw error;
+    });
+  }
+
   async rotateRefreshToken(oldToken: string): Promise<{ user: User; newRefreshToken: string; accessToken: string } | null> {
     const { hashToken, signAccessToken } = await import('./jwt.util');
     const hash = hashToken(oldToken);

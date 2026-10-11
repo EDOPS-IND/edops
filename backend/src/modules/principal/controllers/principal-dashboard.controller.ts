@@ -30,6 +30,12 @@ export class PrincipalDashboardController {
     return this.service.getDashboard(orgId, req.user);
   }
 
+  @Get("learning-roster")
+  @ApiOperation({ summary: "Published coursework and evaluation roster" })
+  learningRoster(@Param("organizationId", ParseUUIDPipe) orgId: string) {
+    return this.service.getLearningRoster(orgId);
+  }
+
   @Get("academic-health")
   @ApiOperation({
     summary: "Explainable Academic Health Score & Factor Drill-down",

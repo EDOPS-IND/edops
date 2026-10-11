@@ -29,7 +29,7 @@ test('M5 objective Arena with real PostgreSQL and restricted tenant runtime', { 
   const source = createDataSource(config); await source.initialize();
   try {
     const sixth = source.migrations.pop(), fifth = source.migrations.pop();
-    assert.equal((await source.runMigrations()).length, 4);
+    assert.equal((await source.runMigrations()).length, 12);
     source.migrations.push(fifth);
     assert.equal((await source.runMigrations()).length, 1);
     source.migrations.push(sixth);

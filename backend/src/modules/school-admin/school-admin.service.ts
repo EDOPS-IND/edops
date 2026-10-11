@@ -25,7 +25,7 @@ export class SchoolAdminService {
     private readonly audit: AuditService,
   ) {}
 
-  private async authorize(manager: Queryable, orgId: string, actor: User): Promise<Organization> {
+  private async authorize(manager: Queryable, orgId: string, actor: User, principalTimetable = false): Promise<Organization> {
     if (actor.isPlatformAdmin) {
       const [org] = await manager.query('SELECT * FROM organizations WHERE id = $1 LIMIT 1', [orgId]);
       if (!org) throw new NotFoundException('Organization not found');
@@ -36,7 +36,7 @@ export class SchoolAdminService {
       [orgId, actor.id],
     );
     if (!membership) throw new NotFoundException('Organization not found');
-    if (membership.role !== 'school_admin') {
+    if (membership.role !== 'school_admin' && !(principalTimetable && membership.role === 'principal')) {
       throw new ForbiddenException('School administrator access required');
     }
     const [org] = await manager.query('SELECT * FROM organizations WHERE id = $1 LIMIT 1', [orgId]);
@@ -222,8 +222,26 @@ export class SchoolAdminService {
          LIMIT 5`,
         [orgId],
       ).catch(() => []);
+      // Platform announcements
+      const [org] = await manager.query(
+        `SELECT o.status, s.name as plan_name
+         FROM organizations o
+         LEFT JOIN subscriptions s ON s.organization_id = o.id AND s.status IN ('active', 'trialing')
+         WHERE o.id = $1`, [orgId]
+      );
+      const status = org?.status;
+      const plan = org?.plan_name?.toLowerCase() || '';
+      let audienceCond = "audience = 'all'";
+      if (status === 'active') audienceCond += " OR audience = 'active'";
+      if (plan.includes('trial')) audienceCond += " OR audience = 'trial'";
+      if (plan.includes('enterprise')) audienceCond += " OR audience = 'enterprise'";
+
+      const platformAnnouncements = await manager.query(
+        `SELECT id, title, message, type, priority, created_at AS "createdAt" FROM platform_announcements WHERE ${audienceCond} AND status = 'published' ORDER BY created_at DESC LIMIT 5`
+      ).catch(() => []);
 
       return {
+        platformAnnouncements,
         metrics: {
           totalStudents,
           activeStudents,
@@ -467,7 +485,7 @@ export class SchoolAdminService {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
-      let rows = await manager.query(
+      const rows = await manager.query(
         `SELECT 
           id,
           name,
@@ -485,40 +503,6 @@ export class SchoolAdminService {
          FROM school_departments WHERE organization_id = $1 ORDER BY name`,
         [orgId],
       );
-
-      // Seed core departments if empty
-      if (!rows.length) {
-        await manager.query(
-          `INSERT INTO school_departments (organization_id, name, code, head_teacher_name, faculty_count, student_load, syllabus_progress, attendance_rate)
-           VALUES 
-            ($1, 'Mathematics & Statistics', 'MATH', 'Dr. Anand Kumar', 14, 620, 88, 96),
-            ($1, 'Natural Sciences & Labs', 'SCI', 'Prof. Meenakshi S.', 18, 580, 92, 94),
-            ($1, 'English & Modern Languages', 'ENG', 'Mrs. Rekha V.', 12, 640, 95, 97),
-            ($1, 'Social Sciences & Civics', 'SOC', 'Mr. Tariq Anwar', 10, 520, 85, 93),
-            ($1, 'Computer Science & AI Lab', 'CS', 'Er. Vikrant Joshi', 8, 480, 96, 98),
-            ($1, 'Physical Education & Sports', 'SPORTS', 'Coach Baljeet Singh', 6, 750, 100, 99)
-           ON CONFLICT DO NOTHING`,
-          [orgId],
-        );
-        rows = await manager.query(
-          `SELECT 
-            id,
-            name,
-            code,
-            head_teacher_name as "headName",
-            LOWER(REPLACE(head_teacher_name, ' ', '.')) || '@edops.school' as "headEmail",
-            faculty_count as "teachersCount",
-            2 as "staffCount",
-            student_load as "studentsCount",
-            12 as "classesCount",
-            attendance_rate as "avgAttendancePct",
-            syllabus_progress as "syllabusCompletionPct",
-            'Active' as "status",
-            'Campus Block ' || code as "location"
-           FROM school_departments WHERE organization_id = $1 ORDER BY name`,
-          [orgId],
-        );
-      }
 
       return rows;
     });
@@ -584,15 +568,18 @@ export class SchoolAdminService {
 
   async getTimetable(orgId: string, actor: User, sectionId?: string) {
     return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
+      await this.authorize(manager, orgId, actor, true);
 
       let query = `
         SELECT 
-          t.*, s.name as "sectionName", sub.name as "subjectName", sub.code as "subjectCode",
-          u.email as "teacherEmail"
+          t.*, s.name as "sectionName", p.name as "programName",
+          sub.name as "subjectName", sub.code as "subjectCode",
+          u.email as "teacherEmail", COALESCE(u.name, u.email) AS "teacherName"
         FROM timetable_entries t
-        JOIN sections s ON s.id = t.section_id
-        JOIN subjects sub ON sub.id = t.subject_id
+        JOIN academic_years y ON y.id = t.academic_year_id AND y.organization_id = t.organization_id AND y.is_current = true
+        JOIN sections s ON s.id = t.section_id AND s.organization_id = t.organization_id
+        JOIN programs p ON p.id = s.program_id AND p.organization_id = t.organization_id
+        JOIN subjects sub ON sub.id = t.subject_id AND sub.organization_id = t.organization_id
         JOIN users u ON u.id = t.teacher_user_id
         WHERE t.organization_id = $1
       `;
@@ -620,9 +607,11 @@ export class SchoolAdminService {
            AND t1.teacher_user_id = t2.teacher_user_id
            AND t1.day_of_week = t2.day_of_week
            AND t1.period_number = t2.period_number
+           AND t1.academic_year_id = t2.academic_year_id
+         JOIN academic_years y ON y.id = t1.academic_year_id AND y.organization_id = t1.organization_id AND y.is_current = true
          JOIN users u ON u.id = t1.teacher_user_id
-         JOIN sections s1 ON s1.id = t1.section_id
-         JOIN sections s2 ON s2.id = t2.section_id
+         JOIN sections s1 ON s1.id = t1.section_id AND s1.organization_id = t1.organization_id
+         JOIN sections s2 ON s2.id = t2.section_id AND s2.organization_id = t2.organization_id
          WHERE t1.organization_id = $1
          LIMIT 10`,
         [orgId],
@@ -634,26 +623,22 @@ export class SchoolAdminService {
 
   async createTimetableEntry(orgId: string, actor: User, dto: CreateTimetableEntryDto) {
     return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
-
-      // Check conflict before insert
-      const [existing] = await manager.query(
-        `SELECT id FROM timetable_entries 
-         WHERE organization_id = $1 AND teacher_user_id = $2 AND day_of_week = $3 AND period_number = $4`,
-        [orgId, dto.teacherUserId, dto.dayOfWeek, dto.periodNumber],
-      );
-      if (existing) {
-        throw new ConflictException('Teacher has a scheduling clash in this period and day');
-      }
+      await this.authorize(manager, orgId, actor, true);
+      // ponytail: one school-wide lock makes clash checks atomic; split by period if contention grows.
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [orgId]);
 
       let academicYearId = dto.academicYearId;
       if (!academicYearId) {
         const [year] = await manager.query(
-          `SELECT id FROM academic_years WHERE organization_id = $1 ORDER BY is_current DESC, start_date DESC LIMIT 1`,
+          `SELECT id FROM academic_years WHERE organization_id = $1 AND is_current = true LIMIT 1`,
           [orgId],
         );
         academicYearId = year?.id;
       }
+      if (!academicYearId) throw new BadRequestException('Create an active academic year first');
+      if (dto.startTime >= dto.endTime) throw new BadRequestException('End time must be after start time');
+      await this.validateTimetableSlot(manager, orgId, academicYearId, dto.sectionId, dto.subjectId,
+        dto.teacherUserId, dto.dayOfWeek, dto.periodNumber, dto.startTime, dto.endTime, dto.roomNumber || '');
 
       const [entry] = await manager.query(
         `INSERT INTO timetable_entries 
@@ -681,7 +666,8 @@ export class SchoolAdminService {
 
   async updateTimetableEntry(orgId: string, actor: User, id: string, dto: UpdateTimetableEntryDto) {
     return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
+      await this.authorize(manager, orgId, actor, true);
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [orgId]);
 
       const [existing] = await manager.query(
         `SELECT * FROM timetable_entries WHERE id = $1 AND organization_id = $2`,
@@ -691,22 +677,18 @@ export class SchoolAdminService {
         throw new NotFoundException('Timetable entry not found');
       }
 
-      const teacherUserId = dto.teacherUserId || existing.teacher_user_id;
-      const dayOfWeek = dto.dayOfWeek ?? existing.day_of_week;
-      const periodNumber = dto.periodNumber ?? existing.period_number;
-
-      const [conflict] = await manager.query(
-        `SELECT id FROM timetable_entries 
-         WHERE organization_id = $1 AND teacher_user_id = $2 AND day_of_week = $3 AND period_number = $4 AND id != $5`,
-        [orgId, teacherUserId, dayOfWeek, periodNumber, id],
-      );
-      if (conflict) {
-        throw new ConflictException('Teacher has a scheduling clash in this period and day');
-      }
+      const startTime = dto.startTime || existing.start_time;
+      const endTime = dto.endTime || existing.end_time;
+      if (startTime >= endTime) throw new BadRequestException('End time must be after start time');
+      await this.validateTimetableSlot(manager, orgId, dto.academicYearId || existing.academic_year_id,
+        dto.sectionId || existing.section_id, dto.subjectId || existing.subject_id,
+        dto.teacherUserId || existing.teacher_user_id, dto.dayOfWeek ?? existing.day_of_week,
+        dto.periodNumber ?? existing.period_number, startTime, endTime, dto.roomNumber ?? existing.room_number, id);
 
       const [updated] = await manager.query(
         `UPDATE timetable_entries 
-         SET section_id = COALESCE($1, section_id),
+         SET academic_year_id = COALESCE($11, academic_year_id),
+             section_id = COALESCE($1, section_id),
              subject_id = COALESCE($2, subject_id),
              teacher_user_id = COALESCE($3, teacher_user_id),
              day_of_week = COALESCE($4, day_of_week),
@@ -727,6 +709,7 @@ export class SchoolAdminService {
           dto.roomNumber !== undefined ? dto.roomNumber : null,
           id,
           orgId,
+          dto.academicYearId || null,
         ],
       );
 
@@ -737,7 +720,7 @@ export class SchoolAdminService {
 
   async deleteTimetableEntry(orgId: string, actor: User, id: string) {
     return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
+      await this.authorize(manager, orgId, actor, true);
 
       const [deleted] = await manager.query(
         `DELETE FROM timetable_entries WHERE id = $1 AND organization_id = $2 RETURNING id`,
@@ -750,6 +733,24 @@ export class SchoolAdminService {
       await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: 'timetable.deleted' });
       return { success: true, id };
     });
+  }
+
+  private async validateTimetableSlot(manager: Queryable, orgId: string, yearId: string,
+    sectionId: string, subjectId: string, teacherId: string, day: number, period: number,
+    startTime: string, endTime: string, room: string, excludeId?: string) {
+    const [valid] = await manager.query(`SELECT 1 FROM sections s JOIN subjects sub ON sub.id = $4 AND sub.organization_id = $1
+      JOIN memberships m ON m.user_id = $5 AND m.organization_id = $1 AND m.role = 'teacher' AND m.status = 'active'
+      JOIN users u ON u.id = m.user_id AND u.is_active = true
+      WHERE s.id = $3 AND s.organization_id = $1 AND s.academic_year_id = $2`,
+      [orgId, yearId, sectionId, subjectId, teacherId]);
+    if (!valid) throw new BadRequestException('Choose a class, subject and active teacher from this school and academic year');
+    const [clash] = await manager.query(`SELECT id FROM timetable_entries WHERE organization_id = $1
+      AND academic_year_id = $2 AND day_of_week = $3
+      AND (period_number = $4 OR (start_time < $9 AND end_time > $8))
+      AND (teacher_user_id = $5 OR section_id = $6 OR (BTRIM($7) <> '' AND LOWER(BTRIM(room_number)) = LOWER(BTRIM($7))))
+      AND ($10::uuid IS NULL OR id <> $10::uuid) LIMIT 1`,
+      [orgId, yearId, day, period, teacherId, sectionId, room, startTime, endTime, excludeId || null]);
+    if (clash) throw new ConflictException('Teacher, class or room is already booked for this period');
   }
 
   // 6. ATTENDANCE & LEAVES

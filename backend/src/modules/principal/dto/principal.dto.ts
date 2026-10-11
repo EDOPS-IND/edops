@@ -30,12 +30,12 @@ export class CreateAcademicPlanDto {
   @MaxLength(200)
   title!: string;
 
-  @ApiPropertyOptional({ example: "CBSE" })
+  @ApiProperty({ example: "CBSE" })
   @Transform(trim)
-  @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(50)
-  board?: string;
+  board!: string;
 
   @ApiPropertyOptional({
     example: "Achieve 95% pass rate with competency-based mastery",
@@ -69,6 +69,10 @@ export class CreateAcademicPlanDto {
 }
 
 export class CreateAcademicTargetDto {
+  @IsOptional()
+  @IsIn(["Learning", "School"])
+  category?: "Learning" | "School";
+
   @ApiProperty({ example: "Class 10 Mathematics average >= 80%" })
   @Transform(trim)
   @IsString()
@@ -76,12 +80,12 @@ export class CreateAcademicTargetDto {
   @MaxLength(200)
   title!: string;
 
-  @ApiPropertyOptional({ example: "Mathematics Department" })
+  @ApiProperty({ example: "Mathematics Department" })
   @Transform(trim)
-  @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(120)
-  ownerName?: string;
+  ownerName!: string;
 
   @ApiProperty({ example: "72%" })
   @Transform(trim)
@@ -100,6 +104,18 @@ export class CreateAcademicTargetDto {
   @ApiProperty({ example: "2027-03-31" })
   @IsDateString()
   deadline!: string;
+}
+
+export class UpdateAcademicTargetDto {
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(50) currentValue!: string;
+  @Type(() => Number) @IsInt() @Min(0) @Max(100) progressPercentage!: number;
+}
+
+export class AssignTimetableSubstituteDto {
+  @IsUUID() timetableEntryId!: string;
+  @IsDateString() eventDate!: string;
+  @IsUUID() substituteTeacherUserId!: string;
+  @Transform(trim) @IsOptional() @IsString() @MaxLength(1000) impactNote?: string;
 }
 
 export class CreateActionPlanDto {
@@ -200,6 +216,23 @@ export class RecordAcademicMeetingDto {
 }
 
 // 2. Teacher Academic Management DTOs
+export class PrincipalDepartmentDto {
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(100) name!: string;
+  @Transform(({ value }) => typeof value === 'string' ? value.trim().toUpperCase() : value)
+  @IsString() @IsNotEmpty() @MaxLength(30) code!: string;
+}
+
+export class PrincipalTeacherLinkDto {
+  @IsUUID() teacherUserId!: string;
+  @IsUUID() departmentId!: string;
+}
+
+export class PrincipalTeacherAssignmentDto {
+  @IsUUID() teacherUserId!: string;
+  @IsUUID() sectionId!: string;
+  @IsUUID() subjectId!: string;
+}
+
 export class RecordTeacherObservationDto {
   @ApiProperty({ example: "00000000-0000-0000-0000-000000000000" })
   @IsUUID()
@@ -209,14 +242,14 @@ export class RecordTeacherObservationDto {
   @Transform(trim)
   @IsString()
   @IsNotEmpty()
-  @MaxLength(60)
+  @MaxLength(255)
   className!: string;
 
   @ApiProperty({ example: "Mathematics" })
   @Transform(trim)
   @IsString()
   @IsNotEmpty()
-  @MaxLength(100)
+  @MaxLength(120)
   subjectName!: string;
 
   @ApiProperty({

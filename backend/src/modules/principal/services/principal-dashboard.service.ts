@@ -6,6 +6,25 @@ import { User } from '../../auth/user.entity';
 export class PrincipalDashboardService {
   constructor(private readonly drizzle: DrizzleService) {}
 
+  async getLearningRoster(orgId: string) {
+    return this.drizzle.query(`SELECT a.id, p.name || ' - ' || sec.name AS "className",
+      subj.name AS "subjectName", COALESCE(u.name, u.email) AS "teacherName",
+      (SELECT COUNT(*)::int FROM enrollments e WHERE e.organization_id = a.organization_id
+        AND e.section_id = a.section_id AND e.status = 'active') AS assigned,
+      COUNT(sub.id) FILTER (WHERE sub.submitted_at IS NOT NULL)::int AS submitted,
+      COUNT(sub.id) FILTER (WHERE sub.graded_at IS NOT NULL)::int AS evaluated,
+      COUNT(sub.id) FILTER (WHERE sub.submitted_at IS NOT NULL AND sub.graded_at IS NULL)::int AS "pendingEvaluation"
+      FROM assignments a
+      JOIN sections sec ON sec.id = a.section_id AND sec.organization_id = a.organization_id
+      JOIN programs p ON p.id = sec.program_id AND p.organization_id = a.organization_id
+      JOIN subjects subj ON subj.id = a.subject_id AND subj.organization_id = a.organization_id
+      JOIN users u ON u.id = a.created_by
+      LEFT JOIN submissions sub ON sub.assignment_id = a.id AND sub.organization_id = a.organization_id
+      WHERE a.organization_id = $1 AND a.status = 'published'
+      GROUP BY a.id, p.name, sec.name, subj.name, u.name, u.email
+      ORDER BY p.name, sec.name, subj.name LIMIT 100`, [orgId]);
+  }
+
   async getDashboard(orgId: string, _actor: User) {
     const manager = this.drizzle;
 
@@ -82,6 +101,7 @@ export class PrincipalDashboardService {
       `SELECT
         COUNT(*)::int as total_submissions,
         COUNT(*) FILTER (WHERE graded_at IS NOT NULL)::int as graded_submissions,
+        COUNT(*) FILTER (WHERE sub.submitted_at IS NOT NULL AND sub.graded_at IS NULL)::int as pending_evaluations,
         ROUND(AVG((100 * sub.score / NULLIF(a.max_score, 0))::numeric) FILTER (WHERE sub.graded_at IS NOT NULL), 1) as average_score
        FROM submissions sub
        JOIN assignments a ON a.id = sub.assignment_id
@@ -133,15 +153,15 @@ export class PrincipalDashboardService {
       `WITH local_now AS (
          SELECT NOW() AT TIME ZONE time_zone AS at_school FROM organizations WHERE id = $1
        ), slots AS (
-         SELECT t.section_id, t.teacher_user_id, false AS is_substitution, t.start_time, t.end_time
-         FROM timetable_entries t, local_now
+         SELECT t.section_id, COALESCE(ps.substitute_teacher_user_id, t.teacher_user_id) AS teacher_user_id,
+           ps.id IS NOT NULL AS is_substitution, t.start_time, t.end_time
+         FROM timetable_entries t
+         JOIN academic_years y ON y.id = t.academic_year_id AND y.organization_id = t.organization_id AND y.is_current = true
+         CROSS JOIN local_now
+         LEFT JOIN principal_timetable_substitutions ps ON ps.organization_id = t.organization_id
+           AND ps.timetable_entry_id = t.id AND ps.event_date = local_now.at_school::date
          WHERE t.organization_id = $1 AND t.day_of_week = EXTRACT(ISODOW FROM local_now.at_school)
-         UNION ALL
-         SELECT t.section_id, t.teacher_user_id, t.is_substitution, t.start_time, t.end_time
-         FROM teacher_timetable_slots t, local_now
-         WHERE t.organization_id = $1
-           AND t.day_of_week = LOWER(TRIM(TO_CHAR(local_now.at_school, 'Day')))
-           AND NOT EXISTS (SELECT 1 FROM timetable_entries WHERE organization_id = $1)
+           AND local_now.at_school::date BETWEEN y.start_date AND y.end_date
        )
        SELECT COUNT(DISTINCT section_id)::int as classes,
               COUNT(DISTINCT teacher_user_id)::int as teachers,
@@ -250,7 +270,7 @@ export class PrincipalDashboardService {
         deliveredToday,
         syllabusCompletion: curriculumCompletion,
         pendingLessonPlans: Number(planStats?.pending ?? 0),
-        pendingEvaluations: Math.max(0, totalSubs - gradedSubs),
+        pendingEvaluations: Number(submissionsStats?.pending_evaluations ?? 0),
       },
       examinationStatus: {
         upcomingExams: null,

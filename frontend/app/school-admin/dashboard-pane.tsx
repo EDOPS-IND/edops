@@ -170,8 +170,27 @@ export function DashboardPane({
   const dailyTimeline: any[] = data?.dailyTimeline || [];
   const recentActivity: any[] = data?.recentActivity || [];
 
+  const platformAnnouncements: any[] = data?.platformAnnouncements || [];
+
   return (
     <div style={{ display: "grid", gap: "22px" }}>
+      {/* Official Platform Broadcast Announcements Banner */}
+      {platformAnnouncements.length > 0 && (
+        <div style={{ background: "linear-gradient(to right, #EEF2FF, #FAF5FF, #FFFBEB)", border: "1px solid #E0E7FF", borderRadius: "12px", padding: "14px", display: "flex", alignItems: "flex-start", gap: "14px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", padding: "3px 8px", background: "#4F46E5", color: "#FFFFFF", borderRadius: "4px" }}>
+                Official Broadcast
+              </span>
+              <span style={{ fontSize: "13px", fontWeight: 700, color: "#1F2937" }}>
+                {platformAnnouncements[0].title}
+              </span>
+            </div>
+            <p style={{ fontSize: "12.5px", color: "#4B5563", margin: 0, marginTop: "2px" }}>{platformAnnouncements[0].message}</p>
+          </div>
+        </div>
+      )}
+
       {/* 1. TOP EXECUTIVE KPI CARDS (§5) */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
         {[
