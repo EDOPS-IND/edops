@@ -49,6 +49,7 @@ export type FeatureCatalogItem = {
 export type FeatureOverride = {
   id: string;
   featureKey: string;
+  role?: string | null;
   featureName?: string;
   category?: string;
   enabled: boolean;

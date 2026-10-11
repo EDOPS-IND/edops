@@ -12,7 +12,8 @@ import {
   CreateAnnouncementDto, RecordPaymentDto, RefundPaymentDto, DetailedFeatureOverrideDto,
   SchoolLifecycleTransitionDto, OnboardSchoolFullDto
 } from './billing.dto';
-import { entitlements, featureKeys, seatUsage } from './entitlements';
+import { entitlements, seatUsage } from './entitlements';
+import { dashboardRoles, DashboardRole } from './dashboard-navigation';
 
 import { DrizzleService } from '../../database/drizzle.service';
 import { Queryable } from './entitlements';
@@ -24,6 +25,86 @@ const invoiceFields = `id,organization_id AS "organizationId",subscription_id AS
 @Injectable()
 export class BillingService {
   constructor(private readonly drizzle: DrizzleService, private readonly work: SchoolWork, private readonly audit: AuditService) {}
+
+  private async validatePlanFeatures(m: Queryable, features: Record<string, boolean>) {
+    if (!features || typeof features !== 'object' || Array.isArray(features)) throw new BadRequestException('Features must be an object');
+    const keys = new Set<string>(['arena', 'recordings', 'communication', ...(await m.query('SELECT key FROM feature_catalog')).map((row: {key: string}) => row.key)]);
+    for (const [key, enabled] of Object.entries(features)) {
+      if (!keys.has(key) || typeof enabled !== 'boolean') throw new BadRequestException(`Invalid feature setting: ${key}`);
+    }
+    return features;
+  }
+
+  private dashboardRole(role: string): asserts role is DashboardRole {
+    if (!dashboardRoles.includes(role as DashboardRole)) throw new BadRequestException('Unknown dashboard role');
+  }
+
+  private async navigationRows(m: Queryable, org: string, role: DashboardRole, includeDisabled: boolean) {
+    const sections = await m.query(`SELECT DISTINCT ON (key) key,label,sort_order AS "sortOrder",enabled
+      FROM dashboard_sections WHERE role=$2 AND (organization_id IS NULL OR organization_id=$1)
+      ORDER BY key, organization_id IS NOT NULL DESC`, [org, role]);
+    const items = await m.query(`SELECT DISTINCT ON (key) key,section_key AS "sectionKey",label,feature_key AS "featureKey",sort_order AS "sortOrder",enabled
+      FROM dashboard_items WHERE role=$2 AND (organization_id IS NULL OR organization_id=$1)
+      ORDER BY key, organization_id IS NOT NULL DESC`, [org, role]);
+    const effective = await entitlements(m, org, role);
+    return sections.sort((a: any, b: any) => a.sortOrder - b.sortOrder).map((section: any) => ({
+      ...section,
+      items: items.filter((item: any) => item.sectionKey === section.key)
+        .sort((a: any, b: any) => a.sortOrder - b.sortOrder)
+        .map((item: any) => ({ ...item, effectiveEnabled: effective.entitled && section.enabled && item.enabled && effective.features[item.featureKey] !== false }))
+        .filter((item: any) => includeDisabled || item.effectiveEnabled),
+    })).filter((section: any) => includeDisabled || (section.enabled && section.items.length > 0));
+  }
+
+  async dashboardNavigation(org: string, actor: User, role: string, platform = false) {
+    this.dashboardRole(role);
+    if (platform) return this.platform(actor, m => this.navigationRows(m, org, role, true));
+    const [member] = await this.drizzle.query(`SELECT 1 FROM memberships m JOIN organizations o ON o.id=m.organization_id
+      WHERE m.organization_id=$1 AND m.user_id=$2 AND m.role=$3 AND m.status='active' AND o.status='active'`, [org, actor.id, role]);
+    if (!member) throw new ForbiddenException('Active school membership required');
+    return this.navigationRows(this.drizzle, org, role, false);
+  }
+
+  saveDashboardSection(actor: User, org: string, role: string, key: string, input: {label?: string; sortOrder?: number; enabled?: boolean}) {
+    this.dashboardRole(role);
+    if (!/^[a-z][a-z0-9_]{0,62}$/.test(key)) throw new BadRequestException('Invalid section key');
+    return this.platform(actor, async m => {
+      const [current] = await m.query(`SELECT key,label,sort_order AS "sortOrder",enabled FROM dashboard_sections
+        WHERE role=$2 AND key=$3 AND (organization_id IS NULL OR organization_id=$1)
+        ORDER BY organization_id IS NOT NULL DESC LIMIT 1`, [org, role, key]);
+      const label = input.label ?? current?.label;
+      if (!label || label.length > 100) throw new BadRequestException('Section label is required (maximum 100 characters)');
+      const sortOrder = input.sortOrder ?? current?.sortOrder ?? 100;
+      if (!Number.isInteger(sortOrder) || sortOrder < 0) throw new BadRequestException('Invalid section order');
+      if (input.enabled !== undefined && typeof input.enabled !== 'boolean') throw new BadRequestException('Invalid section status');
+      await m.query('DELETE FROM dashboard_sections WHERE organization_id=$1 AND role=$2 AND key=$3', [org, role, key]);
+      await m.query('INSERT INTO dashboard_sections(organization_id,role,key,label,sort_order,enabled) VALUES($1,$2,$3,$4,$5,$6)',
+        [org, role, key, label.trim(), sortOrder, input.enabled ?? current?.enabled ?? true]);
+      await this.audit.record(m, { organizationId: org, actorId: actor.id, action: 'dashboard.section_updated', details: { role, key, input } });
+      return this.navigationRows(m, org, role, true);
+    });
+  }
+
+  saveDashboardItem(actor: User, org: string, role: string, key: string, input: {sectionKey?: string; sortOrder?: number; enabled?: boolean}) {
+    this.dashboardRole(role);
+    return this.platform(actor, async m => {
+      const [current] = await m.query(`SELECT key,section_key AS "sectionKey",label,feature_key AS "featureKey",sort_order AS "sortOrder",enabled
+        FROM dashboard_items WHERE role=$2 AND key=$3 AND (organization_id IS NULL OR organization_id=$1)
+        ORDER BY organization_id IS NOT NULL DESC LIMIT 1`, [org, role, key]);
+      if (!current) throw new NotFoundException('Dashboard item not registered');
+      const sectionKey = input.sectionKey ?? current.sectionKey;
+      const [section] = await m.query(`SELECT 1 FROM dashboard_sections WHERE role=$2 AND key=$3 AND (organization_id IS NULL OR organization_id=$1) LIMIT 1`, [org, role, sectionKey]);
+      if (!section) throw new BadRequestException('Target section does not exist for this role');
+      const sortOrder = input.sortOrder ?? current.sortOrder;
+      if (!Number.isInteger(sortOrder) || sortOrder < 0) throw new BadRequestException('Invalid item order');
+      if (input.enabled !== undefined && typeof input.enabled !== 'boolean') throw new BadRequestException('Invalid item status');
+      await m.query('DELETE FROM dashboard_items WHERE organization_id=$1 AND role=$2 AND key=$3', [org, role, key]);
+      await m.query(`INSERT INTO dashboard_items(organization_id,role,key,section_key,label,feature_key,sort_order,enabled)
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [org, role, key, sectionKey, current.label, current.featureKey, sortOrder, input.enabled ?? current.enabled]);
+      await this.audit.record(m, { organizationId: org, actorId: actor.id, action: 'dashboard.item_updated', details: { role, key, input } });
+      return this.navigationRows(m, org, role, true);
+    });
+  }
 
   private async platform<T>(actor: User, fn: (m: Queryable)=>Promise<T>) {
     return this.drizzle.transaction(async m => {
@@ -37,7 +118,7 @@ export class BillingService {
   }
   createPlan(actor: User, dto: CreatePlanDto) {
     return this.platform(actor,async m => {
-      const features = Object.fromEntries(featureKeys.map(k=>[k,(dto.features as any)[k]]));
+      const features = await this.validatePlanFeatures(m, dto.features);
       const rows = await m.query(`INSERT INTO plans(id,name,amount_minor,max_students,max_teachers,features) VALUES($1,$2,$3,$4,$5,$6)
         ON CONFLICT(id) DO NOTHING RETURNING ${planFields}`,[dto.id,dto.name,dto.amountMinor,dto.maxStudents,dto.maxTeachers,features]);
       if (!rows.length) {
@@ -247,6 +328,7 @@ export class BillingService {
   // Update Plan Features JSONB
   updatePlanFeatures(actor: User, planId: string, features: Record<string, boolean>) {
     return this.platform(actor, async m => {
+      await this.validatePlanFeatures(m, features);
       const [plan] = await m.query(`SELECT id, name, features FROM plans WHERE id=$1`, [planId]);
       if (!plan) throw new NotFoundException('Plan not found');
       await m.query(`UPDATE plans SET features=$2::jsonb WHERE id=$1`, [planId, JSON.stringify(features)]);
@@ -258,7 +340,7 @@ export class BillingService {
   // §8: School-Specific Feature Overrides
   getDetailedOverrides(actor: User, org: string) {
     return this.platform(actor, async m => {
-      return m.query(`SELECT o.id, o.feature_key AS "featureKey", o.enabled, o.custom_limit AS "customLimit", o.custom_quota AS "customQuota", o.start_date AS "startDate", o.expiry_date AS "expiryDate", o.reason, o.created_at AS "createdAt", f.name AS "featureName", f.category FROM feature_overrides o JOIN feature_catalog f ON f.key = o.feature_key WHERE o.organization_id=$1 ORDER BY o.created_at DESC`, [org]);
+      return m.query(`SELECT o.id, o.feature_key AS "featureKey", o.role, o.enabled, o.custom_limit AS "customLimit", o.custom_quota AS "customQuota", o.start_date AS "startDate", o.expiry_date AS "expiryDate", o.reason, o.created_at AS "createdAt", COALESCE(f.name, o.feature_key) AS "featureName", f.category FROM feature_overrides o LEFT JOIN feature_catalog f ON f.key = o.feature_key WHERE o.organization_id=$1 ORDER BY o.created_at DESC`, [org]);
     });
   }
 
@@ -266,23 +348,103 @@ export class BillingService {
     return this.platform(actor, async m => {
       const [catalog] = await m.query(`SELECT key FROM feature_catalog WHERE key=$1`, [dto.featureKey]);
       if (!catalog) throw new NotFoundException(`Feature key '${dto.featureKey}' not recognized in catalog`);
-      const [row] = await m.query(`INSERT INTO feature_overrides (organization_id, feature_key, enabled, custom_limit, custom_quota, expiry_date, reason, created_by)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (organization_id, feature_key) DO UPDATE SET
-          enabled = excluded.enabled, custom_limit = excluded.custom_limit, custom_quota = excluded.custom_quota,
-          expiry_date = excluded.expiry_date, reason = excluded.reason
-        RETURNING id, feature_key AS "featureKey", enabled, custom_limit AS "customLimit", custom_quota AS "customQuota", expiry_date AS "expiryDate", reason`,
-        [org, dto.featureKey, dto.enabled, dto.customLimit ?? null, dto.customQuota ?? null, dto.expiryDate ? new Date(dto.expiryDate) : null, dto.reason, actor.id]);
+      const roleParam = dto.role && dto.role !== 'ALL' ? dto.role : null;
+      if (roleParam) {
+        await m.query(`DELETE FROM feature_overrides WHERE organization_id=$1 AND feature_key=$2 AND role=$3`, [org, dto.featureKey, roleParam]);
+      } else {
+        await m.query(`DELETE FROM feature_overrides WHERE organization_id=$1 AND feature_key=$2 AND role IS NULL`, [org, dto.featureKey]);
+      }
+      const [row] = await m.query(`INSERT INTO feature_overrides (organization_id, feature_key, role, enabled, custom_limit, custom_quota, expiry_date, reason, created_by)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id, feature_key AS "featureKey", role, enabled, custom_limit AS "customLimit", custom_quota AS "customQuota", expiry_date AS "expiryDate", reason`,
+        [org, dto.featureKey, roleParam, dto.enabled, dto.customLimit ?? null, dto.customQuota ?? null, dto.expiryDate ? new Date(dto.expiryDate) : null, dto.reason ?? '', actor.id]);
       await this.audit.record(m, { organizationId: org, actorId: actor.id, action: 'feature.detailed_override', details: { ...dto } as Record<string, unknown> });
       return row;
     });
   }
 
-  removeDetailedOverride(actor: User, org: string, featureKey: string) {
+  removeDetailedOverride(actor: User, org: string, featureKey: string, role?: string | null) {
     return this.platform(actor, async m => {
-      await m.query(`DELETE FROM feature_overrides WHERE organization_id=$1 AND feature_key=$2`, [org, featureKey]);
-      await this.audit.record(m, { organizationId: org, actorId: actor.id, action: 'feature.detailed_override_removed', details: { featureKey } });
+      const roleParam = role && role !== 'ALL' ? role : null;
+      if (roleParam) {
+        await m.query(`DELETE FROM feature_overrides WHERE organization_id=$1 AND feature_key=$2 AND role=$3`, [org, featureKey, roleParam]);
+      } else {
+        await m.query(`DELETE FROM feature_overrides WHERE organization_id=$1 AND feature_key=$2 AND role IS NULL`, [org, featureKey]);
+      }
+      await this.audit.record(m, { organizationId: org, actorId: actor.id, action: 'feature.detailed_override_removed', details: { featureKey, role: roleParam } });
       return { success: true };
+    });
+  }
+
+  // §8b: Complete 2D Role-Feature Matrix
+  async getRoleFeatureMatrix(actor: User, org: string) {
+    return this.platform(actor, async m => {
+      const catalog = await m.query(`SELECT key, category, name, description, has_quota AS "hasQuota", default_quota AS "defaultQuota" FROM feature_catalog ORDER BY category, name`);
+      const [school] = await m.query(
+        `SELECT o.id, o.name, p.name AS plan_name
+         FROM organizations o
+         LEFT JOIN subscriptions s ON s.organization_id = o.id
+         LEFT JOIN plans p ON p.id = s.plan_id
+         WHERE o.id = $1`, [org]
+      );
+      if (!school) throw new NotFoundException('School not found');
+
+      const roles = ['school_admin', 'principal', 'teacher', 'student', 'parent'];
+      const tenant = await entitlements(m, org);
+      const roleEntitlements = Object.fromEntries(await Promise.all(roles.map(async role => [role, await entitlements(m, org, role)])));
+      const overrides = tenant.overrides;
+
+      const matrix = catalog.map((feat: any) => {
+        const tenantOverride = overrides.find((o: any) => o.feature_key === feat.key && (!o.role || o.role === 'ALL'));
+        const tenantEnabled = Boolean(tenant.features[feat.key]);
+        const tenantIsOverride = Boolean(tenantOverride);
+
+        const roleStates: Record<string, { enabled: boolean; isOverride: boolean; inherited: boolean; reason?: string }> = {};
+        for (const r of roles) {
+          if (feat.key.startsWith('nav:') && !feat.key.startsWith(`nav:${r}:`)) {
+            roleStates[r] = { enabled: false, isOverride: false, inherited: false, notApplicable: true } as any;
+            continue;
+          }
+          const roleOv = overrides.find((o: any) => o.feature_key === feat.key && o.role === r);
+          if (roleOv) {
+            roleStates[r] = {
+              enabled: Boolean(roleEntitlements[r].features[feat.key]),
+              isOverride: true,
+              inherited: false,
+              reason: roleOv.reason,
+            };
+          } else {
+            roleStates[r] = {
+              enabled: Boolean(roleEntitlements[r].features[feat.key]),
+              isOverride: false,
+              inherited: true,
+            };
+          }
+        }
+
+        return {
+          key: feat.key,
+          name: feat.name,
+          category: feat.category,
+          description: feat.description,
+          tenantDefault: {
+            enabled: tenantEnabled,
+            isOverride: tenantIsOverride,
+            reason: tenantOverride?.reason,
+          },
+          roles: roleStates,
+        };
+      });
+
+      return {
+        schoolId: school.id,
+        schoolName: school.name,
+        planName: school.plan_name || (tenant.implicitTrial ? 'Implicit trial' : 'No plan'),
+        entitled: tenant.entitled,
+        periodEnd: tenant.periodEnd,
+        roles,
+        matrix,
+      };
     });
   }
 

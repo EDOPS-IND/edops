@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -49,6 +49,9 @@ import { TeacherProfileDrawer } from "./panes/teacher-profile-drawer";
 import { Student360Modal } from "./panes/student-360-modal";
 
 import { OrganizationSummary } from "../edops-api";
+import { useDashboardNavigation } from "../dashboard-navigation";
+
+type PrincipalNavItem = { id: string; label: string; icon: ReactNode; paneId?: string; subItems?: { id: string; label: string; paneId?: string }[] };
 
 interface PrincipalWorkspaceProps {
   organization: OrganizationSummary;
@@ -131,7 +134,10 @@ export function PrincipalWorkspace({
     setMobileMenuOpen(false);
   };
 
-  const navItems = [
+  const navigation = useDashboardNavigation(organization.id, "principal");
+  const isFeatureEnabled = (key: string) => navigation.sections.some(section => section.items.some(item => item.featureKey === key));
+
+  const baseNavItems: PrincipalNavItem[] = [
     {
       id: "dashboard",
       label: "Dashboard",
@@ -192,8 +198,7 @@ export function PrincipalWorkspace({
       subItems: [
         { id: "student_att", label: "Student Attendance" },
         { id: "trends", label: "Attendance Trends" },
-        { id: "low", label: "Low Attendance (<75%)" },
-        { id: "faculty_att", label: "Teacher Attendance Overview" }
+        { id: "faculty_att", label: "Teacher Activity and Leave" }
       ]
     },
     {
@@ -212,11 +217,7 @@ export function PrincipalWorkspace({
       label: "Assessment",
       icon: <GraduationCap className="w-4 h-4" />,
       subItems: [
-        { id: "assessments", label: "Assessments" },
-        { id: "competencies", label: "Competencies" },
-        { id: "outcomes", label: "Learning Outcomes" },
-        { id: "question_papers", label: "Question Papers" },
-        { id: "rubrics", label: "Rubrics" },
+        { id: "assessments", label: "Assessments & Question Papers" },
         { id: "analysis", label: "Assessment Analysis" }
       ]
     },
@@ -226,9 +227,8 @@ export function PrincipalWorkspace({
       icon: <Award className="w-4 h-4" />,
       subItems: [
         { id: "exam_planning", label: "Exam Planning" },
-        { id: "schedule", label: "Exam Schedule" },
+        { id: "schedule", label: "Exam Schedule & Publishing" },
         { id: "marks", label: "Marks" },
-        { id: "results", label: "Results Publishing" },
         { id: "report_cards", label: "Report Cards" }
       ]
     },
@@ -287,22 +287,39 @@ export function PrincipalWorkspace({
     }
   ];
 
+  const sourceItems = new Map<string, { paneId: string; subId?: string; icon: ReactNode }>();
+  for (const pane of baseNavItems) {
+    if (pane.subItems?.length) for (const sub of pane.subItems) sourceItems.set(`${pane.id}.${sub.id}`, { paneId: pane.id, subId: sub.id, icon: pane.icon });
+    else sourceItems.set(`${pane.id === "dashboard" ? "overview" : "management"}.${pane.id}`, { paneId: pane.id, icon: pane.icon });
+  }
+  const navItems: PrincipalNavItem[] = navigation.sections.flatMap<PrincipalNavItem>(section => {
+    const entries = section.items.flatMap(item => {
+      const source = sourceItems.get(item.key);
+      return source ? [{ source, key: item.key, label: item.label }] : [];
+    });
+    if (!entries.length) return [];
+    if (entries.length === 1 && !entries[0].source.subId) return [{ id: section.key, label: entries[0].label, icon: entries[0].source.icon, paneId: entries[0].source.paneId }];
+    return [{ id: section.key, label: section.label, icon: entries[0].source.icon,
+      subItems: entries.map(entry => ({ id: entry.source.subId ?? entry.key, label: entry.label, paneId: entry.source.paneId })) }];
+  });
+
   // Sidebar IDs differ from a few pane tab IDs. Only open views the panes actually provide.
   const paneTabs: Record<string, Record<string, string>> = {
     planning: { app: "annual_plan", calendar: "calendar", targets: "learning_goals", school_targets: "school_targets", action_plans: "action_plans" },
     people: { hods: "hods", coordinators: "coordinators", assignments: "assignments", workload: "workload", development: "development" },
     academics: { classes: "classes", sections: "classes", subjects: "subjects", curriculum: "curriculum", outcomes: "competencies", lesson_plans: "lesson_plans", progress: "curriculum" },
     timetable: { academic_tt: "academic", teacher_tt: "teacher", class_tt: "class", substitution: "substitutions" },
-    attendance: { student_att: "attendance", low: "attendance" },
-    learning: { assignments: "assignments" },
-    assessment: { assessments: "assessments", question_papers: "assessments" },
-    examinations: { schedule: "schedule", results: "results" },
+    attendance: { student_att: "students", trends: "trends", faculty_att: "teachers" },
+    learning: { assignments: "assignments", submissions: "submissions", study_material: "materials", classroom: "activities" },
+    assessment: { assessments: "assessments", analysis: "analysis" },
+    examinations: { exam_planning: "planning", schedule: "schedule", marks: "marks", report_cards: "report_cards" },
     students: { performance: "all", at_risk: "at_risk", remedial: "remedial", enrichment: "enrichment" },
     communication: { inbox: "inbox", parent_msgs: "parent_queries", ptm: "ptm" },
     analytics: { school: "school_analytics", class: "classes", subject: "school_analytics", teacher: "teachers", audit: "classes" },
   };
-  const selectedSubItem = navItems.find((item) => item.id === activePane)?.subItems?.find((sub) => sub.id === activeSubTab);
+  const selectedSubItem = baseNavItems.find((item) => item.id === activePane)?.subItems?.find((sub) => sub.id === activeSubTab);
   const activeView = paneTabs[activePane]?.[activeSubTab];
+  const activeKey = activePane === "dashboard" ? "overview.dashboard" : ["alerts", "reports", "activity"].includes(activePane) ? `management.${activePane}` : activePane === "planning" && activeSubTab === "action_plans" ? "planning.app" : `${activePane}.${activeSubTab}`;
 
   return (
     <div className="flex h-screen bg-gray-50  text-gray-900  overflow-hidden font-sans">
@@ -342,7 +359,7 @@ export function PrincipalWorkspace({
         <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
           {navItems.map((item) => {
             const hasSub = item.subItems && item.subItems.length > 0;
-            const isSelected = activePane === item.id;
+            const isSelected = activePane === item.paneId || item.subItems?.some(sub => sub.paneId === activePane) === true;
             const isExpanded = expandedSections[item.id];
 
             return (
@@ -352,10 +369,10 @@ export function PrincipalWorkspace({
                     if (hasSub) {
                       toggleSection(item.id);
                       if (!isSelected) {
-                        navigateTo(item.id, item.subItems![0].id);
+                        navigateTo(item.subItems![0].paneId ?? item.id, item.subItems![0].id);
                       }
                     } else {
-                      navigateTo(item.id);
+                      navigateTo(item.paneId ?? item.id);
                     }
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 text-xs font-medium rounded-lg transition ${
@@ -385,11 +402,11 @@ export function PrincipalWorkspace({
                 {hasSub && isExpanded && (
                   <div className="pl-6 pr-1 py-1 space-y-0.5 border-l border-[#243354] ml-5">
                     {item.subItems!.map((sub) => {
-                      const isSubActive = isSelected && activeSubTab === sub.id;
+                      const isSubActive = activePane === sub.paneId && activeSubTab === sub.id;
                       return (
                         <button
                           key={sub.id}
-                          onClick={() => navigateTo(item.id, sub.id)}
+                          onClick={() => navigateTo(sub.paneId ?? item.id, sub.id)}
                           className={`w-full text-left px-2.5 py-1.5 text-[11px] font-medium rounded transition ${
                             isSubActive
                               ? "font-bold bg-slate-700 shadow-sm border border-slate-600/40"
@@ -450,6 +467,7 @@ export function PrincipalWorkspace({
             </button>
 
             <button
+              disabled={!navigation.has("planning.app")}
               onClick={() => navigateTo("planning", "action_plans")}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-[#090D16] hover:bg-[#131C31] rounded-xl shadow-xs border border-[#1A243D] transition" style={{ color: "#FFFFFF" }}
             >
@@ -478,7 +496,7 @@ export function PrincipalWorkspace({
 
         {/* WORKSPACE BODY VIEW */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          {selectedSubItem && !activeView ? (
+          {navigation.loading ? <div className="text-sm text-gray-600">Loading dashboard navigation…</div> : navigation.error ? <div role="alert" className="text-sm text-red-700">{navigation.error}</div> : !navigation.has(activeKey) ? <div className="rounded-xl border bg-white p-6 text-sm">This feature is unavailable for this school or role.</div> : selectedSubItem && !activeView ? (
             <div className="rounded-xl border border-gray-200 bg-white p-6">
               <h2 className="text-lg font-bold">{selectedSubItem.label}</h2>
               <p className="mt-2 text-sm text-gray-600">This view is not available yet.</p>
@@ -531,30 +549,50 @@ export function PrincipalWorkspace({
 
           {activePane === "attendance" && (
             <AttendancePane
+              key={activeView}
               organizationId={organization.id}
-              onOpenStudent360={(id) => setSelectedStudentId(id)}
+              initialTab={activeView as "students" | "trends" | "teachers"}
             />
           )}
 
           {activePane === "learning" && (
             <LearningPane
+              key={activeView}
               organizationId={organization.id}
-              onNavigate={navigateTo}
+              initialTab={activeView as "assignments" | "submissions" | "materials" | "activities"}
             />
           )}
 
           {activePane === "assessment" && (
-            <AssessmentsPane
-              organizationId={organization.id}
-              onNavigate={navigateTo}
-            />
+            !isFeatureEnabled("assessments") ? (
+              <div style={{ padding: "40px", textAlign: "center", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "8px", margin: "20px" }}>
+                <h3 style={{ color: "#991B1B", margin: "0 0 8px" }}>Feature Disabled</h3>
+                <p style={{ color: "#7F1D1D", margin: 0, fontSize: "14px" }}>
+                  Assessments are currently disabled for this institution or role by the platform administrator.
+                </p>
+              </div>
+            ) : (
+              <AssessmentsPane
+                key={activeView}
+                organizationId={organization.id}
+                initialTab={(activeView as "assessments" | "analysis") || "assessments"}
+                onNavigate={navigateTo}
+              />
+            )
           )}
 
           {activePane === "examinations" && (
-            <ExaminationsPane
-              organizationId={organization.id}
-              onNavigate={navigateTo}
-            />
+            isFeatureEnabled("exams") ? (
+              <ExaminationsPane
+                key={activeView}
+                organizationId={organization.id}
+                initialTab={activeView as "planning" | "schedule" | "marks" | "report_cards"}
+              />
+            ) : (
+              <div className="m-5 rounded-lg border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900">
+                Exams are disabled for this school or role. A platform administrator can enable Exams in Schools &amp; Tenants → Features &amp; Overrides.
+              </div>
+            )
           )}
 
           {activePane === "students" && (
@@ -626,7 +664,7 @@ export function PrincipalWorkspace({
               {navItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => navigateTo(item.id)}
+                  onClick={() => item.subItems?.length ? navigateTo(item.subItems[0].paneId ?? item.id, item.subItems[0].id) : navigateTo(item.paneId ?? item.id)}
                   className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-lg ${
                     activePane === item.id
                       ? "bg-[#131C31] border-l-2 border-indigo-400 font-bold"

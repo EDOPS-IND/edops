@@ -6,6 +6,7 @@ import { LearningWorkspace, SchoolBilling } from "./learning-workspace";
 import { PlatformWorkspace } from "./platform-workspace";
 import { DashboardHome } from "./dashboard-home";
 import { ParentDashboard } from "./parent-dashboard";
+import { useDashboardNavigation } from "./dashboard-navigation";
 import { PrincipalWorkspace } from "./principal";
 import { TeacherWorkspace } from "./teacher";
 import { StudentWorkspace } from "./student";
@@ -548,14 +549,19 @@ function getSubjectIcon(name: string, index: number) {
 
 function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }: { profile: Profile; membership: OrganizationSummary & { role: MemberRole }; workspace: string; onWorkspace: (value: string) => void; onLogout: () => void }) {
   const config = rolePanels[membership.role];
-  const panels = config.panels;
+  const navigation = useDashboardNavigation(membership.id, membership.role);
+  const parentSections = membership.role === "parent" ? navigation.sections.map(section => ({ ...section, panels: section.items.flatMap(item => {
+    const source = config.panels.find(panel => panel.id === item.key.split(".").at(-1));
+    return source ? [{ ...source, label: item.label }] : [];
+  }) })).filter(section => section.panels.length) : [];
+  const panels = membership.role === "parent" ? parentSections.flatMap(section => section.panels) : config.panels;
   const [panelId, setPanelId] = useState("overview");
   const [initialClassKey, setInitialClassKey] = useState("");
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [data, setData] = useState<RoleWorkspaceData | null>(null);
   const [loading, setLoading] = useState(membership.role !== "parent");
   const [error, setError] = useState("");
-  const panel = panels.find((item) => item.id === panelId) ?? panels[0];
+  const panel = panels.find((item) => item.id === panelId) ?? panels[0] ?? config.panels[0];
 
   const studentSubjects: { id: string; name: string; code: string }[] = useMemo(() => {
     const d = data as any;
@@ -664,9 +670,9 @@ function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }
         </div>
       </aside>
     ) : (
-      <aside className="sidebar" aria-label={`${roleNames[membership.role]} navigation`}><div className="nav-section"><p className="eyebrow">{roleNames[membership.role]}</p>{panels.map((item) => <button key={item.id} className={panel.id === item.id ? "nav-item active" : "nav-item"} onClick={() => setPanelId(item.id)}><span><NavIcon id={item.id} /></span>{item.label}</button>)}</div><div className={`term-card sidebar-term ${membership.status === "suspended" ? "suspended" : ""}`}><span>{membership.name}</span><p>{membership.status === "active" ? "Active school" : "School access suspended"}</p></div></aside>
+      <aside className="sidebar" aria-label={`${roleNames[membership.role]} navigation`}><div className="nav-section"><p className="eyebrow">{roleNames[membership.role]}</p>{membership.role === "parent" ? parentSections.map(section => <div key={section.key}><p className="eyebrow">{section.label}</p>{section.panels.map(item => <button key={item.id} className={panel.id === item.id ? "nav-item active" : "nav-item"} onClick={() => setPanelId(item.id)}><span><NavIcon id={item.id} /></span>{item.label}</button>)}</div>) : panels.map((item) => <button key={item.id} className={panel.id === item.id ? "nav-item active" : "nav-item"} onClick={() => setPanelId(item.id)}><span><NavIcon id={item.id} /></span>{item.label}</button>)}</div><div className={`term-card sidebar-term ${membership.status === "suspended" ? "suspended" : ""}`}><span>{membership.name}</span><p>{membership.status === "active" ? "Active school" : "School access suspended"}</p></div></aside>
     )}
-    <main id="content" className="main-content"><section className="welcome-row"><div><p className="date-line">{membership.name} · {roleNames[membership.role]}</p><h1>{panel.title}</h1><p>{panel.id === "overview" ? config.intro : panel.copy}</p></div><span className={`membership-badge ${membership.status}`}>{membership.status}</span></section>{membership.status === "suspended" && <div className="error-banner" role="alert"><b>This school workspace is suspended.</b><span>Contact a school or platform administrator to restore access.</span></div>}{error && <div className="error-banner" role="alert"><b>Couldn’t load your academic records.</b><span>{error}</span></div>}{membership.role === "parent" ? <ParentDashboard organizationId={membership.id} children={data && "children" in data ? (data as any).children : []} messages={data && "messages" in data ? (data as any).messages : []} onNotify={(msg) => alert(msg)} /> : <>{loading && !data ? <DashboardSkeleton /> : panel.id === "overview" ? <><DashboardHome organizationId={membership.id} role={membership.role} selectedSubject={selectedSubject} onSelectSubject={setSelectedSubject} onNavigate={(tab, classKey) => { setInitialClassKey(classKey ?? ""); setPanelId(tab); }} /><details className="academic-details"><summary>My academic details</summary>{data && <RoleAcademicData data={data} />}</details></> : <LearningWorkspace key={panel.id} initialClassKey={initialClassKey} organizationId={membership.id} role={membership.role} initialTab={panel.id as "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress"} hideTabs />}</>}</main>
+    <main id="content" className="main-content"><section className="welcome-row"><div><p className="date-line">{membership.name} · {roleNames[membership.role]}</p><h1>{panel.title}</h1><p>{panel.id === "overview" ? config.intro : panel.copy}</p></div><span className={`membership-badge ${membership.status}`}>{membership.status}</span></section>{membership.status === "suspended" && <div className="error-banner" role="alert"><b>This school workspace is suspended.</b><span>Contact a school or platform administrator to restore access.</span></div>}{error && <div className="error-banner" role="alert"><b>Couldn’t load your academic records.</b><span>{error}</span></div>}{membership.role === "parent" ? navigation.loading || loading ? <DashboardSkeleton /> : navigation.error ? <div className="error-banner" role="alert">{navigation.error}</div> : !panels.length ? <div className="empty-state"><h3>No parent features are enabled for this school.</h3></div> : <ParentDashboard view={panel.id as "overview" | "children" | "attendance" | "notices"} children={data?.role === "parent" ? data.children : []} messages={data?.role === "parent" ? data.messages : []} /> : <>{loading && !data ? <DashboardSkeleton /> : panel.id === "overview" ? <><DashboardHome organizationId={membership.id} role={membership.role} selectedSubject={selectedSubject} onSelectSubject={setSelectedSubject} onNavigate={(tab, classKey) => { setInitialClassKey(classKey ?? ""); setPanelId(tab); }} /><details className="academic-details"><summary>My academic details</summary>{data && <RoleAcademicData data={data} />}</details></> : <LearningWorkspace key={panel.id} initialClassKey={initialClassKey} organizationId={membership.id} role={membership.role} initialTab={panel.id as "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress"} hideTabs />}</>}</main>
   </div>;
 }
 

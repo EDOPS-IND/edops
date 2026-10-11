@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
-import { Transform, Type } from "class-transformer";
+import { Transform } from "class-transformer";
 import {
   IsBoolean,
   IsDateString,
@@ -13,15 +13,9 @@ import {
   MaxLength,
   Min,
   MinLength,
-  ValidateNested,
 } from "class-validator";
 import { trim } from "../academics/academic.dto";
 
-export class PlanFeatures {
-  @ApiProperty() @IsBoolean() arena!: boolean;
-  @ApiProperty() @IsBoolean() recordings!: boolean;
-  @ApiProperty() @IsBoolean() communication!: boolean;
-}
 export class CreatePlanDto {
   @ApiProperty({
     format: "uuid",
@@ -47,11 +41,9 @@ export class CreatePlanDto {
   amountMinor!: number;
   @ApiProperty() @IsInt() @Min(1) @Max(100000) maxStudents!: number;
   @ApiProperty() @IsInt() @Min(1) @Max(10000) maxTeachers!: number;
-  @ApiProperty({ type: PlanFeatures })
+  @ApiProperty({ type: 'object', additionalProperties: { type: 'boolean' } })
   @IsObject()
-  @ValidateNested()
-  @Type(() => PlanFeatures)
-  features!: PlanFeatures;
+  features!: Record<string, boolean>;
 }
 export class PlanStatusDto {
   @ApiProperty() @IsBoolean() active!: boolean;
@@ -193,6 +185,7 @@ export class RefundPaymentDto {
 
 export class DetailedFeatureOverrideDto {
   @ApiProperty() @IsString() featureKey!: string;
+  @ApiPropertyOptional() @IsString() role?: string;
   @ApiProperty() @IsBoolean() enabled!: boolean;
   @ApiPropertyOptional() @IsInt() customLimit?: number;
   @ApiPropertyOptional() @IsInt() customQuota?: number;

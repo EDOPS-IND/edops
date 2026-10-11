@@ -33,6 +33,7 @@ export class HttpErrorFilter implements ExceptionFilter {
     }
     if (status === 500) this.logger.error(`Request failed`, error instanceof Error ? error.stack : String(error));
     const response = host.switchToHttp().getResponse<Response>();
+    if (response.headersSent) return;
     if (status === 429) {
       response.setHeader('Retry-After', '60');
       message = 'Too many requests. Please wait a moment before trying again.';

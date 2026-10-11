@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { PartialType } from "@nestjs/swagger";
 import { Transform, Type } from "class-transformer";
 import {
   ArrayNotEmpty,
@@ -16,6 +17,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  Matches,
 } from "class-validator";
 
 const trim = ({ value }: { value: unknown }) =>
@@ -417,6 +419,99 @@ export class ReviewLessonPlanDto {
 }
 
 // 4. Assessment & Exam Publishing DTOs
+export class CreateQuestionPaperDto {
+  @ApiProperty({ example: "Class 10 Mathematics Term 1 Summative Examination" })
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(200)
+  title!: string;
+
+  @ApiProperty({ example: "Mathematics" })
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(100)
+  subjectName!: string;
+
+  @ApiProperty({ example: "Class 10" })
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  grade!: string;
+
+  @ApiPropertyOptional({ example: "Term 1 Midterm" })
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  term?: string;
+
+  @ApiPropertyOptional({ example: 80 })
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(200)
+  totalMarks?: number;
+
+  @ApiPropertyOptional({ example: 180 })
+  @IsOptional()
+  @IsInt()
+  @Min(30)
+  @Max(360)
+  durationMinutes?: number;
+
+  @ApiPropertyOptional({ example: 30 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  difficultyEasyPct?: number;
+
+  @ApiPropertyOptional({ example: 50 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  difficultyMediumPct?: number;
+
+  @ApiPropertyOptional({ example: 20 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  difficultyHardPct?: number;
+
+  @ApiPropertyOptional({ example: true })
+  @IsOptional()
+  @IsBoolean()
+  competencyMapped?: boolean;
+
+  @ApiPropertyOptional({ example: "Rahul Sharma" })
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  submittedByName?: string;
+
+  @ApiPropertyOptional({ example: "00000000-0000-0000-0000-000000000000" })
+  @IsOptional()
+  @IsUUID()
+  submittedByUserId?: string;
+
+  @ApiPropertyOptional({ example: "Under Review" })
+  @IsOptional()
+  @IsIn(["Draft", "Submitted", "Under Review", "Approved", "Published"])
+  status?: string;
+
+  @ApiPropertyOptional({ example: "" })
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  reviewComments?: string;
+}
+
 export class ReviewQuestionPaperDto {
   @ApiProperty({ example: "Approved" })
   @IsIn(["Draft", "Submitted", "Under Review", "Approved", "Published"])
@@ -433,6 +528,12 @@ export class ReviewQuestionPaperDto {
 }
 
 export class PublishExamResultsDto {
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(60)
+  term!: string;
+
   @ApiProperty({ example: "Term 1 Mid-Term Examination" })
   @Transform(trim)
   @IsString()
@@ -447,12 +548,32 @@ export class PublishExamResultsDto {
   @MaxLength(50)
   className!: string;
 
-  @ApiPropertyOptional({ example: "10-A" })
+  @ApiProperty({ example: "10-A" })
   @Transform(trim)
-  @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(50)
-  sectionName?: string;
+  sectionName!: string;
+}
+
+export class CreateExamPlanDto {
+  @IsUUID() sectionId!: string;
+  @IsUUID() subjectId!: string;
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(150) examName!: string;
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(60) term!: string;
+  @IsDateString() examDate!: string;
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) startTime!: string;
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) endTime!: string;
+  @Type(() => Number) @IsNumber() @Min(0.01) @Max(999.99) maxMarks!: number;
+  @IsIn(['draft', 'scheduled']) status!: 'draft' | 'scheduled';
+}
+
+export class UpdateExamPlanDto extends PartialType(CreateExamPlanDto) {}
+
+export class ReviewExamResultDto {
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) marksObtained?: number;
+  @IsOptional() @Transform(trim) @IsString() @MaxLength(10) grade?: string;
+  @IsOptional() @IsIn(['Verified', 'Approved']) status?: 'Verified' | 'Approved';
 }
 
 // 5. Students & Intervention DTOs

@@ -7,22 +7,160 @@ export class PrincipalDashboardService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async getLearningRoster(orgId: string) {
-    return this.drizzle.query(`SELECT a.id, p.name || ' - ' || sec.name AS "className",
+    return this.drizzle.query(`SELECT a.id, a.title, a.due_at AS "dueAt", a.published_at AS "publishedAt",
+      p.name || ' - ' || sec.name AS "className",
       subj.name AS "subjectName", COALESCE(u.name, u.email) AS "teacherName",
       (SELECT COUNT(*)::int FROM enrollments e WHERE e.organization_id = a.organization_id
-        AND e.section_id = a.section_id AND e.status = 'active') AS assigned,
+        AND e.section_id = a.section_id AND e.status = 'active' AND e.academic_year_id = sec.academic_year_id) AS assigned,
       COUNT(sub.id) FILTER (WHERE sub.submitted_at IS NOT NULL)::int AS submitted,
       COUNT(sub.id) FILTER (WHERE sub.graded_at IS NOT NULL)::int AS evaluated,
       COUNT(sub.id) FILTER (WHERE sub.submitted_at IS NOT NULL AND sub.graded_at IS NULL)::int AS "pendingEvaluation"
       FROM assignments a
       JOIN sections sec ON sec.id = a.section_id AND sec.organization_id = a.organization_id
+      JOIN academic_years y ON y.id = sec.academic_year_id AND y.organization_id = a.organization_id AND y.is_current = true
       JOIN programs p ON p.id = sec.program_id AND p.organization_id = a.organization_id
       JOIN subjects subj ON subj.id = a.subject_id AND subj.organization_id = a.organization_id
       JOIN users u ON u.id = a.created_by
       LEFT JOIN submissions sub ON sub.assignment_id = a.id AND sub.organization_id = a.organization_id
+        AND EXISTS (SELECT 1 FROM enrollments e WHERE e.organization_id = a.organization_id
+          AND e.student_user_id = sub.student_id AND e.section_id = a.section_id
+          AND e.academic_year_id = sec.academic_year_id AND e.status = 'active')
       WHERE a.organization_id = $1 AND a.status = 'published'
-      GROUP BY a.id, p.name, sec.name, subj.name, u.name, u.email
-      ORDER BY p.name, sec.name, subj.name LIMIT 100`, [orgId]);
+      GROUP BY a.id, sec.academic_year_id, p.name, sec.name, subj.name, u.name, u.email
+      ORDER BY p.name, sec.name, subj.name`, [orgId]);
+  }
+
+  async getLearningOverview(orgId: string) {
+    const [assignments, submissions, materials, activities] = await Promise.all([
+      this.getLearningRoster(orgId),
+      this.drizzle.query(`SELECT sub.id, a.id AS "assignmentId", a.title AS "assignmentTitle",
+        p.name || ' - ' || sec.name AS "className", COALESCE(u.name, u.email) AS "studentName",
+        sub.status, sub.submitted_at AS "submittedAt", sub.graded_at AS "gradedAt",
+        sub.score, a.max_score AS "maxScore", a.due_at AS "dueAt"
+        FROM submissions sub
+        JOIN assignments a ON a.id = sub.assignment_id AND a.organization_id = sub.organization_id AND a.status = 'published'
+        JOIN sections sec ON sec.id = a.section_id AND sec.organization_id = a.organization_id
+        JOIN academic_years y ON y.id = sec.academic_year_id AND y.organization_id = a.organization_id AND y.is_current = true
+        JOIN programs p ON p.id = sec.program_id AND p.organization_id = a.organization_id
+        JOIN enrollments e ON e.organization_id = sub.organization_id AND e.student_user_id = sub.student_id
+          AND e.section_id = a.section_id AND e.academic_year_id = sec.academic_year_id AND e.status = 'active'
+        JOIN users u ON u.id = sub.student_id
+        WHERE sub.organization_id = $1 AND sub.submitted_at IS NOT NULL
+        ORDER BY sub.submitted_at DESC LIMIT 100`, [orgId]),
+      this.drizzle.query(`SELECT m.id, m.title, m.description, m.chapter, m.topic,
+        m.file_type AS "fileType", m.file_url AS "fileUrl", m.created_at AS "createdAt",
+        p.name || ' - ' || sec.name AS "className", subj.name AS "subjectName",
+        COALESCE(u.name, u.email) AS "teacherName"
+        FROM teacher_study_materials m
+        JOIN sections sec ON sec.id = m.section_id AND sec.organization_id = m.organization_id
+        JOIN academic_years y ON y.id = sec.academic_year_id AND y.organization_id = m.organization_id AND y.is_current = true
+        JOIN programs p ON p.id = sec.program_id AND p.organization_id = m.organization_id
+        JOIN subjects subj ON subj.id = m.subject_id AND subj.organization_id = m.organization_id
+        JOIN users u ON u.id = m.teacher_user_id
+        WHERE m.organization_id = $1 ORDER BY m.created_at DESC LIMIT 100`, [orgId]),
+      this.drizzle.query(`SELECT d.id, TO_CHAR(d.delivery_date, 'YYYY-MM-DD') AS date,
+        d.period_number AS period, d.topics_covered AS "topicsCovered",
+        d.participation_pct AS "participationPct", d.homework_assigned AS "homeworkAssigned",
+        d.reflection, d.status, p.name || ' - ' || sec.name AS "className",
+        subj.name AS "subjectName", COALESCE(u.name, u.email) AS "teacherName"
+        FROM teacher_lesson_deliveries d
+        JOIN sections sec ON sec.id = d.section_id AND sec.organization_id = d.organization_id
+        JOIN academic_years y ON y.id = sec.academic_year_id AND y.organization_id = d.organization_id AND y.is_current = true
+        JOIN programs p ON p.id = sec.program_id AND p.organization_id = d.organization_id
+        JOIN subjects subj ON subj.id = d.subject_id AND subj.organization_id = d.organization_id
+        JOIN users u ON u.id = d.teacher_user_id
+        WHERE d.organization_id = $1 ORDER BY d.delivery_date DESC, d.period_number DESC LIMIT 100`, [orgId]),
+    ]);
+    return { assignments, submissions, materials, activities };
+  }
+
+  async getAttendance(orgId: string) {
+    const [summary] = await this.drizzle.query(`WITH school_day AS (
+      SELECT (NOW() AT TIME ZONE time_zone)::date AS day FROM organizations WHERE id = $1
+    ), roster AS (
+      SELECT e.student_user_id, e.section_id FROM enrollments e
+      JOIN academic_years y ON y.id = e.academic_year_id AND y.organization_id = e.organization_id AND y.is_current = true
+      WHERE e.organization_id = $1 AND e.status = 'active'
+    ), marked AS (
+      SELECT ar.status FROM attendance_records ar
+      JOIN attendance_sessions s ON s.id = ar.attendance_session_id AND s.organization_id = ar.organization_id
+      JOIN roster r ON r.student_user_id = ar.student_id AND r.section_id = s.section_id
+      WHERE ar.organization_id = $1 AND s.status = 'finalized' AND s.date = (SELECT day FROM school_day)
+    ), scheduled AS (
+      SELECT DISTINCT t.section_id, t.period_number FROM timetable_entries t
+      JOIN academic_years y ON y.id = t.academic_year_id AND y.organization_id = t.organization_id AND y.is_current = true
+      WHERE t.organization_id = $1 AND t.day_of_week = EXTRACT(ISODOW FROM (SELECT day FROM school_day))
+    ) SELECT (SELECT COUNT(DISTINCT student_user_id)::int FROM roster) AS "enrolledStudents",
+      (SELECT COUNT(*)::int FROM marked) AS "markedRecords",
+      (SELECT COUNT(*)::int FROM marked WHERE status IN ('present', 'late')) AS "presentRecords",
+      (SELECT COUNT(*)::int FROM scheduled sc WHERE NOT EXISTS (
+        SELECT 1 FROM attendance_sessions s WHERE s.organization_id = $1 AND s.section_id = sc.section_id
+          AND s.period = sc.period_number AND s.date = (SELECT day FROM school_day) AND s.status = 'finalized')) AS "pendingRegisters",
+      (SELECT TO_CHAR(day, 'YYYY-MM-DD') FROM school_day) AS date`, [orgId]);
+
+    const students = await this.drizzle.query(`SELECT e.student_user_id AS id,
+      COALESCE(u.name, u.email) AS name, p.name || ' - ' || sec.name AS "className", e.roll_number AS roll,
+      COUNT(ar.id)::int AS "markedRecords",
+      COUNT(ar.id) FILTER (WHERE ar.status IN ('present', 'late'))::int AS "presentRecords",
+      COUNT(DISTINCT s.date) FILTER (WHERE ar.status = 'absent')::int AS "daysAbsent",
+      COUNT(ar.id) FILTER (WHERE ar.status = 'absent')::int AS "unexcusedAbsences"
+      FROM enrollments e
+      JOIN academic_years y ON y.id = e.academic_year_id AND y.organization_id = e.organization_id AND y.is_current = true
+      JOIN users u ON u.id = e.student_user_id
+      JOIN sections sec ON sec.id = e.section_id AND sec.organization_id = e.organization_id
+      JOIN programs p ON p.id = sec.program_id AND p.organization_id = e.organization_id
+      LEFT JOIN attendance_sessions s ON s.organization_id = e.organization_id AND s.section_id = e.section_id
+        AND s.status = 'finalized' AND s.date BETWEEN y.start_date AND y.end_date
+      LEFT JOIN attendance_records ar ON ar.attendance_session_id = s.id AND ar.organization_id = e.organization_id
+        AND ar.student_id = e.student_user_id
+      WHERE e.organization_id = $1 AND e.status = 'active'
+      GROUP BY e.student_user_id, u.name, u.email, p.name, sec.name, e.roll_number
+      ORDER BY p.name, sec.name, u.name, u.email`, [orgId]);
+    const atRisk = students.filter((student: any) => student.markedRecords > 0 &&
+      student.presentRecords / student.markedRecords < 0.75).map((student: any) => ({
+      ...student, attendanceRate: Number((100 * student.presentRecords / student.markedRecords).toFixed(1)),
+    }));
+
+    const trend = await this.drizzle.query(`WITH school_day AS (
+      SELECT (NOW() AT TIME ZONE time_zone)::date AS day FROM organizations WHERE id = $1
+    ), days AS (SELECT generate_series((SELECT day FROM school_day) - 13,
+      (SELECT day FROM school_day), interval '1 day')::date AS date), marked AS (
+      SELECT ar.id, s.date, ar.status FROM attendance_sessions s
+      JOIN attendance_records ar ON ar.attendance_session_id = s.id AND ar.organization_id = s.organization_id
+      JOIN enrollments e ON e.organization_id = s.organization_id AND e.student_user_id = ar.student_id
+        AND e.section_id = s.section_id AND e.status = 'active'
+      JOIN academic_years y ON y.id = e.academic_year_id AND y.organization_id = e.organization_id AND y.is_current = true
+      WHERE s.organization_id = $1 AND s.status = 'finalized' AND s.date BETWEEN y.start_date AND y.end_date
+    )
+      SELECT TO_CHAR(d.date, 'YYYY-MM-DD') AS date, COUNT(ar.id)::int AS "markedRecords",
+        COUNT(ar.id) FILTER (WHERE ar.status IN ('present', 'late'))::int AS "presentRecords"
+      FROM days d
+      LEFT JOIN marked ar ON ar.date = d.date
+      GROUP BY d.date ORDER BY d.date`, [orgId]);
+
+    const teachers = await this.drizzle.query(`WITH school_day AS (
+      SELECT (NOW() AT TIME ZONE time_zone)::date AS day FROM organizations WHERE id = $1
+    ) SELECT u.id, COALESCE(u.name, u.email) AS name,
+      EXISTS (SELECT 1 FROM leave_requests l WHERE l.organization_id = $1 AND l.user_id = u.id
+        AND l.status = 'approved' AND (SELECT day FROM school_day) BETWEEN l.start_date AND l.end_date) AS "approvedLeave",
+      (SELECT COUNT(*)::int FROM attendance_sessions s WHERE s.organization_id = $1 AND s.taken_by = u.id
+        AND s.date = (SELECT day FROM school_day) AND s.status = 'finalized') AS "recordedClasses"
+      FROM memberships m JOIN users u ON u.id = m.user_id
+      WHERE m.organization_id = $1 AND m.role = 'teacher' AND m.status = 'active' AND u.is_active = true
+      ORDER BY u.name, u.email`, [orgId]);
+
+    const marked = Number(summary?.markedRecords ?? 0);
+    return {
+      date: summary?.date,
+      enrolledStudents: Number(summary?.enrolledStudents ?? 0),
+      markedRecords: marked,
+      studentAttendanceRate: marked ? Number((100 * Number(summary.presentRecords) / marked).toFixed(1)) : null,
+      pendingRegisters: Number(summary?.pendingRegisters ?? 0),
+      atRisk,
+      trend: trend.map((day: any) => ({ ...day,
+        attendanceRate: day.markedRecords ? Number((100 * day.presentRecords / day.markedRecords).toFixed(1)) : null })),
+      teachers,
+    };
   }
 
   async getDashboard(orgId: string, _actor: User) {

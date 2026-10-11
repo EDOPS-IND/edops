@@ -100,7 +100,7 @@ export class AcademicsService {
           `SELECT tm.*, su.name as sender_name, su.email as sender_email
            FROM teacher_messages tm
            LEFT JOIN users su ON su.id = tm.sender_id
-           WHERE tm.organization_id = $1 AND (tm.recipient_role = 'parent' OR tm.recipient_id = $2 OR tm.sender_id = $2)
+           WHERE tm.organization_id = $1 AND (tm.recipient_id = $2 OR tm.sender_id = $2)
            ORDER BY tm.created_at DESC LIMIT 20`,
           [org, actor.id]
         ).catch(() => []);

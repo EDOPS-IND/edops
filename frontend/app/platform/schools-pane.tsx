@@ -1,16 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ArrowLeft, Check, X, Loader2 } from "lucide-react";
 import { School, FeatureOverride } from "./types";
+import { getSchoolRoleFeatureMatrix, updateSchoolRoleFeatureMatrix } from "../edops-api";
+import { DashboardNavigationEditor } from "./dashboard-navigation-editor";
 
 export function SchoolsPane({
   schools,
   selectedSchool,
   onSelectSchool,
   schoolOverrides,
-  onOpenOverrideModal,
   onRemoveOverride,
+  onOverridesChanged,
   onLifecycleChange,
   onOpenSupportSessionModal
 }: {
@@ -18,8 +20,8 @@ export function SchoolsPane({
   selectedSchool: School | null;
   onSelectSchool: (s: School | null) => void;
   schoolOverrides: FeatureOverride[];
-  onOpenOverrideModal: () => void;
-  onRemoveOverride: (featureKey: string) => void;
+  onRemoveOverride: (featureKey: string, role?: string) => Promise<void>;
+  onOverridesChanged: () => void;
   onLifecycleChange: (schoolId: string, status: string, extendDays?: number) => void;
   onOpenSupportSessionModal: (s: School) => void;
 }) {
@@ -27,10 +29,74 @@ export function SchoolsPane({
   const [schoolDetailTab, setSchoolDetailTab] = useState<
     "overview" | "users" | "usage" | "features" | "subscription" | "billing" | "activity"
   >("overview");
+  const [matrixData, setMatrixData] = useState<any>(null);
+  const [matrixLoading, setMatrixLoading] = useState(false);
+  const [matrixCategory, setMatrixCategory] = useState("all");
+  const [cellBusy, setCellBusy] = useState<string | null>(null);
+
+  const fetchMatrix = async () => {
+    if (!selectedSchool) return;
+    setMatrixLoading(true);
+    try {
+      const data = await getSchoolRoleFeatureMatrix(selectedSchool.id);
+      setMatrixData(data);
+    } catch (e) {
+      console.error("Failed to load feature matrix", e);
+    } finally {
+      setMatrixLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (selectedSchool && schoolDetailTab === "features") {
+      fetchMatrix();
+    }
+  }, [selectedSchool?.id, schoolDetailTab]);
+
+  const handleToggleCell = async (
+    featureKey: string,
+    role: string | null,
+    currentState: { enabled: boolean; isOverride: boolean; inherited?: boolean }
+  ) => {
+    if (!selectedSchool) return;
+    const busyKey = `${featureKey}_${role || "all"}`;
+    setCellBusy(busyKey);
+    try {
+      let nextEnabled: boolean | null;
+      if (!currentState.isOverride) {
+        nextEnabled = !currentState.enabled;
+      } else {
+        if (currentState.enabled) {
+          nextEnabled = false;
+        } else {
+          nextEnabled = null;
+        }
+      }
+
+      await updateSchoolRoleFeatureMatrix(selectedSchool.id, {
+        featureKey,
+        role: role || null,
+        enabled: nextEnabled,
+        reason: nextEnabled === null ? "Reset override to default" : `Platform admin toggle for ${role || "school default"}`,
+      });
+
+      await fetchMatrix();
+      onOverridesChanged();
+    } catch (e: any) {
+      alert(`Failed to update feature: ${e.message || "Unknown error"}`);
+    } finally {
+      setCellBusy(null);
+    }
+  };
 
   const filteredSchools = schools.filter(s => {
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
     return true;
+  });
+
+  const filteredMatrixFeatures = (matrixData?.matrix || []).filter((feat: any) => {
+    if (matrixCategory === "all") return true;
+    return feat.category === matrixCategory;
   });
 
   if (!selectedSchool) {
@@ -264,60 +330,202 @@ export function SchoolsPane({
         </div>
       )}
 
-      {/* Subtab 4: Features & Overrides (§8) */}
+      {/* Subtab 4: Features & Overrides (§8) - 2D Role Matrix */}
       {schoolDetailTab === "features" && (
         <div style={{ display: "grid", gap: "16px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <DashboardNavigationEditor organizationId={selectedSchool.id} />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
             <div>
-              <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700 }}>Custom School Feature Overrides</h4>
-              <p style={{ margin: 0, fontSize: "12px", color: "#6B7280" }}>Override default plan entitlements for this school</p>
+              <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#111827" }}>
+                Role-Level Feature Management Matrix
+              </h4>
+              <p style={{ margin: 0, fontSize: "12px", color: "#6B7280" }}>
+                {matrixData?.planName || "School"} · {matrixData?.entitled ? "subscription or trial active" : "subscription or trial inactive"}. Click a cell to set or reset a school or role override.
+              </p>
             </div>
-            <button
-              onClick={onOpenOverrideModal}
-              style={{ padding: "6px 12px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
-            >
-              + Add Feature Override
-            </button>
+            <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+              <select
+                value={matrixCategory}
+                onChange={(e) => setMatrixCategory(e.target.value)}
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: "6px",
+                  border: "1px solid #D1D5DB",
+                  fontSize: "12px",
+                  background: "#fff",
+                  color: "#374151"
+                }}
+              >
+                <option value="all">All Categories</option>
+                {[...new Set<string>((matrixData?.matrix || []).map((feature: any) => String(feature.category)))].map(category => (
+                  <option key={category} value={category}>{category}</option>
+                ))}
+              </select>
+              <button
+                onClick={fetchMatrix}
+                style={{
+                  padding: "6px 12px",
+                  background: "#F3F4F6",
+                  color: "#374151",
+                  border: "1px solid #D1D5DB",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer"
+                }}
+              >
+                Refresh Matrix
+              </button>
+            </div>
           </div>
 
-          {schoolOverrides.length === 0 ? (
-            <div style={{ padding: "20px", textAlign: "center", background: "#F9FAFB", borderRadius: "8px", color: "#6B7280", fontSize: "13px" }}>
-              No overrides active. This school follows its standard plan features.
+          {matrixLoading ? (
+            <div style={{ padding: "40px", textAlign: "center", color: "#6B7280", fontSize: "13px" }}>
+              <Loader2 className="animate-spin inline-block mr-2" size={18} /> Loading role-level feature entitlements...
+            </div>
+          ) : !matrixData?.matrix ? (
+            <div style={{ padding: "30px", textAlign: "center", background: "#F9FAFB", borderRadius: "8px", color: "#6B7280", fontSize: "13px" }}>
+              No feature matrix available for this school.
             </div>
           ) : (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
-              <thead>
-                <tr style={{ borderBottom: "1px solid #E5E7EB", textAlign: "left" }}>
-                  <th style={{ padding: "8px" }}>Feature</th>
-                  <th style={{ padding: "8px" }}>State</th>
-                  <th style={{ padding: "8px" }}>Quota Override</th>
-                  <th style={{ padding: "8px" }}>Reason</th>
-                  <th style={{ padding: "8px", textAlign: "right" }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {schoolOverrides.map((ov) => (
-                  <tr key={ov.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
-                    <td style={{ padding: "8px" }}><b>{ov.featureKey}</b></td>
-                    <td style={{ padding: "8px" }}>
-                      <span style={{ color: ov.enabled ? "#10B981" : "#EF4444", fontWeight: 700 }}>
-                        {ov.enabled ? "ENABLED (ON)" : "DISABLED (OFF)"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "8px" }}>{ov.customQuota ? `${ov.customQuota} req/mo` : "Unlimited"}</td>
-                    <td style={{ padding: "8px", color: "#6B7280" }}>{ov.reason}</td>
-                    <td style={{ padding: "8px", textAlign: "right" }}>
-                      <button
-                        onClick={() => onRemoveOverride(ov.featureKey)}
-                        style={{ color: "#DC2626", background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}
-                      >
-                        Remove
-                      </button>
-                    </td>
+            <div style={{ border: "1px solid #E5E7EB", borderRadius: "8px", overflowX: "auto", background: "#fff" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", minWidth: "850px" }}>
+                <thead>
+                  <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB", textAlign: "left" }}>
+                    <th style={{ padding: "10px 14px", fontWeight: 700, color: "#374151", width: "240px" }}>Feature & Category</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, color: "#374151", textAlign: "center" }}>School Default</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, color: "#374151", textAlign: "center" }}>School Admin</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, color: "#374151", textAlign: "center" }}>Principal</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, color: "#374151", textAlign: "center" }}>Teacher</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, color: "#374151", textAlign: "center" }}>Student</th>
+                    <th style={{ padding: "10px 12px", fontWeight: 700, color: "#374151", textAlign: "center" }}>Parent</th>
                   </tr>
+                </thead>
+                <tbody>
+                  {filteredMatrixFeatures.map((feat: any) => {
+                    const roles = ["school_admin", "principal", "teacher", "student", "parent"];
+                    return (
+                      <tr key={feat.key} style={{ borderBottom: "1px solid #F3F4F6" }}>
+                        <td style={{ padding: "10px 14px" }}>
+                          <div style={{ fontWeight: 700, color: "#111827", fontSize: "12.5px" }}>{feat.name}</div>
+                          <div style={{ fontSize: "10.5px", color: "#6B7280", marginTop: "1px" }}>
+                            <span style={{ background: "#E5E7EB", padding: "1px 5px", borderRadius: "4px", marginRight: "6px", textTransform: "capitalize" }}>
+                              {feat.category}
+                            </span>
+                            {feat.description}
+                          </div>
+                        </td>
+
+                        {/* Tenant Default Cell */}
+                        <td style={{ padding: "8px 12px", textAlign: "center" }}>
+                          <button
+                            onClick={() => handleToggleCell(feat.key, null, feat.tenantDefault)}
+                            disabled={cellBusy === `${feat.key}_all`}
+                            title={feat.tenantDefault.isOverride ? "Explicit Tenant Override (Click to cycle)" : "Inherited from Plan (Click to override)"}
+                            style={{
+                              padding: "4px 8px",
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              border: feat.tenantDefault.isOverride ? "1px solid #10B981" : "1px dashed #D1D5DB",
+                              background: feat.tenantDefault.enabled ? (feat.tenantDefault.isOverride ? "#ECFDF5" : "#F3F4F6") : (feat.tenantDefault.isOverride ? "#FEF2F2" : "#F9FAFB"),
+                              color: feat.tenantDefault.enabled ? (feat.tenantDefault.isOverride ? "#065F46" : "#1F2937") : (feat.tenantDefault.isOverride ? "#991B1B" : "#9CA3AF"),
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            {feat.tenantDefault.enabled ? <Check size={12} /> : <X size={12} />}
+                            {feat.tenantDefault.isOverride ? (feat.tenantDefault.enabled ? "ON (Override)" : "OFF (Override)") : (feat.tenantDefault.enabled ? "ON (Plan)" : "OFF (Plan)")}
+                          </button>
+                        </td>
+
+                        {/* Role-Specific Cells */}
+                        {roles.map((r) => {
+                          const state = feat.roles[r] || { enabled: feat.tenantDefault.enabled, isOverride: false, inherited: true };
+                          const isBusy = cellBusy === `${feat.key}_${r}`;
+                          if (state.notApplicable) return <td key={r} style={{ textAlign: "center", color: "#9CA3AF" }}>—</td>;
+                          return (
+                            <td key={r} style={{ padding: "8px 12px", textAlign: "center" }}>
+                              <button
+                                onClick={() => handleToggleCell(feat.key, r, state)}
+                                disabled={isBusy}
+                                title={state.isOverride ? "Role Override Active (Click: Toggle -> Reset)" : "Inherited from School Default (Click to override)"}
+                                style={{
+                                  padding: "4px 8px",
+                                  borderRadius: "6px",
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  cursor: "pointer",
+                                  border: state.isOverride ? (state.enabled ? "1px solid #10B981" : "1px solid #EF4444") : "1px dashed #E5E7EB",
+                                  background: state.isOverride ? (state.enabled ? "#ECFDF5" : "#FEF2F2") : "#FFFFFF",
+                                  color: state.isOverride ? (state.enabled ? "#065F46" : "#991B1B") : (state.enabled ? "#374151" : "#9CA3AF"),
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                              >
+                                {state.isOverride ? (
+                                  <>
+                                    {state.enabled ? <Check size={12} color="#059669" /> : <X size={12} color="#DC2626" />}
+                                    <span>{state.enabled ? "ON" : "OFF"}</span>
+                                    <span style={{ fontSize: "9px", background: state.enabled ? "#A7F3D0" : "#FECACA", padding: "0 3px", borderRadius: "3px" }}>R</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span style={{ color: state.enabled ? "#10B981" : "#D1D5DB" }}>●</span>
+                                    <span>{state.enabled ? "ON" : "OFF"}</span>
+                                  </>
+                                )}
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* Quick Active Overrides Summary */}
+          {schoolOverrides && schoolOverrides.length > 0 && (
+            <div style={{ marginTop: "12px", background: "#F9FAFB", padding: "14px", borderRadius: "8px", border: "1px solid #E5E7EB" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <h5 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#374151" }}>Active Custom Overrides Ledger</h5>
+                <span style={{ fontSize: "11px", color: "#6B7280" }}>{schoolOverrides.length} override(s) recorded in database</span>
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {schoolOverrides.map((ov: any) => (
+                  <div
+                    key={ov.id || ov.featureKey}
+                    style={{
+                      background: "#fff",
+                      border: "1px solid #E5E7EB",
+                      borderRadius: "6px",
+                      padding: "4px 8px",
+                      fontSize: "11.5px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <b>{ov.featureKey}</b>
+                    {ov.role && <span style={{ background: "#EEF2FF", color: "#4F46E5", padding: "1px 4px", borderRadius: "4px", fontSize: "10px" }}>{ov.role}</span>}
+                    <span style={{ color: ov.enabled ? "#059669" : "#DC2626", fontWeight: 700 }}>{ov.enabled ? "ON" : "OFF"}</span>
+                    <button
+                      onClick={async () => { await onRemoveOverride(ov.featureKey, ov.role || undefined); await fetchMatrix(); }}
+                      title="Clear Override"
+                      style={{ background: "none", border: "none", color: "#9CA3AF", cursor: "pointer", padding: "0 2px" }}
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
           )}
         </div>
       )}

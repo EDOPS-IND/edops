@@ -91,6 +91,6 @@ export class InvitationsController {
   @ApiOkResponse({ description: 'Membership granted. New users must now call /auth/login.', schema: acceptedInvitationSchema })
   @ApiErrors(400, 403, 409, 413)
   async accept(@Body() dto: AcceptInvitationDto, @Req() request: Request) {
-    return this.tenants.acceptInvitation(dto, await this.auth.currentUser(request.session));
+    return this.tenants.acceptInvitation(dto, await this.auth.userFromRequest(request));
   }
 }

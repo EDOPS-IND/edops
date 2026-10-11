@@ -47,8 +47,8 @@ export class SchoolAdminService {
 
   // 1. DASHBOARD & HEALTH SCORE
   async getDashboard(orgId: string, actor: User) {
-    return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
+    const manager = this.drizzle;
+    await this.authorize(manager, orgId, actor);
 
       // Counts from real DB tables
       const [membersCount] = await manager.query(
@@ -224,11 +224,12 @@ export class SchoolAdminService {
       ).catch(() => []);
       // Platform announcements
       const [org] = await manager.query(
-        `SELECT o.status, s.name as plan_name
+        `SELECT o.status, p.name as plan_name
          FROM organizations o
          LEFT JOIN subscriptions s ON s.organization_id = o.id AND s.status IN ('active', 'trialing')
+         LEFT JOIN plans p ON p.id = s.plan_id
          WHERE o.id = $1`, [orgId]
-      );
+      ).catch(() => []);
       const status = org?.status;
       const plan = org?.plan_name?.toLowerCase() || '';
       let audienceCond = "audience = 'all'";
@@ -267,7 +268,6 @@ export class SchoolAdminService {
           time: new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         })),
       };
-    });
   }
 
   // 2. PEOPLE — STUDENTS & 360 PROFILE

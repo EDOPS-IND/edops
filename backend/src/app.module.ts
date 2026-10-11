@@ -66,7 +66,7 @@ export class AppModule {
           ttl: 60_000,
           limit: config.throttleLimit,
           // ponytail: throttle by user if signed in so one student on school WiFi doesn't block everyone
-          getTracker: (req) => (req.session?.userId ? `user:${req.session.userId}` : (req.ip ?? '127.0.0.1')),
+          getTracker: (req) => (req.user?.id ? `user:${req.user.id}` : (req.ip ?? '127.0.0.1')),
         }]),
         AuthModule,
         TenantsModule,
@@ -79,7 +79,6 @@ export class AppModule {
         PrincipalModule,
         TeacherModule,
         StudentModule,
-        DatabaseModule,
       ],
       controllers: [HealthController],
       providers: [

@@ -49,81 +49,6 @@ export function SupportSessionModal({
   );
 }
 
-export function FeatureOverrideModal({
-  school,
-  onClose,
-  onSave,
-  busy
-}: {
-  school: School;
-  onClose: () => void;
-  onSave: (override: any) => void;
-  busy: boolean;
-}) {
-  const [override, setOverride] = useState({
-    featureKey: "ai_assistant", enabled: true, customQuota: 2000, reason: "Special academic trial authorization"
-  });
-
-  return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}>
-      <div style={{ background: "#FFF", borderRadius: "10px", padding: "24px", maxWidth: "500px", width: "100%", boxShadow: "0 10px 25px rgba(0,0,0,0.2)" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800 }}>Override Feature for {school.name}</h3>
-          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} /></button>
-        </div>
-        <div style={{ display: "grid", gap: "12px", fontSize: "12.5px" }}>
-          <div>
-            <label style={{ fontWeight: 600 }}>Feature</label>
-            <select
-              value={override.featureKey}
-              onChange={e => setOverride({ ...override, featureKey: e.target.value })}
-              style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
-            >
-              <option value="ai_assistant">AI Assistant Copilot</option>
-              <option value="ai_reports">AI Report Cards Generator</option>
-              <option value="api_access">REST API Access Keys</option>
-              <option value="custom_domain">Custom Domain White-label</option>
-              <option value="transport">Transport GPS Tracking</option>
-              <option value="online_payments">Online Payment Gateway</option>
-            </select>
-          </div>
-          <div>
-            <label style={{ fontWeight: 600 }}>Status</label>
-            <div style={{ display: "flex", gap: "10px", marginTop: "4px" }}>
-              <label><input type="radio" checked={override.enabled} onChange={() => setOverride({ ...override, enabled: true })} /> Force ON (Enable)</label>
-              <label><input type="radio" checked={!override.enabled} onChange={() => setOverride({ ...override, enabled: false })} /> Force OFF (Disable)</label>
-            </div>
-          </div>
-          <div>
-            <label style={{ fontWeight: 600 }}>Monthly Quota (Optional)</label>
-            <input
-              type="number"
-              placeholder="e.g. 5000 requests"
-              value={override.customQuota}
-              onChange={e => setOverride({ ...override, customQuota: Number(e.target.value) })}
-              style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
-            />
-          </div>
-          <div>
-            <label style={{ fontWeight: 600 }}>Internal Justification Reason *</label>
-            <input
-              type="text"
-              placeholder="e.g. Approved pilot for AI copilot trial"
-              value={override.reason}
-              onChange={e => setOverride({ ...override, reason: e.target.value })}
-              style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
-            />
-          </div>
-        </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
-          <button onClick={onClose} style={{ padding: "8px 14px", background: "#F8E7C9", color: "#064E3B", border: "1px solid #E5CCA2", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Cancel</button>
-          <button onClick={() => onSave(override)} disabled={busy} style={{ padding: "8px 18px", background: "#064E3B", color: "#F8E7C9", border: "1px solid #064E3B", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Save Override</button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function CreatePlanModal({
   onClose,
   onCreate
@@ -133,7 +58,7 @@ export function CreatePlanModal({
 }) {
   const [newPlan, setNewPlan] = useState({
     id: "", name: "", amountMinor: 5000000, maxStudents: 1000, maxTeachers: 70, maxParents: 2000, maxStorageGb: 100, maxApiRequests: 500000,
-    features: { student_management: true, attendance: true, exams: true, results: true, report_cards: true, arena: true, recordings: true, communication: true, internal_chat: true, ai_assistant: false }
+    features: {}
   });
 
   return (

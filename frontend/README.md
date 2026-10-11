@@ -24,8 +24,9 @@ The app runs on vinext and targets the Sites runtime.
 - Brand assets live under `public/`.
 - Local development connects to `http://127.0.0.1:3001/api/v1`; open the UI at
   `http://127.0.0.1:3000` so the session cookie remains same-site.
-- Set `NEXT_PUBLIC_EDOPS_API_URL` when the API is hosted elsewhere. UI and API
-  should share a site so the backend's SameSite session cookie remains secure.
+- The browser calls `/api/v1` on the same origin. For a deployed Worker, set
+  `EDOPS_API_ORIGIN` to the backend origin (without `/api/v1`); the Worker
+  forwards `/api/*` there. Local development defaults to `127.0.0.1:3001`.
 
 ## Authentication
 
