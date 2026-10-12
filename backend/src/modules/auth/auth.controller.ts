@@ -113,7 +113,7 @@ export class AuthController {
   @HttpCode(204)
   @ApiOperation({
     summary: 'Sign out of the current session', security: [{ cookie: [], csrf: [] }],
-    description: 'Deletes this session, revokes its refresh token, clears both cookies and records auth.logout. Other sessions and school memberships are unchanged. Limit: 120 requests/minute per IP.',
+    description: 'Revokes the supplied refresh token, clears its cookie and records auth.logout. Other devices and school memberships are unchanged. Limit: 120 requests/minute per IP.',
   })
   @ApiNoContentResponse({ description: 'Session revoked and cookie cleared. Empty body; do not parse it as JSON.' })
   @ApiErrors(400, 401, 403, 413)

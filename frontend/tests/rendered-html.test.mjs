@@ -60,8 +60,8 @@ test("renders the EDOPS dashboard shell", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /<title>EDOPS — Connected school operations<\/title>/i);
-  assert.match(html, /loading-screen/);
-  assert.match(html, /loading-wordmark[^>]*>EDOPS/);
+  assert.match(html, /alt="EDOPS"/);
+  assert.match(html, /animate-pulse/);
   assert.doesNotMatch(html, /edops-logo\.svg/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview|react-loading-skeleton/);
 });
