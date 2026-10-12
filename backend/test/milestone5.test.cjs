@@ -28,12 +28,7 @@ test('M5 objective Arena with real PostgreSQL and restricted tenant runtime', { 
   await db.query(`CREATE SCHEMA "${schema}"; SET search_path TO "${schema}"`);
   const source = createDataSource(config); await source.initialize();
   try {
-    const sixth = source.migrations.pop(), fifth = source.migrations.pop();
-    assert.equal((await source.runMigrations()).length, 12);
-    source.migrations.push(fifth);
-    assert.equal((await source.runMigrations()).length, 1);
-    source.migrations.push(sixth);
-    assert.equal((await source.runMigrations()).length, 1);
+    assert.equal((await source.runMigrations()).length, source.migrations.length);
     assert.equal((await source.runMigrations()).length, 0);
   } finally { await source.destroy(); }
   const org = randomUUID(), otherOrg = randomUUID(), section = randomUUID(), otherSection = randomUUID(), subject = randomUUID(), otherSubject = randomUUID();

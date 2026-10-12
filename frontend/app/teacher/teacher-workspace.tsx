@@ -275,7 +275,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
       return source ? [{ source, label: item.label }] : [];
     });
     if (!entries.length) return [];
-    if (entries.length === 1 && entries[0].source.direct) return [{ id: section.key, label: entries[0].label, icon: entries[0].source.icon, tab: entries[0].source.tab }];
+    if (section.key === 'overview' && entries.length === 1 && entries[0].source.direct) return [{ id: section.key, label: entries[0].label, icon: entries[0].source.icon, tab: entries[0].source.tab }];
     return [{ id: section.key, label: section.label, icon: entries[0].source.icon,
       children: entries.map(entry => ({ label: entry.label, tab: entry.source.tab })) }];
   });

@@ -32,7 +32,7 @@ test('M4 outbox, private feeds and recording lifecycle', { timeout: 120_000 }, a
   });
   await db.query(`CREATE SCHEMA "${schema}"`); await db.query(`SET search_path TO "${schema}"`);
   const source = createDataSource(config); await source.initialize();
-  try { assert.equal((await source.runMigrations()).length, 14); assert.equal((await source.runMigrations()).length, 0); }
+  try { assert.equal((await source.runMigrations()).length, source.migrations.length); assert.equal((await source.runMigrations()).length, 0); }
   finally { await source.destroy(); }
   const org = randomUUID(), otherOrg = randomUUID(), section = randomUUID(), subject = randomUUID(), yearId = randomUUID(), program = randomUUID();
   await db.query("INSERT INTO organizations(id,name,slug,time_zone) VALUES ($1,'School A','m4-a','UTC'),($2,'School B','m4-b','UTC')", [org,otherOrg]);

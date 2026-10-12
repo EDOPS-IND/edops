@@ -38,7 +38,7 @@ test('M3 teaching workflows with real PostgreSQL RLS and transactional scorecard
   const source = createDataSource(config);
   await source.initialize();
   try {
-    assert.equal((await source.runMigrations()).length, 14);
+    assert.equal((await source.runMigrations()).length, source.migrations.length);
     assert.equal((await source.runMigrations()).length, 0);
   } finally { await source.destroy(); }
   const hash = await hashPassword(password);

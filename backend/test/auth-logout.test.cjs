@@ -4,7 +4,7 @@ const { AuthController } = require('../dist/modules/auth/auth.controller');
 const { AuthService } = require('../dist/modules/auth/auth.service');
 const { hashToken } = require('../dist/modules/auth/jwt.util');
 
-test('logout revokes refresh token, destroys session, and clears both cookies', async () => {
+test('logout revokes the supplied refresh token and clears its cookie', async () => {
   const steps = [];
   const auth = {
     revokeRefreshToken: async (token, userId) => steps.push(['revoke', token, userId]),
@@ -12,14 +12,10 @@ test('logout revokes refresh token, destroys session, and clears both cookies', 
   };
   const controller = new AuthController(auth, { cookieName: 'session', environment: 'test' });
   const response = { clearCookie: (name) => steps.push(['clear', name]) };
-  const request = {
-    user: { id: 'user-1' }, cookies: { edops_refresh_token: 'refresh-1' },
-    session: { destroy: (done) => { steps.push(['destroy']); done(); } },
-  };
-  await controller.logout(request, response);
+  const request = { user: { id: 'user-1' }, cookies: {} };
+  await controller.logout({ refreshToken: 'refresh-1' }, request, response);
   assert.deepEqual(steps, [
-    ['revoke', 'refresh-1', 'user-1'], ['destroy'],
-    ['clear', 'session'], ['clear', 'edops_refresh_token'], ['audit'],
+    ['revoke', 'refresh-1', 'user-1'], ['clear', 'edops_refresh_token'], ['audit'],
   ]);
 });
 

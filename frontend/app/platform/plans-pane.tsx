@@ -87,7 +87,7 @@ export function PlansPane({
                   <td style={{ padding: "10px", fontWeight: 600 }}>{feat.name}</td>
                   <td style={{ padding: "10px", color: "#6B7280" }}>{feat.category}</td>
                   {plans.map(p => {
-                    const isChecked = p.features ? Boolean(p.features[feat.key]) : false;
+                    const isChecked = p.features?.[feat.key] ?? feat.key.startsWith("nav:");
                     return (
                       <td key={p.id} style={{ padding: "10px", textAlign: "center" }}>
                         <input
