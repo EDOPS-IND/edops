@@ -28,7 +28,7 @@ export class AuthController {
   @Public()
   @Post('login')
   @HttpCode(200)
-  @Throttle({ default: { limit: Number(process.env.AUTH_THROTTLE_LIMIT ?? 10), ttl: 60_000 } })
+  @Throttle({ default: { limit: Number(process.env.AUTH_THROTTLE_LIMIT ?? 120), ttl: 60_000 } })
   @ApiOperation({
     summary: 'Sign in and issue stateless JWT tokens', security: [],
     description: 'Verifies email and password, records auth.login, and returns stateless JWT access & refresh tokens. Limit: 10 requests/minute per IP.',

@@ -28,7 +28,7 @@ export async function createApp(config: AppConfig) {
   app.enableCors({
     origin: config.corsOrigins, credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'authorization', 'X-CSRF-Token', 'x-csrf-token', 'Idempotency-Key', 'idempotency-key', 'Accept', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'authorization', 'X-CSRF-Token', 'x-csrf-token', 'Idempotency-Key', 'idempotency-key', 'Accept', 'X-Requested-With', 'ngrok-skip-browser-warning'],
   });
   app.use((request: Request, response: Response, next: NextFunction) => {
     const origin = request.get('origin');
@@ -37,7 +37,7 @@ export async function createApp(config: AppConfig) {
       response.setHeader('Access-Control-Allow-Credentials', 'true');
     }
     response.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, PUT, DELETE, OPTIONS');
-    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, authorization, X-CSRF-Token, x-csrf-token, Idempotency-Key, Accept, X-Requested-With');
+    response.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, authorization, X-CSRF-Token, x-csrf-token, Idempotency-Key, Accept, X-Requested-With, ngrok-skip-browser-warning');
     if (request.method === 'OPTIONS') {
       return response.sendStatus(204);
     }

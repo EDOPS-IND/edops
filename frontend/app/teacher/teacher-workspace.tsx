@@ -271,7 +271,8 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
   }
   const navItems: TeacherNavItem[] = navigation.sections.flatMap<TeacherNavItem>(section => {
     const entries = section.items.flatMap(item => {
-      const source = sourceItems.get(item.key);
+      const source = sourceItems.get(item.key) ||
+        Array.from(sourceItems.entries()).find(([k]) => k === item.key || k.endsWith(`.${item.key}`) || item.key.endsWith(`.${k}`) || k.endsWith(item.key))?.[1];
       return source ? [{ source, label: item.label }] : [];
     });
     if (!entries.length) return [];
@@ -280,7 +281,8 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
       children: entries.map(entry => ({ label: entry.label, tab: entry.source.tab })) }];
   });
   const availableTabs = new Set(navigation.sections.flatMap(section => section.items.flatMap(item => {
-    const tab = sourceItems.get(item.key)?.tab;
+    const tab = sourceItems.get(item.key)?.tab ||
+      Array.from(sourceItems.entries()).find(([k]) => k === item.key || k.endsWith(`.${item.key}`) || item.key.endsWith(`.${k}`) || k.endsWith(item.key))?.[1]?.tab;
     return tab ? [tab] : [];
   })));
 

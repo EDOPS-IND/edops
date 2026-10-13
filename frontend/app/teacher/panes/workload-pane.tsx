@@ -183,7 +183,7 @@ export const WorkloadPane: React.FC<WorkloadPaneProps> = ({ organizationId }) =>
                           : 'bg-slate-100 text-slate-600'
                       }`}
                     >
-                      {task.priority.toUpperCase()}
+                      {(task.priority || 'medium').toUpperCase()}
                     </span>
                   </div>
                   {task.description && (

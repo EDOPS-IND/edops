@@ -249,46 +249,49 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             </button>
           </div>
           <div className="divide-y divide-slate-100">
-            {timetable.map((p: any, idx: number) => (
-              <div
-                key={idx}
-                className={`p-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors ${
-                  p.status === 'now' ? 'bg-indigo-50/50' : ''
-                }`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs">
-                    P{p.periodNumber}
+            {timetable.map((p: any, idx: number) => {
+              const status = (p.status || 'upcoming').toLowerCase();
+              return (
+                <div
+                  key={idx}
+                  className={`p-3.5 flex items-center justify-between hover:bg-slate-50 transition-colors ${
+                    status === 'now' ? 'bg-indigo-50/50' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs">
+                      P{p.periodNumber || p.period || (idx + 1)}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-slate-900">{p.subjectName || p.subject || 'Subject'}</h4>
+                        {status === 'now' && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-indigo-600 text-white animate-pulse">
+                            NOW
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[11px] text-slate-400">
+                        {p.startTime ? `${p.startTime} - ${p.endTime}` : (p.time || '08:30 - 09:15')} • {p.teacherName || p.teacher || 'Faculty'} (Room {p.room || '302'})
+                      </p>
+                    </div>
                   </div>
                   <div>
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-bold text-slate-900">{p.subjectName}</h4>
-                      {p.status === 'now' && (
-                        <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-indigo-600 text-white animate-pulse">
-                          NOW
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-slate-400">
-                      {p.startTime} - {p.endTime} • {p.teacherName} (Room {p.room})
-                    </p>
+                    <span
+                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                        status === 'completed'
+                          ? 'bg-slate-100 text-slate-500'
+                          : status === 'now'
+                          ? 'bg-indigo-100 text-indigo-700'
+                          : 'bg-emerald-50 text-emerald-700'
+                      }`}
+                    >
+                      {status.toUpperCase()}
+                    </span>
                   </div>
                 </div>
-                <div>
-                  <span
-                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
-                      p.status === 'completed'
-                        ? 'bg-slate-100 text-slate-500'
-                        : p.status === 'now'
-                        ? 'bg-indigo-100 text-indigo-700'
-                        : 'bg-emerald-50 text-emerald-700'
-                    }`}
-                  >
-                    {p.status.toUpperCase()}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

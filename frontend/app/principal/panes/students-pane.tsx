@@ -75,7 +75,7 @@ export function StudentsPane({
 
         <div style={{ display: "flex", gap: "10px" }}>
           <button
-            onClick={() => onTriggerIntervention()}
+            onClick={() => onTriggerIntervention?.()}
             style={{
               background: "#064E3B",
               color: "#F8E7C9",
@@ -155,7 +155,7 @@ export function StudentsPane({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((s, idx) => (
+              {filtered.map((s: any, idx: number) => (
                 <tr
                   key={idx}
                   style={{ borderBottom: "1px solid #F1F5F9", cursor: "pointer", transition: "background 0.15s" }}

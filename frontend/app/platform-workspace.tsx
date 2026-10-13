@@ -120,7 +120,7 @@ export function PlatformWorkspace({
       if (ticketsRes.items?.length) setTickets(ticketsRes.items);
       else setTickets([]);
 
-      if (logsRes.items?.length) setAuditLogs(logsRes.items);
+      if (logsRes.items?.length) setAuditLogs(logsRes.items as any);
       else setAuditLogs([]);
 
       if (paymentsRes.items?.length) setPayments(paymentsRes.items);

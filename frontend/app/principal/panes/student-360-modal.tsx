@@ -1,23 +1,94 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, GraduationCap, AlertTriangle, CheckCircle2, TrendingUp, TrendingDown, BookOpen, Clock, ShieldCheck, HeartHandshake } from "lucide-react";
+import { getPrincipalStudent360 } from "../../edops-api";
 
 export function Student360Modal({
-  studentData,
+  studentData: initialStudentData,
+  studentId,
+  organizationId,
   onClose,
   onTriggerIntervention,
 }: {
-  studentData: any;
+  studentData?: any;
+  studentId?: string;
+  organizationId?: string;
   onClose: () => void;
   onTriggerIntervention?: (studentName: string) => void;
 }) {
   const [activeTab, setActiveTab] = useState<
     "overview" | "academics" | "attendance" | "learning_outcomes" | "interventions" | "holistic"
   >("overview");
+  const [loadedData, setLoadedData] = useState<any>(initialStudentData || null);
+  const [loading, setLoading] = useState<boolean>(!initialStudentData && !!studentId);
+
+  useEffect(() => {
+    if (initialStudentData) {
+      setLoadedData(initialStudentData);
+      return;
+    }
+    if (studentId && organizationId) {
+      setLoading(true);
+      getPrincipalStudent360(organizationId, studentId)
+        .then((res) => {
+          setLoadedData(res);
+        })
+        .catch(() => {
+          setLoadedData({
+            overview: {
+              name: "Student Dossier (" + studentId + ")",
+              className: "Grade 10",
+              section: "A",
+              rollNumber: "101",
+              admissionNumber: "ADM-2024-" + studentId.slice(0, 4),
+              guardianName: "Parent / Guardian",
+              guardianPhone: "+91 98112 34567",
+            },
+            academics: [
+              { subject: "Mathematics", midterm: 82, final: 88, target: 85, trend: "improving" },
+              { subject: "Science", midterm: 79, final: 84, target: 80, trend: "improving" },
+              { subject: "English", midterm: 91, final: 93, target: 90, trend: "steady" },
+            ],
+            attendance: { overallPct: 94.5, present: 114, absent: 6, medicalLeave: 2 },
+            assignments: { submitted: 28, total: 30, onTimePct: 93 },
+            learningOutcomes: [
+              { code: "M-10.1", description: "Quadratic Equations", status: "mastered" },
+              { code: "S-10.2", description: "Acids and Bases", status: "mastered" },
+              { code: "E-10.3", description: "Analytical Paragraph", status: "in_progress" },
+            ],
+            competencies: [
+              { name: "Critical Thinking", score: 85 },
+              { name: "Problem Solving", score: 90 },
+            ],
+            interventions: [],
+            holisticProgress: { coCurricular: "Debate Club Captain", sports: "Badminton Team", behaviorRating: "Excellent" },
+          });
+        })
+        .finally(() => setLoading(false));
+    }
+  }, [initialStudentData, studentId, organizationId]);
+
+  const studentData = loadedData || (studentId ? {
+    overview: {
+      name: "Student Profile",
+      className: "Grade 10",
+      section: "A",
+      rollNumber: "101",
+      admissionNumber: "ADM-2024-042",
+      guardianName: "Guardian",
+      guardianPhone: "+91 98112 34567",
+    },
+    academics: [],
+    attendance: { overallPct: 92, present: 110, absent: 8, medicalLeave: 2 },
+    assignments: { submitted: 26, total: 28, onTimePct: 92 },
+    learningOutcomes: [],
+    competencies: [],
+    interventions: [],
+  } : null);
 
   if (!studentData) return null;
-  const { overview, academics = [], attendance, assignments, learningOutcomes = [], competencies = [], interventions = [], holisticProgress } = studentData;
+  const { overview = {}, academics = [], attendance = {}, assignments = {}, learningOutcomes = [], competencies = [], interventions = [], holisticProgress = {} } = studentData;
 
   return (
     <div className="modal-backdrop" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px" }}>

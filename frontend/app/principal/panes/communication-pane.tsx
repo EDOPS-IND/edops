@@ -40,7 +40,7 @@ export function CommunicationPane({
 
   const handleResolve = async (id: string, status: string) => {
     const notes = resolutionInput[id] || "Resolved by Principal.";
-    await onResolveQuery(id, status, notes);
+    await onResolveQuery?.(id, status, notes);
     alert(`Parent query updated to ${status}.`);
   };
 

@@ -175,7 +175,18 @@ export function SchoolAdminWorkspace({
 }) {
   const [currentTab, setCurrentTab] = useState<SchoolAdminTab>(activeTab);
   const navigation = useDashboardNavigation(organizationId ?? "", "school_admin");
-  const available = (tab: SchoolAdminTab) => navigation.sections.some(section => section.items.some(item => item.key.endsWith(`.${tab}`)));
+  const available = (tab: SchoolAdminTab) => {
+    if (!navigation.sections || navigation.sections.length === 0) return true;
+    return navigation.sections.some(section =>
+      section.items.some(item =>
+        item.key === tab ||
+        item.key.endsWith(`.${tab}`) ||
+        item.key.endsWith(tab) ||
+        tab.endsWith(`.${item.key}`) ||
+        tab.endsWith(item.key)
+      )
+    );
+  };
   const navIcons: Record<SchoolAdminTab, React.ElementType> = {
     dashboard: LayoutDashboard, students: GraduationCap, teachers: Users, staff: Briefcase, parents: HeartHandshake,
     departments: Building2, academics: BookOpen, timetable: CalendarDays, attendance: CalendarCheck2,
