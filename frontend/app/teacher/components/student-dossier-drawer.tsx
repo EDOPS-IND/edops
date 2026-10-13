@@ -56,6 +56,7 @@ export function StudentDossierDrawer({
   }
 
   async function loadDossier() {
+    if (!studentId) return;
     setLoading(true);
     try {
       const res = await getTeacherStudent360(organizationId, studentId);

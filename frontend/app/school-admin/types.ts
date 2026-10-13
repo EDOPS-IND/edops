@@ -39,6 +39,8 @@ export interface StudentRecord {
   dob: string;
   address: string;
   emergencyContact: string;
+  gpa?: number;
+  [key: string]: any;
 }
 
 export interface TeacherRecord {
@@ -98,15 +100,19 @@ export interface DepartmentRecord {
   name: string;
   code: string;
   headName: string;
-  headEmail: string;
+  headEmail?: string;
   teachersCount: number;
-  staffCount: number;
-  studentsCount: number;
-  classesCount: number;
-  avgAttendancePct: number;
-  syllabusCompletionPct: number;
-  status: "Active" | "Inactive";
-  location: string;
+  staffCount?: number;
+  studentsCount?: number;
+  classesCount?: number;
+  subjectsCount?: number;
+  budgetAllocated?: number;
+  budgetSpent?: number;
+  avgAttendancePct?: number;
+  syllabusCompletionPct?: number;
+  status?: "Active" | "Inactive";
+  location?: string;
+  [key: string]: any;
 }
 
 export interface ClassSectionRecord {

@@ -352,7 +352,7 @@ export function AcademicsPane({
                   { code: "ENG-184", name: "English Language & Lit", type: "Core", max: 100, pass: 33, theory: 80, practical: 20 },
                   { code: "CS-165", name: "Computer Applications", type: "Elective", max: 100, pass: 33, theory: 50, practical: 50 },
                 ]
-            ).map((sub, i) => (
+            ).map((sub: any, i: number) => (
               <div key={i} style={{ padding: "14px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E2DDD5" }}>
                 <b style={{ color: "#064E3B", fontSize: "14px" }}>{sub.name}</b>
                 <div style={{ fontSize: "11px", color: "var(--muted)", marginTop: "2px" }}>{sub.code} · {sub.type}</div>

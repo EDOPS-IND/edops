@@ -51,7 +51,7 @@ const rolePanels: Record<MemberRole, { intro: string; panels: { id: string; icon
   },
 };
 
-function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(value)); }
+function formatDate(value?: string) { if (!value) return "—"; return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(value)); }
 function isMemberWorkspace(item: OrganizationSummary): item is OrganizationSummary & { role: MemberRole } { return item.role !== "school_admin" && item.role !== "principal"; }
 
 export default function Home() {
@@ -256,20 +256,35 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("student@edops.com");
+  const [password, setPassword] = useState("password123");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError("");
-    const data = new FormData(event.currentTarget);
     try {
-      onLogin(await login(String(data.get("email")), String(data.get("password"))));
+      onLogin(await login(email, password));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Sign in failed");
     } finally {
       setBusy(false);
     }
   }
+
+  const handleQuickLogin = async (demoEmail: string, demoPassword = "password123") => {
+    setEmail(demoEmail);
+    setPassword(demoPassword);
+    setBusy(true);
+    setError("");
+    try {
+      onLogin(await login(demoEmail, demoPassword));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Sign in failed");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <main className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden" style={{ fontFamily: '"Space Grotesk", Inter, system-ui, sans-serif' }}>
@@ -292,26 +307,28 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
 
       <section className="bg-white lg:w-1/2 h-full overflow-y-auto flex flex-col">
         <div className="flex-1 flex items-center justify-center p-8 lg:p-24 min-h-max">
-          <div className="w-full max-w-[400px] my-auto">
+          <div className="w-full max-w-[420px] my-auto">
             <h2 className="mb-2 text-[48px] font-normal text-[#212121] leading-[1.2] tracking-[-0.48px] mt-0">Sign in</h2>
-            <p className="mb-10 text-base text-[#75758a] leading-normal mt-0">Access the EDOPS enterprise dashboard.</p>
+            <p className="mb-8 text-base text-[#75758a] leading-normal mt-0">Access the EDOPS enterprise dashboard.</p>
 
-            <form className="flex flex-col gap-6" onSubmit={submit}>
+            <form className="flex flex-col gap-5" onSubmit={submit}>
               {error && <div className="text-red-500 text-sm p-3 bg-red-50 rounded border border-red-200" role="alert">{error}</div>}
 
-              <div className="flex flex-col gap-2">
-                <label className="block text-sm text-[#212121] font-medium">Email</label>
+              <div className="flex flex-col gap-1.5">
+                <label className="block text-sm text-[#212121] font-medium">Email or Simple ID</label>
                 <input
                   name="email"
-                  type="email"
-                  autoComplete="email"
+                  type="text"
+                  autoComplete="username"
                   required
-                  placeholder="owner@your-company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="student, parent, teacher, admin, or email"
                   className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
                 />
               </div>
 
-              <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-1.5">
                 <label className="block text-sm text-[#212121] font-medium">Password</label>
                 <div className="relative flex items-center">
                   <input
@@ -319,6 +336,8 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
                     required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     placeholder="•••••••••••••••"
                     className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border pr-10 focus:border-[#A0B6D9]"
                   />
@@ -335,7 +354,7 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
 
               <button
                 type="submit"
-                className="w-full flex items-center justify-center gap-2 text-sm mt-4 bg-[#17171c] px-6 py-[14px] rounded-[32px] font-medium border-none cursor-pointer hover:bg-[#000000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full flex items-center justify-center gap-2 text-sm mt-2 bg-[#17171c] px-6 py-[14px] rounded-[32px] font-medium border-none cursor-pointer hover:bg-[#000000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={busy}
               >
                 <span className="text-white">{busy ? "Signing in..." : "Sign in"}</span>
@@ -343,11 +362,55 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
 
               <button
                 type="button"
-                className="bg-transparent border-none text-black font-medium text-sm cursor-pointer text-center p-0 mt-[-8px] hover:text-[#212121] transition-colors"
+                className="bg-transparent border-none text-black font-medium text-sm cursor-pointer text-center p-0 hover:text-[#212121] transition-colors"
                 onClick={onInvite}
               >
                 Accept an invitation
               </button>
+
+              {/* 1-Click Training Accounts */}
+              <div className="mt-2 pt-4 border-t border-slate-200">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider m-0">
+                    Training Accounts (1-Click Login):
+                  </p>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
+                    Instant Access
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { label: "🎓 Student", id: "student", email: "student@edops.com", role: "Aarav Sharma" },
+                    { label: "👨‍👩‍👧 Parent", id: "parent", email: "parent@edops.com", role: "Rajesh Sharma" },
+                    { label: "👨‍🏫 Teacher", id: "teacher", email: "teacher@edops.com", role: "Dr. K. Raman" },
+                    { label: "🏛️ Principal", id: "principal", email: "principal@edops.com", role: "Leadership" },
+                    { label: "⚙️ Admin", id: "admin", email: "admin@edops.com", role: "Operations" },
+                  ].map((demo) => (
+                    <button
+                      key={demo.id}
+                      type="button"
+                      disabled={busy}
+                      onClick={() => handleQuickLogin(demo.email)}
+                      className="text-left p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors group cursor-pointer"
+                    >
+                      <div className="font-bold text-xs text-slate-800 flex items-center justify-between">
+                        <span>{demo.label}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                        ID: <span className="font-bold text-slate-700">{demo.id}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 p-2 bg-slate-50 rounded border border-slate-200 text-[11px] text-slate-600 space-y-1">
+                  <div>
+                    🔑 Simple ID: <code className="font-mono bg-white text-indigo-700 px-1 py-0.5 rounded border border-slate-200 font-bold">student</code> / <code className="font-mono bg-white text-indigo-700 px-1 py-0.5 rounded border border-slate-200 font-bold">parent</code> / <code className="font-mono bg-white text-indigo-700 px-1 py-0.5 rounded border border-slate-200 font-bold">teacher</code> / <code className="font-mono bg-white text-indigo-700 px-1 py-0.5 rounded border border-slate-200 font-bold">principal</code> / <code className="font-mono bg-white text-indigo-700 px-1 py-0.5 rounded border border-slate-200 font-bold">admin</code>
+                  </div>
+                  <div>
+                    🔒 Simple Password: <code className="font-mono bg-white text-emerald-700 px-1.5 py-0.5 rounded border border-slate-200 font-bold">password123</code>
+                  </div>
+                </div>
+              </div>
             </form>
           </div>
         </div>

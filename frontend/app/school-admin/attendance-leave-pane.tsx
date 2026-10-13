@@ -239,7 +239,7 @@ export function AttendanceLeavePane({ organizationId }: { organizationId?: strin
                   { name: "Kavita Rao", adm: "ED-2024-077", grade: "9-A", parent: "Mohan Rao", phone: "+91 98334 11223", pct: 68, daysAbsent: 16 },
                   { name: "Simran Kaur", adm: "ED-2023-104", grade: "11-A", parent: "Harpreet Singh", phone: "+91 98771 99887", pct: 73, daysAbsent: 12 },
                 ]
-            ).map((st, i) => (
+            ).map((st: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px", background: "#FDF9F0", borderRadius: "8px", border: "1px solid #E5CCA2" }}>
                 <div>
                   <b style={{ color: "#064E3B", fontSize: "14px" }}>{st.name}</b> <span style={{ fontSize: "12px", color: "var(--muted)" }}>({st.adm} · Class {st.grade})</span>

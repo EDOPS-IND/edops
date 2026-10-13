@@ -92,7 +92,7 @@ export const CalendarPane: React.FC<CalendarPaneProps> = ({ organizationId }) =>
               No academic milestones or exams scheduled for {selectedMonth}.
             </div>
           ) : (
-            events.map((event, idx) => (
+            events.map((event: any, idx: number) => (
               <div key={idx} className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50 transition-colors">
                 <div className="flex items-start gap-4">
                   <div className="w-24 shrink-0 text-center bg-slate-50 border border-slate-100 rounded-lg p-2">

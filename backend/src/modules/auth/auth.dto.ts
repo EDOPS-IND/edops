@@ -2,8 +2,19 @@ import { Transform } from "class-transformer";
 import { IsEmail, IsOptional, IsString, MaxLength, MinLength } from "class-validator";
 import { ApiProperty } from "@nestjs/swagger";
 
-export const normalizeEmail = ({ value }: { value: unknown }) =>
-  typeof value === "string" ? value.trim().toLowerCase() : value;
+export const normalizeEmail = ({ value }: { value: unknown }) => {
+  if (typeof value !== "string") return value;
+  const trimmed = value.trim().toLowerCase();
+  const simpleMap: Record<string, string> = {
+    student: "student@edops.com",
+    parent: "parent@edops.com",
+    teacher: "teacher@edops.com",
+    principal: "principal@edops.com",
+    admin: "admin@edops.com",
+    platform: "platform@edops.com",
+  };
+  return simpleMap[trimmed] || trimmed;
+};
 
 export class LoginDto {
   @ApiProperty({
@@ -14,7 +25,7 @@ export class LoginDto {
       "Existing account email; trimmed and lowercased before lookup.",
   })
   @Transform(normalizeEmail)
-  @IsEmail()
+  @IsString()
   @MaxLength(254)
   email!: string;
 

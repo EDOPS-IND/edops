@@ -87,7 +87,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const [goalModalOpen, setGoalModalOpen] = useState(false);
 
   const navigateTo = (tab: StudentTab) => {
-    if (!navigation.sections.some(section => section.items.some(item => item.key.endsWith(`.${tab}`)))) return;
+    if (navigation.sections.length && !navigation.sections.some(section => section.items.some(item => item.key === tab || item.key.endsWith(`.${tab}`) || item.key.endsWith(tab)))) return;
     setActiveTab(tab);
     setMobileMenuOpen(false);
   };
@@ -172,7 +172,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     { id: 'profile', label: 'Student Profile & Vault', icon: User, tab: 'profile' as StudentTab },
   ];
   const navSections = navigation.sections.map(section => ({ ...section, entries: section.items.flatMap(item => {
-    const source = baseNavItems.find(candidate => item.key.endsWith(`.${candidate.id}`));
+    const source = baseNavItems.find(candidate => item.key === candidate.id || item.key.endsWith(`.${candidate.id}`) || item.key.endsWith(candidate.id));
     return source ? [{ ...source, label: item.label }] : [];
   }) })).filter(section => section.entries.length);
   const availableTabs = new Set(navSections.flatMap(section => section.entries.map(item => item.tab)));

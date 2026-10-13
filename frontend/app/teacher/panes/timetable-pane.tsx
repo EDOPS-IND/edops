@@ -13,10 +13,11 @@ import { getTeacherTodayTimetable, getTeacherWeeklyTimetable } from "../../edops
 
 interface TimetablePaneProps {
   organizationId: string;
-  onTakeAttendance?: (sectionId: string, periodNumber: number) => void;
+  onTakeAttendance?: (sectionId?: string, periodNumber?: number, classSection?: string) => void;
+  onLogLesson?: (classSection?: string, sectionId?: string) => void;
 }
 
-export function TimetablePane({ organizationId, onTakeAttendance }: TimetablePaneProps) {
+export function TimetablePane({ organizationId, onTakeAttendance, onLogLesson }: TimetablePaneProps) {
   const [viewMode, setViewMode] = useState<"today" | "weekly">("weekly");
   const [todayData, setTodayData] = useState<any>(null);
   const [weeklyData, setWeeklyData] = useState<any>(null);

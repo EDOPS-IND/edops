@@ -294,7 +294,8 @@ export function PrincipalWorkspace({
   }
   const navItems: PrincipalNavItem[] = navigation.sections.flatMap<PrincipalNavItem>(section => {
     const entries = section.items.flatMap(item => {
-      const source = sourceItems.get(item.key);
+      const source = sourceItems.get(item.key) ||
+        Array.from(sourceItems.entries()).find(([k]) => k === item.key || k.endsWith(`.${item.key}`) || item.key.endsWith(`.${k}`) || k.endsWith(item.key))?.[1];
       return source ? [{ source, key: item.key, label: item.label }] : [];
     });
     if (!entries.length) return [];
