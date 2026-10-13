@@ -329,7 +329,7 @@ export class PlatformBillingController {
     @Param("organizationId", ParseUUIDPipe) org: string,
     @Param("role") role: string,
     @Param("key") key: string,
-    @Body() body: { sectionKey?: string; sortOrder?: number; enabled?: boolean },
+    @Body() body: { label?: string; sectionKey?: string; sortOrder?: number; enabled?: boolean },
   ) {
     return this.billing.saveDashboardItem(req.user, org, role, key, body);
   }

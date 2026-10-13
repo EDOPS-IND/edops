@@ -256,13 +256,15 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
 
           {/* Profile & Logout */}
           <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-            <div
+            <button
+              type="button"
+              disabled={!availableTabs.has('profile')}
               onClick={() => navigateTo('profile')}
               className="w-8 h-8 rounded-full bg-[#090D16] text-white flex items-center justify-center font-bold text-xs cursor-pointer border border-[#1A243D] hover:ring-2 hover:ring-indigo-400"
               title="View Profile"
             >
-              VK
-            </div>
+              <User className="w-4 h-4" />
+            </button>
             <button
               onClick={onLogout}
               title="Sign Out"

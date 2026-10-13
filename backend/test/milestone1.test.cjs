@@ -67,7 +67,7 @@ test('Milestone 1 against PostgreSQL', { timeout: 120_000 }, async (t) => {
   const source = createDataSource(config);
   await source.initialize();
   try {
-    assert.equal((await source.runMigrations()).length, 14);
+    assert.equal((await source.runMigrations()).length, source.migrations.length);
     assert.equal((await source.runMigrations()).length, 0);
   } finally { await source.destroy(); }
 

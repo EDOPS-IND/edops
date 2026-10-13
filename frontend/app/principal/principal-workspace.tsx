@@ -299,7 +299,7 @@ export function PrincipalWorkspace({
       return source ? [{ source, key: item.key, label: item.label }] : [];
     });
     if (!entries.length) return [];
-    if (entries.length === 1 && !entries[0].source.subId) return [{ id: section.key, label: entries[0].label, icon: entries[0].source.icon, paneId: entries[0].source.paneId }];
+    if (section.key === "overview" && entries.length === 1 && !entries[0].source.subId) return [{ id: section.key, label: entries[0].label, icon: entries[0].source.icon, paneId: entries[0].source.paneId }];
     return [{ id: section.key, label: section.label, icon: entries[0].source.icon,
       subItems: entries.map(entry => ({ id: entry.source.subId ?? entry.key, label: entry.label, paneId: entry.source.paneId })) }];
   });

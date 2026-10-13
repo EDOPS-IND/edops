@@ -96,27 +96,31 @@ export class BillingService {
 
   saveDashboardSection(actor: User, org: string, role: string, key: string, input: {label?: string; sortOrder?: number; enabled?: boolean}) {
     this.dashboardRole(role);
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new BadRequestException('Section settings are required');
     if (!/^[a-z][a-z0-9_]{0,62}$/.test(key)) throw new BadRequestException('Invalid section key');
     return this.platform(actor, async m => {
+      if (!(await m.query('SELECT 1 FROM organizations WHERE id=$1', [org])).length) throw new NotFoundException('School not found');
       const [current] = await m.query(`SELECT key,label,sort_order AS "sortOrder",enabled FROM dashboard_sections
         WHERE role=$2 AND key=$3 AND (organization_id IS NULL OR organization_id=$1)
         ORDER BY organization_id IS NOT NULL DESC LIMIT 1`, [org, role, key]);
-      const label = input.label ?? current?.label;
+      const label = (input.label ?? current?.label)?.trim();
       if (!label || label.length > 100) throw new BadRequestException('Section label is required (maximum 100 characters)');
       const sortOrder = input.sortOrder ?? current?.sortOrder ?? 100;
       if (!Number.isInteger(sortOrder) || sortOrder < 0) throw new BadRequestException('Invalid section order');
       if (input.enabled !== undefined && typeof input.enabled !== 'boolean') throw new BadRequestException('Invalid section status');
       await m.query('DELETE FROM dashboard_sections WHERE organization_id=$1 AND role=$2 AND key=$3', [org, role, key]);
       await m.query('INSERT INTO dashboard_sections(organization_id,role,key,label,sort_order,enabled) VALUES($1,$2,$3,$4,$5,$6)',
-        [org, role, key, label.trim(), sortOrder, input.enabled ?? current?.enabled ?? true]);
+        [org, role, key, label, sortOrder, input.enabled ?? current?.enabled ?? true]);
       await this.audit.record(m, { organizationId: org, actorId: actor.id, action: 'dashboard.section_updated', details: { role, key, input } });
       return this.navigationRows(m, org, role, true);
     });
   }
 
-  saveDashboardItem(actor: User, org: string, role: string, key: string, input: {sectionKey?: string; sortOrder?: number; enabled?: boolean}) {
+  saveDashboardItem(actor: User, org: string, role: string, key: string, input: {label?: string; sectionKey?: string; sortOrder?: number; enabled?: boolean}) {
     this.dashboardRole(role);
+    if (!input || typeof input !== 'object' || Array.isArray(input)) throw new BadRequestException('Item settings are required');
     return this.platform(actor, async m => {
+      if (!(await m.query('SELECT 1 FROM organizations WHERE id=$1', [org])).length) throw new NotFoundException('School not found');
       const [current] = await m.query(`SELECT key,section_key AS "sectionKey",label,feature_key AS "featureKey",sort_order AS "sortOrder",enabled
         FROM dashboard_items WHERE role=$2 AND key=$3 AND (organization_id IS NULL OR organization_id=$1)
         ORDER BY organization_id IS NOT NULL DESC LIMIT 1`, [org, role, key]);
@@ -127,9 +131,11 @@ export class BillingService {
       const sortOrder = input.sortOrder ?? current.sortOrder;
       if (!Number.isInteger(sortOrder) || sortOrder < 0) throw new BadRequestException('Invalid item order');
       if (input.enabled !== undefined && typeof input.enabled !== 'boolean') throw new BadRequestException('Invalid item status');
+      const label = (input.label ?? current.label)?.trim();
+      if (!label || label.length > 100) throw new BadRequestException('Item label is required (maximum 100 characters)');
       await m.query('DELETE FROM dashboard_items WHERE organization_id=$1 AND role=$2 AND key=$3', [org, role, key]);
       await m.query(`INSERT INTO dashboard_items(organization_id,role,key,section_key,label,feature_key,sort_order,enabled)
-        VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [org, role, key, sectionKey, current.label, current.featureKey, sortOrder, input.enabled ?? current.enabled]);
+        VALUES($1,$2,$3,$4,$5,$6,$7,$8)`, [org, role, key, sectionKey, label, current.featureKey, sortOrder, input.enabled ?? current.enabled]);
       await this.audit.record(m, { organizationId: org, actorId: actor.id, action: 'dashboard.item_updated', details: { role, key, input } });
       return this.navigationRows(m, org, role, true);
     });
@@ -428,10 +434,10 @@ export class BillingService {
         const tenantEnabled = Boolean(tenant.features[feat.key]);
         const tenantIsOverride = Boolean(tenantOverride);
 
-        const roleStates: Record<string, { enabled: boolean; isOverride: boolean; inherited: boolean; reason?: string }> = {};
+        const roleStates: Record<string, { enabled: boolean; isOverride: boolean; inherited: boolean; reason?: string; notApplicable?: boolean }> = {};
         for (const r of roles) {
           if (feat.key.startsWith('nav:') && !feat.key.startsWith(`nav:${r}:`)) {
-            roleStates[r] = { enabled: false, isOverride: false, inherited: false, notApplicable: true } as any;
+            roleStates[r] = { enabled: false, isOverride: false, inherited: false, notApplicable: true };
             continue;
           }
           const roleOv = overrides.find((o: any) => o.feature_key === feat.key && o.role === r);

@@ -15,6 +15,7 @@ export class DrizzleService implements OnModuleDestroy {
     this.pool = new pg.Pool({
       connectionString: config.databaseUrl,
       ssl: config.databaseSsl ? { rejectUnauthorized: true } : false,
+      options: `-c search_path=${config.databaseSchema} -c timezone=UTC`,
       max: Number(process.env.DB_POOL_MAX ?? 10),
       connectionTimeoutMillis: 5000,
       idleTimeoutMillis: 30000,
