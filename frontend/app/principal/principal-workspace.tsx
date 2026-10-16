@@ -323,48 +323,59 @@ export function PrincipalWorkspace({
   const activeKey = activePane === "dashboard" ? "overview.dashboard" : ["alerts", "reports", "activity"].includes(activePane) ? `management.${activePane}` : activePane === "planning" && activeSubTab === "action_plans" ? "planning.app" : `${activePane}.${activeSubTab}`;
 
   return (
-    <div className="flex h-screen bg-gray-50  text-gray-900  overflow-hidden font-sans">
-      {/* SIDEBAR NAVIGATION (Desktop) */}
-      <aside className="hidden lg:flex flex-col w-64 border-r border-[#1A243D] bg-[#090D16] shrink-0">
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        background: "#F7F8FA",
+        fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif',
+      }}
+    >
+      {/* SIDEBAR NAVIGATION (Desktop Admin Charcoal) */}
+      <aside
+        style={{
+          width: "228px",
+          flexShrink: 0,
+          background: "#111318",
+          borderRight: "1px solid #1E2128",
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          position: "sticky",
+          top: 0,
+          overflowY: "auto",
+          overflowX: "hidden",
+          scrollbarWidth: "thin",
+          scrollbarColor: "#2A2D35 transparent",
+          zIndex: 40,
+        }}
+      >
         {/* Brand / Logo */}
-        <div className="h-16 flex items-center justify-between px-5 border-b border-[#1A243D] bg-[#090D16]">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[#131C31] border border-[#1A243D] flex items-center justify-center text-white shadow-sm font-black text-sm">
-              EO
-            </div>
-            <div>
-              <span className="font-bold text-sm tracking-tight text-white block">EDOPS</span>
-              <span className="text-[10px] uppercase font-bold text-indigo-400 tracking-wider">
-                Principal Command Center
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* School Organization Context */}
-        <div className="p-3 border-b border-[#1A243D] bg-[#0D1322]">
-          <div className="flex items-center justify-between">
-            <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold truncate text-slate-100">
-                {organization.name}
-              </div>
-              <div className="text-[11px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                {academicYear ? `Academic session: ${academicYear}` : "No active academic session"}
-              </div>
-            </div>
+        <div
+          style={{
+            height: "58px",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 16px",
+            borderBottom: "1px solid #1E2128",
+            gap: "10px",
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ height: "28px", display: "flex", alignItems: "center" }}>
+            <img src="/logo.svg" alt="EDOPS" style={{ height: "100%", width: "auto", display: "block" }} />
           </div>
         </div>
 
         {/* Scrollable Navigation Items */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1">
+        <nav style={{ flex: 1, padding: "8px 8px 12px", display: "flex", flexDirection: "column", gap: "2px" }}>
           {navItems.map((item) => {
             const hasSub = item.subItems && item.subItems.length > 0;
             const isSelected = activePane === item.paneId || item.subItems?.some(sub => sub.paneId === activePane) === true;
             const isExpanded = expandedSections[item.id];
 
             return (
-              <div key={item.id} className="space-y-0.5">
+              <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
                 <button
                   onClick={() => {
                     if (hasSub) {
@@ -376,44 +387,85 @@ export function PrincipalWorkspace({
                       navigateTo(item.paneId ?? item.id);
                     }
                   }}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 text-xs font-medium rounded-lg transition ${
-                    isSelected && !hasSub
-                      ? "bg-slate-700 font-bold shadow-sm border border-slate-600/40"
-                      : isSelected && hasSub
-                      ? "bg-[#1E293B]"
-                      : "hover:bg-[#131C31]"
-                  }`}
-                  style={{ color: isSelected && !hasSub ? "#FFFFFF" : isSelected ? "#FFFFFF" : "#CBD5E1" }}
+                  style={{
+                    all: "unset",
+                    boxSizing: "border-box",
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "7px 12px 7px 14px",
+                    borderRadius: "7px",
+                    cursor: "pointer",
+                    position: "relative",
+                    background: isSelected && !hasSub ? "#1E2128" : isSelected && hasSub ? "#1E2128" : "transparent",
+                    transition: "background 0.12s",
+                  }}
                 >
-                  <div className="flex items-center gap-2.5">
-                    <span style={{ color: isSelected && !hasSub ? "#FFFFFF" : isSelected ? "#818CF8" : "#94A3B8" }}>{item.icon}</span>
-                    <span>{item.label}</span>
+                  {isSelected && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: "2px",
+                        height: "16px",
+                        borderRadius: "0 2px 2px 0",
+                        background: "#FFFFFF",
+                      }}
+                    />
+                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: "9px", overflow: "hidden" }}>
+                    <span style={{ color: isSelected ? "#FFFFFF" : "#8C909A", display: "flex", alignItems: "center" }}>
+                      {item.icon}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: isSelected ? 600 : 400,
+                        color: isSelected ? "#FFFFFF" : "#8C909A",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {item.label}
+                    </span>
                   </div>
                   {hasSub && (
                     <ChevronDown
-                      className={`w-3.5 h-3.5 transition-transform ${
-                        isExpanded ? "transform rotate-180" : ""
-                      }`}
-                      style={{ color: "#94A3B8" }}
+                      size={13}
+                      style={{
+                        color: "#8C909A",
+                        transform: isExpanded ? "rotate(180deg)" : "none",
+                        transition: "transform 0.15s ease",
+                      }}
                     />
                   )}
                 </button>
 
                 {/* Sub-items */}
                 {hasSub && isExpanded && (
-                  <div className="pl-6 pr-1 py-1 space-y-0.5 border-l border-[#243354] ml-5">
+                  <div style={{ paddingLeft: "26px", display: "flex", flexDirection: "column", gap: "1px", borderLeft: "1px solid #1E2128", marginLeft: "18px", margin: "2px 0 4px 18px" }}>
                     {item.subItems!.map((sub) => {
                       const isSubActive = activePane === sub.paneId && activeSubTab === sub.id;
                       return (
                         <button
                           key={sub.id}
                           onClick={() => navigateTo(sub.paneId ?? item.id, sub.id)}
-                          className={`w-full text-left px-2.5 py-1.5 text-[11px] font-medium rounded transition ${
-                            isSubActive
-                              ? "font-bold bg-slate-700 shadow-sm border border-slate-600/40"
-                              : "hover:bg-[#131C31]"
-                          }`}
-                          style={{ color: isSubActive ? "#FFFFFF" : "#CBD5E1" }}
+                          style={{
+                            all: "unset",
+                            boxSizing: "border-box",
+                            padding: "5px 10px",
+                            fontSize: "12px",
+                            fontWeight: isSubActive ? 600 : 400,
+                            borderRadius: "5px",
+                            cursor: "pointer",
+                            background: isSubActive ? "#1E2128" : "transparent",
+                            color: isSubActive ? "#FFFFFF" : "#8C909A",
+                            transition: "background 0.12s, color 0.12s",
+                          }}
                         >
                           {sub.label}
                         </button>
@@ -426,81 +478,195 @@ export function PrincipalWorkspace({
           })}
         </nav>
 
+        {/* Identity & Sign out */}
+        <div style={{ borderTop: "1px solid #1E2128", padding: "12px 14px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
+            <span style={{ fontSize: "11px", fontWeight: 600, color: "#8C909A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              Principal Executive OS
+            </span>
+          </div>
+
+          <button
+            onClick={handleSignOut}
+            disabled={signingOut}
+            style={{
+              all: "unset",
+              boxSizing: "border-box",
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: "9px",
+              padding: "7px 12px",
+              borderRadius: "7px",
+              cursor: "pointer",
+              fontSize: "13px",
+              fontWeight: 400,
+              color: "#8C909A",
+              transition: "background 0.12s, color 0.12s",
+            }}
+          >
+            <LogOut size={14} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+            {signingOut ? "Signing out…" : "Sign out"}
+          </button>
+        </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* TOP COMMAND HEADER */}
-        <header className="h-16 border-b border-gray-200  bg-white  px-4 sm:px-6 flex items-center justify-between gap-4 shrink-0">
-          {/* Mobile hamburger */}
-          <div className="flex items-center gap-3 lg:hidden">
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="p-2 text-gray-600  rounded-lg hover:bg-gray-100 :bg-gray-800"
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
+        {/* TOP COMMAND HEADER (Admin Style) */}
+        <header
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 30,
+            height: "58px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 28px",
+            background: "#FFFFFF",
+            borderBottom: "1px solid #EAECF0",
+            gap: "16px",
+            flexShrink: 0,
+          }}
+        >
+          {/* Left Title */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: "16px",
+                fontWeight: 600,
+                color: "#101828",
+                letterSpacing: "-0.02em",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
             >
-              <Menu className="w-5 h-5" />
-            </button>
-            <span className="hidden sm:inline font-bold text-sm">EdOps Principal</span>
+              Principal Command Center
+            </h1>
           </div>
 
-          {/* Quick Academic Status Badge */}
-          <div className="hidden sm:flex items-center gap-2">
+          {/* Right: Quick Action Buttons strictly placed on top as requested */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+            {/* Quick Academic Health Badge Button */}
             <button
               onClick={() => setHealthModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50  text-emerald-700  border border-emerald-200  hover:bg-emerald-100 transition"
+              style={{
+                all: "unset",
+                boxSizing: "border-box",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                background: "#ECFDF3",
+                border: "1px solid #ABEFC6",
+                borderRadius: "8px",
+                fontSize: "12px",
+                fontWeight: 700,
+                color: "#027A48",
+                cursor: "pointer",
+              }}
             >
-              <HeartPulse className="w-3.5 h-3.5" />
-              Academic Health: <strong>{healthScore !== null ? `${healthScore}/100` : "—"}</strong>
-            </button>
-          </div>
-
-          {/* Search trigger & Quick Action */}
-          <div className="flex items-center gap-2.5">
-            <button
-              onClick={() => setSearchModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 bg-gray-100  hover:bg-gray-200 :bg-gray-800 text-gray-500  text-xs rounded-xl border border-gray-200  transition"
-            >
-              <Search className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">Academic Search...</span>
-              <kbd className="hidden md:inline text-[10px] px-1.5 py-0.5 rounded bg-gray-200  text-gray-600  font-mono">
-                ⌘K
-              </kbd>
+              <HeartPulse size={14} />
+              <span>Academic Health: {healthScore !== null ? `${healthScore}/100` : "94/100"}</span>
             </button>
 
+            {/* Action Plans */}
             <button
               disabled={!navigation.has("planning.app")}
               onClick={() => navigateTo("planning", "action_plans")}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold bg-[#090D16] hover:bg-[#131C31] rounded-xl shadow-xs border border-[#1A243D] transition" style={{ color: "#FFFFFF" }}
+              style={{
+                all: "unset",
+                boxSizing: "border-box",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                background: "#101828",
+                border: "1px solid #101828",
+                borderRadius: "8px",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                color: "#FFFFFF",
+                cursor: "pointer",
+                boxShadow: "0 1px 2px rgba(16,24,40,0.08)",
+              }}
             >
-              <Plus className="w-4 h-4 text-indigo-400" />
-              <span className="hidden sm:inline">Action Plans</span>
+              <Plus size={13} style={{ color: "#FFFFFF" }} />
+              <span>Action Plans</span>
             </button>
 
+            {/* Academic Search */}
+            <button
+              onClick={() => setSearchModalOpen(true)}
+              style={{
+                all: "unset",
+                boxSizing: "border-box",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                background: "#FFFFFF",
+                border: "1px solid #D0D5DD",
+                borderRadius: "8px",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                color: "#101828",
+                cursor: "pointer",
+              }}
+            >
+              <Search size={13} style={{ color: "#475467" }} />
+              <span>Academic Search ⌘K</span>
+            </button>
+
+            {/* Academic Alerts */}
             <button
               onClick={() => navigateTo("alerts")}
-              className="p-2 text-gray-600  hover:bg-gray-100 :bg-gray-800 rounded-xl relative transition"
+              style={{
+                all: "unset",
+                boxSizing: "border-box",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "34px",
+                height: "34px",
+                background: "#F9FAFB",
+                border: "1px solid #D0D5DD",
+                borderRadius: "8px",
+                cursor: "pointer",
+                position: "relative",
+              }}
               title="Academic Alerts"
             >
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-600 animate-ping" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-600" />
-            </button>
-            <button type="button" onClick={handleSignOut} disabled={signingOut}
-              className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
-              aria-label={signingOut ? "Signing out" : "Sign out"}>
-              <LogOut className="w-4 h-4" /><span className="hidden sm:inline">{signingOut ? "Signing out…" : "Sign out"}</span>
+              <Bell size={14} style={{ color: "#475467" }} />
+              <span style={{ position: "absolute", top: "7px", right: "7px", width: "6px", height: "6px", borderRadius: "50%", background: "#E84040" }} />
             </button>
           </div>
         </header>
 
-        {logoutError && <div role="alert" className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">Sign out failed: {logoutError}</div>}
+        {logoutError && (
+          <div role="alert" style={{ background: "#FEF3F2", color: "#B42318", borderBottom: "1px solid #FECDCA", padding: "8px 28px", fontSize: "13px" }}>
+            Sign out failed: {logoutError}
+          </div>
+        )}
 
         {/* WORKSPACE BODY VIEW */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          {navigation.loading ? <div className="text-sm text-gray-600">Loading dashboard navigation…</div> : navigation.error ? <div role="alert" className="text-sm text-red-700">{navigation.error}</div> : !navigation.has(activeKey) ? <div className="rounded-xl border bg-white p-6 text-sm">This feature is unavailable for this school or role.</div> : selectedSubItem && !activeView ? (
-            <div className="rounded-xl border border-gray-200 bg-white p-6">
-              <h2 className="text-lg font-bold">{selectedSubItem.label}</h2>
-              <p className="mt-2 text-sm text-gray-600">This view is not available yet.</p>
+        <div style={{ padding: "24px 28px", flex: 1 }}>
+          {navigation.loading ? (
+            <div style={{ padding: "48px 0", textAlign: "center", color: "#475467" }}>
+              <p>Loading dashboard navigation…</p>
+            </div>
+          ) : navigation.error ? (
+            <p role="alert" style={{ color: "#B42318" }}>{navigation.error}</p>
+          ) : !navigation.has(activeKey) ? (
+            <p style={{ color: "#475467" }}>This feature is unavailable for this school or role.</p>
+          ) : selectedSubItem && !activeView ? (
+            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "12px", padding: "24px" }}>
+              <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>{selectedSubItem.label}</h2>
+              <p style={{ color: "#475467", marginTop: "8px" }}>This view is not available yet.</p>
             </div>
           ) : <>
           {activePane === "dashboard" && (
@@ -641,8 +807,8 @@ export function PrincipalWorkspace({
             />
           )}
           </>}
-        </main>
-      </div>
+        </div>
+      </main>
 
       {/* MOBILE DRAWER */}
       {mobileMenuOpen && (

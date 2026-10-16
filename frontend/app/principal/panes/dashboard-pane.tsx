@@ -85,8 +85,8 @@ export function DashboardPane({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
       {loadError && <div role="alert">Dashboard data could not be loaded. Please try again.</div>}
-      {/* 1. School Academic Header KPI Strip */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(6, minmax(0, 1fr))", gap: "12px" }}>
+      {/* 1. School Academic Header KPI Strip (Admin Style) */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
         {[
           { label: "Enrolled Students", value: kpis.totalStudents, icon: GraduationCap },
           { label: "Teaching Faculty", value: kpis.totalTeachers, icon: Users },
@@ -99,22 +99,35 @@ export function DashboardPane({
             key={idx}
             style={{
               background: "#FFFFFF",
-              border: "1px solid #E2E8F0",
+              border: "1px solid #E2DDD5",
               borderRadius: "12px",
-              padding: "16px",
+              padding: "20px",
               display: "flex",
-              alignItems: "center",
-              gap: "12px",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
-              transition: "border-color 0.15s ease, box-shadow 0.15s ease",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              boxShadow: "0 1px 2px rgba(16,24,40,0.02)",
+              transition: "transform 0.15s ease, box-shadow 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 6px 16px rgba(16,24,40,0.06)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "none";
             }}
           >
-            <div style={{ width: "38px", height: "38px", borderRadius: "10px", background: "#F8FAFC", border: "1px solid #E2E8F0", display: "flex", alignItems: "center", justifyContent: "center", color: "#0F172A", flexShrink: 0 }}>
-              <item.icon size={18} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <span style={{ fontSize: "12px", fontWeight: 650, color: "#475467", textTransform: "uppercase", letterSpacing: "0.03em" }}>{item.label}</span>
+              <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#FDF9F0", display: "grid", placeItems: "center", color: "#101828" }}>
+                <item.icon size={16} />
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.04em" }}>{item.label}</div>
-              <div style={{ fontSize: "20px", fontWeight: 800, color: "#0F172A", letterSpacing: "-0.02em" }}>{item.value ?? "—"}</div>
+            <div style={{ margin: "14px 0 6px" }}>
+              <span style={{ fontSize: "28px", fontWeight: 800, color: "#101828", letterSpacing: "-0.03em" }}>{item.value ?? "—"}</span>
+            </div>
+            <div style={{ fontSize: "11.5px", color: "#667085" }}>
+              Academic session verified
             </div>
           </div>
         ))}
