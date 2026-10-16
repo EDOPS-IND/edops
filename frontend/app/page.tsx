@@ -662,95 +662,285 @@ function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }
     setLoading(true); setError("");
     loadRoleWorkspace(membership.id).then(setData).catch((reason) => setError(reason instanceof Error ? reason.message : "Academic records could not be loaded")).finally(() => setLoading(false));
   }, [membership.id, membership.role]);
-  return <div className="app-shell role-workspace">
-    <header className="topbar"><Brand /><div className="api-status"><span /> {membership.name}</div><div className="top-actions"><WorkspaceSelect profile={profile} value={workspace} onChange={onWorkspace} /><ProfileMenu email={profile.user.email} role={roleNames[membership.role]} onLogout={onLogout} /></div></header>
-    {membership.role === "student" ? (
-      <aside className="sidebar student-sidebar" aria-label="Student navigation">
-        <div className="nav-section">
-          <button
-            type="button"
-            className={panelId === "overview" && !selectedSubject ? "nav-item student-nav-home active" : "nav-item student-nav-home"}
-            onClick={() => { setPanelId("overview"); setSelectedSubject(null); }}
-          >
-            <span><HomeIcon size={18} strokeWidth={1.8} /></span>
-            Home
-          </button>
+  return (
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        background: "#F7F8FA",
+        fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif',
+      }}
+    >
+      {/* ─── Admin-Style Charcoal Sidebar ─────────────────────────── */}
+      <aside
+        style={{
+          width: "228px",
+          flexShrink: 0,
+          background: "#111318",
+          borderRight: "1px solid #1E2128",
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          position: "sticky",
+          top: 0,
+          overflowY: "auto",
+          overflowX: "hidden",
+          scrollbarWidth: "thin",
+          scrollbarColor: "#2A2D35 transparent",
+          zIndex: 40,
+        }}
+      >
+        {/* Brand Logo */}
+        <div
+          style={{
+            height: "58px",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 16px",
+            borderBottom: "1px solid #1E2128",
+            gap: "10px",
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ height: "28px", display: "flex", alignItems: "center" }}>
+            <img src="/logo.svg" alt="EDOPS" style={{ height: "100%", width: "auto", display: "block" }} />
+          </div>
+        </div>
 
-          <div className="student-nav-heading">Enrolled Subjects</div>
-          <div className="student-subjects-list">
-            {studentSubjects.map((sub, idx) => {
-              const displayName = sub.name?.trim() || sub.code?.trim() || "Subject";
-              const isSelected = panelId === "overview" && (selectedSubject === sub.name || selectedSubject === displayName);
+        {/* Navigation Items */}
+        <nav style={{ flex: 1, padding: "8px 8px 12px", display: "flex", flexDirection: "column", gap: "2px" }}>
+          {membership.role === "parent" ? (
+            parentSections.map((section) => (
+              <div key={section.key} style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                <div style={{ padding: "16px 14px 4px", fontSize: "10px", fontWeight: 600, color: "#444750", letterSpacing: "0.07em", textTransform: "uppercase" }}>
+                  {section.label}
+                </div>
+                {section.panels.map((item) => {
+                  const isActive = panel.id === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => setPanelId(item.id)}
+                      style={{
+                        all: "unset",
+                        boxSizing: "border-box",
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "9px",
+                        padding: "7px 12px 7px 14px",
+                        borderRadius: "7px",
+                        cursor: "pointer",
+                        position: "relative",
+                        background: isActive ? "#1E2128" : "transparent",
+                        transition: "background 0.12s",
+                      }}
+                    >
+                      {isActive && (
+                        <span
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            width: "2px",
+                            height: "16px",
+                            borderRadius: "0 2px 2px 0",
+                            background: "#FFFFFF",
+                          }}
+                        />
+                      )}
+                      <span style={{ color: isActive ? "#FFFFFF" : "#8C909A", display: "flex", alignItems: "center" }}>
+                        <NavIcon id={item.id} />
+                      </span>
+                      <span style={{ fontSize: "13px", fontWeight: isActive ? 600 : 400, color: isActive ? "#FFFFFF" : "#8C909A" }}>
+                        {item.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))
+          ) : (
+            panels.map((item) => {
+              const isActive = panel.id === item.id;
               return (
                 <button
-                  key={sub.id || idx}
-                  type="button"
-                  title={displayName}
-                  aria-label={`Subject: ${displayName}`}
-                  className={isSelected ? "nav-item student-subject-item active" : "nav-item student-subject-item"}
-                  onClick={() => {
-                    setPanelId("overview");
-                    setSelectedSubject(selectedSubject === displayName ? null : displayName);
+                  key={item.id}
+                  onClick={() => setPanelId(item.id)}
+                  style={{
+                    all: "unset",
+                    boxSizing: "border-box",
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "9px",
+                    padding: "7px 12px 7px 14px",
+                    borderRadius: "7px",
+                    cursor: "pointer",
+                    position: "relative",
+                    background: isActive ? "#1E2128" : "transparent",
+                    transition: "background 0.12s",
                   }}
                 >
-                  <span className="student-subject-icon" aria-hidden="true">{getSubjectIcon(displayName, idx)}</span>
-                  <span className="student-subject-title">{displayName}</span>
+                  {isActive && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        width: "2px",
+                        height: "16px",
+                        borderRadius: "0 2px 2px 0",
+                        background: "#FFFFFF",
+                      }}
+                    />
+                  )}
+                  <span style={{ color: isActive ? "#FFFFFF" : "#8C909A", display: "flex", alignItems: "center" }}>
+                    <NavIcon id={item.id} />
+                  </span>
+                  <span style={{ fontSize: "13px", fontWeight: isActive ? 600 : 400, color: isActive ? "#FFFFFF" : "#8C909A" }}>
+                    {item.label}
+                  </span>
                 </button>
               );
-            })}
+            })
+          )}
+        </nav>
+
+        {/* Identity & Sign out */}
+        <div style={{ borderTop: "1px solid #1E2128", padding: "12px 14px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
+            <span style={{ fontSize: "11px", fontWeight: 600, color: "#8C909A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              {membership.name}
+            </span>
           </div>
 
-          <hr className="student-nav-divider" />
-
           <button
-            type="button"
-            className={panelId === "progress" ? "nav-item active" : "nav-item"}
-            onClick={() => { setPanelId("progress"); setSelectedSubject(null); }}
-          >
-            <span><BarChart3 size={18} strokeWidth={1.8} /></span>
-            Scorecard
-          </button>
-          <button
-            type="button"
-            className={panelId === "arena" && selectedSubject === "leaderboard" ? "nav-item active" : "nav-item"}
-            onClick={() => { setPanelId("arena"); setSelectedSubject("leaderboard"); }}
-          >
-            <span><Trophy size={18} strokeWidth={1.8} /></span>
-            Leaderboard
-          </button>
-          <button
-            type="button"
-            className={panelId === "overview" && selectedSubject === "calendar" ? "nav-item active" : "nav-item"}
-            onClick={() => {
-              setPanelId("overview");
-              setSelectedSubject("calendar");
-              const cal = typeof document !== "undefined" ? document.querySelector(".calendar-panel") : null;
-              if (cal) cal.scrollIntoView({ behavior: "smooth" });
+            onClick={onLogout}
+            style={{
+              all: "unset",
+              boxSizing: "border-box",
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: "9px",
+              padding: "7px 12px",
+              borderRadius: "7px",
+              cursor: "pointer",
+              fontSize: "13px",
+              fontWeight: 400,
+              color: "#8C909A",
+              transition: "background 0.12s, color 0.12s",
             }}
           >
-            <span><CalendarDays size={18} strokeWidth={1.8} /></span>
-            Calendar
+            <LogOut size={14} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+            Sign out
           </button>
-          <button
-            type="button"
-            className={panelId === "arena" && selectedSubject !== "leaderboard" ? "nav-item active" : "nav-item"}
-            onClick={() => { setPanelId("arena"); setSelectedSubject(null); }}
-          >
-            <span><Trophy size={18} strokeWidth={1.8} /></span>
-            Arena
-          </button>
-        </div>
-        <div className={`term-card sidebar-term ${membership.status === "suspended" ? "suspended" : ""}`}>
-          <span>{membership.name}</span>
-          <p>{membership.status === "active" ? "Active school" : "School access suspended"}</p>
         </div>
       </aside>
-    ) : (
-      <aside className="sidebar" aria-label={`${roleNames[membership.role]} navigation`}><div className="nav-section"><p className="eyebrow">{roleNames[membership.role]}</p>{membership.role === "parent" ? parentSections.map(section => <div key={section.key}><p className="eyebrow">{section.label}</p>{section.panels.map(item => <button key={item.id} className={panel.id === item.id ? "nav-item active" : "nav-item"} onClick={() => setPanelId(item.id)}><span><NavIcon id={item.id} /></span>{item.label}</button>)}</div>) : panels.map((item) => <button key={item.id} className={panel.id === item.id ? "nav-item active" : "nav-item"} onClick={() => setPanelId(item.id)}><span><NavIcon id={item.id} /></span>{item.label}</button>)}</div><div className={`term-card sidebar-term ${membership.status === "suspended" ? "suspended" : ""}`}><span>{membership.name}</span><p>{membership.status === "active" ? "Active school" : "School access suspended"}</p></div></aside>
-    )}
-    <main id="content" className="main-content"><section className="welcome-row"><div><p className="date-line">{membership.name} · {roleNames[membership.role]}</p><h1>{panel.title}</h1><p>{panel.id === "overview" ? config.intro : panel.copy}</p></div><span className={`membership-badge ${membership.status}`}>{membership.status}</span></section>{membership.status === "suspended" && <div className="error-banner" role="alert"><b>This school workspace is suspended.</b><span>Contact a school or platform administrator to restore access.</span></div>}{error && <div className="error-banner" role="alert"><b>Couldn’t load your academic records.</b><span>{error}</span></div>}{membership.role === "parent" ? navigation.loading || loading ? <DashboardSkeleton /> : navigation.error ? <div className="error-banner" role="alert">{navigation.error}</div> : !panels.length ? <div className="empty-state"><h3>No parent features are enabled for this school.</h3></div> : <ParentDashboard view={panel.id as "overview" | "children" | "attendance" | "notices"} children={data?.role === "parent" ? data.children : []} messages={data?.role === "parent" ? data.messages : []} /> : <>{loading && !data ? <DashboardSkeleton /> : panel.id === "overview" ? <><DashboardHome organizationId={membership.id} role={membership.role} selectedSubject={selectedSubject} onSelectSubject={setSelectedSubject} onNavigate={(tab, classKey) => { setInitialClassKey(classKey ?? ""); setPanelId(tab); }} /><details className="academic-details"><summary>My academic details</summary>{data && <RoleAcademicData data={data} />}</details></> : <LearningWorkspace key={panel.id} initialClassKey={initialClassKey} organizationId={membership.id} role={membership.role} initialTab={panel.id as "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress"} hideTabs />}</>}</main>
-  </div>;
+
+      {/* ─── Main Content Canvas ─────────────────────────────────── */}
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
+        {/* Sticky Top Header Bar */}
+        <header
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 30,
+            height: "58px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 28px",
+            background: "#FFFFFF",
+            borderBottom: "1px solid #EAECF0",
+            gap: "16px",
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <h1 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: "#101828", letterSpacing: "-0.02em" }}>
+              {panel.title}
+            </h1>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <WorkspaceSelect profile={profile} value={workspace} onChange={onWorkspace} />
+            <ProfileMenu email={profile.user.email} role={roleNames[membership.role]} onLogout={onLogout} />
+          </div>
+        </header>
+
+        {/* Content Body Container */}
+        <div style={{ padding: "24px 28px", flex: 1 }}>
+          {membership.status === "suspended" && (
+            <div style={{ background: "#FEF3F2", color: "#B42318", border: "1px solid #FECDCA", padding: "12px 16px", borderRadius: "8px", marginBottom: "16px" }} role="alert">
+              <b>This school workspace is suspended.</b> Contact a school or platform administrator to restore access.
+            </div>
+          )}
+          {error && (
+            <div style={{ background: "#FEF3F2", color: "#B42318", border: "1px solid #FECDCA", padding: "12px 16px", borderRadius: "8px", marginBottom: "16px" }} role="alert">
+              <b>Couldn’t load your academic records.</b> <span>{error}</span>
+            </div>
+          )}
+
+          {membership.role === "parent" ? (
+            navigation.loading || loading ? (
+              <DashboardSkeleton />
+            ) : navigation.error ? (
+              <div role="alert" style={{ color: "#B42318" }}>{navigation.error}</div>
+            ) : !panels.length ? (
+              <div style={{ padding: "40px", textAlign: "center", color: "#475467" }}>
+                <h3>No parent features are enabled for this school.</h3>
+              </div>
+            ) : (
+              <ParentDashboard
+                view={panel.id as "overview" | "children" | "attendance" | "notices"}
+                children={data?.role === "parent" ? data.children : []}
+                messages={data?.role === "parent" ? data.messages : []}
+              />
+            )
+          ) : (
+            <>
+              {loading && !data ? (
+                <DashboardSkeleton />
+              ) : panel.id === "overview" ? (
+                <>
+                  <DashboardHome
+                    organizationId={membership.id}
+                    role={membership.role}
+                    selectedSubject={selectedSubject}
+                    onSelectSubject={setSelectedSubject}
+                    onNavigate={(tab, classKey) => {
+                      setInitialClassKey(classKey ?? "");
+                      setPanelId(tab);
+                    }}
+                  />
+                  <details className="academic-details" style={{ marginTop: "24px" }}>
+                    <summary style={{ cursor: "pointer", fontWeight: 600, color: "#101828" }}>My academic details</summary>
+                    {data && <RoleAcademicData data={data} />}
+                  </details>
+                </>
+              ) : (
+                <LearningWorkspace
+                  key={panel.id}
+                  initialClassKey={initialClassKey}
+                  organizationId={membership.id}
+                  role={membership.role}
+                  initialTab={panel.id as "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress"}
+                  hideTabs
+                />
+              )}
+            </>
+          )}
+        </div>
+      </main>
+    </div>
+  );
 }
+
 
 function RoleAcademicData({ data }: { data: RoleWorkspaceData }) {
   if (data.role === "teacher") return <div className="content-stack"><ReadOnlySection title="My teaching assignments" empty="No section or subject has been assigned to you yet." rows={data.assignments.map((item) => [item.subjectName, item.sectionName, item.subjectCode])} /><ReadOnlySection title="Students in my sections" empty="No active students are enrolled in your assigned sections yet." rows={data.students.map((item) => [item.email, item.sectionName, `Roll ${item.rollNumber}`])} /></div>;

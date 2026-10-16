@@ -19,12 +19,11 @@ import {
   Target,
   User,
   LogOut,
-  Sparkles,
-  Menu,
-  X,
   Upload,
   Play,
   HelpCircle,
+  Search,
+  RefreshCw,
 } from 'lucide-react';
 
 import { OrganizationSummary } from '../edops-api';
@@ -56,6 +55,118 @@ import { LecturePlayerModal } from './components/lecture-player-modal';
 import { SupportRequestModal } from './components/support-request-modal';
 import { StudentGoalModal } from './components/student-goal-modal';
 
+// ─── Design Tokens (Identical to School Admin) ────────────────────────────
+const S = {
+  // sidebar
+  bg: "#111318",
+  border: "#1E2128",
+  itemText: "#8C909A",
+  itemHover: "#1A1D24",
+  itemActive: "#1E2128",
+  activeBar: "#FFFFFF",
+  activeTxt: "#FFFFFF",
+  groupLabel: "#444750",
+
+  // header
+  headerBg: "#FFFFFF",
+  headerBorder: "#EAECF0",
+  headerInk: "#101828",
+  headerMuted: "#667085",
+  inputBg: "#F9FAFB",
+  inputBorder: "#D0D5DD",
+
+  // content
+  canvasBg: "#F7F8FA",
+  avatarBg: "#1A1D24",
+  avatarText: "#FFFFFF",
+};
+
+function NavItem({
+  icon: Icon,
+  label,
+  active,
+  onClick,
+}: {
+  icon: React.ElementType;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        all: "unset",
+        boxSizing: "border-box",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        gap: "9px",
+        padding: "7px 12px 7px 14px",
+        borderRadius: "7px",
+        cursor: "pointer",
+        position: "relative",
+        background: active ? S.itemActive : hover ? S.itemHover : "transparent",
+        transition: "background 0.12s",
+      }}
+    >
+      {active && (
+        <span
+          style={{
+            position: "absolute",
+            left: 0,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: "2px",
+            height: "16px",
+            borderRadius: "0 2px 2px 0",
+            background: S.activeBar,
+          }}
+        />
+      )}
+      <Icon
+        size={14}
+        strokeWidth={active ? 2 : 1.75}
+        style={{ color: active ? S.activeTxt : S.itemText, flexShrink: 0 }}
+      />
+      <span
+        style={{
+          fontSize: "13px",
+          fontWeight: active ? 600 : 400,
+          color: active ? S.activeTxt : S.itemText,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          flex: 1,
+        }}
+      >
+        {label}
+      </span>
+    </button>
+  );
+}
+
+function NavGroup({ label }: { label: string }) {
+  return (
+    <div
+      style={{
+        padding: "18px 14px 5px",
+        fontSize: "10px",
+        fontWeight: 600,
+        color: S.groupLabel,
+        letterSpacing: "0.07em",
+        textTransform: "uppercase",
+        userSelect: "none",
+      }}
+    >
+      {label}
+    </div>
+  );
+}
+
 interface StudentWorkspaceProps {
   organization: OrganizationSummary;
   onLogout: () => void;
@@ -72,25 +183,33 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const [activeTab, setActiveTab] = useState<StudentTab>('dashboard');
   const [refreshKey, setRefreshKey] = useState(0);
   const navigation = useDashboardNavigation(organization.id, 'student');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFocused, setSearchFocused] = useState(false);
 
   // Modals state
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
-
   const [arenaModalOpen, setArenaModalOpen] = useState(false);
   const [selectedArenaActivity, setSelectedArenaActivity] = useState<any>(null);
-
   const [lectureModalOpen, setLectureModalOpen] = useState(false);
   const [selectedLecture, setSelectedLecture] = useState<any>(null);
-
   const [supportModalOpen, setSupportModalOpen] = useState(false);
   const [goalModalOpen, setGoalModalOpen] = useState(false);
 
   const navigateTo = (tab: StudentTab) => {
-    if (navigation.sections.length && !navigation.sections.some(section => section.items.some(item => item.key === tab || item.key.endsWith(`.${tab}`) || item.key.endsWith(tab)))) return;
+    if (
+      navigation.sections.length &&
+      !navigation.sections.some(section =>
+        section.items.some(
+          item =>
+            item.key === tab ||
+            item.key.endsWith(`.${tab}`) ||
+            item.key.endsWith(tab)
+        )
+      )
+    )
+      return;
     setActiveTab(tab);
-    setMobileMenuOpen(false);
   };
 
   const handleOpenSubmit = (assignment?: any) => {
@@ -99,7 +218,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         id: 'assign-1',
         title: 'Quadratic Equations: Problem Set 3',
         subject: 'Mathematics',
-        teacher: 'Rahul Sharma',
+        teacher: 'Dr. K. Raman',
         maxMarks: 20,
         dueDate: 'Today, 05:00 PM',
         instructions: 'Show all derivation steps clearly.',
@@ -118,17 +237,17 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         questions: [
           {
             id: 'q1',
-            question: 'What is the discriminant of the quadratic equation 2x² - 4x + 3 = 0?',
+            question: 'What is the discriminant of 2x² - 4x + 3 = 0?',
             options: ['-8', '8', '40', '-40'],
             correctIndex: 0,
-            explanation: 'D = b² - 4ac = (-4)² - 4(2)(3) = 16 - 24 = -8. Roots are complex.',
+            explanation: 'D = b² - 4ac = (-4)² - 4(2)(3) = 16 - 24 = -8.',
           },
           {
             id: 'q2',
-            question: 'If roots of ax² + bx + c = 0 are equal, then discriminant is:',
+            question: 'If roots of ax² + bx + c = 0 are equal, then:',
             options: ['D > 0', 'D < 0', 'D = 0', 'D ≥ 0'],
             correctIndex: 2,
-            explanation: 'Roots are equal if and only if b² - 4ac = 0.',
+            explanation: 'Equal roots occur when D = 0.',
           },
         ],
       }
@@ -140,9 +259,9 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     setSelectedLecture(
       lecture || {
         id: 'rec-1',
-        title: 'Quadratic Equations - Complete Derivation & Discriminant',
+        title: 'Quadratic Equations - Complete Derivation',
         subject: 'Mathematics',
-        teacher: 'Rahul Sharma',
+        teacher: 'Dr. K. Raman',
         duration: '42 mins',
         durationSeconds: 2520,
         recordedDate: 'Oct 04, 2026',
@@ -155,7 +274,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   };
 
   const baseNavItems = [
-    { id: 'dashboard', label: 'Student Command Center', icon: LayoutDashboard, tab: 'dashboard' as StudentTab },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, tab: 'dashboard' as StudentTab },
     { id: 'class', label: 'My Class', icon: Users, tab: 'class' as StudentTab },
     { id: 'subjects', label: 'Prescribed Subjects', icon: BookOpen, tab: 'subjects' as StudentTab },
     { id: 'timetable', label: 'Timetable & Schedule', icon: Clock, tab: 'timetable' as StudentTab },
@@ -166,85 +285,355 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     { id: 'attendance', label: 'Attendance Monitoring', icon: CheckCircle2, tab: 'attendance' as StudentTab },
     { id: 'performance', label: 'Academic Performance', icon: TrendingUp, tab: 'performance' as StudentTab },
     { id: 'curriculum', label: 'Curriculum Progress', icon: Compass, tab: 'curriculum' as StudentTab },
-    { id: 'resources', label: 'Notes & Recorded Lectures', icon: Video, tab: 'resources' as StudentTab },
+    { id: 'resources', label: 'Notes & Lectures', icon: Video, tab: 'resources' as StudentTab },
     { id: 'calendar', label: 'Academic Calendar', icon: CalendarDays, tab: 'calendar' as StudentTab },
     { id: 'communication', label: 'Academic Inbox', icon: MessageSquare, tab: 'communication' as StudentTab },
     { id: 'progress', label: 'Personal Growth & Goals', icon: Target, tab: 'progress' as StudentTab },
     { id: 'profile', label: 'Student Profile & Vault', icon: User, tab: 'profile' as StudentTab },
   ];
-  const navSections = navigation.sections.map(section => ({ ...section, entries: section.items.flatMap(item => {
-    const source = baseNavItems.find(candidate => item.key === candidate.id || item.key.endsWith(`.${candidate.id}`) || item.key.endsWith(candidate.id));
-    return source ? [{ ...source, label: item.label }] : [];
-  }) })).filter(section => section.entries.length);
+
+  const navSections = navigation.sections.map(section => ({
+    ...section,
+    entries: section.items.flatMap(item => {
+      const source = baseNavItems.find(
+        candidate =>
+          item.key === candidate.id ||
+          item.key.endsWith(`.${candidate.id}`) ||
+          item.key.endsWith(candidate.id)
+      );
+      return source ? [{ ...source, label: item.label }] : [];
+    }),
+  })).filter(section => section.entries.length);
+
   const availableTabs = new Set(navSections.flatMap(section => section.entries.map(item => item.tab)));
 
+  const pageTitles: Partial<Record<StudentTab, string>> = {
+    dashboard: "Student Command Center",
+    class: "My Class & Peers",
+    subjects: "Prescribed Subjects",
+    timetable: "Class Timetable & Schedule",
+    assignments: "Assignments & Submissions",
+    arena: "Arena Practice Bank",
+    assessments: "Formative Tests & Evaluations",
+    exams: "Official Exams & Report Cards",
+    attendance: "Attendance Register & Trends",
+    performance: "Academic Performance Analytics",
+    curriculum: "Curriculum Pacing & Learning Outcomes",
+    resources: "Notes & Recorded Lectures",
+    calendar: "Academic Calendar",
+    communication: "Academic Directives & Messages",
+    progress: "Personal Growth & Goals",
+    profile: "Student Profile & Vault",
+  };
+
+  const studentInitials = (organization.name || "ST")
+    .split(" ")
+    .slice(0, 2)
+    .map(w => w[0])
+    .join("")
+    .toUpperCase();
+
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col antialiased text-slate-800">
-      {/* Top Header */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-1.5 rounded-lg text-slate-600 hover:bg-slate-100"
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#090D16] text-white flex items-center justify-center font-bold text-base shadow-sm border border-[#1A243D]">
-              <Sparkles className="w-4 h-4 text-indigo-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-bold text-slate-900 text-sm tracking-tight leading-none">
-                  EdOps
-                </h1>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#090D16] font-semibold text-slate-200 border border-[#1A243D] uppercase tracking-wider">
-                  Student Learning Hub
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                {organization.name}
-              </p>
-            </div>
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        background: S.canvasBg,
+        fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif',
+      }}
+    >
+      {/* ═══════════════════════════════════════════════
+          S I D E B A R (Clean Dark Charcoal Admin Sidebar)
+      ═══════════════════════════════════════════════ */}
+      <aside
+        style={{
+          width: "228px",
+          flexShrink: 0,
+          background: S.bg,
+          borderRight: `1px solid ${S.border}`,
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          position: "sticky",
+          top: 0,
+          overflowY: "auto",
+          overflowX: "hidden",
+          scrollbarWidth: "thin",
+          scrollbarColor: "#2A2D35 transparent",
+          zIndex: 40,
+        }}
+      >
+        {/* Brand / Logo */}
+        <div
+          style={{
+            height: "58px",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 16px",
+            borderBottom: `1px solid ${S.border}`,
+            gap: "10px",
+            flexShrink: 0,
+          }}
+        >
+          <div style={{ height: "28px", display: "flex", alignItems: "center" }}>
+            <img src="/logo.svg" alt="EDOPS" style={{ height: "100%", width: "auto", display: "block" }} />
           </div>
         </div>
 
-        {/* Quick Actions Header */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          <button
-            disabled={!navigation.has('academics.assignments')}
-            onClick={() => handleOpenSubmit()}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-2xs"
-          >
-            <Upload className="w-3.5 h-3.5 text-slate-600" />
-            <span>Submit Homework</span>
-          </button>
+        {/* Navigation Groups */}
+        <nav style={{ flex: 1, padding: "2px 8px 12px", display: "flex", flexDirection: "column" }}>
+          {navigation.error && (
+            <p role="alert" style={{ color: "#FCA5A5", padding: "12px", fontSize: "12px" }}>
+              {navigation.error}
+            </p>
+          )}
+
+          {navSections.map(section => (
+            <React.Fragment key={section.key}>
+              <NavGroup label={section.label} />
+              {section.entries.map(item => (
+                <NavItem
+                  key={item.id}
+                  icon={item.icon}
+                  label={item.label}
+                  active={activeTab === item.tab}
+                  onClick={() => navigateTo(item.tab)}
+                />
+              ))}
+            </React.Fragment>
+          ))}
+        </nav>
+
+        {/* Identity & Sign Out */}
+        <div style={{ borderTop: `1px solid ${S.border}`, padding: "12px 14px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
+            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
+            <span style={{ fontSize: "11px", fontWeight: 600, color: "#8C909A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+              Class 10-A · Enrolled
+            </span>
+          </div>
 
           <button
-            disabled={!navigation.has('academics.arena')}
-            onClick={() => handleOpenArena()}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-2xs"
+            onClick={() => onLogout ? onLogout() : window.location.reload()}
+            style={{
+              all: "unset",
+              boxSizing: "border-box",
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: "9px",
+              padding: "7px 12px",
+              borderRadius: "7px",
+              cursor: "pointer",
+              fontSize: "13px",
+              fontWeight: 400,
+              color: S.itemText,
+              transition: "background 0.12s, color 0.12s",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.background = S.itemHover; e.currentTarget.style.color = "#C0C4CC"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = S.itemText; }}
           >
-            <Play className="w-3.5 h-3.5 text-indigo-500" />
-            <span>Start Arena</span>
+            <LogOut size={14} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+            Sign out
           </button>
+        </div>
+      </aside>
 
-          <button
-            disabled={!availableTabs.has('communication')}
-            onClick={() => setSupportModalOpen(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#090D16] hover:bg-[#1E293B] text-white text-xs font-semibold rounded-lg transition-colors shadow-xs border border-[#2A3756]"
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-indigo-300" />
-            <span className="text-slate-100">Ask Teacher</span>
-          </button>
+      {/* ═══════════════════════════════════════════════
+          M A I N   A R E A
+      ═══════════════════════════════════════════════ */}
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
+        {/* Sticky Top Header Bar with Kept Action Buttons Strictly on Top */}
+        <header
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 30,
+            height: "58px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 28px",
+            background: S.headerBg,
+            borderBottom: `1px solid ${S.headerBorder}`,
+            gap: "16px",
+            flexShrink: 0,
+          }}
+        >
+          {/* Left Title */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: "16px",
+                fontWeight: 600,
+                color: S.headerInk,
+                letterSpacing: "-0.02em",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {pageTitles[activeTab] ?? "Student Command Center"}
+            </h1>
+            {activeTab === "dashboard" && (
+              <button
+                onClick={() => window.location.reload()}
+                title="Refresh Dashboard"
+                style={{
+                  all: "unset",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "26px",
+                  height: "26px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  color: S.headerMuted,
+                  transition: "background 0.12s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#F2F4F7")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <RefreshCw size={13} strokeWidth={2} />
+              </button>
+            )}
+          </div>
 
-          {/* Org Selector */}
-          {organizations.length > 1 && (
-            <div className="relative hidden md:block">
+          {/* Right: Quick Action Buttons strictly placed on top as requested */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+            {/* Submit Homework */}
+            <button
+              onClick={() => handleOpenSubmit()}
+              style={{
+                all: "unset",
+                boxSizing: "border-box",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                background: "#FFFFFF",
+                border: "1px solid #D0D5DD",
+                borderRadius: "8px",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                color: S.headerInk,
+                cursor: "pointer",
+                boxShadow: "0 1px 2px rgba(16,24,40,0.05)",
+                transition: "all 0.12s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#98A2B3"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#D0D5DD"; }}
+            >
+              <Upload size={13} style={{ color: "#475467" }} />
+              <span>Submit Homework</span>
+            </button>
+
+            {/* Start Arena */}
+            <button
+              onClick={() => handleOpenArena()}
+              style={{
+                all: "unset",
+                boxSizing: "border-box",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 12px",
+                background: "#FFFFFF",
+                border: "1px solid #D0D5DD",
+                borderRadius: "8px",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                color: S.headerInk,
+                cursor: "pointer",
+                boxShadow: "0 1px 2px rgba(16,24,40,0.05)",
+                transition: "all 0.12s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#98A2B3"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#D0D5DD"; }}
+            >
+              <Play size={13} style={{ color: "#101828" }} />
+              <span>Start Arena</span>
+            </button>
+
+            {/* Ask Teacher */}
+            <button
+              onClick={() => setSupportModalOpen(true)}
+              style={{
+                all: "unset",
+                boxSizing: "border-box",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                background: S.headerInk,
+                border: `1px solid ${S.headerInk}`,
+                borderRadius: "8px",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                color: "#FFFFFF",
+                cursor: "pointer",
+                boxShadow: "0 1px 2px rgba(16,24,40,0.08)",
+                transition: "background 0.12s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#1D2939")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = S.headerInk)}
+            >
+              <HelpCircle size={13} style={{ color: "#FFFFFF" }} />
+              <span>Ask Teacher</span>
+            </button>
+
+            {/* Search Input */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "7px",
+                height: "34px",
+                padding: "0 11px",
+                border: `1px solid ${searchFocused ? "#98A2B3" : S.inputBorder}`,
+                borderRadius: "8px",
+                background: S.inputBg,
+                transition: "border-color 0.15s",
+              }}
+            >
+              <Search size={13} strokeWidth={2} style={{ color: S.headerMuted, flexShrink: 0 }} />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                placeholder="Search coursework…"
+                style={{
+                  border: "none",
+                  outline: "none",
+                  background: "transparent",
+                  fontSize: "13px",
+                  color: S.headerInk,
+                  width: "130px",
+                  fontFamily: "inherit",
+                }}
+              />
+            </div>
+
+            {/* Multi-Org Switcher */}
+            {organizations.length > 1 && (
               <select
                 value={organization.id}
                 onChange={(e) => onSwitchOrganization(e.target.value)}
-                className="text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                style={{
+                  height: "34px",
+                  padding: "0 10px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: S.headerInk,
+                  background: S.inputBg,
+                  border: `1px solid ${S.inputBorder}`,
+                  borderRadius: "8px",
+                  outline: "none",
+                  cursor: "pointer",
+                }}
               >
                 {organizations.map((org) => (
                   <option key={org.id} value={org.id}>
@@ -252,178 +641,139 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                   </option>
                 ))}
               </select>
-            </div>
-          )}
+            )}
 
-          {/* Profile & Logout */}
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+            {/* Student Avatar */}
             <button
               type="button"
-              disabled={!availableTabs.has('profile')}
               onClick={() => navigateTo('profile')}
-              className="w-8 h-8 rounded-full bg-[#090D16] text-white flex items-center justify-center font-bold text-xs cursor-pointer border border-[#1A243D] hover:ring-2 hover:ring-indigo-400"
-              title="View Profile"
+              title="Student Profile"
+              style={{
+                all: "unset",
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                background: S.avatarBg,
+                color: S.avatarText,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 700,
+                fontSize: "12px",
+                cursor: "pointer",
+                letterSpacing: "0.02em",
+                transition: "box-shadow 0.15s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px #98A2B3")}
+              onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
             >
-              <User className="w-4 h-4" />
-            </button>
-            <button
-              onClick={onLogout}
-              title="Sign Out"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
+              {studentInitials}
             </button>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Workspace Body */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Mobile menu backdrop overlay */}
-        {mobileMenuOpen && (
-          <div
-            onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 z-10 bg-[#070A10]/60 backdrop-blur-xs md:hidden"
-          />
-        )}
-
-        {/* Left Sidebar */}
-        <aside
-          className={`fixed inset-y-0 left-0 z-20 w-64 bg-[#090D16] border-r border-[#1A243D] transform transition-transform duration-200 ease-in-out md:static md:translate-x-0 overflow-y-auto ${
-            mobileMenuOpen ? 'translate-x-0' : '-translate-x-0 max-md:-translate-x-full'
-          }`}
-        >
-          <div className="p-3 space-y-1">
-            {navSections.map(section => <div key={section.key} className="space-y-1">
-              <p className="px-3 pt-3 text-[10px] font-semibold uppercase tracking-wide text-slate-500">{section.label}</p>
-              {section.entries.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.tab;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => navigateTo(item.tab)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
-                    isActive
-                      ? 'bg-slate-700 font-bold shadow-sm border border-slate-600/40'
-                      : 'hover:bg-[#131C31]'
-                  }`}
-                  style={{ color: isActive ? '#FFFFFF' : '#CBD5E1' }}
-                >
-                  <Icon 
-                    className="w-4 h-4 shrink-0" 
-                    style={{ color: isActive ? '#FFFFFF' : '#94A3B8' }} 
-                  />
-                  <span className="truncate">{item.label}</span>
-                </button>
-              );
-              })}
-            </div>)}
-          </div>
-
-          {/* Enrollment Identity Card */}
-          <div className="p-3 m-3 bg-[#0D1322] border border-[#1A243D] rounded-xl text-[11px] text-slate-400 space-y-1">
-            <div className="font-semibold text-slate-200 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-              <span>Active Enrolled Learner</span>
+        {/* Content Body Container */}
+        <div key={refreshKey} style={{ padding: "24px 28px", flex: 1 }}>
+          {navigation.loading ? (
+            <div style={{ padding: "48px 0", textAlign: "center", color: S.headerMuted }}>
+              <p>Loading dashboard navigation…</p>
             </div>
-            <p className="text-slate-300">Class 10-A • Roll No. 17</p>
-          </div>
-        </aside>
+          ) : navigation.error ? (
+            <p role="alert" style={{ color: "#B42318" }}>{navigation.error}</p>
+          ) : !availableTabs.has(activeTab) ? (
+            <p style={{ color: S.headerMuted }}>This feature is unavailable for this school or role.</p>
+          ) : (
+            <>
+              {activeTab === 'dashboard' && (
+                <DashboardPane
+                  organizationId={organization.id}
+                  onNavigateTab={navigateTo}
+                  onSubmitAssignment={handleOpenSubmit}
+                  onStartArena={handleOpenArena}
+                  onOpenLecture={handleOpenLecture}
+                  onAskTeacher={() => setSupportModalOpen(true)}
+                />
+              )}
 
-        {/* Main Content Pane */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            {navigation.loading ? <p>Loading dashboard navigation…</p> : navigation.error ? <p role="alert">{navigation.error}</p> : !availableTabs.has(activeTab) ? <p>This feature is unavailable for this school or role.</p> : <>
-            {activeTab === 'dashboard' && (
-              <DashboardPane
-                organizationId={organization.id}
-                onNavigateTab={navigateTo}
-                onSubmitAssignment={handleOpenSubmit}
-                onStartArena={handleOpenArena}
-                onOpenLecture={handleOpenLecture}
-              />
-            )}
+              {activeTab === 'class' && (
+                <ClassPane organizationId={organization.id} />
+              )}
 
-            {activeTab === 'class' && (
-              <ClassPane organizationId={organization.id} />
-            )}
+              {activeTab === 'subjects' && (
+                <SubjectsPane organizationId={organization.id} onNavigateTab={navigateTo} />
+              )}
 
-            {activeTab === 'subjects' && (
-              <SubjectsPane organizationId={organization.id} onNavigateTab={navigateTo} />
-            )}
+              {activeTab === 'timetable' && (
+                <TimetablePane organizationId={organization.id} />
+              )}
 
-            {activeTab === 'timetable' && (
-              <TimetablePane organizationId={organization.id} />
-            )}
+              {activeTab === 'assignments' && (
+                <AssignmentsPane
+                  organizationId={organization.id}
+                  onSubmitAssignment={handleOpenSubmit}
+                />
+              )}
 
-            {activeTab === 'assignments' && (
-              <AssignmentsPane
-                organizationId={organization.id}
-                onSubmitAssignment={handleOpenSubmit}
-              />
-            )}
+              {activeTab === 'arena' && (
+                <ArenaPane
+                  organizationId={organization.id}
+                  onStartArena={handleOpenArena}
+                />
+              )}
 
-            {activeTab === 'arena' && (
-              <ArenaPane
-                organizationId={organization.id}
-                onStartArena={handleOpenArena}
-              />
-            )}
+              {activeTab === 'assessments' && (
+                <AssessmentsPane organizationId={organization.id} />
+              )}
 
-            {activeTab === 'assessments' && (
-              <AssessmentsPane organizationId={organization.id} />
-            )}
+              {activeTab === 'exams' && (
+                <ExamsPane organizationId={organization.id} />
+              )}
 
-            {activeTab === 'exams' && (
-              <ExamsPane organizationId={organization.id} />
-            )}
+              {activeTab === 'attendance' && (
+                <AttendancePane organizationId={organization.id} />
+              )}
 
-            {activeTab === 'attendance' && (
-              <AttendancePane organizationId={organization.id} />
-            )}
+              {activeTab === 'performance' && (
+                <PerformancePane organizationId={organization.id} />
+              )}
 
-            {activeTab === 'performance' && (
-              <PerformancePane organizationId={organization.id} />
-            )}
+              {activeTab === 'curriculum' && (
+                <CurriculumPane organizationId={organization.id} />
+              )}
 
-            {activeTab === 'curriculum' && (
-              <CurriculumPane organizationId={organization.id} />
-            )}
+              {activeTab === 'resources' && (
+                <ResourcesPane
+                  organizationId={organization.id}
+                  onOpenLecture={handleOpenLecture}
+                />
+              )}
 
-            {activeTab === 'resources' && (
-              <ResourcesPane
-                organizationId={organization.id}
-                onOpenLecture={handleOpenLecture}
-              />
-            )}
+              {activeTab === 'calendar' && (
+                <CalendarPane organizationId={organization.id} />
+              )}
 
-            {activeTab === 'calendar' && (
-              <CalendarPane organizationId={organization.id} />
-            )}
+              {activeTab === 'communication' && (
+                <CommunicationPane
+                  organizationId={organization.id}
+                  onOpenSupportModal={() => setSupportModalOpen(true)}
+                />
+              )}
 
-            {activeTab === 'communication' && (
-              <CommunicationPane
-                organizationId={organization.id}
-                onOpenSupportModal={() => setSupportModalOpen(true)}
-              />
-            )}
+              {activeTab === 'progress' && (
+                <ProgressPane
+                  organizationId={organization.id}
+                  onOpenGoalModal={() => setGoalModalOpen(true)}
+                  onOpenSupportModal={() => setSupportModalOpen(true)}
+                />
+              )}
 
-            {activeTab === 'progress' && (
-              <ProgressPane
-                organizationId={organization.id}
-                onOpenGoalModal={() => setGoalModalOpen(true)}
-                onOpenSupportModal={() => setSupportModalOpen(true)}
-              />
-            )}
-
-            {activeTab === 'profile' && (
-              <ProfilePane organizationId={organization.id} />
-            )}
-            </>}
-          </div>
-        </main>
-      </div>
+              {activeTab === 'profile' && (
+                <ProfilePane organizationId={organization.id} />
+              )}
+            </>
+          )}
+        </div>
+      </main>
 
       {/* Global Modals */}
       <AssignmentSubmitModal

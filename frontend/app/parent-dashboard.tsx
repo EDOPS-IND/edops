@@ -169,27 +169,27 @@ export function ParentDashboard({ view, children = [], messages = [] }: ParentDa
   return (
     <div className="space-y-6 pb-12">
       {/* 1. WARD / CHILD SWITCHER HEADER */}
-      <section className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)] flex flex-wrap items-center justify-between gap-4">
+      <section className="bg-white rounded-xl border border-[#E2DDD5] p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#090D16] text-white flex items-center justify-center font-bold text-sm shadow-xs">
-            <Users size={19} className="text-slate-200" />
+          <div className="w-10 h-10 rounded-lg bg-[#FAF8F5] border border-[#E2DDD5] text-[#101828] flex items-center justify-center font-bold text-sm">
+            <Users size={19} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs uppercase tracking-wider font-bold text-slate-500">Parent Guardian Hub</span>
-              <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded text-[10px] font-bold">
+              <span className="text-xs uppercase tracking-wider font-bold text-[#475467]">Parent Guardian Hub</span>
+              <span className="bg-[#ECFDF3] text-[#027A48] border border-[#ABEFC6] px-2 py-0.5 rounded text-[10px] font-bold">
                 CBSE Verified
               </span>
             </div>
-            <h2 className="text-base font-bold text-slate-900 tracking-tight">
-              Observing: <span className="text-[#090D16]">{selectedChild?.name}</span>
+            <h2 className="text-base font-bold text-[#101828] tracking-tight">
+              Observing: <span>{selectedChild?.name}</span>
             </h2>
           </div>
         </div>
 
         {/* Wards Switcher Pills */}
-        <div className="flex items-center gap-2 bg-slate-50 p-1.5 rounded-lg border border-slate-200">
-          <span className="text-[11px] font-semibold text-slate-500 px-2 hidden sm:inline">Select Ward:</span>
+        <div className="flex items-center gap-2 bg-[#FAF8F5] p-1.5 rounded-lg border border-[#E2DDD5]">
+          <span className="text-[11px] font-semibold text-[#475467] px-2 hidden sm:inline">Select Ward:</span>
           {activeChildren.map((child) => {
             const isSelected = child.studentUserId === selectedChildId;
             return (
@@ -198,12 +198,12 @@ export function ParentDashboard({ view, children = [], messages = [] }: ParentDa
                 onClick={() => setSelectedChildId(child.studentUserId)}
                 className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-all flex items-center gap-2 ${
                   isSelected
-                    ? "bg-[#090D16] text-white shadow-xs"
-                    : "text-slate-700 hover:bg-slate-200/70"
+                    ? "bg-[#101828] text-white shadow-xs"
+                    : "text-[#344054] hover:bg-[#F2F4F7]"
                 }`}
               >
                 <span>{child.name}</span>
-                <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-700"}`}>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${isSelected ? "bg-white/20 text-white" : "bg-white border border-[#D0D5DD] text-[#344054]"}`}>
                   {child.sectionName}
                 </span>
               </button>
@@ -218,87 +218,87 @@ export function ParentDashboard({ view, children = [], messages = [] }: ParentDa
           {/* KPI METRIC CARDS */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Daily Check-in */}
-            <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-              <div className="flex items-center justify-between text-slate-500 mb-2">
+            <div className="bg-white rounded-xl border border-[#E2DDD5] p-4.5 shadow-xs">
+              <div className="flex items-center justify-between text-[#475467] mb-2">
                 <span className="text-xs font-semibold uppercase tracking-wider">Today's Check-in</span>
-                <Clock size={16} className="text-slate-400" />
+                <Clock size={16} className="text-[#667085]" />
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
+                <span className="text-2xl font-extrabold text-[#101828] font-mono tracking-tight">
                   {selectedChild?.todayAttendance || "Present"}
                 </span>
-                <span className="text-xs text-emerald-600 font-semibold flex items-center gap-0.5">
+                <span className="text-xs text-[#027A48] font-semibold flex items-center gap-0.5">
                   <CheckCircle2 size={12} /> 07:42 AM
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-2">Campus Gate 2 Bio-Punch confirmed</p>
+              <p className="text-[11.5px] text-[#667085] mt-2">Campus Gate 2 Bio-Punch confirmed</p>
             </div>
 
             {/* Attendance Percentage */}
-            <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-              <div className="flex items-center justify-between text-slate-500 mb-2">
+            <div className="bg-white rounded-xl border border-[#E2DDD5] p-4.5 shadow-xs">
+              <div className="flex items-center justify-between text-[#475467] mb-2">
                 <span className="text-xs font-semibold uppercase tracking-wider">Attendance Rate</span>
-                <Calendar size={16} className="text-slate-400" />
+                <Calendar size={16} className="text-[#667085]" />
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
+                <span className="text-2xl font-extrabold text-[#101828] font-mono tracking-tight">
                   {selectedChild?.attendancePct ?? 94.2}%
                 </span>
-                <span className="text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-bold">
+                <span className="text-xs bg-[#ECFDF3] text-[#027A48] border border-[#ABEFC6] px-1.5 py-0.5 rounded font-bold">
                   Above 75% CBSE
                 </span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-2">128 of 136 academic sessions attended</p>
+              <p className="text-[11.5px] text-[#667085] mt-2">128 of 136 academic sessions attended</p>
             </div>
 
             {/* Term Academic Average */}
-            <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-              <div className="flex items-center justify-between text-slate-500 mb-2">
+            <div className="bg-white rounded-xl border border-[#E2DDD5] p-4.5 shadow-xs">
+              <div className="flex items-center justify-between text-[#475467] mb-2">
                 <span className="text-xs font-semibold uppercase tracking-wider">Cumulative GPA</span>
-                <Award size={16} className="text-slate-400" />
+                <Award size={16} className="text-[#667085]" />
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
+                <span className="text-2xl font-extrabold text-[#101828] font-mono tracking-tight">
                   88.5%
                 </span>
-                <span className="text-xs text-indigo-600 font-semibold">Grade A1</span>
+                <span className="text-xs text-[#175CD3] font-semibold">Grade A1</span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-2">Across 6 enrolled core subjects</p>
+              <p className="text-[11.5px] text-[#667085] mt-2">Across 6 enrolled core subjects</p>
             </div>
 
             {/* Pending Homework */}
-            <div className="bg-white rounded-xl border border-slate-200/80 p-4 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
-              <div className="flex items-center justify-between text-slate-500 mb-2">
+            <div className="bg-white rounded-xl border border-[#E2DDD5] p-4.5 shadow-xs">
+              <div className="flex items-center justify-between text-[#475467] mb-2">
                 <span className="text-xs font-semibold uppercase tracking-wider">Homework Due</span>
-                <BookOpen size={16} className="text-slate-400" />
+                <BookOpen size={16} className="text-[#667085]" />
               </div>
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-slate-900 font-mono tracking-tight">
+                <span className="text-2xl font-extrabold text-[#101828] font-mono tracking-tight">
                   2 Pending
                 </span>
-                <span className="text-xs bg-amber-50 text-amber-700 px-1.5 py-0.5 rounded font-bold">Due Tomorrow</span>
+                <span className="text-xs bg-[#FFFAEB] text-[#B54708] border border-[#FEDF89] px-1.5 py-0.5 rounded font-bold">Due Tomorrow</span>
               </div>
-              <p className="text-[11px] text-slate-500 mt-2">Physics Lab & Math Problem Set 4</p>
+              <p className="text-[11.5px] text-[#667085] mt-2">Physics Lab & Math Problem Set 4</p>
             </div>
           </div>
 
-          {/* ACTION BUTTONS & QUICK SHORTCUTS */}
+          {/* ACTION BUTTONS & QUICK SHORTCUTS (KEPT IN PLACE ON TOP) */}
           <div className="flex flex-wrap gap-3">
             <button
               onClick={() => setLeaveModalOpen(true)}
-              className="bg-[#090D16] hover:bg-[#1E293B] text-white font-semibold text-xs px-3.5 py-2 rounded-lg transition-all shadow-xs border border-[#1A243D] flex items-center gap-2"
+              className="bg-[#101828] hover:bg-[#1D2939] text-white font-semibold text-xs px-3.5 py-2 rounded-lg transition-all shadow-xs border border-[#101828] flex items-center gap-2"
             >
               <Plus size={14} /> Apply Student Leave
             </button>
             <button
               onClick={() => setQueryModalOpen(true)}
-              className="bg-white hover:bg-slate-50 text-slate-800 font-semibold text-xs px-3.5 py-2 rounded-lg transition-colors border border-slate-200 shadow-2xs flex items-center gap-2"
+              className="bg-white hover:bg-slate-50 text-[#101828] font-semibold text-xs px-3.5 py-2 rounded-lg transition-colors border border-[#D0D5DD] shadow-2xs flex items-center gap-2"
             >
               <MessageSquare size={14} /> Send Grievance / Academic Query
             </button>
             <button
               onClick={() => setReportModalOpen(true)}
-              className="bg-white hover:bg-slate-50 text-slate-800 font-semibold text-xs px-3.5 py-2 rounded-lg transition-colors border border-slate-200 shadow-2xs flex items-center gap-2"
+              className="bg-white hover:bg-slate-50 text-[#101828] font-semibold text-xs px-3.5 py-2 rounded-lg transition-colors border border-[#D0D5DD] shadow-2xs flex items-center gap-2"
             >
               <Download size={14} /> Download CBSE Term Report Card
             </button>

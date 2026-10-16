@@ -572,8 +572,13 @@ export function getMockTeacherDashboardData(orgId: string) {
       { period: 5, periodNumber: 5, time: "12:15 - 01:00", class: "Grade 12-A", classSection: "Grade 12-A", subject: "Applied Mathematics", topic: "Integration by Parts", room: "Math Lab", sectionId: "sec-12a", attendanceDone: false },
     ],
     attentionRequired: [
-      { id: "att-1", title: "Grade 10-A Problem Set 3", desc: "4 student submissions awaiting grading in queue.", action: "Grade Submissions" },
-      { id: "att-2", title: "CBSE Pre-Board Paper Blueprint", desc: "Draft question paper submission due to Principal by Friday.", action: "Upload Blueprint" },
+      { id: "att-1", title: "Grade 10-A Problem Set 3", desc: "4 student submissions awaiting grading in queue.", message: "4 student submissions awaiting grading in queue.", severity: "critical", action: "Grade Submissions", type: "evaluation_pending" },
+      { id: "att-2", title: "CBSE Pre-Board Paper Blueprint", desc: "Draft question paper submission due to Principal by Friday.", message: "Draft question paper submission due to Principal by Friday.", severity: "warning", action: "Upload Blueprint", type: "curriculum" },
+    ],
+    recentActivity: [
+      { id: "act-1", text: "Approved Term 1 Pre-Board Evaluation Rubric", action: "Approved Term 1 Pre-Board Evaluation Rubric", user: "Principal Office", time: "Today, 08:30 AM" },
+      { id: "act-2", text: "LOC Cohort Attendance Audit Completed", action: "LOC Cohort Attendance Audit Completed", user: "Academic Office", time: "Yesterday, 04:00 PM" },
+      { id: "act-3", text: "Marked Period 1 Attendance Register (Grade 10-A)", action: "Marked Period 1 Attendance Register", user: "Dr. K. Raman", time: "Today, 09:15 AM" },
     ],
     pendingTasks: [
       { id: "tsk-1", title: "Grade 10-A Problem Set 3 Submissions (18/24 received)", due: "Today, 5:00 PM", completed: false },
@@ -608,8 +613,10 @@ export function getMockStudentDashboardData(orgId: string) {
       room: "Room 302",
       startTime: "08:30 AM",
       endTime: "09:15 AM",
+      startsInMinutes: 15,
       topic: "Quadratic Equations: Derivation & Roots",
       lessonStatus: "Starting Soon",
+      lessonPlanStatus: "Approved & Ready",
     },
     timetable: [
       { period: 1, periodNumber: 1, startTime: "08:30 AM", endTime: "09:15 AM", time: "08:30 - 09:15", subject: "Mathematics", subjectName: "Mathematics", teacher: "Dr. K. Raman", teacherName: "Dr. K. Raman", room: "Room 302", status: "completed" },
@@ -618,13 +625,29 @@ export function getMockStudentDashboardData(orgId: string) {
       { period: 4, periodNumber: 4, startTime: "11:00 AM", endTime: "11:45 AM", time: "11:00 - 11:45", subject: "Social Sciences", subjectName: "Social Sciences", teacher: "Dr. Vikram Singhal", teacherName: "Dr. Vikram Singhal", room: "Room 302", status: "upcoming" },
       { period: 5, periodNumber: 5, startTime: "12:15 PM", endTime: "01:00 PM", time: "12:15 - 01:00", subject: "Computer Science & AI", subjectName: "Computer Science & AI", teacher: "Ms. Priya Desai", teacherName: "Ms. Priya Desai", room: "AI Lab", status: "upcoming" },
     ],
+    attentionRequired: [
+      { id: "att-1", title: "Problem Set 3: Quadratic Formula", desc: "Homework submission due today at 05:00 PM.", message: "Homework submission due today at 05:00 PM.", severity: "critical", action: "Submit Homework", type: "assignment" },
+      { id: "att-2", title: "Mathematics Quiz 3: Speed Drill", desc: "Formative speed drill published in Practice Arena.", message: "Formative speed drill published in Practice Arena.", severity: "warning", action: "Start Arena", type: "arena" },
+      { id: "att-3", title: "CBSE LOC Candidate Verification", desc: "Digital confirmation of candidate roll signed by parent.", message: "Digital confirmation of candidate roll signed by parent.", severity: "normal", action: "View Vault", type: "profile" },
+    ],
+    recentActivity: [
+      { id: "act-1", text: "Submitted Problem Set 3: Quadratic Formula", action: "Submitted Problem Set 3: Quadratic Formula", category: "Assignments", time: "Today, 09:15 AM" },
+      { id: "act-2", text: "Attendance marked Present for Period 1 (Mathematics)", action: "Attendance marked Present", category: "Attendance", time: "Today, 08:35 AM" },
+      { id: "act-3", text: "Completed Arena Speed Drill: 92% Accuracy", action: "Completed Arena Speed Drill", category: "Arena", time: "Yesterday, 04:20 PM" },
+      { id: "act-4", text: "Accessed Ray Optics Lecture Notes & Formula Sheet", action: "Accessed Ray Optics Lecture Notes", category: "Resources", time: "Yesterday, 02:10 PM" },
+      { id: "act-5", text: "Progress Update: Completed Chapter 4 of 7 in Math Curriculum", action: "Progress Update", category: "Curriculum", time: "14 Oct 2026, 11:30 AM" },
+    ],
     pendingTasks: [
-      { id: "task-1", title: "Problem Set 3: Quadratic Formula", subject: "Mathematics", due: "Today, 05:00 PM", status: "pending" },
-      { id: "task-2", title: "Ray Optics Practical Lab Report", subject: "Science", due: "15 Oct 2026", status: "submitted" },
+      { id: "task-1", title: "Problem Set 3: Quadratic Formula", subject: "Mathematics", due: "Today, 05:00 PM", status: "pending", type: "assignment", priority: "urgent" },
+      { id: "task-2", title: "Ray Optics Practical Lab Report", subject: "Science", due: "15 Oct 2026", status: "submitted", type: "assignment", priority: "normal" },
+    ],
+    recentMessages: [
+      { id: "msg-1", senderName: "Dr. K. Raman (Mathematics)", date: "Today, 08:45 AM", subjectLine: "Pre-Board Practice Questions Published", body: "Please attempt the speed drill in Arena before tomorrow's class to review quadratic roots." },
+      { id: "msg-2", senderName: "Mrs. Sunita Kapoor (Science)", date: "Yesterday, 03:30 PM", subjectLine: "Physics Lab Journal Submission", body: "Ray optics observations should be signed and submitted before Friday 5 PM." },
     ],
     alerts: [
-      { id: "alt-1", title: "CBSE LOC Verification Signed by Parent", type: "success" },
-      { id: "alt-2", title: "Mathematics Quiz 3 Published in Arena", type: "info" },
+      { id: "alt-1", title: "CBSE LOC Verification Signed by Parent", message: "Your official candidate enrollment for CBSE 2026-27 has been verified and registered.", type: "success" },
+      { id: "alt-2", title: "Mathematics Quiz 3 Published in Arena", message: "15-minute speed drill available in Arena Practice Bank.", type: "exam" },
     ],
     metrics: {
       attendanceRate: 96.2,
