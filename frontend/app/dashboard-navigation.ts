@@ -152,9 +152,11 @@ const defaultNavigationData: Record<OrganizationSummary["role"], DashboardSectio
   ],
   parent: [
     { key: "overview", label: "Overview", sortOrder: 10, items: [{ key: "overview", label: "Family Overview", sortOrder: 10, enabled: true, effectiveEnabled: true }] },
-    { key: "academics", label: "Academics", sortOrder: 20, items: [{ key: "children", label: "Children & Learning", sortOrder: 10, enabled: true, effectiveEnabled: true }] },
-    { key: "attendance", label: "Attendance", sortOrder: 30, items: [{ key: "attendance", label: "Attendance", sortOrder: 10, enabled: true, effectiveEnabled: true }] },
-    { key: "communication", label: "Communication", sortOrder: 40, items: [{ key: "notices", label: "School Notices", sortOrder: 10, enabled: true, effectiveEnabled: true }] },
+    { key: "academics", label: "Academics", sortOrder: 20, items: [{ key: "academics", label: "Children & Academics", sortOrder: 10, enabled: true, effectiveEnabled: true }, { key: "children", label: "Children & Learning", sortOrder: 20, enabled: true, effectiveEnabled: true }] },
+    { key: "attendance", label: "Attendance", sortOrder: 30, items: [{ key: "attendance", label: "Attendance & Leaves", sortOrder: 10, enabled: true, effectiveEnabled: true }] },
+    { key: "fees", label: "Finance", sortOrder: 40, items: [{ key: "fees", label: "Fee Invoicing & Receipts", sortOrder: 10, enabled: true, effectiveEnabled: true }] },
+    { key: "ptm", label: "Conferences", sortOrder: 50, items: [{ key: "ptm", label: "PTM Slot Scheduling", sortOrder: 10, enabled: true, effectiveEnabled: true }] },
+    { key: "communication", label: "Communication", sortOrder: 60, items: [{ key: "notices", label: "School Notices & Grievance", sortOrder: 10, enabled: true, effectiveEnabled: true }] },
   ],
 };
 

@@ -57,7 +57,7 @@ export const LecturePlayerModal: React.FC<LecturePlayerModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#070A10]/60 backdrop-blur-xs p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
         {/* Header */}
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
