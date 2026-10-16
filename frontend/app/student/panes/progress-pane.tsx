@@ -32,6 +32,19 @@ export const ProgressPane: React.FC<ProgressPaneProps> = ({
 
   useEffect(() => {
     loadProgress();
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem(`edops_hpc_${organizationId}`);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.ratings) setHpcRatings(parsed.ratings);
+          if (parsed.reflectionText) setReflectionText(parsed.reflectionText);
+          if (parsed.improvementText) setImprovementText(parsed.improvementText);
+        }
+      } catch {
+        // ignore
+      }
+    }
   }, [organizationId]);
 
   const loadProgress = async () => {
@@ -48,6 +61,16 @@ export const ProgressPane: React.FC<ProgressPaneProps> = ({
 
   const handleSaveHpc = (e: React.FormEvent) => {
     e.preventDefault();
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem(
+          `edops_hpc_${organizationId}`,
+          JSON.stringify({ ratings: hpcRatings, reflectionText, improvementText })
+        );
+      } catch {
+        // ignore
+      }
+    }
     setHpcSaved(true);
     setTimeout(() => setHpcSaved(false), 2500);
   };

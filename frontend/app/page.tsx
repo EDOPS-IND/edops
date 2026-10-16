@@ -6,6 +6,7 @@ import { LearningWorkspace, SchoolBilling } from "./learning-workspace";
 import { PlatformWorkspace } from "./platform-workspace";
 import { DashboardHome } from "./dashboard-home";
 import { ParentDashboard } from "./parent-dashboard";
+import { ParentWorkspace } from "./parent";
 import { useDashboardNavigation } from "./dashboard-navigation";
 import { PrincipalWorkspace } from "./principal";
 import { TeacherWorkspace } from "./teacher";
@@ -152,6 +153,17 @@ export default function Home() {
       />
     );
   }
+  if (membership.role === "parent") {
+    return (
+      <ParentWorkspace
+        key={workspace}
+        organization={membership}
+        onLogout={signOut}
+        onSwitchOrganization={switchWorkspace}
+        organizations={profile.organizations}
+      />
+    );
+  }
   if (isMemberWorkspace(membership)) return <RoleWorkspace key={workspace} profile={profile} membership={membership} workspace={workspace} onWorkspace={switchWorkspace} onLogout={signOut} />;
 
   const memberCounts = school?.members.items.reduce((counts, member) => ({ ...counts, [member.role]: (counts[member.role] ?? 0) + (member.status === "active" ? 1 : 0) }), {} as Record<string, number>) ?? {};
@@ -240,8 +252,9 @@ function ProfileMenu({ email, role, onLogout }: { email: string; role: string; o
 }
 function LoadingScreen() {
   return (
-    <div className="h-screen w-full flex flex-col items-center justify-center bg-[#020617] text-white">
+    <div className="loading-screen h-screen w-full flex flex-col items-center justify-center bg-[#020617] text-white">
       <img src="/logo.svg" alt="EDOPS" className="h-16 w-auto animate-pulse" />
+      <span className="loading-wordmark sr-only">EDOPS</span>
       <div className="mt-8 flex gap-2 items-center">
         <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: "0ms" }}></div>
         <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: "150ms" }}></div>

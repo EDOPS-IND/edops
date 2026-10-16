@@ -24,8 +24,6 @@ import {
   HelpCircle,
   Search,
   RefreshCw,
-  Menu,
-  X,
 } from 'lucide-react';
 
 import { OrganizationSummary } from '../edops-api';
@@ -183,8 +181,8 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   organizations,
 }) => {
   const [activeTab, setActiveTab] = useState<StudentTab>('dashboard');
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigation = useDashboardNavigation(organization.id, 'student');
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
 
@@ -212,7 +210,6 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     )
       return;
     setActiveTab(tab);
-    setMobileMenuOpen(false);
   };
 
   const handleOpenSubmit = (assignment?: any) => {
@@ -676,7 +673,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         </header>
 
         {/* Content Body Container */}
-        <div style={{ padding: "24px 28px", flex: 1 }}>
+        <div key={refreshKey} style={{ padding: "24px 28px", flex: 1 }}>
           {navigation.loading ? (
             <div style={{ padding: "48px 0", textAlign: "center", color: S.headerMuted }}>
               <p>Loading dashboard navigation…</p>
@@ -784,6 +781,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         onClose={() => setSubmitModalOpen(false)}
         organizationId={organization.id}
         assignment={selectedAssignment}
+        onSuccess={() => setRefreshKey(k => k + 1)}
       />
 
       <ArenaAttemptModal
@@ -791,6 +789,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         onClose={() => setArenaModalOpen(false)}
         organizationId={organization.id}
         activity={selectedArenaActivity}
+        onSuccess={() => setRefreshKey(k => k + 1)}
       />
 
       <LecturePlayerModal
@@ -798,18 +797,21 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         onClose={() => setLectureModalOpen(false)}
         organizationId={organization.id}
         lecture={selectedLecture}
+        onSuccess={() => setRefreshKey(k => k + 1)}
       />
 
       <SupportRequestModal
         isOpen={supportModalOpen}
         onClose={() => setSupportModalOpen(false)}
         organizationId={organization.id}
+        onSuccess={() => setRefreshKey(k => k + 1)}
       />
 
       <StudentGoalModal
         isOpen={goalModalOpen}
         onClose={() => setGoalModalOpen(false)}
         organizationId={organization.id}
+        onSuccess={() => setRefreshKey(k => k + 1)}
       />
     </div>
   );
