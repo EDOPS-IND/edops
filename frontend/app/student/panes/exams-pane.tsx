@@ -285,7 +285,14 @@ export const ExamsPane: React.FC<ExamsPaneProps> = ({ organizationId }) => {
 
             {/* Printable Hall Ticket Canvas */}
             <div className="p-6 space-y-5 text-xs text-slate-800">
-              <div className="border border-slate-300 rounded-xl p-5 bg-white relative">
+              <style>{`
+                @media print {
+                  body * { visibility: hidden !important; }
+                  #printable-hall-ticket, #printable-hall-ticket * { visibility: visible !important; }
+                  #printable-hall-ticket { position: fixed; left: 0; top: 0; width: 100%; margin: 0; padding: 24px; border: 1px solid #cbd5e1 !important; }
+                }
+              `}</style>
+              <div id="printable-hall-ticket" className="border border-slate-300 rounded-xl p-5 bg-white relative">
                 {/* Watermark / Seal */}
                 <div className="flex items-start justify-between pb-4 border-b border-slate-200">
                   <div>

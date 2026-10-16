@@ -70,6 +70,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   organizations,
 }) => {
   const [activeTab, setActiveTab] = useState<StudentTab>('dashboard');
+  const [refreshKey, setRefreshKey] = useState(0);
   const navigation = useDashboardNavigation(organization.id, 'student');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -277,7 +278,15 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
       </header>
 
       {/* Workspace Body */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Mobile menu backdrop overlay */}
+        {mobileMenuOpen && (
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 z-10 bg-[#070A10]/60 backdrop-blur-xs md:hidden"
+          />
+        )}
+
         {/* Left Sidebar */}
         <aside
           className={`fixed inset-y-0 left-0 z-20 w-64 bg-[#090D16] border-r border-[#1A243D] transform transition-transform duration-200 ease-in-out md:static md:translate-x-0 overflow-y-auto ${
@@ -422,6 +431,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         onClose={() => setSubmitModalOpen(false)}
         organizationId={organization.id}
         assignment={selectedAssignment}
+        onSuccess={() => setRefreshKey(k => k + 1)}
       />
 
       <ArenaAttemptModal
@@ -429,6 +439,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         onClose={() => setArenaModalOpen(false)}
         organizationId={organization.id}
         activity={selectedArenaActivity}
+        onSuccess={() => setRefreshKey(k => k + 1)}
       />
 
       <LecturePlayerModal
@@ -436,18 +447,21 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         onClose={() => setLectureModalOpen(false)}
         organizationId={organization.id}
         lecture={selectedLecture}
+        onSuccess={() => setRefreshKey(k => k + 1)}
       />
 
       <SupportRequestModal
         isOpen={supportModalOpen}
         onClose={() => setSupportModalOpen(false)}
         organizationId={organization.id}
+        onSuccess={() => setRefreshKey(k => k + 1)}
       />
 
       <StudentGoalModal
         isOpen={goalModalOpen}
         onClose={() => setGoalModalOpen(false)}
         organizationId={organization.id}
+        onSuccess={() => setRefreshKey(k => k + 1)}
       />
     </div>
   );
