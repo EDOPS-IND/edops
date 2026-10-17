@@ -1,103 +1,37 @@
 import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
+
 @Injectable()
 export class StudentSubjectsService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async getSubjects(organizationId: string, studentUserId: string) {
-    const subjects = [
-      {
-        id: 'sub-math',
-        name: 'Mathematics',
-        code: 'MATH-10',
-        teacher: 'Rahul Sharma',
-        teacherEmail: 'rahul.sharma@school.edu',
-        attendance: 95,
-        assignmentsCompleted: 92,
-        assessmentAverage: 84,
-        curriculumProgress: 88,
-        learningOutcomesAchieved: 14,
-        totalLearningOutcomes: 16,
-        color: 'indigo',
-        currentTopic: 'Quadratic Equations - Nature of Roots',
-      },
-      {
-        id: 'sub-sci',
-        name: 'Science (Physics, Chemistry, Bio)',
-        code: 'SCI-10',
-        teacher: 'Priya Nair',
-        teacherEmail: 'priya.nair@school.edu',
-        attendance: 91,
-        assignmentsCompleted: 88,
-        assessmentAverage: 88,
-        curriculumProgress: 82,
-        learningOutcomesAchieved: 12,
-        totalLearningOutcomes: 15,
-        color: 'emerald',
-        currentTopic: 'Chemical Reactions and Equations',
-      },
-      {
-        id: 'sub-eng',
-        name: 'English Language & Literature',
-        code: 'ENG-10',
-        teacher: 'Anita Roy',
-        teacherEmail: 'anita.roy@school.edu',
-        attendance: 96,
-        assignmentsCompleted: 95,
-        assessmentAverage: 79,
-        curriculumProgress: 91,
-        learningOutcomesAchieved: 11,
-        totalLearningOutcomes: 12,
-        color: 'blue',
-        currentTopic: 'First Flight: A Triumph of Surgery',
-      },
-      {
-        id: 'sub-soc',
-        name: 'Social Science',
-        code: 'SST-10',
-        teacher: 'Vikram Joshi',
-        teacherEmail: 'vikram.joshi@school.edu',
-        attendance: 92,
-        assignmentsCompleted: 90,
-        assessmentAverage: 81,
-        curriculumProgress: 80,
-        learningOutcomesAchieved: 10,
-        totalLearningOutcomes: 14,
-        color: 'amber',
-        currentTopic: 'The Rise of Nationalism in Europe',
-      },
-      {
-        id: 'sub-hin',
-        name: 'Hindi Course A',
-        code: 'HIN-10',
-        teacher: 'Meenakshi Sundaram',
-        teacherEmail: 'meenakshi.s@school.edu',
-        attendance: 94,
-        assignmentsCompleted: 92,
-        assessmentAverage: 83,
-        curriculumProgress: 85,
-        learningOutcomesAchieved: 9,
-        totalLearningOutcomes: 11,
-        color: 'rose',
-        currentTopic: 'Kshitij: Surdas ke Pad',
-      },
-      {
-        id: 'sub-cs',
-        name: 'Computer Applications',
-        code: 'CS-10',
-        teacher: 'Deepak Verma',
-        teacherEmail: 'deepak.v@school.edu',
-        attendance: 98,
-        assignmentsCompleted: 96,
-        assessmentAverage: 91,
-        curriculumProgress: 94,
-        learningOutcomesAchieved: 8,
-        totalLearningOutcomes: 8,
-        color: 'purple',
-        currentTopic: 'Cyber Ethics & Python Basics',
-      },
-    ];
-
-    return { subjects };
+    const subjects = await this.drizzle.query(
+      `SELECT sub.id, sub.name, sub.code, u.name AS teacher, u.email AS "teacherEmail",
+        (SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE ar.status IN ('present','late')) / NULLIF(COUNT(*),0),1)
+         FROM attendance_records ar JOIN attendance_sessions ats ON ats.id=ar.attendance_session_id AND ats.organization_id=ar.organization_id
+         WHERE ar.organization_id=$1 AND ar.student_id=$2 AND ats.subject_id=sub.id AND ats.status='finalized') AS attendance,
+        (SELECT ROUND(100.0 * COUNT(*) FILTER (WHERE ss.status IN ('submitted','late','graded')) / NULLIF(COUNT(*),0),1)
+         FROM submissions ss JOIN assignments a ON a.id=ss.assignment_id AND a.organization_id=ss.organization_id
+         WHERE ss.organization_id=$1 AND ss.student_id=$2 AND a.subject_id=sub.id AND a.status='published') AS "assignmentsCompleted",
+        (SELECT ROUND(AVG(100.0 * ss.score / NULLIF(a.max_score,0))::numeric,1)
+         FROM submissions ss JOIN assignments a ON a.id=ss.assignment_id AND a.organization_id=ss.organization_id
+         WHERE ss.organization_id=$1 AND ss.student_id=$2 AND a.subject_id=sub.id AND ss.status='graded') AS "assessmentAverage",
+        (SELECT ROUND(AVG(n.actual_completion_percentage),1) FROM principal_curriculum_nodes n
+         WHERE n.organization_id=$1 AND n.subject_id=sub.id AND n.academic_year_id=e.academic_year_id AND (n.grade=sec.name OR n.grade=(SELECT p.name FROM programs p WHERE p.id=sec.program_id) OR n.grade=(SELECT REPLACE(p.name, 'Class ', '') FROM programs p WHERE p.id=sec.program_id))) AS "curriculumProgress"
+       FROM enrollments e
+       JOIN academic_years y ON y.id=e.academic_year_id AND y.organization_id=e.organization_id AND y.is_current
+       JOIN sections sec ON sec.id=e.section_id AND sec.organization_id=e.organization_id
+       JOIN class_subject_assignments c ON c.organization_id=e.organization_id AND c.section_id=e.section_id
+       JOIN subjects sub ON sub.id=c.subject_id AND sub.organization_id=c.organization_id
+       JOIN users u ON u.id=c.teacher_user_id
+       WHERE e.organization_id=$1 AND e.student_user_id=$2 AND e.status='active'
+       ORDER BY sub.name`, [organizationId, studentUserId]);
+    return { subjects: subjects.map(s => ({ ...s,
+      attendance: s.attendance == null ? null : Number(s.attendance),
+      assignmentsCompleted: s.assignmentsCompleted == null ? null : Number(s.assignmentsCompleted),
+      assessmentAverage: s.assessmentAverage == null ? null : Number(s.assessmentAverage),
+      curriculumProgress: s.curriculumProgress == null ? null : Number(s.curriculumProgress),
+    })) };
   }
 }

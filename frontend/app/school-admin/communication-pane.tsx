@@ -21,35 +21,10 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
   const [loading, setLoading] = useState(false);
 
   // Broadcasts history (§44)
-  const [broadcasts, setBroadcasts] = useState<BroadcastRecord[]>([
-    {
-      id: "b-1",
-      title: "Mandatory Parent Teacher Meeting (PTM) Schedule for Term 1",
-      message: "Dear Parents, Mid-term reviews will be conducted on Saturday, Oct 15 from 09:00 AM to 01:30 PM. Book your slot via parent app.",
-      audience: "Parents",
-      channels: ["In-App", "WhatsApp", "SMS"],
-      sentAt: "2026-10-02 10:15 AM",
-      sentBy: "School Admin",
-      deliveryStats: { sent: 1840, delivered: 1812, failed: 28 },
-    },
-    {
-      id: "b-2",
-      title: "Campus Closed: Public Holiday Notification for Dussehra",
-      message: "School will remain closed on Friday, Oct 09 on account of Dussehra. Regular classes resume Monday.",
-      audience: "Entire School",
-      channels: ["In-App", "SMS"],
-      sentAt: "2026-10-01 04:00 PM",
-      sentBy: "Principal's Office",
-      deliveryStats: { sent: 3352, delivered: 3310, failed: 42 },
-    },
-  ]);
+  const [broadcasts, setBroadcasts] = useState<BroadcastRecord[]>(([] as any[]));
 
   // Unified Inquiries & Tickets (§46)
-  const [tickets, setTickets] = useState<CommunicationTicket[]>([
-    { id: "t-1", senderName: "Venkat Iyer", senderRole: "Parent", subject: "Route 4 Bus Delay Query for Defence Colony", snippet: "Bus arrived 25 mins late today morning at Stop 3. Kindly verify GPS telemetry.", priority: "High", status: "Open", timestamp: "Today 08:45 AM", assignedTo: "Transport Manager" },
-    { id: "t-2", senderName: "Rahul Sharma", senderRole: "Teacher", subject: "Lab Equipment Request: Class 10 Calculus Workbooks", snippet: "Require 45 copies of supplementary problem sets printed for next week.", priority: "Medium", status: "In Progress", timestamp: "Yesterday 03:20 PM", assignedTo: "Academic Admin" },
-    { id: "t-3", senderName: "Pooja Malhotra", senderRole: "Teacher", subject: "Class 10-C Student Discipline Escalation", snippet: "Repeated disturbance during Period 3. Incident logged in discipline register.", priority: "Urgent", status: "Open", timestamp: "Oct 03 11:30 AM", assignedTo: "Vice Principal" },
-  ]);
+  const [tickets, setTickets] = useState<CommunicationTicket[]>(([] as any[]));
 
   useEffect(() => {
     if (!organizationId) return;
@@ -87,7 +62,7 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
   const [broadcastTitle, setBroadcastTitle] = useState("");
   const [broadcastBody, setBroadcastBody] = useState("");
   const [broadcastAudience, setBroadcastAudience] = useState<"Entire School" | "Students" | "Parents" | "Teachers" | "Staff">("Parents");
-  const [channels, setChannels] = useState<{ inApp: boolean; whatsapp: boolean; sms: boolean; email: boolean }>({ inApp: true, whatsapp: true, sms: false, email: false });
+  const [channels, setChannels] = useState<{ inApp: boolean; whatsapp: boolean; sms: boolean; email: boolean }>({ inApp: true, whatsapp: false, sms: false, email: false });
 
   const handleSendBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,35 +72,18 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
     if (channels.sms) selectedChannels.push("SMS");
     if (channels.email) selectedChannels.push("Email");
 
-    if (organizationId) {
-      try {
-        await createSchoolAdminBroadcast(organizationId, {
-          title: broadcastTitle,
-          message: broadcastBody,
-          targetAudience: broadcastAudience.toLowerCase().replace(" ", "_"),
-          channels: selectedChannels,
-          priority: "normal",
-        });
-      } catch (err) {
-        console.error("Broadcast failed:", err);
-      }
-    }
+    if (!organizationId) return;
+    try {
+      const saved=await createSchoolAdminBroadcast(organizationId,{
+        title:broadcastTitle,message:broadcastBody,
+        targetAudience:broadcastAudience==='Entire School'?'all':broadcastAudience.toLowerCase(),
+        channels:selectedChannels.map(channel=>channel==='In-App'?'in_app':channel.toLowerCase()),priority:'normal',
+      });
+      setBroadcasts(prev=>[{id:saved.id,title:saved.title,message:saved.message,audience:saved.target_audience,channels:saved.channels,sentAt:saved.created_at,sentBy:saved.sender_name,deliveryStats:saved.delivery_stats},...prev]);
+      setBroadcastTitle('');setBroadcastBody('');setSubtab('broadcast');
+      alert('Notice saved to the school noticeboard.');
+    } catch (error) { console.error('Broadcast could not be saved:',error); }
 
-    const newRecord: BroadcastRecord = {
-      id: `b-${Date.now()}`,
-      title: broadcastTitle,
-      message: broadcastBody,
-      audience: broadcastAudience,
-      channels: selectedChannels,
-      sentAt: "Just now",
-      sentBy: "School Admin",
-      deliveryStats: { sent: 1840, delivered: 1840, failed: 0 },
-    };
-    setBroadcasts([newRecord, ...broadcasts]);
-    setBroadcastTitle("");
-    setBroadcastBody("");
-    setSubtab("broadcast");
-    alert("Broadcast dispatched successfully across configured channels!");
   };
 
   return (
@@ -271,10 +229,10 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
                 onChange={(e) => setBroadcastAudience(e.target.value as any)}
                 style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2DDD5", marginTop: "4px", fontSize: "13px" }}
               >
-                <option value="Parents">All Parents (1,840 Contacts)</option>
-                <option value="Students">All Students (1,420 Enrolled)</option>
-                <option value="Teachers">All Faculty Members (92 Teachers)</option>
-                <option value="Staff">All Operational Staff (38 Staff)</option>
+                <option value="Parents">All parents</option>
+                <option value="Students">All students</option>
+                <option value="Teachers">All teachers</option>
+                <option value="Staff">School staff</option>
                 <option value="Entire School">Entire School Community (All)</option>
               </select>
             </div>

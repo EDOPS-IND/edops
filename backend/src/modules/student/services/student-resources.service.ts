@@ -1,5 +1,5 @@
 import { DrizzleService } from '../../../database/drizzle.service';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { ToggleBookmarkDto, UpdateLectureProgressDto } from '../dto/student.dto';
 
 @Injectable()
@@ -7,148 +7,53 @@ export class StudentResourcesService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async getResources(organizationId: string, studentUserId: string) {
-    let studyMaterials: any[] = [];
-    try {
-      const matRows = await this.drizzle.query(
-        `SELECT tsm.id, tsm.title, tsm.chapter, tsm.topic, tsm.file_type, tsm.file_url,
-                to_char(tsm.created_at, 'Mon DD, YYYY') as date,
-                coalesce(u.name, 'Teacher') as uploaded_by,
-                coalesce(sub.name, 'General') as subject_name
-         FROM teacher_study_materials tsm
-         LEFT JOIN subjects sub ON sub.id = tsm.subject_id AND sub.organization_id = tsm.organization_id
-         LEFT JOIN users u ON u.id = tsm.teacher_user_id
-         WHERE tsm.organization_id = $1
-         ORDER BY tsm.created_at DESC LIMIT 30`,
-        [organizationId]
-      );
-
-      if (matRows && matRows.length > 0) {
-        studyMaterials = matRows.map((m: any) => ({
-          id: m.id,
-          title: m.title,
-          subject: m.subject_name,
-          chapter: m.chapter || m.topic || 'Curriculum Reference',
-          type: m.file_type || 'pdf',
-          fileUrl: m.file_url || '#',
-          fileSize: '1.5 MB',
-          uploadedBy: m.uploaded_by,
-          date: m.date || 'Recent',
-          isBookmarked: false,
-        }));
-      }
-    } catch {
-      studyMaterials = [];
-    }
-
-    if (studyMaterials.length === 0) {
-      studyMaterials = [
-        {
-          id: 'mat-1',
-          title: 'NCERT Exemplar Solutions: Quadratic Equations',
-          subject: 'Mathematics',
-          chapter: 'Quadratic Equations',
-          type: 'pdf',
-          fileUrl: 'https://cdn.school.edu/materials/math-ch4-solutions.pdf',
-          fileSize: '2.4 MB',
-          uploadedBy: 'Rahul Sharma',
-          date: 'Oct 03, 2026',
-          isBookmarked: true,
-        },
-        {
-          id: 'mat-2',
-          title: 'Chemical Reactions: Formula Sheet & Balancing Guide',
-          subject: 'Science',
-          chapter: 'Chemical Reactions and Equations',
-          type: 'pdf',
-          fileUrl: 'https://cdn.school.edu/materials/sci-ch1-formulas.pdf',
-          fileSize: '1.8 MB',
-          uploadedBy: 'Priya Nair',
-          date: 'Oct 01, 2026',
-          isBookmarked: false,
-        },
-        {
-          id: 'mat-3',
-          title: 'Formal Letter Formats & Sample Exemplars',
-          subject: 'English',
-          chapter: 'Writing Skills',
-          type: 'document',
-          fileUrl: 'https://cdn.school.edu/materials/eng-letters.docx',
-          fileSize: '950 KB',
-          uploadedBy: 'Anita Roy',
-          date: 'Sep 29, 2026',
-          isBookmarked: true,
-        },
-      ];
-    }
-
-    const recordedLectures = [
-      {
-        id: 'rec-1',
-        title: 'Quadratic Equations - Complete Derivation & Discriminant',
-        subject: 'Mathematics',
-        teacher: 'Rahul Sharma',
-        chapter: 'Quadratic Equations',
-        duration: '42 mins',
-        durationSeconds: 2520,
-        recordedDate: 'Oct 04, 2026',
-        videoUrl: 'https://cdn.school.edu/recordings/math-quadratics-lec1.mp4',
-        lastPositionSeconds: 1512,
-        watchedPct: 60,
-        isCompleted: false,
-      },
-      {
-        id: 'rec-2',
-        title: 'Types of Chemical Reactions with Live Lab Demonstrations',
-        subject: 'Science',
-        teacher: 'Priya Nair',
-        chapter: 'Chemical Reactions',
-        duration: '38 mins',
-        durationSeconds: 2280,
-        recordedDate: 'Oct 02, 2026',
-        videoUrl: 'https://cdn.school.edu/recordings/sci-reactions-lec2.mp4',
-        lastPositionSeconds: 2280,
-        watchedPct: 100,
-        isCompleted: true,
-      },
-    ];
-
-    const bookmarks = [
-      {
-        id: 'bm-1',
-        resourceId: 'mat-1',
-        resourceType: 'study_material',
-        title: 'NCERT Exemplar Solutions: Quadratic Equations',
-        subject: 'Mathematics',
-        url: 'https://cdn.school.edu/materials/math-ch4-solutions.pdf',
-      },
-      {
-        id: 'bm-2',
-        resourceId: 'rec-1',
-        resourceType: 'recorded_lecture',
-        title: 'Quadratic Equations - Complete Derivation & Discriminant',
-        subject: 'Mathematics',
-        url: 'https://cdn.school.edu/recordings/math-quadratics-lec1.mp4',
-      },
-    ];
-
+    const studyMaterials = await this.drizzle.query(
+      `SELECT t.id,t.title,t.chapter,t.topic,t.file_type AS type,t.file_url AS "fileUrl",t.created_at AS date,
+        u.name AS "uploadedBy",s.name AS subject,
+        EXISTS (SELECT 1 FROM student_bookmarks b WHERE b.organization_id=t.organization_id AND b.student_user_id=$2 AND b.resource_id=t.id::text AND b.resource_type='study_material') AS "isBookmarked"
+       FROM teacher_study_materials t JOIN subjects s ON s.id=t.subject_id AND s.organization_id=t.organization_id
+       JOIN users u ON u.id=t.teacher_user_id
+       WHERE t.organization_id=$1 AND EXISTS (SELECT 1 FROM enrollments e WHERE e.organization_id=t.organization_id AND e.section_id=t.section_id AND e.student_user_id=$2 AND e.status='active')
+       ORDER BY t.created_at DESC`, [organizationId, studentUserId]);
+    const recordedLectures = await this.drizzle.query(
+      `SELECT r.id,r.title,r.duration_seconds AS "durationSeconds",r.recorded_at AS "recordedDate",s.name AS subject,u.name AS teacher,
+        COALESCE(p.last_position_seconds,0) AS "lastPositionSeconds",COALESCE(p.watched_pct,0) AS "watchedPct",COALESCE(p.is_completed,false) AS "isCompleted"
+       FROM recorded_sessions r JOIN subjects s ON s.id=r.subject_id AND s.organization_id=r.organization_id
+       JOIN users u ON u.id=r.uploaded_by
+       LEFT JOIN student_lecture_progress p ON p.organization_id=r.organization_id AND p.recording_id=r.id AND p.student_user_id=$2
+       WHERE r.organization_id=$1 AND r.status='published' AND EXISTS (SELECT 1 FROM enrollments e WHERE e.organization_id=r.organization_id AND e.section_id=r.section_id AND e.student_user_id=$2 AND e.status='active')
+       ORDER BY r.recorded_at DESC`, [organizationId, studentUserId]);
+    const bookmarks = await this.drizzle.query(
+      `SELECT id,resource_id AS "resourceId",resource_type AS "resourceType",title,subject_name AS subject,url
+       FROM student_bookmarks WHERE organization_id=$1 AND student_user_id=$2 ORDER BY created_at DESC`, [organizationId, studentUserId]);
     return { studyMaterials, recordedLectures, bookmarks };
   }
 
   async updateLectureProgress(organizationId: string, studentUserId: string, recordingId: string, dto: UpdateLectureProgressDto) {
-    return {
-      success: true,
-      recordingId,
-      lastPositionSeconds: dto.lastPositionSeconds,
-      watchedPct: dto.watchedPct,
-      isCompleted: dto.isCompleted,
-    };
+    const [recording] = await this.drizzle.query(
+      `SELECT r.id FROM recorded_sessions r WHERE r.organization_id=$1 AND r.id=$3 AND r.status='published'
+       AND EXISTS (SELECT 1 FROM enrollments e WHERE e.organization_id=r.organization_id AND e.section_id=r.section_id AND e.student_user_id=$2 AND e.status='active')`, [organizationId,studentUserId,recordingId]);
+    if (!recording) throw new NotFoundException('Recording not found');
+    const [progress] = await this.drizzle.query(
+      `INSERT INTO student_lecture_progress (organization_id,student_user_id,recording_id,last_position_seconds,watched_pct,is_completed)
+       VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (organization_id,student_user_id,recording_id) DO UPDATE
+       SET last_position_seconds=EXCLUDED.last_position_seconds,watched_pct=EXCLUDED.watched_pct,is_completed=EXCLUDED.is_completed,updated_at=now()
+       RETURNING recording_id AS "recordingId",last_position_seconds AS "lastPositionSeconds",watched_pct AS "watchedPct",is_completed AS "isCompleted"`,
+      [organizationId,studentUserId,recordingId,dto.lastPositionSeconds,dto.watchedPct,dto.isCompleted]);
+    return { success: true, ...progress };
   }
 
   async toggleBookmark(organizationId: string, studentUserId: string, dto: ToggleBookmarkDto) {
-    return {
-      success: true,
-      message: 'Bookmark updated successfully.',
-      bookmark: dto,
-    };
+    return this.drizzle.transaction(async m => {
+      await m.query("SELECT pg_advisory_xact_lock(hashtextextended($1,0))", [JSON.stringify([organizationId,studentUserId,dto.resourceType,dto.resourceId])]);
+      const removed = await m.query(
+        `DELETE FROM student_bookmarks WHERE organization_id=$1 AND student_user_id=$2 AND resource_type=$3 AND resource_id=$4 RETURNING id`,
+        [organizationId,studentUserId,dto.resourceType,dto.resourceId]);
+      if (removed.length) return { success: true, isBookmarked: false };
+      const [bookmark] = await m.query(
+        `INSERT INTO student_bookmarks (organization_id,student_user_id,resource_id,resource_type,title,subject_name,url)
+         VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`, [organizationId,studentUserId,dto.resourceId,dto.resourceType,dto.title,dto.subjectName || null,dto.url]);
+      return { success: true, isBookmarked: true, bookmark };
+    });
   }
 }

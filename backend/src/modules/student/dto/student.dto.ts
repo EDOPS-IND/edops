@@ -176,3 +176,12 @@ export class CreateStudentSupportRequestDto {
   @IsIn(["low", "normal", "urgent"])
   urgency?: "low" | "normal" | "urgent";
 }
+
+export class StudentReflectionDto {
+  @IsInt() @Min(1) @Max(5) cognitive!:number;
+  @IsInt() @Min(1) @Max(5) socioEmotional!:number;
+  @IsInt() @Min(1) @Max(5) psychomotor!:number;
+  @IsInt() @Min(1) @Max(5) creative!:number;
+  @IsString() reflectionText!:string;
+  @IsString() improvementText!:string;
+}

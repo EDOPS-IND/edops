@@ -117,10 +117,10 @@ export class SendFeeReminderDto {
   @IsUUID()
   dueId!: string;
 
-  @ApiPropertyOptional({ enum: ["whatsapp", "sms", "email"] })
+  @ApiPropertyOptional({ enum: ["in_app", "whatsapp", "sms", "email"] })
   @IsOptional()
-  @IsEnum(["whatsapp", "sms", "email"])
-  channel?: "whatsapp" | "sms" | "email";
+  @IsEnum(["in_app", "whatsapp", "sms", "email"])
+  channel?: "in_app" | "whatsapp" | "sms" | "email";
 }
 
 export class GrantFeeConcessionDto {
@@ -137,6 +137,39 @@ export class GrantFeeConcessionDto {
   @IsNotEmpty()
   @IsString()
   concessionReason!: string;
+}
+
+export class RecordOfflinePaymentDto {
+  @ApiProperty({ format: "uuid" })
+  @IsUUID()
+  dueId!: string;
+
+  @ApiProperty()
+  @IsInt()
+  @Min(1)
+  amount!: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  paymentMode?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  referenceNo?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
+
+export class BatchFeeReminderDto {
+  @ApiPropertyOptional({ enum: ["in_app", "whatsapp", "sms", "email"] })
+  @IsOptional()
+  @IsEnum(["in_app", "whatsapp", "sms", "email"])
+  channel?: "in_app" | "whatsapp" | "sms" | "email";
 }
 
 export class CreateBroadcastDto {
@@ -334,4 +367,142 @@ export class CreateDepartmentDto {
   @IsOptional()
   @IsString()
   headTeacherName?: string;
+
+  @ApiPropertyOptional({ type: [String], description: "List of subject UUIDs mapped to this department" })
+  @IsOptional()
+  @IsArray()
+  @IsUUID("4", { each: true })
+  subjectIds?: string[];
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  location?: string;
 }
+
+export class UpdateParentChildrenDto {
+  @ApiProperty({ type: [String], description: "List of student user UUIDs mapped to this parent" })
+  @IsArray()
+  @IsUUID("4", { each: true })
+  studentUserIds!: string[];
+}
+
+export class UpdateTeacherEmploymentDto {
+  @ApiPropertyOptional({ example: "EMP-1042" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  employeeId?: string;
+
+  @ApiPropertyOptional({ example: "Regular Faculty" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  employmentType?: string;
+}
+
+export class CreateCurriculumNodeDto {
+  @ApiProperty({ example: "Class 10" })
+  @IsString()
+  @IsNotEmpty()
+  grade!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  subjectId?: string;
+
+  @ApiProperty({ example: "Mathematics" })
+  @IsString()
+  @IsNotEmpty()
+  subjectName!: string;
+
+  @ApiProperty({ example: "Algebra" })
+  @IsString()
+  @IsNotEmpty()
+  unitName!: string;
+
+  @ApiProperty({ example: "Quadratic Equations" })
+  @IsString()
+  @IsNotEmpty()
+  chapterName!: string;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expectedCompletionWeek?: number;
+
+  @ApiPropertyOptional({ type: [String], example: ["Solve quadratic equations"] })
+  @IsOptional()
+  @IsArray()
+  learningOutcomes?: string[];
+}
+
+export class CreateCourseworkDto {
+  @ApiProperty()
+  @IsUUID()
+  sectionId!: string;
+
+  @ApiProperty()
+  @IsUUID()
+  subjectId!: string;
+
+  @ApiProperty({ example: "Quadratic Equations Homework" })
+  @IsString()
+  @IsNotEmpty()
+  title!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @ApiProperty({ example: "2026-11-01" })
+  @IsDateString()
+  dueAt!: string;
+
+  @ApiPropertyOptional({ example: 100 })
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  maxScore?: number;
+}
+
+export class ScheduleExamDto {
+  @ApiProperty()
+  @IsUUID()
+  sectionId!: string;
+
+  @ApiProperty()
+  @IsUUID()
+  subjectId!: string;
+
+  @ApiProperty({ example: "Periodic Assessment 2" })
+  @IsString()
+  @IsNotEmpty()
+  examName!: string;
+
+  @ApiProperty({ example: "Term 1" })
+  @IsString()
+  @IsNotEmpty()
+  term!: string;
+
+  @ApiProperty({ example: "2026-11-15" })
+  @IsDateString()
+  examDate!: string;
+
+  @ApiProperty({ example: "09:00" })
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  startTime!: string;
+
+  @ApiProperty({ example: "12:00" })
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  endTime!: string;
+
+  @ApiProperty({ example: 100 })
+  @IsNumber()
+  @Min(1)
+  maxMarks!: number;
+}
+

@@ -21,8 +21,7 @@ export function OnboardingWizard({
     name: "", slug: "", code: "", schoolType: "Private", board: "CBSE",
     establishedYear: new Date().getFullYear(), addressLine1: "", city: "", state: "", pincode: "",
     officialEmail: "", officialPhone: "", website: "",
-    principalName: "", principalEmail: "", principalPhone: "",
-    adminName: "", adminEmail: "", adminPhone: "", adminDesignation: "Principal",
+    adminName: "", adminEmail: "", adminPhone: "", adminDesignation: "Administrator",
     planId: plans[0]?.id || "", isTrial: true, trialDays: 30, overrides: [] as { featureKey: string; enabled: boolean; reason: string }[],
   });
   const [onboardResult, setOnboardResult] = useState<any>(null);

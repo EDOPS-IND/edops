@@ -9,6 +9,7 @@ export class PrincipalControlCenter1789516800000 implements MigrationInterface {
 
       ALTER TABLE invitations DROP CONSTRAINT IF EXISTS invitations_role_check;
       ALTER TABLE invitations ADD CONSTRAINT invitations_role_check CHECK (role IN ('school_admin', 'principal', 'teacher', 'student'));
+      ALTER TABLE invitations ADD COLUMN IF NOT EXISTS phone varchar(32);
 
       -- 1. Annual Academic & Pedagogical Plans
       CREATE TABLE IF NOT EXISTS principal_academic_plans (

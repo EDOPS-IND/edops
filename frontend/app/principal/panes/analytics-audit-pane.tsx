@@ -1,5 +1,6 @@
 "use client";
 
+import { RecordList } from "../../parent/components/record-list";
 import React, { useState } from "react";
 import { BarChart3, TrendingUp, CheckCircle2, AlertTriangle, Layers, User } from "lucide-react";
 
@@ -49,7 +50,7 @@ export function AnalyticsAuditPane({
         <div style={{ textAlign: "right" }}>
           <div style={{ fontSize: "11px", color: "#64748B" }}>Overall School Execution Rate</div>
           <div style={{ fontSize: "32px", fontWeight: 800, color: "#15803D" }}>
-            {auditData?.overallExecutionScore || 93.6}%
+            {auditData?.overallExecutionScore || 0}%
           </div>
         </div>
       </div>
@@ -155,32 +156,7 @@ export function AnalyticsAuditPane({
         </div>
       )}
 
-      {/* 5. School Analytics Tab (Section 8) */}
-      {auditSubTab === "school_analytics" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-          <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px" }}>
-            <h4 style={{ margin: "0 0 10px", fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>CBSE Board Grade Projections</h4>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
-              <div>A1 (&gt;90%): <b>28% of cohort</b> (238 students)</div>
-              <div>A2 (81-90%): <b>34% of cohort</b> (289 students)</div>
-              <div>B1 (71-80%): <b>24% of cohort</b> (204 students)</div>
-              <div>B2 (61-70%): <b>10% of cohort</b> (85 students)</div>
-              <div>C1 & Below (&lt;60%): <b>4% of cohort</b> (34 students - Targeted for Remedial)</div>
-            </div>
-          </div>
-
-          <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px" }}>
-            <h4 style={{ margin: "0 0 10px", fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>Subject Comparative Mastery</h4>
-            <div style={{ display: "flex", flexDirection: "column", gap: "8px", fontSize: "12px" }}>
-              <div>• Computer Science & AI: <b>89.4% Avg</b></div>
-              <div>• Science (Theory & Practical): <b>85.0% Avg</b></div>
-              <div>• English Communicative: <b>84.2% Avg</b></div>
-              <div>• Social Science: <b>79.0% Avg</b></div>
-              <div>• Mathematics: <b>78.5% Avg (Intervention Active)</b></div>
-            </div>
-          </div>
-        </div>
-      )}
+      {auditSubTab==='school_analytics'&&<div className="space-y-4"><RecordList title="Published result grades" rows={effectiveAudit?.gradeDistribution || []} columns={[["grade","Grade"],["count","Saved results"]]}/><RecordList title="Subject averages" rows={effectiveAudit?.subjectMastery || []} columns={[["subject","Subject"],["average","Average %"]]}/></div>}
     </div>
   );
 }

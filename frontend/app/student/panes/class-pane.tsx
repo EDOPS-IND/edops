@@ -32,14 +32,7 @@ export const ClassPane: React.FC<ClassPaneProps> = ({ organizationId }) => {
     return <div className="p-8 text-center text-slate-500 animate-pulse">Loading class information...</div>;
   }
 
-  const classInfo = data?.classInfo || {
-    className: 'Class 10-A',
-    academicYear: '2026-27',
-    classTeacher: 'Rahul Sharma',
-    roomNumber: 'A-204',
-    studentCount: 42,
-    subjectsCount: 6,
-  };
+  const classInfo = data?.classInfo || { className: "", academicYear: "", classTeacher: "", roomNumber: "", studentCount: 0, subjectsCount: 0 };
 
   const classmates = data?.classmates || [];
   const announcements = data?.announcements || [];

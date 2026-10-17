@@ -45,7 +45,8 @@ export interface StudentRecord {
 
 export interface TeacherRecord {
   id: string;
-  empId: string;
+  userId?: string;
+  empId?: string;
   name: string;
   email: string;
   phone: string;
@@ -54,10 +55,11 @@ export interface TeacherRecord {
   subjects: string[];
   classes: string[];
   joiningDate: string;
-  employmentType: "Full Time" | "Part Time" | "Contract" | "Visiting";
+  employmentType?: "Full Time" | "Part Time" | "Contract" | "Visiting" | string;
   weeklyPeriods: number;
   maxPeriods: number;
-  status: "Active" | "On Leave" | "Inactive";
+  status: "Active" | "On Leave" | "Inactive" | "Pending Invite" | string;
+  [key: string]: any;
 }
 
 export interface StaffRecord {
@@ -112,6 +114,7 @@ export interface DepartmentRecord {
   syllabusCompletionPct?: number;
   status?: "Active" | "Inactive";
   location?: string;
+  subjects?: { id: string; name: string; code?: string }[];
   [key: string]: any;
 }
 

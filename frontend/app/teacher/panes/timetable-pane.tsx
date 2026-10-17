@@ -56,7 +56,7 @@ export function TimetablePane({ organizationId, onTakeAttendance, onLogLesson }:
             Teacher Timetable & Schedule Master
           </h2>
           <p className="text-xs text-gray-500  mt-0.5">
-            Weekly period load: <strong className="text-indigo-600">{weeklyData?.totalWeeklyPeriods ?? 0} / {weeklyData?.maxWeeklyPeriods ?? 30} Periods</strong> (Assigned Load)
+            Weekly period load: <strong className="text-indigo-600">{weeklyData?.totalWeeklyPeriods ?? 0} / {weeklyData?.maxWeeklyPeriods ?? 0} Periods</strong> (Assigned Load)
           </p>
         </div>
 

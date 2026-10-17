@@ -33,12 +33,12 @@ export const PerformancePane: React.FC<PerformancePaneProps> = ({ organizationId
     return <div className="p-8 text-center text-slate-500 animate-pulse">Loading academic performance records...</div>;
   }
 
-  const overall = data?.overall || { currentAverage: 82, targetAverage: 85, growthPercentage: 5, trend: 'Improving' };
+  const overall = data?.overall || { currentAverage: 0, targetAverage: 0, growthPercentage: 0, trend: "" };
   const monthlyTrends = data?.monthlyTrends || [];
   const subjectScores = data?.subjectScores || [];
   const learningOutcomes = data?.learningOutcomes || [];
   const competencies = data?.competencies || [];
-  const holistic = data?.holisticProgress || { academicGrowth: 85, cognitiveSkills: 82, physicalHealth: 88, socialCollaboration: 90 };
+  const holistic = data?.holisticProgress || { academicGrowth: 0, cognitiveSkills: 0, physicalHealth: 0, socialCollaboration: 0 };
 
   return (
     <div className="space-y-6">

@@ -19,6 +19,6 @@ import { OutboxModule } from "../notifications/outbox.service";
     AttendanceService,
     ScorecardsService,
   ],
-  exports: [TeachingAccess, ScorecardsService],
+  exports: [TeachingAccess, ScorecardsService, AssignmentsService, AttendanceService],
 })
 export class TeachingModule {}

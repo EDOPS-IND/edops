@@ -37,7 +37,7 @@ export const ResourcesPane: React.FC<ResourcesPaneProps> = ({ organizationId, on
         resourceType: type,
         title: item.title,
         subjectName: item.subject,
-        url: item.fileUrl || item.videoUrl || 'https://school.edu',
+        url: item.fileUrl || item.videoUrl || '',
       });
       loadResources();
     } catch (err) {

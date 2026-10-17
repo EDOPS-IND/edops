@@ -1,5 +1,6 @@
 import { Controller, DynamicModule, Get, Global, Module, ServiceUnavailableException } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { PortalDatabaseInterceptor } from './common/portal-database.interceptor';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { APP_CONFIG, AppConfig } from './config';
@@ -15,6 +16,7 @@ import { BillingModule } from './modules/billing/billing.controller';
 import { SchoolAdminModule } from './modules/school-admin/school-admin.module';
 import { PrincipalModule } from './modules/principal/principal.module';
 import { TeacherModule } from './modules/teacher/teacher.module';
+import { ParentModule } from './modules/parent/parent.module';
 import { StudentModule } from './modules/student/student.module';
 import { DatabaseModule } from './database/database.module';
 import { DrizzleService } from './database/drizzle.service';
@@ -79,9 +81,11 @@ export class AppModule {
         PrincipalModule,
         TeacherModule,
         StudentModule,
+        ParentModule,
       ],
       controllers: [HealthController],
       providers: [
+        { provide: APP_INTERCEPTOR, useClass: PortalDatabaseInterceptor },
         { provide: APP_GUARD, useClass: ThrottlerGuard },
         { provide: APP_GUARD, useClass: AuthGuard },
       ],

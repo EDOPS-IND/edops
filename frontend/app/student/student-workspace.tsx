@@ -213,63 +213,20 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   };
 
   const handleOpenSubmit = (assignment?: any) => {
-    setSelectedAssignment(
-      assignment || {
-        id: 'assign-1',
-        title: 'Quadratic Equations: Problem Set 3',
-        subject: 'Mathematics',
-        teacher: 'Dr. K. Raman',
-        maxMarks: 20,
-        dueDate: 'Today, 05:00 PM',
-        instructions: 'Show all derivation steps clearly.',
-      }
-    );
+    if (!assignment) { navigateTo('assignments'); return; }
+    setSelectedAssignment(assignment);
     setSubmitModalOpen(true);
   };
 
   const handleOpenArena = (activity?: any) => {
-    setSelectedArenaActivity(
-      activity || {
-        id: 'arena-act-1',
-        title: 'Quadratic Equations Speed Drill',
-        subject: 'Mathematics',
-        mode: 'practice',
-        questions: [
-          {
-            id: 'q1',
-            question: 'What is the discriminant of 2x² - 4x + 3 = 0?',
-            options: ['-8', '8', '40', '-40'],
-            correctIndex: 0,
-            explanation: 'D = b² - 4ac = (-4)² - 4(2)(3) = 16 - 24 = -8.',
-          },
-          {
-            id: 'q2',
-            question: 'If roots of ax² + bx + c = 0 are equal, then:',
-            options: ['D > 0', 'D < 0', 'D = 0', 'D ≥ 0'],
-            correctIndex: 2,
-            explanation: 'Equal roots occur when D = 0.',
-          },
-        ],
-      }
-    );
+    if (!activity) { navigateTo('arena'); return; }
+    setSelectedArenaActivity(activity);
     setArenaModalOpen(true);
   };
 
   const handleOpenLecture = (lecture?: any) => {
-    setSelectedLecture(
-      lecture || {
-        id: 'rec-1',
-        title: 'Quadratic Equations - Complete Derivation',
-        subject: 'Mathematics',
-        teacher: 'Dr. K. Raman',
-        duration: '42 mins',
-        durationSeconds: 2520,
-        recordedDate: 'Oct 04, 2026',
-        videoUrl: 'https://cdn.school.edu/recordings/math-quadratics-lec1.mp4',
-        watchedPct: 60,
-        isCompleted: false,
-      }
-    );
+    if (!lecture) { navigateTo('resources'); return; }
+    setSelectedLecture(lecture);
     setLectureModalOpen(true);
   };
 
@@ -409,7 +366,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
             <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
             <span style={{ fontSize: "11px", fontWeight: 600, color: "#8C909A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              Class 10-A · Enrolled
+              Student account
             </span>
           </div>
 

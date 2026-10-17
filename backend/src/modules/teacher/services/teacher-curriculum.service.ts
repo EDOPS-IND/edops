@@ -1,5 +1,5 @@
 import { DrizzleService } from '../../../database/drizzle.service';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { User } from '../../auth/user.entity';
 
 @Injectable()
@@ -15,24 +15,20 @@ export class TeacherCurriculumService {
         [organizationId]
       );
       conductedLessons = conductedRes?.[0]?.count || 0;
-    } catch {
-      conductedLessons = 0;
-    }
+    } catch (error) { throw error; }
 
     let nodes: any[] = [];
     try {
       nodes = await this.drizzle.query(
         `SELECT * FROM principal_curriculum_nodes
-         WHERE organization_id = $1
+         WHERE organization_id = $1 AND EXISTS (SELECT 1 FROM class_subject_assignments c WHERE c.organization_id=principal_curriculum_nodes.organization_id AND c.subject_id=principal_curriculum_nodes.subject_id AND c.teacher_user_id=$2)
          ORDER BY created_at ASC`,
-        [organizationId]
+        [organizationId,user.id]
       );
-    } catch {
-      nodes = [];
-    }
+    } catch (error) { throw error; }
 
-    let sectionName = 'Class 10-A';
-    let subjectName = 'Mathematics';
+    let sectionName = '';
+    let subjectName = '';
     try {
       if (sectionId) {
         const secRes = await this.drizzle.query(
@@ -56,10 +52,10 @@ export class TeacherCurriculumService {
           subjectName = secRes[0].subject_name || subjectName;
         }
       }
-    } catch {}
+    } catch (error) { throw error; }
 
-    let expectedProgressPct = 60.0;
-    let activeYearName = '2026-27';
+    let expectedProgressPct = 0;
+    let activeYearName = '';
     try {
       const [yearRow] = await this.drizzle.query(
         `SELECT
@@ -79,7 +75,7 @@ export class TeacherCurriculumService {
         if (yearRow.name) activeYearName = yearRow.name;
         if (yearRow.expected_pct != null) expectedProgressPct = Number(yearRow.expected_pct);
       }
-    } catch {}
+    } catch (error) { throw error; }
 
     if (nodes && nodes.length > 0) {
       const completedCount = nodes.filter(n => n.status === 'Completed' || n.actual_completion_percentage >= 100).length;
@@ -105,15 +101,15 @@ export class TeacherCurriculumService {
           id: n.id,
           sequence: idx + 1,
           name: n.chapter_name || n.unit_name || `Chapter ${idx + 1}`,
-          plannedLessons: n.expected_completion_week || 8,
-          completedLessons: Math.round(((n.actual_completion_percentage || 0) / 100) * (n.expected_completion_week || 8)),
+          plannedLessons: null,
+          completedLessons: null,
           completionPct: n.actual_completion_percentage || 0,
           status: n.status || 'On Track',
-          averagePerformance: 80.0,
+          averagePerformance: null,
           learningOutcomes: (n.learning_outcomes || []).map((lo: string, lIdx: number) => ({
             code: `LO-${String(lIdx + 1).padStart(2, '0')}`,
             description: lo,
-            achievementPct: 80.0,
+            achievementPct: null,
           })),
         })),
       };
@@ -136,28 +132,10 @@ export class TeacherCurriculumService {
     };
   }
 
-  async updateProgress(organizationId: string, user: User, chapterId: string, completedLessons: number) {
-    try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(chapterId);
-      if (isUuid) {
-        const pct = Math.min(100, Math.round((completedLessons / 10) * 100));
-        await this.drizzle.query(
-          `UPDATE principal_curriculum_nodes
-           SET actual_completion_percentage = $1,
-               status = CASE WHEN $1 >= 100 THEN 'Completed' WHEN $1 > 0 THEN 'On Track' ELSE 'Behind Schedule' END
-           WHERE organization_id = $2 AND id = $3`,
-          [pct, organizationId, chapterId]
-        );
-      }
-    } catch {
-      // Graceful fallback
-    }
-
-    return {
-      success: true,
-      chapterId,
-      completedLessons,
-      message: 'Curriculum chapter progress updated.',
-    };
+  async updateProgress(organizationId: string, user: User, chapterId: string, completionPct: number) {
+    if (!Number.isInteger(completionPct) || completionPct<0 || completionPct>100) throw new BadRequestException('Completion percentage must be between 0 and 100');
+    const rows = await this.drizzle.query(`UPDATE principal_curriculum_nodes n SET actual_completion_percentage=LEAST(100,$1),status=CASE WHEN $1>=100 THEN 'Completed' WHEN $1>0 THEN 'On Track' ELSE 'Behind Schedule' END WHERE n.organization_id=$2 AND n.id=$3 AND EXISTS (SELECT 1 FROM class_subject_assignments c WHERE c.organization_id=n.organization_id AND c.subject_id=n.subject_id AND c.teacher_user_id=$4) RETURNING id`, [completionPct,organizationId,chapterId,user.id]);
+    if (!rows.length) throw new NotFoundException('Assigned curriculum chapter not found');
+    return { success:true,chapterId,completionPct };
   }
 }

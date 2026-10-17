@@ -52,7 +52,7 @@ export class StudentTimetableService {
           }
         }
       }
-    } catch {}
+    } catch (error) { throw error; }
 
     let previousClasses: any[] = [];
     try {
@@ -78,7 +78,7 @@ export class StudentTimetableService {
         homeworkStatus: 'Completed',
         hasRecording: false,
       }));
-    } catch {}
+    } catch (error) { throw error; }
 
     return { weeklySchedule, previousClasses };
   }

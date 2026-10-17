@@ -68,11 +68,7 @@ export function AssignmentsPane({
       }));
       setGradingSubmission(null);
     } catch {
-      setQueueData((prev: any) => ({
-        ...prev,
-        pendingQueue: prev.pendingQueue.filter((q: any) => q.id !== gradingSubmission.id),
-      }));
-      setGradingSubmission(null);
+      // Keep the submission in the queue until grading is saved.
     } finally {
       setSubmitting(false);
     }

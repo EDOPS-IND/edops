@@ -29,12 +29,7 @@ export const CalendarPane: React.FC<CalendarPaneProps> = ({ organizationId }) =>
   };
 
   const events = data?.events || [];
-  const stats = data?.stats || {
-    exams: '0 Papers',
-    deadlines: '0 Pending',
-    ptm: '—',
-    holidays: '0 Days',
-  };
+  const stats = data?.stats || { exams: "", deadlines: "", ptm: "", holidays: "" };
 
   return (
     <div className="space-y-6">

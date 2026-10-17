@@ -22,7 +22,7 @@ export class PrincipalAssessmentsService {
        WHERE organization_id = $1
        ORDER BY created_at DESC LIMIT 50`,
       [orgId],
-    ).catch(() => []);
+    );
 
     // 2. Fetch evaluation records from teacher exam_evaluations
     const evaluations = await manager.query(
@@ -36,7 +36,7 @@ export class PrincipalAssessmentsService {
        WHERE ee.organization_id = $1
        ORDER BY ee.created_at DESC LIMIT 20`,
       [orgId],
-    ).catch(() => []);
+    );
 
     // 3. Query teacher list for question paper assignment/setter selector
     const teachers = await manager.query(
@@ -46,50 +46,50 @@ export class PrincipalAssessmentsService {
        WHERE m.organization_id = $1 AND m.role IN ('teacher', 'school_admin', 'principal') AND m.status = 'active'
        ORDER BY u.name ASC`,
       [orgId],
-    ).catch(() => []);
+    );
 
     // 4. Query subjects for question paper registration
     const subjects = await manager.query(
       `SELECT id, name, code FROM subjects WHERE organization_id = $1 ORDER BY name ASC`,
       [orgId],
-    ).catch(() => []);
+    );
 
     // 5. Query counts to dynamically power the 4 assessment KPI cards
     const [asgStats] = await manager.query(
       `SELECT count(*)::int AS "count" FROM assignments WHERE organization_id = $1`,
       [orgId],
-    ).catch(() => [{}]);
+    );
 
     const [examStats] = await manager.query(
       `SELECT count(*)::int AS "count" FROM principal_exam_results WHERE organization_id = $1`,
       [orgId],
-    ).catch(() => [{}]);
+    );
 
     const totalPapers = questionPapers.length;
     const formativeTestsCount = evaluations.length;
     const subjectEnrichmentCount = asgStats?.count || 0;
     const summativeCount = examStats?.count || 0;
     const competencyPapers = questionPapers.filter((p: any) => p.competencyMapped).length;
-    const competencyPct = totalPapers > 0 ? Math.round((competencyPapers / totalPapers) * 100) : 92;
+    const competencyPct = totalPapers > 0 ? Math.round((competencyPapers / totalPapers) * 100) : 0;
 
     const assessmentTypes = [
       {
         type: 'Formative (Periodic)',
         weight: '20%',
-        compliance: formativeTestsCount > 0 ? '100%' : '98%',
-        status: formativeTestsCount > 0 ? `${formativeTestsCount} Tests Recorded` : 'On Track',
+        compliance: null,
+        status: formativeTestsCount > 0 ? `${formativeTestsCount} Tests Recorded` : 'No records',
       },
       {
         type: 'Subject Enrichment',
         weight: '20%',
-        compliance: subjectEnrichmentCount > 0 ? '100%' : '95%',
-        status: subjectEnrichmentCount > 0 ? `${subjectEnrichmentCount} Activities Active` : 'On Track',
+        compliance: null,
+        status: subjectEnrichmentCount > 0 ? `${subjectEnrichmentCount} Activities Active` : 'No records',
       },
       {
         type: 'Summative (Term End)',
         weight: '60%',
-        compliance: summativeCount > 0 ? '100%' : '98%',
-        status: totalPapers > 0 ? `${totalPapers} Papers Registered` : 'Scheduled',
+        compliance: null,
+        status: totalPapers > 0 ? `${totalPapers} Papers Registered` : 'No records',
       },
       {
         type: 'Competency Items (CBE)',

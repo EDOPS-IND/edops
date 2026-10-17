@@ -32,7 +32,7 @@ export function OverviewPane({
   const recentActivities: any[] = dashboardData?.recentActivities || [];
 
   const overallHealth = healthData?.overall || "HEALTHY";
-  const avgLatency = healthData?.metrics?.avgLatencyMs ?? 14;
+  const avgLatency = healthData?.metrics?.avgLatencyMs ?? 0;
   const errorRate = healthData?.metrics?.errorRate ?? "0.00%";
   const activeSessions = healthData?.metrics?.activeSessions ?? 0;
 
@@ -134,7 +134,7 @@ export function OverviewPane({
             <div style={{ display: "flex", justifyContent: "space-between" }}><span>REST API Avg Latency:</span> <b>{avgLatency}ms</b></div>
             <div style={{ display: "flex", justifyContent: "space-between" }}><span>System Error Rate:</span> <b style={{ color: "#10B981" }}>{errorRate}</b></div>
             <div style={{ display: "flex", justifyContent: "space-between" }}><span>Active Tenant Sessions:</span> <b>{activeSessions}</b></div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}><span>Storage Used:</span> <b>{storageGb} GB / 2,048 GB</b></div>
+            <div style={{ display: "flex", justifyContent: "space-between" }}><span>Storage Used:</span> <b>{storageGb} GB</b></div>
             <button
               onClick={() => onNavigateTab("health")}
               style={{ marginTop: "8px", padding: "6px", background: "#F3F4F6", border: "1px solid #D1D5DB", borderRadius: "6px", fontSize: "11.5px", fontWeight: 600, cursor: "pointer" }}

@@ -1,5 +1,5 @@
 import { DrizzleService } from '../../../database/drizzle.service';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '../../auth/user.entity';
 import { CreateStudyMaterialDto, RecordLessonDeliveryDto } from '../dto/teacher.dto';
 
@@ -33,9 +33,7 @@ export class TeacherLearningService {
           createdAt: m.created_at,
         }));
       }
-    } catch {
-      materials = [];
-    }
+    } catch (error) { throw error; }
 
     try {
       const delRows = await this.drizzle.query(
@@ -59,14 +57,12 @@ export class TeacherLearningService {
           deliveryDate: d.delivery_date,
           periodNumber: Number(d.period_number),
           topicsCovered: d.topics_covered,
-          participationPct: Number(d.participation_pct || 90),
+          participationPct: d.participation_pct == null ? null : Number(d.participation_pct),
           homeworkAssigned: d.homework_assigned,
           reflection: d.reflection,
         }));
       }
-    } catch {
-      deliveries = [];
-    }
+    } catch (error) { throw error; }
 
     return {
       lessonPlans: [],
@@ -76,54 +72,10 @@ export class TeacherLearningService {
   }
 
   async recordDelivery(organizationId: string, user: User, dto: RecordLessonDeliveryDto) {
-    let resolvedSectionId = dto.sectionId;
-    let resolvedSubjectId = dto.subjectId;
-
-    try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.sectionId);
-      if (!isUuid) {
-        const cleanName = dto.sectionId.replace(/^sec-/, '').replace('-', ' ');
-        const [sec] = await this.drizzle.query(
-          `SELECT id FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
-          [organizationId, `%${cleanName}%`, dto.sectionId]
-        );
-        if (sec?.id) resolvedSectionId = sec.id;
-        else {
-          const [firstSec] = await this.drizzle.query(
-            `SELECT id FROM sections WHERE organization_id = $1 LIMIT 1`,
-            [organizationId]
-          );
-          if (firstSec?.id) resolvedSectionId = firstSec.id;
-        }
-      }
-    } catch {}
-
-    try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.subjectId);
-      if (!isUuid) {
-        const [sub] = await this.drizzle.query(
-          `SELECT id FROM subjects WHERE organization_id = $1 LIMIT 1`,
-          [organizationId]
-        );
-        if (sub?.id) resolvedSubjectId = sub.id;
-      }
-    } catch {}
-
-    let teacherId = user.id;
-    try {
-      const [m] = await this.drizzle.query(
-        `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
-        [organizationId, user.id]
-      );
-      if (!m) {
-        const [anyMember] = await this.drizzle.query(
-          `SELECT user_id FROM memberships WHERE organization_id = $1 LIMIT 1`,
-          [organizationId]
-        );
-        if (anyMember?.user_id) teacherId = anyMember.user_id;
-      }
-    } catch {}
-
+    const resolvedSectionId=dto.sectionId, resolvedSubjectId=dto.subjectId;
+    const teacherId=user.id, creatorId=user.id;
+    const [assignment] = await this.drizzle.query(`SELECT 1 FROM class_subject_assignments WHERE organization_id=$1 AND section_id=$2 AND subject_id=$3 AND teacher_user_id=$4 LIMIT 1`, [organizationId,dto.sectionId,dto.subjectId,user.id]);
+    if (!assignment) throw new NotFoundException('Assigned section and subject not found');
     const [inserted] = await this.drizzle.query(
       `INSERT INTO teacher_lesson_deliveries (
         organization_id, lesson_plan_id, teacher_user_id, section_id, subject_id,
@@ -154,54 +106,10 @@ export class TeacherLearningService {
   }
 
   async uploadStudyMaterial(organizationId: string, user: User, dto: CreateStudyMaterialDto) {
-    let resolvedSectionId = dto.sectionId;
-    let resolvedSubjectId = dto.subjectId;
-
-    try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.sectionId);
-      if (!isUuid) {
-        const cleanName = dto.sectionId.replace(/^sec-/, '').replace('-', ' ');
-        const [sec] = await this.drizzle.query(
-          `SELECT id FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
-          [organizationId, `%${cleanName}%`, dto.sectionId]
-        );
-        if (sec?.id) resolvedSectionId = sec.id;
-        else {
-          const [firstSec] = await this.drizzle.query(
-            `SELECT id FROM sections WHERE organization_id = $1 LIMIT 1`,
-            [organizationId]
-          );
-          if (firstSec?.id) resolvedSectionId = firstSec.id;
-        }
-      }
-    } catch {}
-
-    try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.subjectId);
-      if (!isUuid) {
-        const [sub] = await this.drizzle.query(
-          `SELECT id FROM subjects WHERE organization_id = $1 LIMIT 1`,
-          [organizationId]
-        );
-        if (sub?.id) resolvedSubjectId = sub.id;
-      }
-    } catch {}
-
-    let teacherId = user.id;
-    try {
-      const [m] = await this.drizzle.query(
-        `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
-        [organizationId, user.id]
-      );
-      if (!m) {
-        const [anyMember] = await this.drizzle.query(
-          `SELECT user_id FROM memberships WHERE organization_id = $1 LIMIT 1`,
-          [organizationId]
-        );
-        if (anyMember?.user_id) teacherId = anyMember.user_id;
-      }
-    } catch {}
-
+    const resolvedSectionId=dto.sectionId, resolvedSubjectId=dto.subjectId;
+    const teacherId=user.id, creatorId=user.id;
+    const [assignment] = await this.drizzle.query(`SELECT 1 FROM class_subject_assignments WHERE organization_id=$1 AND section_id=$2 AND subject_id=$3 AND teacher_user_id=$4 LIMIT 1`, [organizationId,dto.sectionId,dto.subjectId,user.id]);
+    if (!assignment) throw new NotFoundException('Assigned section and subject not found');
     const [inserted] = await this.drizzle.query(
       `INSERT INTO teacher_study_materials (
         organization_id, teacher_user_id, section_id, subject_id, unit, chapter, topic, title, description, file_type, file_url

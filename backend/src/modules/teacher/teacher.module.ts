@@ -1,3 +1,4 @@
+import { TeachingModule } from '../assignments/teaching.module';
 import { Module } from '@nestjs/common';
 import { TeacherDashboardController } from './controllers/teacher-dashboard.controller';
 import { TeacherClassesController } from './controllers/teacher-classes.controller';
@@ -26,6 +27,7 @@ import { TeacherCommunicationService } from './services/teacher-communication.se
 import { TeacherWorkloadReportsService } from './services/teacher-workload-reports.service';
 
 @Module({
+  imports:[TeachingModule],
   controllers: [
     TeacherDashboardController,
     TeacherClassesController,

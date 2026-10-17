@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, CheckCircle, BookOpen } from "lucide-react";
-import { recordTeacherLessonDelivery } from "../../edops-api";
+import { getTeacherClasses, recordTeacherLessonDelivery } from "../../edops-api";
 
 interface LessonCompletionModalProps {
   isOpen: boolean;
@@ -21,19 +21,30 @@ export function LessonCompletionModal({
   onClose,
   organizationId,
   sectionId = "",
-  subjectId = "sub-math",
+  subjectId = "",
   classSectionName,
   classSection,
   periodNumber = 1,
   onSuccess,
 }: LessonCompletionModalProps) {
+  const [classes, setClasses] = useState<any[]>([]);
+  const [selection, setSelection] = useState("");
+  useEffect(() => {
+    if (isOpen) getTeacherClasses(organizationId).then(res => {
+      const rows = res.classes || [];
+      setClasses(rows);
+      const selected = rows.find((c: any) => c.sectionId === sectionId && (!subjectId || c.subjectId === subjectId)) || rows[0];
+      setSelection(selected ? `${selected.sectionId}:${selected.subjectId}` : "");
+    }).catch(() => setClasses([]));
+  }, [isOpen, organizationId, sectionId, subjectId]);
   const activeClassName = classSection || classSectionName || "Active Class";
   const [deliveryDate, setDeliveryDate] = useState(new Date().toISOString().split("T")[0]);
-  const [topicsCovered, setTopicsCovered] = useState("Quadratic Equations: Factorization method & solving roots");
-  const [participationPct, setParticipationPct] = useState(90);
-  const [homeworkAssigned, setHomeworkAssigned] = useState("Exercise 4.2 Q1 to Q6");
-  const [reflection, setReflection] = useState("Good engagement; need quick 5-min recap on negative roots next period.");
+  const [topicsCovered, setTopicsCovered] = useState("");
+  const [participationPct, setParticipationPct] = useState<number | "">("");
+  const [homeworkAssigned, setHomeworkAssigned] = useState("");
+  const [reflection, setReflection] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   if (!isOpen) return null;
 
@@ -41,11 +52,12 @@ export function LessonCompletionModal({
     e.preventDefault();
     if (!topicsCovered.trim()) return;
 
+    setError("");
     setSaving(true);
     try {
       await recordTeacherLessonDelivery(organizationId, {
-        sectionId,
-        subjectId,
+        sectionId: selection.split(":")[0],
+        subjectId: selection.split(":")[1],
         deliveryDate,
         periodNumber,
         topicsCovered,
@@ -55,9 +67,8 @@ export function LessonCompletionModal({
       });
       if (onSuccess) onSuccess();
       onClose();
-    } catch {
-      if (onSuccess) onSuccess();
-      onClose();
+    } catch (err: any) {
+      setError(err?.message || "Could not save. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -82,7 +93,9 @@ export function LessonCompletionModal({
           </button>
         </div>
 
+        {error && <p role="alert" className="text-red-600">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-3.5">
+          <label>Class and subject<select required value={selection} onChange={e => setSelection(e.target.value)} className="w-full border rounded-lg p-2"><option value="">Select an assigned class</option>{classes.map(c => <option key={`${c.sectionId}:${c.subjectId}`} value={`${c.sectionId}:${c.subjectId}`}>{c.className} · {c.subjectName}</option>)}</select></label>
           <div>
             <label className="font-bold text-gray-700  block mb-1">
               Topics & Concepts Delivered *
@@ -106,7 +119,8 @@ export function LessonCompletionModal({
                 min={0}
                 max={100}
                 value={participationPct}
-                onChange={(e) => setParticipationPct(Number(e.target.value))}
+                required
+                onChange={(e) => setParticipationPct(e.target.value === "" ? "" : Number(e.target.value))}
                 className="w-full px-3 py-1.5 bg-gray-50  border border-gray-300  rounded-lg text-gray-900 "
               />
             </div>
@@ -147,7 +161,7 @@ export function LessonCompletionModal({
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || !selection}
               className="px-4 py-1.5 font-semibold text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 rounded-lg shadow-sm transition"
             >
               {saving ? "Recording..." : "Record Lesson Completion"}

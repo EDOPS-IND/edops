@@ -1,282 +1,58 @@
 import { Injectable } from '@nestjs/common';
 import { DrizzleService } from '../../../database/drizzle.service';
+import { StudentClassesService } from './student-classes.service';
+import { StudentTimetableService } from './student-timetable.service';
+import { StudentAssignmentsService } from './student-assignments.service';
+import { StudentAttendanceService } from './student-attendance.service';
+import { StudentCurriculumService } from './student-curriculum.service';
+import { StudentPerformanceService } from './student-performance.service';
+import { StudentCommunicationService } from './student-communication.service';
 
 @Injectable()
 export class StudentDashboardService {
-  constructor(private readonly drizzle: DrizzleService) {}
+  constructor(private readonly drizzle: DrizzleService,
+    private readonly classes: StudentClassesService, private readonly timetableService: StudentTimetableService,
+    private readonly assignments: StudentAssignmentsService, private readonly attendance: StudentAttendanceService,
+    private readonly curriculum: StudentCurriculumService, private readonly performance: StudentPerformanceService,
+    private readonly communication: StudentCommunicationService) {}
 
   async getDashboard(organizationId: string, studentUserId: string) {
-    // 1. Resolve student active enrollment
-    const [enrollment] = await this.drizzle.query(
-      `SELECT e.*, s.name as "sectionName", s.program_id as "programId", p.name as "programName", y.name as "academicYearName"
-       FROM enrollments e
-       LEFT JOIN sections s ON s.id = e.section_id AND s.organization_id = e.organization_id
-       LEFT JOIN programs p ON p.id = s.program_id AND p.organization_id = e.organization_id
-       LEFT JOIN academic_years y ON y.id = e.academic_year_id AND y.organization_id = e.organization_id
-       WHERE e.organization_id = $1 AND e.student_user_id = $2 AND e.status = 'active'
-       LIMIT 1`,
-      [organizationId, studentUserId]
-    );
-
-    let classSectionName = 'Class 10-A';
-    let academicYearName = '2026-27';
-    let rollNumber = enrollment?.roll_number || '17';
-    let sectionId = enrollment?.section_id || 'sec-default';
-
-    if (enrollment) {
-      if (enrollment.programName && enrollment.sectionName) {
-        classSectionName = `${enrollment.programName} - ${enrollment.sectionName}`;
-      } else if (enrollment.sectionName) {
-        classSectionName = `Class ${enrollment.sectionName}`;
-      }
-      if (enrollment.academicYearName) {
-        academicYearName = enrollment.academicYearName;
-      }
-    }
-
-    // 2. Query today's periods from timetable
-    let timetable: any[] = [];
-    try {
-      const dayOfWeek = new Intl.DateTimeFormat('en-US', { weekday: 'long' }).format(new Date()).toLowerCase();
-      timetable = await this.drizzle.query(
-        `SELECT t.id, t.period_number as "periodNumber", t.start_time as "startTime", t.end_time as "endTime",
-                t.room, s.name as "subjectName", u.name as "teacherName"
-         FROM teacher_timetable_slots t
-         JOIN subjects s ON s.id = t.subject_id
-         JOIN memberships m ON m.user_id = t.teacher_user_id AND m.organization_id = t.organization_id
-         JOIN users u ON u.id = m.user_id
-         WHERE t.organization_id = $1 AND t.day_of_week = $2
-         ORDER BY t.period_number ASC`,
-        [organizationId, dayOfWeek]
-      );
-    } catch {
-      timetable = [];
-    }
-
-    if (!timetable || timetable.length === 0) {
-      timetable = [
-        { periodNumber: 1, startTime: '09:00', endTime: '09:45', subjectName: 'Mathematics', teacherName: 'Rahul Sharma', room: 'A-204', status: 'completed' },
-        { periodNumber: 2, startTime: '09:45', endTime: '10:30', subjectName: 'Science', teacherName: 'Priya Nair', room: 'A-205', status: 'now' },
-        { periodNumber: 3, startTime: '10:45', endTime: '11:30', subjectName: 'English', teacherName: 'Anita Roy', room: 'A-104', status: 'upcoming' },
-        { periodNumber: 4, startTime: '11:30', endTime: '12:15', subjectName: 'Social Science', teacherName: 'Vikram Joshi', room: 'A-108', status: 'upcoming' },
-        { periodNumber: 5, startTime: '01:00', endTime: '01:45', subjectName: 'Computer Science', teacherName: 'Deepak Verma', room: 'Lab-1', status: 'upcoming' },
-      ];
-    }
-
-    // Query actual student attendance from attendance_records
-    let overallAttendance = 100;
-    let academicAverage = 80;
-    let pendingAssignments = 0;
-    let submittedAssignments = 0;
-
-    try {
-      const [attRow] = await this.drizzle.query(
-        `SELECT COUNT(*)::int as total,
-                COUNT(*) FILTER (WHERE r.status IN ('present', 'late'))::int as attended
-         FROM attendance_records r
-         WHERE r.organization_id = $1 AND r.student_id = $2`,
-        [organizationId, studentUserId]
-      );
-      if (attRow && Number(attRow.total) > 0) {
-        overallAttendance = Math.round((Number(attRow.attended) / Number(attRow.total)) * 100);
-      }
-    } catch {}
-
-    try {
-      const [scoreRow] = await this.drizzle.query(
-        `SELECT ROUND(AVG(score), 1) as avg_score
-         FROM submissions
-         WHERE organization_id = $1 AND student_id = $2 AND score IS NOT NULL`,
-        [organizationId, studentUserId]
-      );
-      if (scoreRow?.avg_score) {
-        academicAverage = Math.round(Number(scoreRow.avg_score));
-      }
-    } catch {}
-
-    try {
-      const [asgRow] = await this.drizzle.query(
-        `SELECT
-           COUNT(*) FILTER (WHERE sub.id IS NULL OR sub.status = 'pending')::int as pending,
-           COUNT(*) FILTER (WHERE sub.status IN ('submitted', 'graded'))::int as submitted
-         FROM assignments a
-         LEFT JOIN submissions sub ON sub.assignment_id = a.id AND sub.student_id = $2
-         WHERE a.organization_id = $1`,
-        [organizationId, studentUserId]
-      );
-      if (asgRow) {
-        pendingAssignments = asgRow.pending || 0;
-        submittedAssignments = asgRow.submitted || 0;
-      }
-    } catch {}
-
-    // Next class hero
-    const nextClass = {
-      subject: timetable[0]?.subjectName || 'Instructional Period',
-      classSection: classSectionName,
-      teacher: timetable[0]?.teacherName || 'Faculty',
-      room: timetable[0]?.room || 'Classroom',
-      startTime: timetable[0]?.startTime || '09:00 AM',
-      endTime: timetable[0]?.endTime || '09:45 AM',
-      topic: 'Scheduled Session',
-      lessonStatus: 'Active Session',
-      hasStudyMaterial: true,
-      hasRecordedLecture: false,
-    };
-
-    // KPIs
-    const totalAssignments = pendingAssignments + submittedAssignments;
-    const assignmentCompletion = totalAssignments > 0 ? Math.round((submittedAssignments / totalAssignments) * 100) : 100;
-    const kpis = {
-      overallAttendance,
-      subjectWiseAttendance: [
-        { subject: 'Mathematics', percentage: overallAttendance },
-        { subject: 'Science', percentage: overallAttendance },
-        { subject: 'English', percentage: overallAttendance },
-      ],
-      academicAverage,
-      previousAverage: academicAverage,
-      improvement: 0,
-      assignmentCompletion,
-      assignmentsPending: pendingAssignments,
-      assignmentsSubmitted: submittedAssignments,
-      assignmentsLate: 0,
-      curriculumProgress: 80,
-    };
-
-    // Pending tasks
-    const pendingTasks = [
-      { id: '1', title: 'Complete Coursework & Practice Assignments', type: 'assignment', dueDate: 'Pending', priority: 'normal' },
-    ];
-
-    // Academic alerts
-    const alerts = [
-      { id: 'a1', type: 'warning', title: 'Attendance Alert', message: `Your current attendance is ${overallAttendance || 90}%. Minimum threshold is 75%.` },
-    ];
-
-    // Attention items for students
-    const attentionRequired: any[] = [];
-    if (pendingAssignments > 0) {
-      attentionRequired.push({
-        id: 'att-asg',
-        type: 'assignment',
-        severity: 'critical',
-        title: 'Pending Coursework',
-        message: `${pendingAssignments} pending homework assignments due soon`,
-        desc: `${pendingAssignments} pending homework assignments due soon`,
-        action: 'Submit Homework',
-      });
-    } else {
-      attentionRequired.push({
-        id: 'att-asg',
-        type: 'assignment',
-        severity: 'normal',
-        title: 'Problem Set 3: Quadratic Formula',
-        message: 'Assignment submitted and registered for grading',
-        desc: 'Assignment submitted and registered for grading',
-        action: 'Review Homework',
-      });
-    }
-    attentionRequired.push({
-      id: 'att-arena',
-      type: 'arena',
-      severity: 'warning',
-      title: 'Practice Arena Speed Drill',
-      message: 'Weekly Speed Drill in Mathematics Arena published',
-      desc: 'Weekly Speed Drill in Mathematics Arena published',
-      action: 'Start Arena',
-    });
-
-    // Recent Activity / Audit logs for students
-    let recentActivity: any[] = [];
-    try {
-      const actRows = await this.drizzle.query(
-        `SELECT action_type as text, to_char(created_at, 'HH12:MI AM') as time
-         FROM audit_logs
-         WHERE organization_id = $1
-         ORDER BY created_at DESC LIMIT 5`,
-        [organizationId]
-      );
-      if (actRows && actRows.length > 0) {
-        recentActivity = actRows.map((r: any, idx: number) => ({
-          id: `act-${idx}`,
-          text: r.text,
-          time: r.time,
-        }));
-      }
-    } catch {
-      recentActivity = [];
-    }
-
-    if (!recentActivity || recentActivity.length === 0) {
-      recentActivity = [
-        { id: 'act-1', text: 'Submitted Problem Set 3: Quadratic Formula', time: 'Today, 09:15 AM' },
-        { id: 'act-2', text: 'Attendance marked Present for Period 1 (Mathematics)', time: 'Today, 08:35 AM' },
-        { id: 'act-3', text: 'Completed Arena Speed Drill: 92% Accuracy', time: 'Yesterday, 04:20 PM' },
-        { id: 'act-4', text: 'Accessed Ray Optics Lecture Notes & Formula Sheet', time: 'Yesterday, 02:10 PM' },
-        { id: 'act-5', text: 'Completed Chapter 4 of 7 in Math Curriculum', time: '14 Oct 2026, 11:30 AM' },
-      ];
-    }
-
-    // Recent Messages & In-App Communications from Teachers
-    let recentMessages: any[] = [];
-    try {
-      const msgs = await this.drizzle.query(
-        `SELECT tm.id, tm.subject_line, tm.body, tm.priority, tm.is_read, tm.created_at,
-                su.name as sender_name, su.email as sender_email
-         FROM teacher_messages tm
-         LEFT JOIN users su ON su.id = tm.sender_id
-         WHERE tm.organization_id = $1 
-           AND (tm.recipient_id = $2 OR tm.recipient_role = 'student')
-           AND tm.sender_id != $2
-         ORDER BY tm.created_at DESC LIMIT 5`,
-        [organizationId, studentUserId]
-      );
-      if (msgs && msgs.length > 0) {
-        recentMessages = msgs.map((m: any) => ({
-          id: m.id,
-          senderName: m.sender_name || m.sender_email || 'Teacher / Academic Office',
-          subjectLine: m.subject_line,
-          body: m.body,
-          priority: m.priority || 'normal',
-          isRead: Boolean(m.is_read),
-          date: new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        }));
-      }
-    } catch {}
-
-    if (!recentMessages || recentMessages.length === 0) {
-      recentMessages = [
-        { id: 'msg-1', senderName: 'Dr. K. Raman (Mathematics)', date: 'Today, 08:45 AM', subjectLine: 'Pre-Board Practice Questions Published', body: 'Please attempt the speed drill in Arena before tomorrow class.' },
-        { id: 'msg-2', senderName: 'Mrs. Sunita Kapoor (Science)', date: 'Yesterday, 03:30 PM', subjectLine: 'Physics Lab Journal Submission', body: 'Ray optics observations should be signed and submitted before Friday 5 PM.' },
-      ];
-    }
-
+    const classData = await this.classes.getClassDetails(organizationId, studentUserId);
+    const timetableData = await this.timetableService.getTimetable(organizationId, studentUserId);
+    const assignmentData = await this.assignments.getAssignments(organizationId, studentUserId);
+    const attendanceData = await this.attendance.getAttendance(organizationId, studentUserId);
+    const curriculumData = await this.curriculum.getCurriculum(organizationId, studentUserId);
+    const performanceData = await this.performance.getPerformance(organizationId, studentUserId);
+    const messageData = await this.communication.getMessages(organizationId, studentUserId);
+    const [student] = await this.drizzle.query(`SELECT id,name,email FROM users WHERE id=$1`, [studentUserId]);
+    const recentActivity = await this.drizzle.query(
+      `SELECT id,action AS text,created_at AS time FROM audit_events WHERE organization_id=$1 AND actor_id=$2 ORDER BY created_at DESC LIMIT 10`, [organizationId,studentUserId]);
+    const [stats] = await this.drizzle.query(`SELECT COUNT(DISTINCT question_id)::int AS completed FROM arena_attempts WHERE organization_id=$1 AND student_id=$2`, [organizationId,studentUserId]);
+    const [org] = await this.drizzle.query(`SELECT time_zone FROM organizations WHERE id=$1`, [organizationId]);
+    const day = new Intl.DateTimeFormat('en-US',{ weekday:'long',timeZone:org?.time_zone || 'UTC' }).format(new Date()).toLowerCase();
+    const timetable = timetableData.weeklySchedule[day] || [];
+    const pendingTasks = assignmentData.assignments.filter(a=>a.status==='pending').map(a=>({ id:a.id,title:a.title,type:'assignment',dueDate:a.dueDate,priority:'normal' }));
+    const overallAttendance = attendanceData.summary.overallPercentage;
     return {
-      enrollment: {
-        classSection: classSectionName,
-        academicYear: academicYearName,
-        rollNumber,
-        sectionId,
-        classTeacher: 'Dr. K. Raman',
-        totalClassmates: 35,
-        totalSubjects: 5,
-      },
-      kpis,
-      nextClass,
-      timetable,
-      attentionRequired,
-      recentActivity,
-      pendingTasks,
-      alerts,
-      recentMessages,
-      metrics: {
-        attendanceRate: overallAttendance,
-        xp: 1480,
-        rank: 1,
-        activeAssignments: pendingAssignments,
-        completedTests: 8,
-      },
+      student,studentName:student?.name || student?.email || '',
+      enrollment:classData.classInfo ? { ...classData.classInfo,classSection:classData.classInfo.className,totalClassmates:classData.classmates.length } : null,
+      kpis:{ overallAttendance,academicAverage:performanceData.overall.currentAverage,improvement:null,
+        assignmentCompletion:assignmentData.summary.completionPct,assignmentsPending:assignmentData.summary.pending,curriculumProgress:curriculumData.overallProgress },
+      nextClass:null,timetable,recentActivity,pendingTasks,
+      attentionRequired:pendingTasks.map(t=>({ ...t,severity:'warning',message:t.title,desc:t.dueDate,action:'View Assignments' })),
+      alerts:overallAttendance!=null && overallAttendance<75 ? [{ id:'attendance',type:'warning',title:'Attendance below threshold',message:`Recorded attendance is ${overallAttendance}%.` }] : [],
+      recentMessages:messageData.messages.slice(0,5),
+      metrics:{ attendanceRate:overallAttendance,xp:null,rank:null,activeAssignments:assignmentData.summary.pending,completedTests:stats.completed },
     };
   }
+  async getProfile(organizationId:string,studentUserId:string) {
+    const [student]=await this.drizzle.query(`SELECT u.name,u.email,e.roll_number AS "rollNo",sec.name AS "classSection",y.name AS "academicYear",sp.admission_number AS "admissionNo",sp.dob,sp.guardian_name AS "guardianName",sp.guardian_phone AS "guardianPhone",m.status FROM memberships m JOIN users u ON u.id=m.user_id LEFT JOIN student_profiles sp ON sp.organization_id=m.organization_id AND sp.student_user_id=m.user_id LEFT JOIN enrollments e ON e.organization_id=m.organization_id AND e.student_user_id=m.user_id AND e.status='active' LEFT JOIN sections sec ON sec.id=e.section_id AND sec.organization_id=e.organization_id LEFT JOIN academic_years y ON y.id=e.academic_year_id AND y.organization_id=e.organization_id WHERE m.organization_id=$1 AND m.user_id=$2 AND m.role='student'`,[organizationId,studentUserId]);
+    return {student:student || null,documents:[]};
+  }
+  async getCalendar(organizationId:string,studentUserId:string) {
+    const assignments=await this.assignments.getAssignments(organizationId,studentUserId);
+    const exams=await this.drizzle.query(`SELECT ep.id,ep.exam_name AS title,ep.exam_date AS date,ep.start_time || ' - ' || ep.end_time AS time FROM principal_exam_plans ep WHERE ep.organization_id=$1 AND ep.status='scheduled' AND EXISTS (SELECT 1 FROM enrollments e WHERE e.organization_id=ep.organization_id AND e.section_id=ep.section_id AND e.student_user_id=$2 AND e.status='active') ORDER BY ep.exam_date`,[organizationId,studentUserId]);
+    return {events:[...assignments.assignments.map(a=>({id:a.id,title:a.title,date:a.dueDate,type:'Deadline',time:'',description:a.description})),...exams.map(e=>({...e,type:'Exam',description:''}))]};
+  }
+
 }

@@ -16,7 +16,7 @@ export class StudentAttendanceService {
          FROM attendance_records r
          JOIN attendance_sessions s ON s.id = r.attendance_session_id AND s.organization_id = r.organization_id
          LEFT JOIN subjects sub ON sub.id = s.subject_id AND sub.organization_id = s.organization_id
-         WHERE r.organization_id = $1 AND r.student_id = $2
+         WHERE r.organization_id = $1 AND r.student_id = $2 AND s.status='finalized'
          ORDER BY s.date DESC, s.period DESC`,
         [organizationId, studentUserId],
       );
@@ -29,7 +29,7 @@ export class StudentAttendanceService {
 
       const overallPercentage = totalDays > 0
         ? Number((((presentDays + lateDays) / totalDays) * 100).toFixed(1))
-        : 100.0;
+        : null;
 
       const summary = {
         overallPercentage,
@@ -39,7 +39,7 @@ export class StudentAttendanceService {
         lateDays,
         leaveDays,
         thresholdPercentage: 75.0,
-        isBelowThreshold: overallPercentage < 75.0,
+        isBelowThreshold: overallPercentage != null && overallPercentage < 75.0,
       };
 
       // Group subject-wise
@@ -65,21 +65,6 @@ export class StudentAttendanceService {
         };
       });
 
-      // If no records yet, list enrolled subjects from database if available
-      if (subjectWise.length === 0) {
-        const subRows = await this.drizzle.query(
-          `SELECT name FROM subjects WHERE organization_id = $1 ORDER BY name ASC LIMIT 6`,
-          [organizationId]
-        ).catch(() => []);
-        subjectWise = subRows.map((s: any) => ({
-          subject: s.name,
-          attended: 0,
-          total: 0,
-          percentage: 100.0,
-          status: 'Good',
-        }));
-      }
-
       // Calendar log
       const calendarDays = records.slice(0, 15).map((r: any) => ({
         date: r.session_date,
@@ -88,21 +73,6 @@ export class StudentAttendanceService {
       }));
 
       return { summary, subjectWise, calendarDays };
-    } catch {
-      return {
-        summary: {
-          overallPercentage: 100.0,
-          totalWorkingDays: 0,
-          presentDays: 0,
-          absentDays: 0,
-          lateDays: 0,
-          leaveDays: 0,
-          thresholdPercentage: 75.0,
-          isBelowThreshold: false,
-        },
-        subjectWise: [],
-        calendarDays: [],
-      };
-    }
+    } catch (error) { throw error; }
   }
 }

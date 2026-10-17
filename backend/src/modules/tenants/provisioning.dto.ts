@@ -6,8 +6,14 @@ import { AcademicListDto } from '../academics/academic.dto';
 
 export class MemberInvitationDto {
   @ApiProperty({ format: 'email', example: 'principal@school.example', maxLength: 254 }) @Transform(normalizeEmail) @IsEmail() @MaxLength(254) email!: string;
-  @ApiProperty({ enum: ['principal', 'teacher', 'student'] }) @IsIn(['principal', 'teacher', 'student']) role!: 'principal' | 'teacher' | 'student';
+  @ApiProperty({ enum: ['principal', 'teacher', 'student', 'staff', 'parent'] }) @IsIn(['principal', 'teacher', 'student', 'staff', 'parent']) role!: 'principal' | 'teacher' | 'student' | 'staff' | 'parent';
   @ApiPropertyOptional({ example: 'Rahul Sharma', maxLength: 120 }) @ValidateIf((_object, value) => value !== undefined) @IsString() @MaxLength(120) name?: string;
+  @ApiPropertyOptional({ example: '+91 98765 43210', maxLength: 32 }) @ValidateIf((_object, value) => value !== undefined) @IsString() @MaxLength(32) phone?: string;
+  @ApiPropertyOptional({ example: 'Mathematics', maxLength: 100 }) @ValidateIf((_object, value) => value !== undefined) @IsString() @MaxLength(100) specialty?: string;
+  @ApiPropertyOptional({ format: 'uuid' }) @ValidateIf((_object, value) => value !== undefined) @IsString() sectionId?: string;
+  @ApiPropertyOptional({ type: [String] }) @ValidateIf((_object, value) => value !== undefined) @IsArray() childStudentIds?: string[];
+  @ApiPropertyOptional({ example: 'EMP-1042', maxLength: 50 }) @ValidateIf((_object, value) => value !== undefined) @IsString() @MaxLength(50) employeeId?: string;
+  @ApiPropertyOptional({ example: 'Regular Faculty', maxLength: 50 }) @ValidateIf((_object, value) => value !== undefined) @IsString() @MaxLength(50) employmentType?: string;
 }
 
 export class BulkInvitationsDto {

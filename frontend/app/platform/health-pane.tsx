@@ -5,18 +5,8 @@ export function HealthPane({
 }: {
   healthData?: any;
 }) {
-  const overall = healthData?.overall || "HEALTHY";
-  const services: any[] = healthData?.services || [
-    { name: "Core REST API Gateway", latencyMs: 14, uptime: "99.98%", status: "HEALTHY" },
-    { name: "PostgreSQL Database", latencyMs: 2, uptime: "99.99%", status: "HEALTHY" },
-    { name: "Redis Cache & Session Store", latencyMs: 2, uptime: "99.99%", status: "HEALTHY" },
-    { name: "Object Storage (Recordings & Documents)", latencyMs: 32, uptime: "99.95%", status: "HEALTHY" },
-    { name: "Payment Gateway Integration", latencyMs: 85, uptime: "99.90%", status: "HEALTHY" },
-    { name: "Email Delivery Engine (SES/SMTP)", latencyMs: 40, uptime: "99.95%", status: "HEALTHY" },
-    { name: "SMS Delivery Gateway (DLT)", latencyMs: 55, uptime: "99.85%", status: "HEALTHY" },
-    { name: "WhatsApp Business API", latencyMs: 70, uptime: "99.80%", status: "HEALTHY" },
-    { name: "Background Job Workers", latencyMs: 8, uptime: "99.99%", status: "HEALTHY" },
-  ];
+  const overall = healthData?.overall || "UNKNOWN";
+  const services: any[] = healthData?.services || ([] as any[]);
 
   const metrics = healthData?.metrics;
 
@@ -71,7 +61,7 @@ export function HealthPane({
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginTop: "10px", fontSize: "12px", color: "#6B7280" }}>
                   <span>Latency: <b>{latency}</b></span>
-                  <span>Uptime: <b>{s.uptime || "99.9%"}</b></span>
+                  <span>Uptime: <b>{s.uptime || "—"}</b></span>
                 </div>
               </div>
             );

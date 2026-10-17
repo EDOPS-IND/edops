@@ -22,6 +22,7 @@ import { SchoolEndpoint } from "../../common/school-api-docs";
 import {
   AcademicListDto,
   AcademicYearDto,
+  BatchPromotionDto,
   EnrollmentDto,
   ProgramDto,
   SectionDto,
@@ -364,5 +365,15 @@ export class AcademicsController {
     @Headers("idempotency-key") key?: string,
   ) {
     return this.academics.transfer(org, req.user, id, dto, key);
+  }
+
+  @Post("enrollments/batch-promote")
+  @ApiOperation({ summary: "Batch promote or graduate students across academic years" })
+  batchPromote(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: BatchPromotionDto,
+  ) {
+    return this.academics.batchPromote(org, req.user, dto);
   }
 }

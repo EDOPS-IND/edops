@@ -33,7 +33,7 @@ export const TimetablePane: React.FC<TimetablePaneProps> = ({ organizationId }) 
     return <div className="p-8 text-center text-slate-500 animate-pulse">Loading class timetable...</div>;
   }
 
-  const weeklySchedule = data?.weeklySchedule || {};
+  const weeklySchedule = data?.weeklySchedule || {  };
   const previousClasses = data?.previousClasses || [];
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const daySchedule = weeklySchedule[selectedDay] || [];

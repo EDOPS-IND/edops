@@ -27,7 +27,9 @@ import {
 
 export function TimetablePane({ organizationId }: { organizationId?: string }) {
   const [viewMode, setViewMode] = useState<"class" | "teacher" | "room">("class");
-  const [selectedClass, setSelectedClass] = useState("10-A");
+  const [selectedSectionId, setSelectedSectionId] = useState("");
+  const [selectedTeacherId, setSelectedTeacherId] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState("");
   const [loading, setLoading] = useState(false);
   const [conflicts, setConflicts] = useState<any[]>([]);
 
@@ -52,9 +54,9 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
     teacherUserId: "",
     dayOfWeek: 1,
     periodNumber: 1,
-    startTime: "08:30",
-    endTime: "09:15",
-    roomNumber: "Room 101",
+    startTime: "",
+    endTime: "",
+    roomNumber: "",
   });
 
   const loadData = () => {
@@ -62,8 +64,8 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
     setLoading(true);
     Promise.all([
       getSchoolAdminTimetable(organizationId),
-      getSchoolAdminAcademics(organizationId).catch(() => null),
-      getSchoolAdminTeachers(organizationId).catch(() => []),
+      getSchoolAdminAcademics(organizationId),
+      getSchoolAdminTeachers(organizationId),
     ])
       .then(([ttData, acadData, teachData]) => {
         if (ttData?.conflicts) {
@@ -72,29 +74,40 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
           setConflicts([]);
         }
 
-        if (acadData?.sections) setSections(acadData.sections);
+        if (acadData?.sections && Array.isArray(acadData.sections)) {
+          setSections(acadData.sections);
+          setSelectedSectionId(current => acadData.sections.some((s: any) => s.id === current) ? current : (acadData.sections[0]?.id || ""));
+        }
         if (acadData?.subjects) setSubjects(acadData.subjects);
-        if (Array.isArray(teachData)) setTeachers(teachData);
+        if (Array.isArray(teachData) && teachData.length > 0) {
+          setTeachers(teachData);
+          setSelectedTeacherId(current => teachData.some((t: any) => (t.id || t.userId) === current) ? current : (teachData[0]?.id || teachData[0]?.userId || ""));
+        }
 
         if (ttData?.entries && Array.isArray(ttData.entries)) {
           setRawEntries(ttData.entries);
-          setSlots(
-            ttData.entries.map((e: any) => ({
-              id: e.id,
-              raw: e,
-              day: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][Number(e.day_of_week) - 1] || "Monday",
-              period: e.period_number,
-              time: `${e.start_time || "08:30"} - ${e.end_time || "09:15"}`,
-              grade: "Grade",
-              section: e.sectionName || "10-A",
-              sectionId: e.section_id,
-              subject: e.subjectName || "Subject",
-              subjectId: e.subject_id,
-              teacherName: e.teacherEmail ? e.teacherEmail.split("@")[0] : "Teacher",
-              teacherUserId: e.teacher_user_id,
-              room: e.room_number || "Room 101",
-            }))
-          );
+          const mappedSlots = ttData.entries.map((e: any) => ({
+            id: e.id,
+            raw: e,
+            day: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][Number(e.day_of_week) - 1] || "Monday",
+            period: e.period_number,
+            time: `${e.start_time ? e.start_time.slice(0, 5) : ""} - ${e.end_time ? e.end_time.slice(0, 5) : ""}`,
+            grade: e.programName || "Class",
+            section: e.sectionName || "",
+            sectionId: e.section_id,
+            className: e.programName ? `${e.programName} - ${e.sectionName}` : `Class ${e.sectionName}`,
+            subject: e.subjectName || "Subject",
+            subjectId: e.subject_id,
+            teacherName: e.teacherName || (e.teacherEmail ? e.teacherEmail.split("@")[0] : "Teacher"),
+            teacherUserId: e.teacher_user_id,
+            room: e.room_number || "",
+          }));
+          setSlots(mappedSlots);
+
+          const rooms = Array.from(new Set(mappedSlots.map((s: any) => s.room?.trim()).filter(Boolean))) as string[];
+          if (rooms.length > 0) {
+            setSelectedRoom(current => rooms.includes(current) ? current : rooms[0]);
+          }
         }
       })
       .catch(() => {})
@@ -117,9 +130,9 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
       teacherUserId: defaultTeachId,
       dayOfWeek: 1,
       periodNumber: 1,
-      startTime: "08:30",
-      endTime: "09:15",
-      roomNumber: "Room 101",
+      startTime: "",
+      endTime: "",
+      roomNumber: "",
     });
     setModalOpen(true);
   };
@@ -172,24 +185,21 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
     }
   };
 
-  const periods = [
-    { period: 1, time: "08:30 - 09:15" },
-    { period: 2, time: "09:15 - 10:00" },
-    { period: "Break", time: "10:00 - 10:15", isBreak: true },
-    { period: 3, time: "10:15 - 11:00" },
-    { period: 4, time: "11:00 - 11:45" },
-    { period: "Lunch", time: "11:45 - 12:30", isBreak: true },
-    { period: 5, time: "12:30 - 01:15" },
-    { period: 6, time: "01:15 - 02:00" },
-  ];
-
-  const days: ("Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday" | "Saturday")[] = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-  ];
+  const availableRooms = Array.from(new Set(slots.map((s) => s.room?.trim()).filter(Boolean))).sort() as string[];
+  const standardDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  const hasSaturday = slots.some((s) => s.day === "Saturday");
+  const days = hasSaturday ? [...standardDays, "Saturday"] : standardDays;
+  const slotPeriods = slots.map((s) => Number(s.period)).filter((p) => !isNaN(p) && p > 0);
+  const maxPeriod = slotPeriods.length > 0 ? Math.max(8, ...slotPeriods) : 8;
+  const periods = Array.from({ length: maxPeriod }, (_, i) => {
+    const pNum = i + 1;
+    const matchingSlot = slots.find((s) => Number(s.period) === pNum);
+    return {
+      period: pNum,
+      time: matchingSlot?.time || "",
+      isBreak: false,
+    };
+  });
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
@@ -212,7 +222,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
       ) : (
         <div style={{ background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: "10px", padding: "12px 18px", display: "flex", alignItems: "center", gap: "10px" }}>
           <CheckCircle2 size={18} color="#064E3B" />
-          <span style={{ color: "#064E3B", fontSize: "13px", fontWeight: 700 }}>No timetable scheduling conflicts detected. Master schedule active.</span>
+          <span style={{ color: "#064E3B", fontSize: "13px", fontWeight: 700 }}>{loading ? "Loading timetable…" : slots.length ? "No recorded scheduling conflicts." : "No timetable entries saved."}</span>
         </div>
       )}
 
@@ -246,26 +256,62 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
               </button>
             </div>
 
-            <select
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value)}
-              style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #E2DDD5", fontSize: "12px", background: "#FFFFFF" }}
-            >
-              {sections.length > 0 ? (
-                sections.map((s) => (
-                  <option key={s.id} value={s.name}>
-                    {s.programName ? `${s.programName} - ${s.name}` : `Class ${s.name}`}
-                  </option>
-                ))
-              ) : (
-                <>
-                  <option value="10-A">Class 10-A</option>
-                  <option value="10-B">Class 10-B</option>
-                  <option value="9-A">Class 9-A</option>
-                  <option value="11-A">Class 11-A</option>
-                </>
-              )}
-            </select>
+            {viewMode === "class" && (
+              <select
+                value={selectedSectionId}
+                onChange={(e) => setSelectedSectionId(e.target.value)}
+                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #E2DDD5", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
+              >
+                {sections.length > 0 ? (
+                  sections.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.programName ? `${s.programName} - ${s.name}` : `Class ${s.name}`}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No classes available</option>
+                )}
+              </select>
+            )}
+
+            {viewMode === "teacher" && (
+              <select
+                value={selectedTeacherId}
+                onChange={(e) => setSelectedTeacherId(e.target.value)}
+                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #E2DDD5", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
+              >
+                {teachers.length > 0 ? (
+                  teachers.map((t) => {
+                    const id = t.id || t.userId;
+                    return (
+                      <option key={id} value={id}>
+                        {t.name || t.email} ({t.department || "Faculty"})
+                      </option>
+                    );
+                  })
+                ) : (
+                  <option value="">No teachers available</option>
+                )}
+              </select>
+            )}
+
+            {viewMode === "room" && (
+              <select
+                value={selectedRoom}
+                onChange={(e) => setSelectedRoom(e.target.value)}
+                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #E2DDD5", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
+              >
+                {availableRooms.length > 0 ? (
+                  availableRooms.map((r) => (
+                    <option key={r} value={r}>
+                      Room: {r}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">No rooms scheduled</option>
+                )}
+              </select>
+            )}
 
             <button
               onClick={openCreateModal}
@@ -289,6 +335,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
         </div>
 
         {/* Weekly Timetable Matrix */}
+        {!loading && slots.length === 0 && <p style={{ fontSize: "13px", color: "var(--muted)", margin: "16px 0" }}>No timetable entries saved yet. Click "+ Add Period" to create schedules.</p>}
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px", textAlign: "center" }}>
             <thead>
@@ -316,12 +363,20 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                         </td>
                       );
                     }
-                    const slot = slots.find(
-                      (s) =>
-                        s.day === day &&
-                        s.period === p.period &&
-                        (viewMode !== "class" || s.section === selectedClass || !selectedClass)
-                    );
+                    const slot = slots.find((s) => {
+                      if (s.day !== day || Number(s.period) !== Number(p.period)) return false;
+                      if (viewMode === "class") {
+                        return selectedSectionId ? s.sectionId === selectedSectionId : true;
+                      }
+                      if (viewMode === "teacher") {
+                        return selectedTeacherId ? s.teacherUserId === selectedTeacherId : true;
+                      }
+                      if (viewMode === "room") {
+                        return selectedRoom ? s.room.trim().toLowerCase() === selectedRoom.trim().toLowerCase() : true;
+                      }
+                      return true;
+                    });
+
                     if (!slot) {
                       return (
                         <td key={pIdx} style={{ padding: "8px", color: "var(--muted)" }}>
@@ -340,7 +395,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                           position: "relative",
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "4px" }}>
                           <b style={{ color: slot.hasConflict ? "#991B1B" : "#064E3B", fontSize: "12px", textAlign: "left" }}>
                             {slot.subject}
                           </b>
@@ -361,10 +416,38 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                             </button>
                           </div>
                         </div>
-                        <div style={{ fontSize: "10.5px", color: "var(--muted)", textAlign: "left" }}>{slot.teacherName}</div>
-                        <div style={{ fontSize: "10px", color: slot.hasConflict ? "#DC2626" : "var(--muted)", fontWeight: 600, textAlign: "left" }}>
-                          {slot.room} {viewMode !== "class" && `· ${slot.section}`}
-                        </div>
+
+                        {viewMode === "class" && (
+                          <>
+                            <div style={{ fontSize: "10.5px", color: "var(--muted)", textAlign: "left", marginTop: "2px" }}>{slot.teacherName}</div>
+                            <div style={{ fontSize: "10px", color: slot.hasConflict ? "#DC2626" : "var(--muted)", fontWeight: 600, textAlign: "left" }}>
+                              {slot.room || "No room assigned"}
+                            </div>
+                          </>
+                        )}
+
+                        {viewMode === "teacher" && (
+                          <>
+                            <div style={{ fontSize: "10.5px", color: "#064E3B", fontWeight: 700, textAlign: "left", marginTop: "2px" }}>
+                              {slot.className || `Section ${slot.section}`}
+                            </div>
+                            <div style={{ fontSize: "10px", color: slot.hasConflict ? "#DC2626" : "var(--muted)", fontWeight: 600, textAlign: "left" }}>
+                              {slot.room || "No room assigned"}
+                            </div>
+                          </>
+                        )}
+
+                        {viewMode === "room" && (
+                          <>
+                            <div style={{ fontSize: "10.5px", color: "#064E3B", fontWeight: 700, textAlign: "left", marginTop: "2px" }}>
+                              {slot.className || `Section ${slot.section}`}
+                            </div>
+                            <div style={{ fontSize: "10px", color: "var(--muted)", textAlign: "left" }}>
+                              {slot.teacherName}
+                            </div>
+                          </>
+                        )}
+
                         {slot.hasConflict && (
                           <div style={{ fontSize: "9.5px", color: "#991B1B", fontWeight: 700, marginTop: "2px", textAlign: "left" }}>
                             COLLISION

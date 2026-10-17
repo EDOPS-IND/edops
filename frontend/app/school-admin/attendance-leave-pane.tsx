@@ -27,20 +27,10 @@ export function AttendanceLeavePane({ organizationId }: { organizationId?: strin
   const [attendanceData, setAttendanceData] = useState<any>(null);
 
   // Daily Attendance Register
-  const [registers, setRegisters] = useState<AttendanceRecord[]>([
-    { date: "2026-10-04", grade: "Grade 10", section: "10-A", totalStudents: 42, present: 40, absent: 2, late: 1, onLeave: 0, submittedBy: "Rahul Sharma", status: "Submitted" },
-    { date: "2026-10-04", grade: "Grade 10", section: "10-B", totalStudents: 44, present: 41, absent: 3, late: 0, onLeave: 1, submittedBy: "Sunita Rao", status: "Submitted" },
-    { date: "2026-10-04", grade: "Grade 10", section: "10-C", totalStudents: 47, present: 0, absent: 0, late: 0, onLeave: 0, submittedBy: "Pooja Malhotra", status: "Pending" },
-    { date: "2026-10-04", grade: "Grade 9", section: "9-A", totalStudents: 38, present: 36, absent: 2, late: 2, onLeave: 0, submittedBy: "Vikram Mehta", status: "Submitted" },
-    { date: "2026-10-04", grade: "Grade 9", section: "9-B", totalStudents: 39, present: 38, absent: 1, late: 0, onLeave: 0, submittedBy: "Ananya Sen", status: "Submitted" },
-  ]);
+  const [registers, setRegisters] = useState<AttendanceRecord[]>(([] as any[]));
 
   // Leave Requests Queue
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequestRecord[]>([
-    { id: "l-1", applicantType: "Student", applicantName: "Ananya Iyer", detail: "Grade 10-A (Parent: Venkat Iyer)", startDate: "2026-10-05", endDate: "2026-10-06", days: 2, reason: "Severe viral fever (Doctor prescription uploaded)", status: "Pending" },
-    { id: "l-2", applicantType: "Teacher", applicantName: "Vikram Mehta", detail: "Social Science PGT · Emp #EMP-T-09", startDate: "2026-10-12", endDate: "2026-10-12", days: 1, reason: "Attending CBSE Curriculum Workshop", status: "Pending" },
-    { id: "l-3", applicantType: "Staff", applicantName: "Ramesh Chand", detail: "Transport Fleet Manager", startDate: "2026-10-08", endDate: "2026-10-09", days: 2, reason: "Personal family commitment", status: "Pending" },
-  ]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequestRecord[]>(([] as any[]));
 
   useEffect(() => {
     if (!organizationId) return;
@@ -57,10 +47,10 @@ export function AttendanceLeavePane({ organizationId }: { organizationId?: strin
               date: String(s.date).slice(0, 10),
               grade: "Standard",
               section: s.sectionName || "Section",
-              totalStudents: 40,
-              present: 38,
-              absent: 2,
-              late: 1,
+              totalStudents: Number(s.totalCount || 0),
+              present: Number(s.presentCount || 0),
+              absent: Number(s.absentCount || 0),
+              late: Number(s.lateCount || 0),
               onLeave: 0,
               submittedBy: s.teacherEmail || "Assigned Teacher",
               status: s.status === "finalized" ? "Submitted" : "Pending",
@@ -86,13 +76,9 @@ export function AttendanceLeavePane({ organizationId }: { organizationId?: strin
     }).finally(() => setLoading(false));
   }, [organizationId]);
 
-  const handleLeaveAction = (id: string, action: "Approved" | "Rejected") => {
-    if (organizationId) {
-      updateSchoolAdminLeaveStatus(organizationId, id, action.toLowerCase()).catch(() => {});
-    }
-    setLeaveRequests((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status: action } : item))
-    );
+  const handleLeaveAction = async (id:string,action:'Approved'|'Rejected') => {
+    if (!organizationId) return;
+    try {await updateSchoolAdminLeaveStatus(organizationId,id,action.toLowerCase());setLeaveRequests(prev=>prev.map(item=>item.id===id?{...item,status:action}:item));} catch {}
   };
 
   return (
@@ -133,28 +119,54 @@ export function AttendanceLeavePane({ organizationId }: { organizationId?: strin
       {subtab === "register" && (
         <div style={{ display: "grid", gap: "20px" }}>
           {/* Top KPI Summary */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Today's Student Rate</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>94.2%</div>
-              <span style={{ fontSize: "11.5px", color: "#064E3B", fontWeight: 700 }}>1,338 Present / 1,420 Enrolled</span>
-            </div>
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Faculty Attendance</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>97.8%</div>
-              <span style={{ fontSize: "11.5px", color: "#064E3B", fontWeight: 700 }}>90 Present / 2 on Approved Leave</span>
-            </div>
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Missing Registers</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#B45309", margin: "4px 0" }}>1 Section</div>
-              <span style={{ fontSize: "11.5px", color: "#B45309", fontWeight: 700 }}>Class 10-C pending teacher submission</span>
-            </div>
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Late Arrivals</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>14 Students</div>
-              <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Logged at Gate 1 & 2 Security</span>
-            </div>
-          </div>
+          {(() => {
+            const totalEnrolled = registers.reduce((sum, r) => sum + r.totalStudents, 0);
+            const totalPresent = registers.reduce((sum, r) => sum + r.present, 0);
+            const totalAbsent = registers.reduce((sum, r) => sum + r.absent, 0);
+            const totalLate = registers.reduce((sum, r) => sum + r.late, 0);
+            const avgRate = totalEnrolled > 0 ? `${Math.round((totalPresent / totalEnrolled) * 100)}%` : "—";
+            const pendingCount = registers.filter((r) => r.status === "Pending").length;
+            const submittedCount = registers.filter((r) => r.status === "Submitted").length;
+
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
+                <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Today's Student Rate</span>
+                  <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>{avgRate}</div>
+                  <span style={{ fontSize: "11.5px", color: "#064E3B", fontWeight: 700 }}>
+                    {totalEnrolled > 0 ? `${totalPresent} of ${totalEnrolled} present` : "Recorded class registers below"}
+                  </span>
+                </div>
+                <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Registers Submitted</span>
+                  <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>
+                    {registers.length > 0 ? `${submittedCount} / ${registers.length}` : "—"}
+                  </div>
+                  <span style={{ fontSize: "11.5px", color: "#064E3B", fontWeight: 700 }}>
+                    {registers.length > 0 ? `${Math.round((submittedCount / registers.length) * 100)}% completion` : "No active sessions today"}
+                  </span>
+                </div>
+                <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Pending Registers</span>
+                  <div style={{ fontSize: "26px", fontWeight: 800, color: pendingCount > 0 ? "#B45309" : "#064E3B", margin: "4px 0" }}>
+                    {registers.length > 0 ? pendingCount : "—"}
+                  </div>
+                  <span style={{ fontSize: "11.5px", color: pendingCount > 0 ? "#B45309" : "#064E3B", fontWeight: 700 }}>
+                    {pendingCount > 0 ? "Teachers yet to submit register" : "All registers up to date"}
+                  </span>
+                </div>
+                <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
+                  <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Absences & Late Arrivals</span>
+                  <div style={{ fontSize: "26px", fontWeight: 800, color: totalAbsent > 0 ? "#DC2626" : "#064E3B", margin: "4px 0" }}>
+                    {registers.length > 0 ? totalAbsent : "—"}
+                  </div>
+                  <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>
+                    {registers.length > 0 ? `${totalLate} late arrivals recorded` : "No gate check-in data available"}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Section Attendance Table */}
           <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
@@ -230,15 +242,11 @@ export function AttendanceLeavePane({ organizationId }: { organizationId?: strin
                   adm: `ROLL-${d.rollNumber || "01"}`,
                   grade: d.section || "Grade 10",
                   parent: "Parent Guardian",
-                  phone: d.parentPhone || "+91 98000 00000",
-                  pct: d.attendancePct || 70,
-                  daysAbsent: d.consecutiveDaysAbsent || 5,
+                  phone: d.parentPhone || "",
+                  pct: d.attendancePct || 0,
+                  daysAbsent: d.consecutiveDaysAbsent || 0,
                 }))
-              : [
-                  { name: "Ananya Iyer", adm: "ED-2024-042", grade: "10-A", parent: "Venkat Iyer", phone: "+91 98112 34567", pct: 71, daysAbsent: 14 },
-                  { name: "Kavita Rao", adm: "ED-2024-077", grade: "9-A", parent: "Mohan Rao", phone: "+91 98334 11223", pct: 68, daysAbsent: 16 },
-                  { name: "Simran Kaur", adm: "ED-2023-104", grade: "11-A", parent: "Harpreet Singh", phone: "+91 98771 99887", pct: 73, daysAbsent: 12 },
-                ]
+              : ([] as any[])
             ).map((st: any, i: number) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px", background: "#FDF9F0", borderRadius: "8px", border: "1px solid #E5CCA2" }}>
                 <div>

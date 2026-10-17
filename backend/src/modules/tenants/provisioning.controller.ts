@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Headers, Param, ParseUUIDPipe, Patch, Post, Query, Req } from '@nestjs/common';
 import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { randomUUID } from 'crypto';
 import { AuthenticatedRequest } from '../../common/auth.guard';
 import { SchoolEndpoint } from '../../common/school-api-docs';
 import { AcademicListDto } from '../academics/academic.dto';
@@ -14,15 +15,15 @@ export class ProvisioningController {
 
   @Post('invitations') @SchoolEndpoint('Invite one teacher or student', 'create', InvitationBatchResult, false, 'Returns a one-record batch. No email is sent. Accept through /api/v1/auth/invitations/accept; an existing account must sign in first.')
   invite(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Body() dto: MemberInvitationDto, @Headers('idempotency-key') key?: string) {
-    return this.provisioning.invite(org, req.user, [dto], key);
+    return this.provisioning.invite(org, req.user, [dto], key === undefined ? randomUUID() : key);
   }
   @Post('invitations/bulk') @SchoolEndpoint('Invite 1-100 teachers/students atomically', 'create', InvitationBatchResult, false, 'Duplicate emails, active invites, existing memberships or invalid rows reject the whole batch. Tokens expire after 48 hours. Tokens are encrypted in 24-hour idempotency replay storage, never plaintext at rest.')
   bulk(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Body() dto: BulkInvitationsDto, @Headers('idempotency-key') key?: string) {
-    return this.provisioning.invite(org, req.user, dto.records, key);
+    return this.provisioning.invite(org, req.user, dto.records, key === undefined ? randomUUID() : key);
   }
   @Post('invitations/import') @SchoolEndpoint('Import teacher/student invitations from CSV', 'create', InvitationBatchResult, false, 'JSON body with csv text, not multipart. Exact email,role headers; at most 100 records, 12000 characters. Quoted fields and BOM supported. All-or-nothing validation.')
   csv(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Body() dto: CsvInvitationsDto, @Headers('idempotency-key') key?: string) {
-    return this.provisioning.csv(org, req.user, dto.csv, key);
+    return this.provisioning.csv(org, req.user, dto.csv, key === undefined ? randomUUID() : key);
   }
   @Get('invitation-batches') @SchoolEndpoint('List invitation batches', 'read', BatchSummary, true)
   batches(@Param('organizationId', ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Query() query: AcademicListDto) {

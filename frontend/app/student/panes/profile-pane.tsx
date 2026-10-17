@@ -1,50 +1,19 @@
 'use client';
 
-import React from 'react';
+import React,{useState,useEffect} from 'react';
+import { api } from '../../edops-api';
 import { User, ShieldCheck, FileText, Download, Award } from 'lucide-react';
 
 interface ProfilePaneProps {
   organizationId: string;
 }
 
-export const ProfilePane: React.FC<ProfilePaneProps> = () => {
-  const student = {
-    name: 'Vikas Kumar',
-    admissionNo: 'ADM-2024-1082',
-    classSection: 'Class 10-A',
-    rollNo: '17',
-    academicYear: '2026-27',
-    house: 'Tagore House (Blue)',
-    classTeacher: 'Rahul Sharma',
-    dob: '14 May 2011',
-    board: 'CBSE (Central Board of Secondary Education)',
-    status: 'Active Enrolled Learner',
-  };
-
-  const documents = [
-    {
-      title: 'Term 1 Quarterly Official Report Card',
-      date: 'Aug 28, 2026',
-      type: 'PDF Document',
-      size: '1.2 MB',
-      verifiedBy: 'School Principal & Academic Controller',
-    },
-    {
-      title: 'Class 9 Annual Pass Certificate & Marksheet',
-      date: 'Mar 24, 2026',
-      type: 'Official Certificate',
-      size: '2.1 MB',
-      verifiedBy: 'Examination Committee',
-    },
-    {
-      title: 'Inter-School Mathematics Olympiad Merit Certificate',
-      date: 'Sep 15, 2026',
-      type: 'Merit Award',
-      size: '850 KB',
-      verifiedBy: 'Science & Math Club Coordinator',
-    },
-  ];
-
+export const ProfilePane: React.FC<ProfilePaneProps> = ({organizationId}) => {
+  const [data,setData]=useState<any>(null);
+  useEffect(()=>{setData(null);api<any>(`/organizations/${organizationId}/student/profile`).then(setData).catch(()=>{});},[organizationId]);
+  const student=data?.student;
+  const documents:any[]=data?.documents || [];
+  if (!student) return <p>No student profile loaded.</p>;
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -58,7 +27,7 @@ export const ProfilePane: React.FC<ProfilePaneProps> = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-100 gap-4">
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center font-extrabold text-2xl shadow-sm">
-              VK
+              {student.name?.slice(0,1) || '?'}
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -74,7 +43,7 @@ export const ProfilePane: React.FC<ProfilePaneProps> = () => {
           </div>
           <div className="text-xs text-slate-500 flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-100">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span>Verified Institutional Profile</span>
+            <span>Student profile</span>
           </div>
         </div>
 

@@ -39,7 +39,7 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
     setLoading(true);
     try {
       const res = await getPrincipalAlerts(organizationId);
-      setData(res);
+      setData({...res, alerts:(res.alerts || []).map((a: any) => ({...a,resolved:a.status === "resolved"}))});
     } catch {
       setData({
         alerts: [],
@@ -61,8 +61,8 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
     setSubmitting(true);
     try {
       await resolvePrincipalAlert(organizationId, selectedAlert.id, {
-        resolutionNote,
-        actionAssigned
+        status: "resolved",
+        resolutionNotes: [resolutionNote, actionAssigned].filter(Boolean).join("\n")
       });
       // update state
       setData((prev: any) => ({
@@ -75,16 +75,7 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
       setResolutionNote("");
       setActionAssigned("");
     } catch {
-      // optimistic update
-      setData((prev: any) => ({
-        ...prev,
-        alerts: prev.alerts.map((a: any) =>
-          a.id === selectedAlert.id ? { ...a, resolved: true, resolutionNote, actionAssigned } : a
-        )
-      }));
-      setSelectedAlert(null);
-      setResolutionNote("");
-      setActionAssigned("");
+      // Keep the alert open when the database write fails.
     } finally {
       setSubmitting(false);
     }
@@ -127,7 +118,7 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
             Critical Action Req.
           </div>
           <div className="text-2xl font-black text-red-700  mt-1">
-            {data?.stats?.criticalCount ?? 2}
+            {data?.stats?.criticalCount ?? 0}
           </div>
           <div className="text-xs text-red-600/80  mt-1">Immediate intervention needed</div>
         </div>
@@ -137,7 +128,7 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
             Warning Signals
           </div>
           <div className="text-2xl font-black text-amber-700  mt-1">
-            {data?.stats?.warningCount ?? 2}
+            {data?.stats?.warningCount ?? 0}
           </div>
           <div className="text-xs text-amber-600/80  mt-1">Monitor next assessment cycle</div>
         </div>
@@ -147,7 +138,7 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
             Informational Notices
           </div>
           <div className="text-2xl font-black text-blue-700  mt-1">
-            {data?.stats?.infoCount ?? 1}
+            {data?.stats?.infoCount ?? 0}
           </div>
           <div className="text-xs text-blue-600/80  mt-1">Milestones and logs</div>
         </div>
@@ -157,7 +148,7 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
             Resolved This Week
           </div>
           <div className="text-2xl font-black text-emerald-700  mt-1">
-            {data?.stats?.resolvedThisWeek ?? 4}
+            {data?.stats?.resolvedThisWeek ?? 0}
           </div>
           <div className="text-xs text-emerald-600/80  mt-1">Closed with corrective notes</div>
         </div>

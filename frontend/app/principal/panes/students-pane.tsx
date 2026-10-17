@@ -37,7 +37,7 @@ export function StudentsPane({
   }, [organizationId]);
 
   const studentList = (liveData?.students && liveData.students.length > 0) ? liveData.students : students;
-  const atRisk = liveData?.atRisk || atRiskData;
+  const atRisk = liveData ? {students:liveData.students.filter((s:any)=>s.needsIntervention)} : atRiskData;
 
   const filtered = studentList.filter((s: any) => (s.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || (s.className || "").toLowerCase().includes(searchTerm.toLowerCase()));
 
@@ -47,12 +47,7 @@ export function StudentsPane({
       {/* 1. Header Sub Tab Strip & Actions */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", gap: "8px" }}>
-          {[
-            { id: "all", label: "All Student Cohorts" },
-            { id: "at_risk", label: "At-Risk Attention Engine (18)" },
-            { id: "remedial", label: "Remedial & Booster Programs" },
-            { id: "enrichment", label: "Enrichment & Olympiad Scholars" },
-          ].map((t) => (
+          {[{id:"all",label:"All students"},{id:"at_risk",label:"At-risk students"},{id:"remedial",label:"Remedial programs"},{id:"enrichment",label:"Enrichment programs"}].map((t) => (
             <button
               key={t.id}
               onClick={() => setSubTab(t.id as any)}
@@ -219,10 +214,7 @@ export function StudentsPane({
             </p>
           </div>
 
-          {(atRiskData?.students || [
-            { id: "stu-3", name: "Vikas Kumar", className: "Grade 10-A", riskCategory: "High Priority (Math & Attendance)", indicators: "Math drop from 68% to 42%; Attendance 68.5% (Threshold 75%)", responsibleFaculty: "Rahul Sharma", interventionStatus: "Active Booster Clinic", reviewDate: "2026-11-15" },
-            { id: "stu-4", name: "Rohan Mehra", className: "Grade 10-A", riskCategory: "Academic Risk (Math)", indicators: "Math PT2 score 47.5%; 4 missing homework worksheets", responsibleFaculty: "Rahul Sharma", interventionStatus: "Planned Peer Tutoring", reviewDate: "2026-11-20" },
-          ]).map((st: any, idx: number) => (
+          {(atRiskData?.students || ([] as any[])).map((st: any, idx: number) => (
             <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -247,20 +239,17 @@ export function StudentsPane({
       {/* 4. Remedial & Booster Programs Tab */}
       {subTab === "remedial" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
-          {[
-            { title: "Class 10 Mathematics Booster Clinic", teacher: "Rahul Sharma", schedule: "Mon, Wed, Fri 07:30 - 08:15 AM", enrolled: 14, focus: "Real Numbers & Quadratic Equations Mastery" },
-            { title: "Class 9 Science Experimental Recovery Lab", teacher: "Dr. Anita Desai", schedule: "Tue, Thu 03:30 - 04:30 PM", enrolled: 11, focus: "Optics ray tracing practical experiments" },
-          ].map((rem, idx) => (
+          {(liveData?.remedialPrograms || []).map((rem:any, idx:number) => (
             <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                 <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>{rem.title}</h4>
                 <span style={{ background: "#DCFCE7", color: "#166534", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>Active</span>
               </div>
               <div style={{ fontSize: "12px", color: "#475569", display: "flex", flexDirection: "column", gap: "4px" }}>
-                <div>Instructor: <b>{rem.teacher}</b></div>
+                <div>Instructor: <b>{rem.assigned_teacher_name}</b></div>
                 <div>Schedule: <b>{rem.schedule}</b></div>
-                <div>Enrolled Students: <b>{rem.enrolled} candidates</b></div>
-                <div style={{ color: "#065F46" }}>Focus: {rem.focus}</div>
+                <div>Enrolled Students: <b>{rem.enrolled_student_count} candidates</b></div>
+                <div style={{ color: "#065F46" }}>Focus: {rem.target_competency}</div>
               </div>
             </div>
           ))}
@@ -270,19 +259,16 @@ export function StudentsPane({
       {/* 5. Enrichment Scholars Tab */}
       {subTab === "enrichment" && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
-          {[
-            { title: "National Science Olympiad Scholars Circle", mentor: "Dr. Anita Desai", schedule: "Wed 03:30 - 05:00 PM", enrolled: 18, achievements: "2 zonal qualifiers last term" },
-            { title: "AI & Python Computational Research Group", mentor: "Sunita Rao", schedule: "Sat 10:00 - 11:30 AM", enrolled: 15, achievements: "Building smart campus sensor prototype" },
-          ].map((enr, idx) => (
+          {(liveData?.enrichmentPrograms || []).map((enr:any, idx:number) => (
             <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                 <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>{enr.title}</h4>
                 <span style={{ background: "#EFF6FF", color: "#1E40AF", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>Enrichment</span>
               </div>
               <div style={{ fontSize: "12px", color: "#475569", display: "flex", flexDirection: "column", gap: "4px" }}>
-                <div>Faculty Mentor: <b>{enr.mentor}</b></div>
+                <div>Faculty Mentor: <b>{enr.assigned_mentor_name}</b></div>
                 <div>Timing: <b>{enr.schedule}</b></div>
-                <div>Scholars: <b>{enr.enrolled} students</b></div>
+                <div>Scholars: <b>{enr.enrolled_student_count} students</b></div>
                 <div style={{ color: "#1D4ED8" }}>Accolades: {enr.achievements}</div>
               </div>
             </div>

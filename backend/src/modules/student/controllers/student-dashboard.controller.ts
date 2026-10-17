@@ -35,4 +35,9 @@ export class StudentDashboardController {
   ) {
     return this.dashboardService.getDashboard(organizationId, req.user?.id);
   }
+  @Get('profile')
+  getProfile(@Param('organizationId',ParseUUIDPipe) org:string,@Req() req:AuthenticatedRequest) {return this.dashboardService.getProfile(org,req.user.id);}
+  @Get('calendar')
+  getCalendar(@Param('organizationId',ParseUUIDPipe) org:string,@Req() req:AuthenticatedRequest) {return this.dashboardService.getCalendar(org,req.user.id);}
+
 }

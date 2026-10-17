@@ -161,9 +161,9 @@ export function DashboardPane({
   };
 
   const healthScoreMetrics = [
-    { name: "Student & Staff Attendance", score: Math.round(healthMetrics?.attendanceRate ?? 100), max: 100, weight: "40%", detail: `${healthMetrics?.attendanceRate ?? 100}% verified attendance rate from registered sessions.` },
-    { name: "Fee Collection Efficiency", score: Math.round(healthMetrics?.feeCollectionRate ?? 100), max: 100, weight: "35%", detail: `${formatCurrency(metrics?.feeCollected)} collected out of ${formatCurrency(metrics?.feeAssessed)} assessed.` },
-    { name: "Academic & Coursework Progress", score: Math.round(healthMetrics?.syllabusCompletion ?? 100), max: 100, weight: "25%", detail: `${healthMetrics?.syllabusCompletion ?? 100}% curriculum assignments published.` },
+    { name: "Student & Staff Attendance", score: Math.round(healthMetrics?.attendanceRate ?? 0), max: 100, weight: "40%", detail: `${healthMetrics?.attendanceRate ?? 0}% verified attendance rate from registered sessions.` },
+    { name: "Fee Collection Efficiency", score: Math.round(healthMetrics?.feeCollectionRate ?? 0), max: 100, weight: "35%", detail: `${formatCurrency(metrics?.feeCollected)} collected out of ${formatCurrency(metrics?.feeAssessed)} assessed.` },
+    { name: "Academic & Coursework Progress", score: Math.round(healthMetrics?.syllabusCompletion ?? 0), max: 100, weight: "25%", detail: `${healthMetrics?.syllabusCompletion ?? 0}% curriculum assignments published.` },
   ];
 
   const attentionItems: any[] = data?.attentionItems || [];
@@ -198,8 +198,8 @@ export function DashboardPane({
           { label: "Teaching Faculty", value: metrics?.totalTeachers !== undefined ? String(metrics.totalTeachers) : "0", sub: `${metrics?.totalTeachers ?? 0} Active Faculty`, tab: "teachers" as SchoolAdminTab, icon: Users, tone: "#064E3B" },
           { label: "Operational Staff", value: metrics?.totalStaff !== undefined ? String(metrics.totalStaff) : "0", sub: `${metrics?.totalStaff ?? 0} Staff Members`, tab: "staff" as SchoolAdminTab, icon: Briefcase, tone: "#064E3B" },
           { label: "Registered Parents", value: metrics?.totalParents !== undefined ? metrics.totalParents.toLocaleString() : "0", sub: `${metrics?.totalParents ?? 0} Linked Accounts`, tab: "parents" as SchoolAdminTab, icon: HeartHandshake, tone: "#064E3B" },
-          { label: "Active Sections", value: metrics?.totalSections !== undefined ? String(metrics.totalSections) : "0", sub: `${metrics?.totalClasses ?? 0} Programs / Grades`, tab: "academics" as SchoolAdminTab, icon: BookOpen, tone: "#064E3B" },
-          { label: "Fees Collected", value: formatCurrency(metrics?.feeCollected ?? 0), sub: `${healthMetrics?.feeCollectionRate ?? 100}% Collection Efficiency`, tab: "finance" as SchoolAdminTab, icon: CreditCard, tone: "#064E3B" },
+          { label: "Active Sections", value: metrics?.totalSections !== undefined ? String(metrics.totalSections) : "0", sub: `${metrics?.totalClasses ?? 0} Classes`, tab: "academics" as SchoolAdminTab, icon: BookOpen, tone: "#064E3B" },
+          { label: "Fees Collected", value: formatCurrency(metrics?.feeCollected ?? 0), sub: `${healthMetrics?.feeCollectionRate ?? 0}% Collection Efficiency`, tab: "finance" as SchoolAdminTab, icon: CreditCard, tone: "#064E3B" },
         ].map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
@@ -264,18 +264,18 @@ export function DashboardPane({
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "24px", margin: "18px 0" }}>
-            <div style={{ position: "relative", width: "96px", height: "96px", borderRadius: "50%", background: `conic-gradient(#064E3B 0% ${healthMetrics?.overall ?? 100}%, #E2DDD5 ${healthMetrics?.overall ?? 100}% 100%)`, display: "grid", placeItems: "center" }}>
+            <div style={{ position: "relative", width: "96px", height: "96px", borderRadius: "50%", background: `conic-gradient(#064E3B 0% ${healthMetrics?.overall ?? 0}%, #E2DDD5 ${healthMetrics?.overall ?? 0}% 100%)`, display: "grid", placeItems: "center" }}>
               <div style={{ width: "76px", height: "76px", borderRadius: "50%", background: "#FFFFFF", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "24px", fontWeight: 900, color: "#064E3B", lineHeight: 1 }}>{healthMetrics?.overall ?? 100}</span>
+                <span style={{ fontSize: "24px", fontWeight: 900, color: "#064E3B", lineHeight: 1 }}>{healthMetrics?.overall ?? 0}</span>
                 <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--muted)" }}>/100</span>
               </div>
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: "inline-block", background: "#ECFDF5", border: "1px solid #A7F3D0", padding: "3px 10px", borderRadius: "12px", fontSize: "11.5px", fontWeight: 700, color: "#064E3B" }}>
-                Tier A · {(healthMetrics?.overall ?? 100) >= 80 ? "Healthy Operations" : "Operational Review"}
+                Tier A · {(healthMetrics?.overall ?? 0) >= 80 ? "Healthy Operations" : "Operational Review"}
               </div>
               <p style={{ margin: "8px 0 0", fontSize: "12.5px", color: "#334155", lineHeight: 1.5 }}>
-                School attendance ({healthMetrics?.attendanceRate ?? 100}%), syllabus schedule ({healthMetrics?.syllabusCompletion ?? 100}%), and fee collections ({healthMetrics?.feeCollectionRate ?? 100}%) verified live.
+                School attendance ({healthMetrics?.attendanceRate ?? 0}%), syllabus schedule ({healthMetrics?.syllabusCompletion ?? 0}%), and fee collections ({healthMetrics?.feeCollectionRate ?? 0}%) verified live.
               </p>
             </div>
           </div>
@@ -428,8 +428,9 @@ export function DashboardPane({
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Direct shortcuts to create operational records</p>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
             {[
-              { label: "+ Add Student", action: "addStudent", icon: UserPlus },
+              { label: "+ Add Principal", action: "addPrincipal", icon: GraduationCap },
               { label: "+ Add Teacher", action: "addTeacher", icon: Users },
+              { label: "+ Add Student", action: "addStudent", icon: UserPlus },
               { label: "+ Add Staff", action: "addStaff", icon: Briefcase },
               { label: "+ Map Parent", action: "mapParent", icon: HeartHandshake },
               { label: "+ New Department", action: "addDepartment", icon: Building2 },
@@ -470,8 +471,8 @@ export function DashboardPane({
           <div style={{ marginTop: "20px", paddingTop: "14px", borderTop: "1px solid #E2DDD5" }}>
             <span style={{ fontSize: "12px", fontWeight: 700, color: "#064E3B" }}>Active Academic Year:</span>
             <div style={{ marginTop: "4px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", color: "var(--muted)" }}>
-              <span>2026–2027 (CBSE Board)</span>
-              <span style={{ color: "#064E3B", fontWeight: 700 }}>Ends 31 Mar 2027</span>
+              <span>Current academic year</span>
+              <span style={{ color: "#064E3B", fontWeight: 700 }}>See academic settings</span>
             </div>
           </div>
         </div>

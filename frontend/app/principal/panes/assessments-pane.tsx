@@ -533,7 +533,7 @@ export function AssessmentsPane({
                         <option key={t.id} value={t.id}>{t.name}</option>
                       ))
                     ) : (
-                      <option value="">Rahul Sharma (HOD Math)</option>
+                      <option value="">No teachers available</option>
                     )}
                   </select>
                 </div>

@@ -37,12 +37,7 @@ export function GlobalSearchModal({
   useEffect(() => {
     if (!isOpen) return;
     if (!query.trim() || query.length < 2) {
-      setResults([
-        { id: "stu-3", title: "Vikas Kumar", subtitle: "Grade 10-A · Roll 03 · At-Risk (Math)", category: "Students", type: "student" },
-        { id: "tch-1", title: "Rahul Sharma", subtitle: "Mathematics HOD · 28 periods/week", category: "Teachers", type: "teacher" },
-        { id: "sec-10a", title: "Grade 10-A", subtitle: "Section Average 78.5% · 42 Enrolled", category: "Classes", type: "class" },
-        { id: "sub-1", title: "Mathematics", subtitle: "CBSE Standard & Basic · Code MATH", category: "Subjects", type: "subject" },
-      ]);
+      setResults(([] as any[]));
       return;
     }
 
@@ -54,14 +49,7 @@ export function GlobalSearchModal({
           setResults(res.results || []);
         }
       } catch {
-        // Fallback filter
-        const mockAll = [
-          { id: "stu-3", title: "Vikas Kumar", subtitle: "Grade 10-A · Roll 03 · At-Risk (Math)", category: "Students", type: "student" },
-          { id: "tch-1", title: "Rahul Sharma", subtitle: "Mathematics HOD · 28 periods/week", category: "Teachers", type: "teacher" },
-          { id: "sec-10a", title: "Grade 10-A", subtitle: "Section Average 78.5% · 42 Enrolled", category: "Classes", type: "class" },
-          { id: "sub-1", title: "Mathematics", subtitle: "CBSE Standard & Basic · Code MATH", category: "Subjects", type: "subject" },
-        ];
-        setResults(mockAll.filter((i) => i.title.toLowerCase().includes(query.toLowerCase())));
+        setResults([]);
       } finally {
         setBusy(false);
       }
@@ -171,7 +159,7 @@ export function GlobalSearchModal({
 
         {/* Footer Hint */}
         <div style={{ padding: "10px 16px", background: "#F8FAFC", borderTop: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#94A3B8" }}>
-          <span>Search hints: e.g. "Vikas", "Mathematics", "Rahul", "Grade 10"</span>
+          <span>Search saved students, teachers, subjects and classes.</span>
           <span>ESC to close</span>
         </div>
       </div>

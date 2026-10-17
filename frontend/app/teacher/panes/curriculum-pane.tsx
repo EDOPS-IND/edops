@@ -51,23 +51,10 @@ export function CurriculumPane({ organizationId }: CurriculumPaneProps) {
   }
 
   const handleIncrementProgress = async (chapter: any) => {
-    const nextLessons = Math.min(chapter.plannedLessons || 10, (chapter.completedLessons || 0) + 1);
+    const completionPct = Math.min(100,Number(chapter.completionPct || 0)+10);
     try {
-      await updateTeacherCurriculumProgress(organizationId, chapter.id, { completedLessons: nextLessons });
-      setData((prev: any) => {
-        if (!prev) return prev;
-        const updatedChapters = prev.chapters.map((c: any) => {
-          if (c.id !== chapter.id) return c;
-          const completionPct = Math.round((nextLessons / (c.plannedLessons || 10)) * 100);
-          return {
-            ...c,
-            completedLessons: nextLessons,
-            completionPct,
-            status: completionPct >= 100 ? 'Completed' : 'In Progress (Current)',
-          };
-        });
-        return { ...prev, chapters: updatedChapters };
-      });
+      await updateTeacherCurriculumProgress(organizationId,chapter.id,{completionPct});
+      await loadCurriculum();
     } catch (e) {
       console.error(e);
     }

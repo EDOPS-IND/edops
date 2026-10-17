@@ -21,6 +21,7 @@ import { PrincipalTimetableSubstitutions1789948800000 } from './migrations/17899
 import { RoleFeatureOverrides1790035200000 } from './migrations/1790035200000-RoleFeatureOverrides';
 import { PrincipalExamPlans1790121600000 } from './migrations/1790121600000-PrincipalExamPlans';
 import { PrincipalExamTermScope1790208000000 } from './migrations/1790208000000-PrincipalExamTermScope';
+import { DatabaseBackedPortals1790380800000 } from './migrations/1790380800000-DatabaseBackedPortals';
 import { DashboardNavigation1790294400000 } from './migrations/1790294400000-DashboardNavigation';
 import { ArenaAttempt, ArenaQuestion } from '../modules/arena/arena.entity';
 import { Recording } from '../modules/content/recording.entity';
@@ -54,6 +55,7 @@ export function databaseOptions(config: AppConfig): DataSourceOptions {
       PrincipalExamPlans1790121600000,
       PrincipalExamTermScope1790208000000,
       DashboardNavigation1790294400000,
+      DatabaseBackedPortals1790380800000,
     ],
     migrationsTransactionMode: 'all',
     synchronize: false,

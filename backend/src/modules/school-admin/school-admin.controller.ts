@@ -1,16 +1,23 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedRequest } from '../../common/auth.guard';
 import {
+  BatchFeeReminderDto,
   CreateBroadcastDto,
+  CreateCourseworkDto,
+  CreateCurriculumNodeDto,
   CreateDepartmentDto,
   CreateDisciplineIncidentDto,
   CreateFeeStructureDto,
   CreateLeaveRequestDto,
   CreateTimetableEntryDto,
   GrantFeeConcessionDto,
+  RecordOfflinePaymentDto,
+  ScheduleExamDto,
   SendFeeReminderDto,
   UpdateLeaveStatusDto,
+  UpdateParentChildrenDto,
+  UpdateTeacherEmploymentDto,
   UpdateTimetableEntryDto,
 } from './school-admin.dto';
 import { SchoolAdminService } from './school-admin.service';
@@ -50,6 +57,17 @@ export class SchoolAdminController {
     return this.service.getTeachers(orgId, req.user);
   }
 
+  @Patch('people/teachers/:teacherId/employment')
+  @ApiOperation({ summary: 'Update teacher employee ID and employment contract type' })
+  updateTeacherEmployment(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Param('teacherId', ParseUUIDPipe) teacherId: string,
+    @Body() dto: UpdateTeacherEmploymentDto,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.updateTeacherEmployment(orgId, req.user, teacherId, dto);
+  }
+
   @Get('people/staff')
   @ApiOperation({ summary: 'List administrative and operational school staff' })
   staff(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
@@ -60,6 +78,17 @@ export class SchoolAdminController {
   @ApiOperation({ summary: 'List registered parents with ward mappings' })
   parents(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
     return this.service.getParents(orgId, req.user);
+  }
+
+  @Put('people/parents/:parentId/children')
+  @ApiOperation({ summary: 'Update mapped wards for an existing parent' })
+  updateParentChildren(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Param('parentId', ParseUUIDPipe) parentId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UpdateParentChildrenDto,
+  ) {
+    return this.service.updateParentChildren(orgId, req.user, parentId, dto.studentUserIds);
   }
 
   @Get('people/departments')
@@ -82,6 +111,16 @@ export class SchoolAdminController {
   @ApiOperation({ summary: 'Academics overview with capacity check and syllabus' })
   academicsOverview(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
     return this.service.getAcademicsOverview(orgId, req.user);
+  }
+
+  @Post('curriculum')
+  @ApiOperation({ summary: 'Create curriculum chapter node' })
+  createCurriculum(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateCurriculumNodeDto,
+  ) {
+    return this.service.createCurriculumNode(orgId, req.user, dto);
   }
 
   @Get('timetable')
@@ -195,6 +234,26 @@ export class SchoolAdminController {
     return this.service.grantFeeConcession(orgId, req.user, dto);
   }
 
+  @Post('finance/record-payment')
+  @ApiOperation({ summary: 'Record counter/offline fee payment' })
+  recordPayment(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: RecordOfflinePaymentDto,
+  ) {
+    return this.service.recordOfflinePayment(orgId, req.user, dto);
+  }
+
+  @Post('finance/batch-reminders')
+  @ApiOperation({ summary: 'Dispatch batch fee reminders to parents of unpaid students' })
+  batchReminders(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: BatchFeeReminderDto,
+  ) {
+    return this.service.batchSendFeeReminders(orgId, req.user, dto);
+  }
+
   @Get('communication/broadcasts')
   @ApiOperation({ summary: 'List dispatched multi-channel school broadcasts' })
   broadcasts(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
@@ -237,5 +296,27 @@ export class SchoolAdminController {
     @Body() dto: CreateDisciplineIncidentDto,
   ) {
     return this.service.createDisciplineIncident(orgId, req.user, dto);
+  }
+  @Get('learning/overview')
+  getLearning(@Param('organizationId',ParseUUIDPipe) org:string,@Req() req:AuthenticatedRequest) {return this.service.getLearningOverview(org,req.user);}
+
+  @Post('learning/coursework')
+  @ApiOperation({ summary: 'Create and publish coursework assignment' })
+  createCoursework(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateCourseworkDto,
+  ) {
+    return this.service.createCoursework(orgId, req.user, dto);
+  }
+
+  @Post('learning/exams')
+  @ApiOperation({ summary: 'Schedule school examination' })
+  scheduleExam(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: ScheduleExamDto,
+  ) {
+    return this.service.scheduleExam(orgId, req.user, dto);
   }
 }

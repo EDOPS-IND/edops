@@ -1,5 +1,5 @@
 import { DrizzleService } from '../../../database/drizzle.service';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '../../auth/user.entity';
 import { SendTeacherMessageDto } from '../dto/teacher.dto';
 
@@ -75,9 +75,7 @@ export class TeacherCommunicationService {
           };
         });
       }
-    } catch {
-      dbMessages = [];
-    }
+    } catch (error) { throw error; }
 
     // Load available contacts directory for composing messages
     try {
@@ -98,21 +96,7 @@ export class TeacherCommunicationService {
           else if (mem.role === 'school_admin') directory.school_admin.push(item);
         }
       }
-    } catch {}
-
-    // Supply default authorized contact desks if none found
-    if (directory.principal.length === 0) {
-      directory.principal.push({ id: 'principal-desk', name: 'Dr. Anita Desai (Principal Office)', email: 'principal@school.edu', role: 'principal' });
-    }
-    if (directory.school_admin.length === 0) {
-      directory.school_admin.push({ id: 'admin-desk', name: 'Central School Academic Office / SO Desk', email: 'admin@school.edu', role: 'school_admin' });
-    }
-    if (directory.parents.length === 0) {
-      directory.parents.push({ id: 'parent-desk', name: 'Parent Representative (PTA Desk)', email: 'pta@school.edu', role: 'parent' });
-    }
-    if (directory.students.length === 0) {
-      directory.students.push({ id: 'student-desk', name: 'Student Academic Council', email: 'council@school.edu', role: 'student' });
-    }
+    } catch (error) { throw error; }
 
     // Load school broadcast announcements
     try {
@@ -133,7 +117,7 @@ export class TeacherCommunicationService {
           date: new Date(b.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
         }));
       }
-    } catch {}
+    } catch (error) { throw error; }
 
     return {
       messages: dbMessages,
@@ -143,145 +127,11 @@ export class TeacherCommunicationService {
   }
 
   async sendMessage(organizationId: string, user: User, dto: SendTeacherMessageDto) {
-    // 0. Ensure table constraints permit multi-channel roles and any recipient
-    try {
-      await this.drizzle.query(
-        `DO $$ 
-         BEGIN 
-           ALTER TABLE teacher_messages DROP CONSTRAINT IF EXISTS teacher_messages_organization_id_recipient_id_fkey;
-           ALTER TABLE teacher_messages DROP CONSTRAINT IF EXISTS teacher_messages_organization_id_sender_id_fkey;
-           ALTER TABLE teacher_messages DROP CONSTRAINT IF EXISTS teacher_messages_recipient_role_check;
-           ALTER TABLE teacher_messages ADD CONSTRAINT teacher_messages_recipient_role_check CHECK (recipient_role IN ('student', 'parent', 'principal', 'school_admin', 'teacher'));
-         EXCEPTION WHEN OTHERS THEN 
-           NULL;
-         END $$;`
-      );
-    } catch {}
-
-    // 1. Resolve sender membership
-    try {
-      await this.drizzle.query(
-        `INSERT INTO memberships (organization_id, user_id, role)
-         VALUES ($1, $2, 'teacher')
-         ON CONFLICT (organization_id, user_id) DO NOTHING`,
-        [organizationId, user.id]
-      );
-    } catch {}
-
-    // 2. Resolve recipient ID to valid membership UUID
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(dto.recipientId);
-    let resolvedRecipientId = isUuid ? dto.recipientId : null;
-
-    const validRoles = ['student', 'parent', 'principal', 'school_admin'];
-    const resolvedRole = validRoles.includes(dto.recipientRole) ? dto.recipientRole : 'principal';
-
-    if (!resolvedRecipientId) {
-      try {
-        const memRole = await this.drizzle.query(
-          `SELECT user_id FROM memberships WHERE organization_id = $1 AND role = $2 AND user_id != $3 LIMIT 1`,
-          [organizationId, resolvedRole, user.id]
-        );
-        resolvedRecipientId = memRole?.[0]?.user_id || null;
-        if (!resolvedRecipientId) {
-          const anyMem = await this.drizzle.query(
-            `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id != $2 LIMIT 1`,
-            [organizationId, user.id]
-          );
-          resolvedRecipientId = anyMem?.[0]?.user_id || user.id;
-        }
-      } catch {
-        resolvedRecipientId = user.id;
-      }
-    }
-
-    // Ensure recipient has membership in the org
-    try {
-      await this.drizzle.query(
-        `INSERT INTO memberships (organization_id, user_id, role)
-         VALUES ($1, $2, $3)
-         ON CONFLICT (organization_id, user_id) DO NOTHING`,
-        [organizationId, resolvedRecipientId, resolvedRole]
-      );
-    } catch {}
-
-    let inserted: any = null;
-    try {
-      const rows = await this.drizzle.query(
-        `INSERT INTO teacher_messages (
-          organization_id, sender_id, recipient_id, recipient_role, section_id, subject_id, subject_line, body, priority, is_read
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, false)
-        RETURNING *`,
-        [
-          organizationId,
-          user.id,
-          resolvedRecipientId,
-          resolvedRole,
-          dto.sectionId && /^[0-9a-f-]{36}$/i.test(dto.sectionId) ? dto.sectionId : null,
-          dto.subjectId && /^[0-9a-f-]{36}$/i.test(dto.subjectId) ? dto.subjectId : null,
-          dto.subjectLine,
-          dto.body,
-          dto.priority === 'urgent' ? 'urgent' : 'normal',
-        ]
-      );
-      inserted = rows?.[0];
-    } catch (e) {
-      console.error('Error inserting teacher message:', e);
-      // Fallback insert without optional fields if constraint failed
-      const rows = await this.drizzle.query(
-        `INSERT INTO teacher_messages (
-          organization_id, sender_id, recipient_id, recipient_role, subject_line, body, priority, is_read
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, false)
-        RETURNING *`,
-        [
-          organizationId,
-          user.id,
-          resolvedRecipientId,
-          resolvedRole,
-          dto.subjectLine,
-          dto.body,
-          dto.priority === 'urgent' ? 'urgent' : 'normal',
-        ]
-      ).catch(() => []);
-      inserted = rows?.[0] || {
-        id: `msg-${Date.now()}`,
-        sender_id: user.id,
-        recipient_id: resolvedRecipientId,
-        recipient_role: resolvedRole,
-        subject_line: dto.subjectLine,
-        body: dto.body,
-        priority: dto.priority || 'normal',
-        is_read: false,
-        created_at: new Date().toISOString(),
-      };
-    }
-
-    let category = 'school_admin';
-    if (resolvedRole === 'student') category = 'students';
-    else if (resolvedRole === 'parent') category = 'parents';
-    else if (resolvedRole === 'principal') category = 'principal';
-
-    return {
-      success: true,
-      message: {
-        id: inserted.id,
-        senderId: user.id,
-        senderName: user.name || 'Rahul Sharma',
-        senderRole: 'teacher',
-        recipientId: inserted.recipient_id,
-        recipientName: dto.recipientRole === 'student' ? 'Student' : dto.recipientRole === 'parent' ? 'Parent' : dto.recipientRole === 'principal' ? 'Principal' : 'School Admin',
-        otherPartyId: inserted.recipient_id,
-        otherPartyName: dto.recipientRole === 'student' ? 'Student' : dto.recipientRole === 'parent' ? 'Parent' : dto.recipientRole === 'principal' ? 'Principal' : 'School Admin',
-        isOutgoing: true,
-        subjectLine: inserted.subject_line,
-        body: inserted.body,
-        timestamp: 'Just now',
-        priority: inserted.priority || 'normal',
-        isRead: false,
-        category,
-      },
-      status: 'Message dispatched in-app to recipient.',
-    };
+    const [recipient] = await this.drizzle.query(`SELECT user_id,role FROM memberships WHERE organization_id=$1 AND user_id=$2 AND status='active'`, [organizationId,dto.recipientId]);
+    if (!recipient || recipient.role!==dto.recipientRole) throw new NotFoundException('Recipient not found in this school');
+    const [message] = await this.drizzle.query(
+      `INSERT INTO teacher_messages (organization_id,sender_id,recipient_id,recipient_role,section_id,subject_id,subject_line,body,priority)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [organizationId,user.id,recipient.user_id,recipient.role,dto.sectionId || null,dto.subjectId || null,dto.subjectLine,dto.body,dto.priority || 'normal']);
+    return { success:true,message:{ ...message,id:message.id,senderId:user.id,senderName:user.name || user.email,recipientId:recipient.user_id,otherPartyId:recipient.user_id,isOutgoing:true,subjectLine:message.subject_line,body:message.body,timestamp:message.created_at } };
   }
 }

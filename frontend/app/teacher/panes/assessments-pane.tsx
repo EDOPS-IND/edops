@@ -23,7 +23,7 @@ export function AssessmentsPane({ organizationId }: AssessmentsPaneProps) {
   const [selectedAsmt, setSelectedAsmt] = useState<any>(null);
 
   // Marks Entry State
-  const [scores, setScores] = useState<Array<{ id: string; name: string; roll: string; score: number; remarks: string }>>([]);
+  const [scores, setScores] = useState<Array<{ id: string; name: string; roll: string; score: number | ""; remarks: string }>>([]);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -49,7 +49,9 @@ export function AssessmentsPane({ organizationId }: AssessmentsPaneProps) {
       let secId = asmt?.sectionId;
       if (!secId) {
         const clsRes = await getTeacherClasses(organizationId);
-        secId = clsRes?.classes?.[0]?.sectionId || "";
+        const first = clsRes?.classes?.[0];
+        secId = first?.sectionId || "";
+        setSelectedAsmt(first ? {sectionId:first.sectionId,subjectId:first.subjectId,classSection:first.className,title:"",maxMarks:50} : null);
       }
       const res = await getTeacherClassStudents(organizationId, secId);
       if (res?.students && res.students.length > 0) {
@@ -57,8 +59,8 @@ export function AssessmentsPane({ organizationId }: AssessmentsPaneProps) {
           res.students.map((st: any) => ({
             id: st.id,
             name: st.name,
-            roll: st.rollNumber || "01",
-            score: Math.round(Number(st.overallScore || 0)),
+            roll: st.rollNumber || "—",
+            score: asmt?.studentScores?.[st.id] ?? "",
             remarks: "",
           }))
         );
@@ -71,6 +73,7 @@ export function AssessmentsPane({ organizationId }: AssessmentsPaneProps) {
   };
 
   const handleSaveMarks = async (lockMarks: boolean) => {
+    if (!selectedAsmt?.sectionId || !selectedAsmt?.subjectId || !selectedAsmt?.title?.trim() || !scores.length || scores.some(s=>s.score === "")) return;
     setSaving(true);
     try {
       let secId = selectedAsmt?.sectionId;
@@ -80,7 +83,7 @@ export function AssessmentsPane({ organizationId }: AssessmentsPaneProps) {
       }
       await submitTeacherMarks(organizationId, {
         sectionId: secId,
-        subjectId: selectedAsmt?.subjectCode || "sub-math",
+        subjectId: selectedAsmt?.subjectId,
         title: selectedAsmt?.title || "Assessment Marks",
         maxMarks: selectedAsmt?.maxMarks || 50,
         scores: scores.map((s) => ({ studentId: s.id, score: s.score, remarks: s.remarks })),
@@ -88,7 +91,7 @@ export function AssessmentsPane({ organizationId }: AssessmentsPaneProps) {
       });
       setMarksEntryOpen(false);
     } catch {
-      setMarksEntryOpen(false);
+      // Keep unsaved marks available for retry.
     } finally {
       setSaving(false);
     }
@@ -193,6 +196,8 @@ export function AssessmentsPane({ organizationId }: AssessmentsPaneProps) {
               <button onClick={() => setMarksEntryOpen(false)} className="text-gray-400 hover:text-gray-600">×</button>
             </div>
 
+            <label>Assessment title<input required value={selectedAsmt?.title || ""} onChange={e=>setSelectedAsmt((prev: any)=>({...prev,title:e.target.value}))} className="border rounded p-2 w-full" /></label>
+            <label>Maximum marks<input type="number" min={1} value={selectedAsmt?.maxMarks || 50} onChange={e=>setSelectedAsmt((prev: any)=>({...prev,maxMarks:Number(e.target.value)}))} className="border rounded p-2" /></label>
             <div className="max-h-64 overflow-y-auto divide-y border rounded-xl">
               {scores.length === 0 ? (
                 <div className="p-8 text-center text-gray-400 text-xs">
@@ -212,7 +217,7 @@ export function AssessmentsPane({ organizationId }: AssessmentsPaneProps) {
                       max={selectedAsmt?.maxMarks || 50}
                       value={s.score}
                       onChange={(e) => {
-                        const val = Number(e.target.value);
+                        const val = e.target.value === "" ? "" : Number(e.target.value);
                         setScores((prev) => prev.map((item) => (item.id === s.id ? { ...item, score: val } : item)));
                       }}
                       className="w-16 px-2 py-1 border rounded text-center font-bold"
@@ -241,14 +246,14 @@ export function AssessmentsPane({ organizationId }: AssessmentsPaneProps) {
               </button>
               <button
                 onClick={() => handleSaveMarks(false)}
-                disabled={saving}
+                disabled={saving || !selectedAsmt?.title?.trim() || !scores.length || scores.some(s=>s.score === "")}
                 className="px-3.5 py-1.5 font-semibold border rounded-lg text-gray-700 hover:bg-gray-50"
               >
                 Save as Draft
               </button>
               <button
                 onClick={() => handleSaveMarks(true)}
-                disabled={saving}
+                disabled={saving || !selectedAsmt?.title?.trim() || !scores.length || scores.some(s=>s.score === "")}
                 className="px-4 py-1.5 font-semibold bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm"
               >
                 Submit & Lock Marks

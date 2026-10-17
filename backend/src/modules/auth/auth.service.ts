@@ -15,76 +15,16 @@ export class AuthService {
   ) {}
 
   async verifyCredentials(email: string, password: string): Promise<User> {
-    const rawEmail = (email || '').toLowerCase().trim();
-    const simpleMap: Record<string, string> = {
-      student: 'student@edops.com',
-      parent: 'parent@edops.com',
-      teacher: 'teacher@edops.com',
-      principal: 'principal@edops.com',
-      admin: 'admin@edops.com',
-      platform: 'platform@edops.com',
-    };
-    const normalizedEmail = simpleMap[rawEmail] || rawEmail;
-    const trainingAccounts: Record<string, { role: string; name: string; isAdmin?: boolean }> = {
-      'student@edops.com': { role: 'student', name: 'Aarav Sharma' },
-      'parent@edops.com': { role: 'parent', name: 'Rajesh Sharma' },
-      'teacher@edops.com': { role: 'teacher', name: 'Dr. K. Raman' },
-      'principal@edops.com': { role: 'principal', name: 'Dr. Meenakshi Sundaram' },
-      'admin@edops.com': { role: 'school_admin', name: 'School Admin' },
-      'platform@edops.com': { role: 'school_admin', name: 'Platform Admin', isAdmin: true },
-    };
-
-    const training = trainingAccounts[normalizedEmail];
-    const allowedSimplePasswords = [
-      'password123', 'student123', 'parent123', 'teacher123', 'principal123', 'admin123',
-      '12345678', '123456', 'password', 'edops123', 'student', 'parent', 'teacher', 'admin', 'principal'
-    ];
-    if (training && (allowedSimplePasswords.includes(password) || !password)) {
-      return {
-        id: `train-${training.role}-01`,
-        email: normalizedEmail,
-        name: training.name,
-        phone: '+91 98765 43210',
-        passwordHash: '',
-        isPlatformAdmin: !!training.isAdmin,
-        isActive: true,
-        createdAt: new Date(),
-      } as User;
-    }
-
-    try {
-      const [user] = await this.drizzle.query(
-        `SELECT id, email, name, phone, password_hash AS "passwordHash", is_platform_admin AS "isPlatformAdmin", is_active AS "isActive", created_at AS "createdAt"
-         FROM users WHERE email = $1 LIMIT 1`,
-        [email]
-      );
-      const valid = await verifyPassword(password, user?.passwordHash);
-      if (!valid || !user?.isActive) throw new UnauthorizedException('Invalid email or password');
-      return user;
-    } catch (err) {
-      if (err instanceof UnauthorizedException) throw err;
-      if (training) {
-        return {
-          id: `train-${training.role}-01`,
-          email: normalizedEmail,
-          name: training.name,
-          phone: '+91 98765 43210',
-          passwordHash: '',
-          isPlatformAdmin: !!training.isAdmin,
-          isActive: true,
-          createdAt: new Date(),
-        } as User;
-      }
-      throw new UnauthorizedException('Invalid email or password');
-    }
+    const [user] = await this.drizzle.query(
+      `SELECT id, email, name, phone, password_hash AS "passwordHash", is_platform_admin AS "isPlatformAdmin", is_active AS "isActive", created_at AS "createdAt"
+       FROM users WHERE email = $1 LIMIT 1`, [email.trim().toLowerCase()]);
+    const valid = await verifyPassword(password, user?.passwordHash);
+    if (!valid || !user?.isActive) throw new UnauthorizedException('Invalid email or password');
+    return user;
   }
 
   async recordLogin(user: User) {
-    try {
-      await this.audit.record(this.drizzle, { organizationId: null, actorId: user.id, action: 'auth.login' });
-    } catch {
-      // tolerates offline database for training
-    }
+    await this.audit.record(this.drizzle, { organizationId: null, actorId: user.id, action: 'auth.login' });
   }
 
   async userFromJwt(token: string): Promise<User | null> {
@@ -92,18 +32,6 @@ export class AuthService {
       const { verifyAccessToken } = await import('./jwt.util');
       const payload = verifyAccessToken(token);
       if (!payload?.sub) return null;
-      if (payload.sub.startsWith('train-')) {
-        return {
-          id: payload.sub,
-          email: payload.email,
-          name: payload.email?.split('@')[0] || 'Training User',
-          phone: null,
-          passwordHash: '',
-          isPlatformAdmin: !!payload.isPlatformAdmin,
-          isActive: true,
-          createdAt: new Date(),
-        } as User;
-      }
       const [user] = await this.drizzle.query(
         `SELECT id, email, name, phone, is_platform_admin AS "isPlatformAdmin", is_active AS "isActive", created_at AS "createdAt"
          FROM users WHERE id = $1 AND is_active = true LIMIT 1`,
@@ -129,38 +57,35 @@ export class AuthService {
     const { token, hash } = generateRefreshToken();
     const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days
     await this.drizzle.query(
-      `INSERT INTO identity.user_refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+      `INSERT INTO user_refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
       [userId, hash, expiresAt]
-    ).catch(() => null); // graceful fallback if table not yet migrated
+    );
     return token;
   }
 
   async revokeRefreshToken(token: string, userId: string): Promise<void> {
     const { hashToken } = await import('./jwt.util');
     await this.drizzle.query(
-      `UPDATE identity.user_refresh_tokens SET revoked_at = NOW()
+      `UPDATE user_refresh_tokens SET revoked_at = NOW()
        WHERE token_hash = $1 AND user_id = $2 AND revoked_at IS NULL`,
       [hashToken(token), userId],
-    ).catch((error: unknown) => {
-      // Token creation also tolerates deployments without this table.
-      if ((error as { code?: string }).code !== '42P01' && (error as { code?: string }).code !== '3F000') throw error;
-    });
+    );
   }
 
   async rotateRefreshToken(oldToken: string): Promise<{ user: User; newRefreshToken: string; accessToken: string } | null> {
     const { hashToken, signAccessToken } = await import('./jwt.util');
     const hash = hashToken(oldToken);
     const [record] = await this.drizzle.query(
-      `SELECT user_id FROM identity.user_refresh_tokens WHERE token_hash = $1 AND expires_at > NOW() AND revoked_at IS NULL LIMIT 1`,
+      `SELECT user_id FROM user_refresh_tokens WHERE token_hash = $1 AND expires_at > NOW() AND revoked_at IS NULL LIMIT 1`,
       [hash]
-    ).catch(() => []);
+    );
     if (!record?.user_id) return null;
 
     // Revoke old token
     await this.drizzle.query(
-      `UPDATE identity.user_refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1`,
+      `UPDATE user_refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1`,
       [hash]
-    ).catch(() => null);
+    );
 
     const [user] = await this.drizzle.query(
       `SELECT id, email, name, phone, is_platform_admin AS "isPlatformAdmin", is_active AS "isActive", created_at AS "createdAt"
@@ -179,22 +104,6 @@ export class AuthService {
   }
 
   async profile(user: User) {
-    if (user.id.startsWith('train-')) {
-      const role = user.id.split('-')[1] || 'student';
-      return {
-        user: { id: user.id, email: user.email, name: user.name || '', phone: user.phone || null, isPlatformAdmin: user.isPlatformAdmin },
-        organizations: [
-          {
-            id: '00000000-0000-0000-0000-000000000001',
-            name: 'Delhi Public School (EDOPS Campus)',
-            slug: 'dps-training',
-            status: 'active' as const,
-            role: role as any,
-            features: ['parent_management', 'parent_communication', 'arena', 'recordings', 'communication', 'academics', 'assignments', 'attendance', 'billing'],
-          },
-        ],
-      };
-    }
     const organizations = await this.drizzle.query(
       `SELECT o.id AS id, o.name AS name, o.slug AS slug, o.status AS status, m.role AS role
        FROM organizations o
@@ -205,7 +114,7 @@ export class AuthService {
     );
     const { entitlements } = await import('../billing/entitlements');
     const orgsWithFeatures = await Promise.all(organizations.map(async (org: any) => {
-      const ent = await entitlements(this.drizzle, org.id, org.role).catch(() => null);
+      const ent = await entitlements(this.drizzle, org.id, org.role);
       const enabledFeatures = ent?.features ? Object.keys(ent.features).filter(k => ent.features[k]) : [];
       return { ...org, features: enabledFeatures };
     }));

@@ -87,6 +87,20 @@ export class TenantsService {
     });
   }
 
+  async getInvitationInfo(token: string) {
+    if (!token || token.length !== 64) throw new BadRequestException('Valid 64-character invitation token required');
+    const [row] = await this.drizzle.query(
+      `SELECT i.email, i.name, i.phone, i.specialty, i.role, o.name AS "schoolName", o.slug AS "schoolSlug"
+       FROM invitations i
+       JOIN organizations o ON o.id = i.organization_id
+       WHERE i.token_hash = $1 AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
+       LIMIT 1`,
+      [tokenHash(token)]
+    );
+    if (!row) throw new NotFoundException('Invitation is invalid, expired, or already accepted');
+    return row;
+  }
+
   async acceptInvitation(dto: AcceptInvitationDto, signedInUser: User | null) {
     return this.drizzle.transaction(async (manager) => {
       const [candidate] = await manager.query(
@@ -113,7 +127,7 @@ export class TenantsService {
       if (!invitation) throw new BadRequestException('Invitation is invalid, expired, revoked or already accepted');
 
       await manager.query("SELECT set_config('app.current_org_id', $1, true)", [organization.id]);
-      if (invitation.role !== 'school_admin') {
+      if (['student', 'teacher'].includes(invitation.role)) {
         const e = await entitlements(manager, organization.id), seats = await seatUsage(manager, organization.id);
         if (!e.entitled) throw new ForbiddenException('An active subscription or trial is required');
         const used = invitation.role === 'student' ? seats.students + seats.pendingStudents : seats.teachers + seats.pendingTeachers;
@@ -122,7 +136,7 @@ export class TenantsService {
 
       const [user] = await manager.query('SELECT * FROM users WHERE email = $1 LIMIT 1', [invitation.email]);
       const fullName = dto.name || invitation.name || user?.name || '';
-      const phoneNum = dto.phone || user?.phone || null;
+      const phoneNum = dto.phone || invitation.phone || user?.phone || null;
 
       let userId: string;
       if (user) {
@@ -151,10 +165,58 @@ export class TenantsService {
       }
 
       await manager.query(
-        `INSERT INTO memberships (organization_id, user_id, role, specialty)
-         VALUES ($1, $2, $3, $4)`,
-        [organization.id, userId, invitation.role, dto.specialty || null]
+        `INSERT INTO memberships (organization_id, user_id, role, specialty, employee_id, employment_type)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (organization_id, user_id) DO UPDATE
+         SET specialty = COALESCE(EXCLUDED.specialty, memberships.specialty),
+             employee_id = COALESCE(EXCLUDED.employee_id, memberships.employee_id),
+             employment_type = COALESCE(EXCLUDED.employment_type, memberships.employment_type)`,
+        [organization.id, userId, invitation.role, dto.specialty || invitation.specialty || null, invitation.employee_id || null, invitation.employment_type || null]
       );
+
+      // Auto-enroll student into assigned section
+      if (invitation.role === 'student' && invitation.section_id) {
+        const [academicYear] = await manager.query(
+          'SELECT id FROM academic_years WHERE organization_id = $1 AND is_current = true LIMIT 1',
+          [organization.id]
+        );
+        const yearId = academicYear?.id || (await manager.query('SELECT id FROM academic_years WHERE organization_id = $1 ORDER BY start_date DESC LIMIT 1', [organization.id]))[0]?.id;
+        if (yearId) {
+          const [cnt] = await manager.query('SELECT COUNT(*)::int as count FROM enrollments WHERE organization_id = $1', [organization.id]);
+          const roll = `ROLL-${String((cnt?.count || 0) + 1).padStart(3, '0')}`;
+          await manager.query(
+            `INSERT INTO enrollments (organization_id, student_user_id, section_id, academic_year_id, roll_number, status)
+             VALUES ($1, $2, $3, $4, $5, 'active')
+             ON CONFLICT DO NOTHING`,
+            [organization.id, userId, invitation.section_id, yearId, roll]
+          );
+        }
+      }
+
+      // Auto-map parent to selected children
+      if (invitation.role === 'parent' && invitation.child_student_ids) {
+        let childIds: string[] = [];
+        try {
+          childIds = Array.isArray(invitation.child_student_ids)
+            ? invitation.child_student_ids
+            : typeof invitation.child_student_ids === 'string'
+              ? JSON.parse(invitation.child_student_ids)
+              : [];
+        } catch {
+          childIds = [];
+        }
+        for (const childId of childIds) {
+          if (childId) {
+            await manager.query(
+              `INSERT INTO parent_student_relationships (school_id, parent_id, student_id, verification_status, status)
+               VALUES ($1, $2, $3, 'verified', 'active')
+               ON CONFLICT (school_id, parent_id, student_id) DO NOTHING`,
+              [organization.id, userId, childId]
+            );
+          }
+        }
+      }
+
       await manager.query('UPDATE invitations SET accepted_at = NOW() WHERE id = $1', [invitation.id]);
       await this.audit.record(manager, {
         organizationId: organization.id, actorId: userId, action: 'invitation.accepted', details: { invitationId: invitation.id },

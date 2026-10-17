@@ -24,15 +24,10 @@ export function PrincipalDashboard({
   const [broadcastBody, setBroadcastBody] = useState("");
   const [activeFilter, setActiveFilter] = useState("Overall Average");
 
-  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>([
-    { id: "1", staffName: "Promon Nuria", department: "Mathematics", dates: "July 15 - 17, 2026", status: "pending" },
-    { id: "2", staffName: "Cyallan Formard", department: "Science Lab", dates: "August 3, 2026", status: "pending" },
-    { id: "3", staffName: "Marja Gunson", department: "English Literature", dates: "August 12, 2026", status: "pending" },
-    { id: "4", staffName: "Chrin Sanfirson", department: "Physical Education", dates: "August 19, 2026", status: "pending" },
-  ]);
+  const [leaveRequests, setLeaveRequests] = useState<LeaveRequest[]>(([] as any[]));
 
   const activeTeachers = school.members.items.filter((m) => m.role === "teacher" && m.status === "active").length || 42;
-  const activeStudents = school.members.items.filter((m) => m.role === "student" && m.status === "active").length || 850;
+  const activeStudents = school.members.items.filter((m) => m.role === "student" && m.status === "active").length || 0;
   const pendingApprovalsCount = leaveRequests.filter((r) => r.status === "pending").length;
 
   function handleLeaveAction(id: string, action: "approved" | "rejected", name: string) {
@@ -94,9 +89,9 @@ export function PrincipalDashboard({
         <div style={{ background: "#FFFFFF", border: "1px solid #CBCBCB", borderRadius: "10px", padding: "18px 20px" }}>
           <div style={{ fontSize: "12px", color: "#707070", fontWeight: 600 }}>Daily Campus Attendance</div>
           <div style={{ fontSize: "30px", fontWeight: 800, color: "#4A4A4A", margin: "6px 0 2px" }}>
-            96.4%
+            —
           </div>
-          <div style={{ fontSize: "11px", color: "#27795F", fontWeight: 600 }}>+0.8% from last week</div>
+          <div style={{ fontSize: "11px", color: "#27795F", fontWeight: 600 }}>No trend data</div>
         </div>
 
         <div style={{ background: "#FFFFFF", border: "1px solid #CBCBCB", borderRadius: "10px", padding: "18px 20px" }}>
@@ -112,7 +107,7 @@ export function PrincipalDashboard({
           <div style={{ fontSize: "30px", fontWeight: 800, color: "#4A4A4A", margin: "6px 0 2px" }}>
             {activeTeachers}
           </div>
-          <div style={{ fontSize: "11px", color: "#707070" }}>100% attendance today</div>
+          <div style={{ fontSize: "11px", color: "#707070" }}>Attendance not available</div>
         </div>
 
         <div style={{ background: "#FFFFFF", border: "1px solid #CBCBCB", borderRadius: "10px", padding: "18px 20px" }}>
@@ -147,12 +142,7 @@ export function PrincipalDashboard({
           {/* Bar Chart Visualization */}
           <div style={{ padding: "10px 0 20px" }}>
             <div style={{ display: "flex", alignItems: "flex-end", height: "180px", gap: "28px", borderBottom: "1px solid #CBCBCB", paddingBottom: "10px", paddingInline: "15px" }}>
-              {[
-                { grade: "Grade 9", score: 68 },
-                { grade: "Grade 10", score: 78 },
-                { grade: "Grade 11", score: 85 },
-                { grade: "Grade 12", score: 92 },
-              ].map((item) => (
+              {([] as any[]).map((item) => (
                 <div key={item.grade} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", height: "100%", justifyContent: "flex-end" }}>
                   <div style={{ fontSize: "11px", fontWeight: 700, color: "#064E3B", marginBottom: "6px" }}>{item.score}%</div>
                   <div

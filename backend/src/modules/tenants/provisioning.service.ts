@@ -67,10 +67,25 @@ export class ProvisioningService {
       for (const record of records) {
         const token = randomBytes(32).toString('hex');
         const [invitation] = await manager.query(
-          `INSERT INTO invitations (organization_id, batch_id, email, role, name, invited_by, expires_at, token_hash)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `INSERT INTO invitations (organization_id, batch_id, email, role, name, phone, specialty, section_id, child_student_ids, employee_id, employment_type, invited_by, expires_at, token_hash)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
            RETURNING id, email, role`,
-          [org, batch.id, record.email, record.role, record.name || null, actor.id, expiresAt, tokenHash(token)]
+          [
+            org,
+            batch.id,
+            record.email,
+            record.role,
+            record.name || null,
+            record.phone || null,
+            record.specialty || null,
+            record.sectionId || null,
+            record.childStudentIds && record.childStudentIds.length ? JSON.stringify(record.childStudentIds) : null,
+            record.employeeId || null,
+            record.employmentType || null,
+            actor.id,
+            expiresAt,
+            tokenHash(token),
+          ]
         );
         invitations.push({ id: invitation.id, email: invitation.email, role: invitation.role, token, expiresAt });
       }

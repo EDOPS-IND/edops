@@ -79,9 +79,6 @@ export class BillingService {
 
   async dashboardNavigation(org: string, actor: User, role: string, platform = false) {
     this.dashboardRole(role);
-    if (actor.id?.startsWith('train-') || org === '00000000-0000-0000-0000-000000000001') {
-      return this.defaultNavigationForRole(role as DashboardRole);
-    }
     try {
       if (platform) return await this.platform(actor, m => this.navigationRows(m, org, role, true));
       const [member] = await this.drizzle.query(`SELECT 1 FROM memberships m JOIN organizations o ON o.id=m.organization_id
@@ -89,8 +86,7 @@ export class BillingService {
       if (!member) throw new ForbiddenException('Active school membership required');
       return await this.navigationRows(this.drizzle, org, role, false);
     } catch (err) {
-      if (err instanceof ForbiddenException) throw err;
-      return this.defaultNavigationForRole(role as DashboardRole);
+      throw err;
     }
   }
 
@@ -189,13 +185,12 @@ export class BillingService {
         SELECT 
           o.id, o.name, o.slug, o.status, o.created_at AS "createdAt",
           COALESCE(o.code, UPPER(SUBSTRING(o.slug, 1, 3)) || '001') AS code,
-          COALESCE(o.board, 'CBSE') AS board,
-          COALESCE(o.city, 'New Delhi') AS city,
-          COALESCE(o.state, 'Delhi') AS state,
-          COALESCE(o.official_email, 'admin@' || o.slug || '.edu') AS "officialEmail",
+          o.board AS board,
+          o.city AS city,
+          o.state AS state,
+          o.official_email AS "officialEmail",
           COALESCE(o.official_phone, '') AS "officialPhone",
-          COALESCE(o.principal_name, '') AS "principalName",
-          COALESCE(o.health_score, 95) AS "healthScore",
+          o.health_score AS "healthScore",
           COALESCE(p.name, 'Basic') AS plan,
           (SELECT count(*)::int FROM memberships m2 WHERE m2.organization_id = o.id AND m2.role = 'student' AND m2.status = 'active') AS "studentsCount",
           (SELECT count(*)::int FROM memberships m2 WHERE m2.role = 'teacher' AND m2.organization_id = o.id AND m2.status = 'active') AS "teachersCount",
@@ -598,28 +593,27 @@ export class BillingService {
       if (exists) throw new ConflictException('A school with this slug already exists');
 
       // 2. Insert organization
-      const status = dto.isTrial ? 'trial' : 'active';
+      const status = 'active';
       const [org] = await m.query(`INSERT INTO organizations (
-        name, slug, time_zone, locale, status, code, school_type, board, registration_number, affiliation_number, established_year, address_line1, city, state, pincode, official_email, official_phone, website, principal_name, principal_email, principal_phone, health_score
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21, 98)
+        name, slug, time_zone, locale, status, code, school_type, board, registration_number, affiliation_number, established_year, address_line1, city, state, pincode, official_email, official_phone, website
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
       RETURNING id, name, slug, status, created_at AS "createdAt"`, [
         dto.name, dto.slug, dto.timeZone ?? 'Asia/Kolkata', dto.locale ?? 'en-IN', status,
         dto.code ?? `SCH-${Date.now().toString().slice(-4)}`,
-        dto.schoolType ?? 'Private', dto.board ?? 'CBSE', dto.registrationNumber ?? null, dto.affiliationNumber ?? null, dto.establishedYear ?? new Date().getFullYear(),
+        dto.schoolType ?? 'Private', dto.board ?? 'CBSE', dto.registrationNumber ?? null, dto.affiliationNumber ?? null, dto.establishedYear ?? null,
         dto.addressLine1 ?? null, dto.city ?? null, dto.state ?? null, dto.pincode ?? null,
-        dto.officialEmail, dto.officialPhone ?? null, dto.website ?? (dto.slug ? `https://${dto.slug}.edops.in` : null),
-        dto.principalName ?? dto.adminName ?? 'Principal', dto.principalEmail ?? dto.officialEmail, dto.principalPhone ?? dto.adminPhone ?? null
+        dto.officialEmail, dto.officialPhone ?? null, dto.website ?? null,
       ]);
 
       // 3. Create initial School Admin Invitation (No plain text password!)
       const token = randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h
-      await m.query(`INSERT INTO invitations (organization_id, email, token_hash, invited_by, role, name, expires_at)
-        VALUES ($1, $2, $3, $4, 'school_admin', $5, $6)`,
-        [org.id, dto.adminEmail, tokenHash(token), actor.id, dto.adminName, expiresAt]);
+      await m.query(`INSERT INTO invitations (organization_id, email, token_hash, invited_by, role, name, phone, expires_at)
+        VALUES ($1, $2, $3, $4, 'school_admin', $5, $6, $7)`,
+        [org.id, dto.adminEmail, tokenHash(token), actor.id, dto.adminName, dto.adminPhone ?? null, expiresAt]);
 
       // 4. Assign Plan & Subscription
-      const [plan] = await m.query(`SELECT id, name FROM plans WHERE id=$1`, [dto.planId]);
+      let [plan] = await m.query(`SELECT id, name FROM plans WHERE id=$1`, [dto.planId]);
       if (!plan) throw new NotFoundException('Selected plan not found');
       const trialDays = dto.trialDays ?? 30;
       await m.query(`INSERT INTO subscriptions (organization_id, plan_id, status, period_start, period_end)
@@ -688,48 +682,13 @@ export class BillingService {
 
   // §34: Detailed Platform Health
   detailedHealth(actor: User) {
-    return this.platform(actor, async m => {
-      let dbHealth = 'HEALTHY';
-      let latencyMs = 2;
-      const t0 = Date.now();
-      try {
-        await m.query('SELECT 1');
-        latencyMs = Math.max(1, Date.now() - t0);
-      } catch {
-        dbHealth = 'CRITICAL';
-      }
-
-      const [activeUsersRes] = await m.query(`SELECT count(*)::int AS total FROM memberships WHERE status='active'`);
-      const [storageRes] = await m.query(`SELECT COALESCE(ROUND(SUM(size_bytes) / 1073741824.0, 1), 0) AS "usedGb" FROM recorded_sessions`);
-      const [failedEventsRes] = await m.query(`SELECT count(*)::int AS failed FROM domain_events WHERE failed_at IS NOT NULL`);
-      const [totalEventsRes] = await m.query(`SELECT count(*)::int AS total FROM domain_events`);
-
-      const totalEvents = Number(totalEventsRes?.total ?? 1);
-      const failedEvents = Number(failedEventsRes?.failed ?? 0);
-      const errorRate = totalEvents > 0 ? ((failedEvents / totalEvents) * 100).toFixed(2) + '%' : '0.00%';
-
-      return {
-        overall: dbHealth === 'HEALTHY' ? 'HEALTHY' : 'DEGRADED',
-        services: [
-          { name: 'Core REST API', status: 'HEALTHY', latencyMs: 14, uptime: '99.98%' },
-          { name: 'PostgreSQL Database', status: dbHealth, latencyMs, uptime: '99.99%' },
-          { name: 'Redis Cache & Session Store', status: 'HEALTHY', latencyMs: 2, uptime: '99.99%' },
-          { name: 'Object Storage (Recordings & Documents)', status: 'HEALTHY', latencyMs: 32, uptime: '99.95%' },
-          { name: 'Payment Gateway Integration', status: 'HEALTHY', latencyMs: 85, uptime: '99.90%' },
-          { name: 'Email Delivery Engine (SES/SMTP)', status: 'HEALTHY', latencyMs: 40, uptime: '99.95%' },
-          { name: 'SMS Delivery Gateway (DLT)', status: 'HEALTHY', latencyMs: 55, uptime: '99.85%' },
-          { name: 'WhatsApp Business API', status: 'HEALTHY', latencyMs: 70, uptime: '99.80%' },
-          { name: 'Background Job Workers', status: 'HEALTHY', latencyMs: 8, uptime: '99.99%' },
-        ],
-        metrics: {
-          errorRate,
-          avgLatencyMs: latencyMs + 12,
-          activeSessions: Number(activeUsersRes?.total ?? 0),
-          dailyActiveUsers: Number(activeUsersRes?.total ?? 0),
-          storageUsedGb: Number(storageRes?.usedGb ?? 0),
-          storageLimitGb: 2048,
-        }
-      };
+    return this.platform(actor,async m=>{
+      const start=Date.now();
+      await m.query('SELECT 1');
+      const latencyMs=Date.now()-start;
+      const [storage]=await m.query(`SELECT COALESCE(SUM(size_bytes),0)/1073741824.0 AS used FROM recorded_sessions`);
+      const [events]=await m.query(`SELECT COUNT(*)::int AS total,COUNT(*) FILTER (WHERE failed_at IS NOT NULL)::int AS failed FROM domain_events`);
+      return { overall:'HEALTHY',services:[{ name:'PostgreSQL Database',status:'HEALTHY',latencyMs,uptime:null }],metrics:{ errorRate:events.total?`${(100*events.failed/events.total).toFixed(2)}%`:null,avgLatencyMs:null,activeSessions:null,dailyActiveUsers:null,storageUsedGb:Number(storage.used),storageLimitGb:null } };
     });
   }
 

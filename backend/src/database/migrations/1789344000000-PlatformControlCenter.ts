@@ -157,9 +157,6 @@ export class PlatformControlCenter1789344000000 implements MigrationInterface {
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS official_email varchar(255);
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS official_phone varchar(50);
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS website varchar(255);
-      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS principal_name varchar(120);
-      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS principal_email varchar(255);
-      ALTER TABLE organizations ADD COLUMN IF NOT EXISTS principal_phone varchar(50);
       ALTER TABLE organizations ADD COLUMN IF NOT EXISTS health_score integer NOT NULL DEFAULT 95;
 
       -- 7. Add columns to plans

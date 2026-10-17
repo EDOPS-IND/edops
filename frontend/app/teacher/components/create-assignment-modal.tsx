@@ -18,7 +18,7 @@ export function CreateAssignmentModal({
   onClose,
   organizationId,
   defaultSectionId = "",
-  defaultSubjectId = "sub-math",
+  defaultSubjectId = "",
   onSuccess,
 }: CreateAssignmentModalProps) {
   const [classes, setClasses] = useState<any[]>([]);
@@ -30,6 +30,7 @@ export function CreateAssignmentModal({
   const [dueAt, setDueAt] = useState(new Date(Date.now() + 7 * 86400000).toISOString().split('T')[0]);
   const [maxScore, setMaxScore] = useState(20);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -42,8 +43,11 @@ export function CreateAssignmentModal({
       const res = await getTeacherClasses(organizationId);
       const list = res?.classes || [];
       setClasses(list);
+      const selected = list.find((c: any) => c.sectionId === defaultSectionId && (!defaultSubjectId || c.subjectId === defaultSubjectId));
+      if (selected) setSubjectId(selected.subjectId);
       if (list.length > 0 && !sectionId) {
-        setSectionId(list[0].sectionId || list[0].id);
+        setSectionId(list[0].sectionId);
+        setSubjectId(list[0].subjectId);
       }
     } catch {
       setClasses([]);
@@ -56,6 +60,7 @@ export function CreateAssignmentModal({
     e.preventDefault();
     if (!title.trim()) return;
 
+    setError("");
     setSaving(true);
     try {
       await createTeacherAssignment(organizationId, {
@@ -69,9 +74,8 @@ export function CreateAssignmentModal({
       });
       if (onSuccess) onSuccess();
       onClose();
-    } catch {
-      if (onSuccess) onSuccess();
-      onClose();
+    } catch (err: any) {
+      setError(err?.message || "Could not save. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -95,6 +99,7 @@ export function CreateAssignmentModal({
           </button>
         </div>
 
+        {error && <p role="alert" className="text-red-600">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-3.5 text-xs">
           <div>
             <label className="font-bold text-gray-700  block mb-1">
@@ -116,15 +121,15 @@ export function CreateAssignmentModal({
                 Target Section
               </label>
               <select
-                value={sectionId}
-                onChange={(e) => setSectionId(e.target.value)}
+                value={`${sectionId}:${subjectId}`}
+                onChange={(e) => { const [section, subject] = e.target.value.split(":"); setSectionId(section); setSubjectId(subject); }}
                 className="w-full px-2.5 py-1.5 bg-gray-50  border border-gray-300  rounded-lg text-gray-900 "
               >
                 {classes.length === 0 ? (
                   <option value="">No classes available</option>
                 ) : (
                   classes.map((cls) => (
-                    <option key={cls.sectionId || cls.id} value={cls.sectionId || cls.id}>
+                    <option key={`${cls.sectionId}:${cls.subjectId}`} value={`${cls.sectionId}:${cls.subjectId}`}>
                       {cls.className || cls.name} ({cls.subjectName || cls.subject})
                     </option>
                   ))
@@ -181,7 +186,7 @@ export function CreateAssignmentModal({
             </button>
             <button
               type="submit"
-              disabled={saving || !title.trim()}
+              disabled={saving || !title.trim() || !sectionId || !subjectId}
               className="px-4 py-1.5 font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg shadow-sm transition"
             >
               {saving ? "Publishing..." : "Publish to Class"}

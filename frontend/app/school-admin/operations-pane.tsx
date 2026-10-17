@@ -18,24 +18,11 @@ import {
 export function OperationsPane({ organizationId }: { organizationId?: string }) {
   const [subtab, setSubtab] = useState<"transport" | "library" | "inventory" | "ptm">("transport");
 
-  const [vehicles, setVehicles] = useState<TransportVehicle[]>([
-    { id: "v-1", busNo: "DL-1VA-4401", route: "Route 1: Vasant Kunj → Saket → School", driverName: "Mahesh Singh", driverPhone: "+91 98123 45678", capacity: 42, enrolledStudents: 40, currentStatus: "At School" },
-    { id: "v-2", busNo: "DL-1VA-4402", route: "Route 2: Dwarka Sector 6 → Janakpuri → School", driverName: "Rakesh Yadav", driverPhone: "+91 98234 56789", capacity: 42, enrolledStudents: 41, currentStatus: "At School" },
-    { id: "v-3", busNo: "DL-1VA-4403", route: "Route 3: Noida Sector 62 → Mayur Vihar → School", driverName: "Satish Kumar", driverPhone: "+91 98345 67890", capacity: 35, enrolledStudents: 32, currentStatus: "At School" },
-    { id: "v-4", busNo: "DL-1VA-4404", route: "Route 4: Defence Colony → Lajpat Nagar → School", driverName: "Hari Om", driverPhone: "+91 98456 78901", capacity: 42, enrolledStudents: 38, currentStatus: "On Route" },
-  ]);
+  const [vehicles, setVehicles] = useState<TransportVehicle[]>(([] as any[]));
 
-  const [books, setBooks] = useState<LibraryBook[]>([
-    { id: "b-1", isbn: "978-0143452678", title: "Wings of Fire", author: "Dr. A.P.J. Abdul Kalam", category: "Biography / Science", totalCopies: 12, issuedCopies: 10 },
-    { id: "b-2", isbn: "978-0199535569", title: "Great Expectations", author: "Charles Dickens", category: "English Literature", totalCopies: 25, issuedCopies: 18 },
-    { id: "b-3", isbn: "978-9352923450", title: "NCERT Exemplar Mathematics X", author: "NCERT Editorial", category: "Academic Reference", totalCopies: 30, issuedCopies: 28 },
-  ]);
+  const [books, setBooks] = useState<LibraryBook[]>(([] as any[]));
 
-  const [assets, setAssets] = useState<SchoolAsset[]>([
-    { id: "a-1", assetId: "IT-DESK-042", category: "Computers & IT", name: "Dell OptiPlex 7090 Desktop (Computer Lab 1)", location: "IT Tower Lab 1", condition: "Good", assignedTo: "Kunal Mehra (HOD IT)", purchaseDate: "2023-08-15", value: 52000, warrantyUntil: "2026-08-15" },
-    { id: "a-2", assetId: "AV-PROJ-012", category: "Audio Visual", name: "Epson 4K Laser Projector (Auditorium)", location: "Main Auditorium", condition: "Good", assignedTo: "AV Team", purchaseDate: "2024-02-10", value: 145000, warrantyUntil: "2027-02-10" },
-    { id: "a-3", assetId: "SCI-MIC-088", category: "Lab Equipment", name: "Olympus Binocular Microscope (x1000)", location: "Biology Lab", condition: "Needs Maintenance", assignedTo: "Biology Faculty", purchaseDate: "2022-11-20", value: 38000, warrantyUntil: "Expired" },
-  ]);
+  const [assets, setAssets] = useState<SchoolAsset[]>(([] as any[]));
 
   useEffect(() => {
     if (!organizationId) return;
@@ -284,13 +271,13 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
           <div style={{ padding: "16px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E2DDD5" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                <b style={{ color: "#064E3B", fontSize: "14.5px" }}>Mid-Term PTM Session (Oct 15, 2026)</b>
+                <b style={{ color: "#064E3B", fontSize: "14.5px" }}>PTM schedules</b>
                 <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
-                  Schedule: 09:00 AM – 01:30 PM · 32 Class Teacher Desks in Main Academic Hall
+                  See saved meeting schedules
                 </div>
               </div>
               <span style={{ background: "#ECFDF5", color: "#064E3B", padding: "4px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: 700 }}>
-                1,420 Slots Configured (84% Booked)
+                Meeting availability is based on saved bookings
               </span>
             </div>
           </div>

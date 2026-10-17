@@ -58,3 +58,11 @@ export class SectionListDto extends AcademicListDto {
 export class SectionResourceListDto extends AcademicListDto {
   @ApiPropertyOptional({ format: 'uuid' }) @ValidateIf((_object, value) => value !== undefined) @IsUUID() sectionId?: string;
 }
+
+export class BatchPromotionDto {
+  @ApiProperty({ format: 'uuid' }) @IsUUID() sourceSectionId!: string;
+  @ApiPropertyOptional({ format: 'uuid' }) @ValidateIf((_object, value) => value !== undefined) @IsUUID() targetSectionId?: string;
+  @ApiPropertyOptional({ format: 'uuid' }) @ValidateIf((_object, value) => value !== undefined) @IsUUID() targetAcademicYearId?: string;
+  @ApiProperty({ enum: ['promote', 'graduate'] }) @IsString() action!: 'promote' | 'graduate';
+  @ApiProperty({ type: [String] }) @IsString({ each: true }) studentUserIds!: string[];
+}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Check, X, Loader2 } from "lucide-react";
 import { School, FeatureOverride } from "./types";
-import { getSchoolRoleFeatureMatrix, updateSchoolRoleFeatureMatrix } from "../edops-api";
+import { getAuditLogs, getSchoolRoleFeatureMatrix, updateSchoolRoleFeatureMatrix } from "../edops-api";
 import { DashboardNavigationEditor } from "./dashboard-navigation-editor";
 
 export function SchoolsPane({
@@ -29,6 +29,11 @@ export function SchoolsPane({
   const [schoolDetailTab, setSchoolDetailTab] = useState<
     "overview" | "users" | "usage" | "features" | "subscription" | "billing" | "activity"
   >("overview");
+  const [auditRows, setAuditRows] = useState<any[]>([]);
+  useEffect(() => {
+    setAuditRows([]);
+    if (selectedSchool && schoolDetailTab === 'activity') getAuditLogs(100).then(res => setAuditRows(res.items.filter((r: any) => r.organizationId === selectedSchool.id))).catch(() => setAuditRows([]));
+  }, [selectedSchool?.id, schoolDetailTab]);
   const [matrixData, setMatrixData] = useState<any>(null);
   const [matrixLoading, setMatrixLoading] = useState(false);
   const [matrixCategory, setMatrixCategory] = useState("all");
@@ -157,9 +162,9 @@ export function SchoolsPane({
                   <td style={{ padding: "12px 10px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                       <div style={{ width: "40px", background: "#E5E7EB", borderRadius: "4px", height: "6px", overflow: "hidden" }}>
-                        <div style={{ width: `${s.healthScore || 90}%`, background: (s.healthScore || 90) > 85 ? "#10B981" : "#F59E0B", height: "100%" }} />
+                        <div style={{ width: `${s.healthScore || 0}%`, background: (s.healthScore || 0) > 85 ? "#10B981" : "#F59E0B", height: "100%" }} />
                       </div>
-                      <span style={{ fontSize: "11.5px", fontWeight: 700 }}>{s.healthScore || 90}</span>
+                      <span style={{ fontSize: "11.5px", fontWeight: 700 }}>{s.healthScore || 0}</span>
                     </div>
                   </td>
                   <td style={{ padding: "12px 10px" }}>
@@ -270,17 +275,17 @@ export function SchoolsPane({
             <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700 }}>School Information</h4>
             <div style={{ display: "grid", gap: "8px", fontSize: "12.5px" }}>
               <div><b>Board:</b> {selectedSchool.board}</div>
-              <div><b>Official Email:</b> {selectedSchool.officialEmail || "admin@school.edu"}</div>
-              <div><b>Health Score:</b> {selectedSchool.healthScore || 95} / 100 (Optimal)</div>
-              <div><b>Registered Address:</b> Main Campus, {selectedSchool.city}, {selectedSchool.state}</div>
+              <div><b>Official Email:</b> {selectedSchool.officialEmail || "—"}</div>
+              <div><b>Health Score:</b> {selectedSchool.healthScore || 0} / 100</div>
+              <div><b>Registered Location:</b> {selectedSchool.city}, {selectedSchool.state}</div>
             </div>
           </div>
           <div style={{ background: "#F9FAFB", padding: "16px", borderRadius: "8px" }}>
-            <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700 }}>Academic Leadership</h4>
+            <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700 }}>Academic Status</h4>
             <div style={{ display: "grid", gap: "8px", fontSize: "12.5px" }}>
-              <div><b>Principal:</b> {selectedSchool.principalName || "Dr. Rajesh Sharma"}</div>
-              <div><b>Academic Year:</b> 2026-27 (Active)</div>
               <div><b>Status:</b> <span style={{ fontWeight: 700, textTransform: "uppercase" }}>{selectedSchool.status}</span></div>
+              <div><b>Academic Year:</b> {selectedSchool.academicYear || "—"}</div>
+              <div><b>Leadership & Staff:</b> Provisioned via School Admin</div>
             </div>
           </div>
         </div>
@@ -292,11 +297,11 @@ export function SchoolsPane({
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "14px" }}>
             <div style={{ background: "#F9FAFB", padding: "16px", borderRadius: "8px" }}>
               <div style={{ fontSize: "12px", color: "#6B7280" }}>Students Enrolled</div>
-              <div style={{ fontSize: "24px", fontWeight: 800, marginTop: "4px" }}>{selectedSchool.studentsCount} / 5,000</div>
+              <div style={{ fontSize: "24px", fontWeight: 800, marginTop: "4px" }}>{selectedSchool.studentsCount} </div>
             </div>
             <div style={{ background: "#F9FAFB", padding: "16px", borderRadius: "8px" }}>
               <div style={{ fontSize: "12px", color: "#6B7280" }}>Faculty Assigned</div>
-              <div style={{ fontSize: "24px", fontWeight: 800, marginTop: "4px" }}>{selectedSchool.teachersCount} / 350</div>
+              <div style={{ fontSize: "24px", fontWeight: 800, marginTop: "4px" }}>{selectedSchool.teachersCount} </div>
             </div>
             <div style={{ background: "#F9FAFB", padding: "16px", borderRadius: "8px" }}>
               <div style={{ fontSize: "12px", color: "#6B7280" }}>Parents Connected</div>
@@ -311,20 +316,20 @@ export function SchoolsPane({
         <div style={{ display: "grid", gap: "14px" }}>
           <div style={{ background: "#F9FAFB", padding: "16px", borderRadius: "8px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "12.5px" }}>
-              <span>Storage Utilization ({selectedSchool.storageUsageGb || 72} GB / 500 GB)</span>
-              <b>14.4%</b>
+              <span>Storage Utilization ({selectedSchool.storageUsageGb ?? 0} GB)</span>
+              <b>—</b>
             </div>
             <div style={{ width: "100%", background: "#E5E7EB", height: "8px", borderRadius: "4px", overflow: "hidden" }}>
-              <div style={{ width: "14.4%", background: "#10B981", height: "100%" }} />
+              <div style={{ width: "0%", background: "#10B981", height: "100%" }} />
             </div>
           </div>
           <div style={{ background: "#F9FAFB", padding: "16px", borderRadius: "8px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px", fontSize: "12.5px" }}>
-              <span>Monthly API Requests ({(selectedSchool.apiRequests || 124000).toLocaleString()} / 1,000,000)</span>
-              <b>12.4%</b>
+              <span>Monthly API Requests ({(selectedSchool.apiRequests ?? 0).toLocaleString()} )</span>
+              <b>—</b>
             </div>
             <div style={{ width: "100%", background: "#E5E7EB", height: "8px", borderRadius: "4px", overflow: "hidden" }}>
-              <div style={{ width: "12.4%", background: "#064E3B", height: "100%" }} />
+              <div style={{ width: "0%", background: "#064E3B", height: "100%" }} />
             </div>
           </div>
         </div>
@@ -536,7 +541,7 @@ export function SchoolsPane({
           <div>
             <div style={{ fontSize: "12px", color: "#6B7280" }}>Current Subscription Tier</div>
             <div style={{ fontSize: "20px", fontWeight: 800, marginTop: "2px" }}>{selectedSchool.plan} Plan</div>
-            <div style={{ fontSize: "12px", color: "#10B981", fontWeight: 600 }}>Active · Renews in 24 days</div>
+            <div style={{ fontSize: "12px", color: "#10B981", fontWeight: 600 }}>{selectedSchool.status}</div>
           </div>
           <button
             onClick={() => onLifecycleChange(selectedSchool.id, selectedSchool.status, 30)}
@@ -550,15 +555,9 @@ export function SchoolsPane({
       {/* Subtab 6: Activity */}
       {schoolDetailTab === "activity" && (
         <div style={{ display: "grid", gap: "10px", fontSize: "12.5px" }}>
-          <div style={{ padding: "10px", borderBottom: "1px solid #F3F4F6" }}>
-            <b>organization.created</b> · Provisioned by Platform Admin · 2 months ago
-          </div>
-          <div style={{ padding: "10px", borderBottom: "1px solid #F3F4F6" }}>
-            <b>subscription.assigned</b> · Assigned Professional Plan · 2 months ago
-          </div>
-          <div style={{ padding: "10px", borderBottom: "1px solid #F3F4F6" }}>
-            <b>invitation.accepted</b> · Initial School Admin verified credentials · 2 months ago
-          </div>
+          <p>School events within the latest 100 platform audit records.</p>
+          {auditRows.length ? auditRows.map(row => <div key={row.id}><b>{row.action}</b> · {row.actorEmail} · {new Date(row.createdAt).toLocaleString()}</div>) : <p>No matching audit records.</p>}
+
         </div>
       )}
     </div>

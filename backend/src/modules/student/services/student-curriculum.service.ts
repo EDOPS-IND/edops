@@ -1,52 +1,32 @@
 import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
+
 @Injectable()
 export class StudentCurriculumService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async getCurriculum(organizationId: string, studentUserId: string) {
-    const overallProgress = 86.0;
-
-    const subjects = [
-      {
-        subject: 'Mathematics',
-        code: 'MATH-10',
-        progress: 88.0,
-        chapters: [
-          { number: 1, title: 'Real Numbers & Fundamental Theorem of Arithmetic', status: 'Completed', progress: 100 },
-          { number: 2, title: 'Polynomials (Geometrical Meaning of Zeroes)', status: 'Completed', progress: 100 },
-          { number: 3, title: 'Pair of Linear Equations in Two Variables', status: 'Completed', progress: 100 },
-          { number: 4, title: 'Quadratic Equations & Nature of Roots', status: 'In Progress', progress: 75, remainingTopics: 'Word problems on speed and distance' },
-          { number: 5, title: 'Arithmetic Progressions', status: 'In Progress', progress: 40, remainingTopics: 'Sum of first n terms' },
-          { number: 6, title: 'Triangles & Similarity Theorems', status: 'Not Started', progress: 0, remainingTopics: 'Basic Proportionality Theorem' },
-          { number: 7, title: 'Coordinate Geometry', status: 'Not Started', progress: 0, remainingTopics: 'Distance & Section formulas' },
-        ],
-      },
-      {
-        subject: 'Science',
-        code: 'SCI-10',
-        progress: 82.0,
-        chapters: [
-          { number: 1, title: 'Chemical Reactions and Equations', status: 'Completed', progress: 100 },
-          { number: 2, title: 'Acids, Bases and Salts', status: 'Completed', progress: 100 },
-          { number: 3, title: 'Metals and Non-metals', status: 'In Progress', progress: 60, remainingTopics: 'Extraction of metals and corrosion' },
-          { number: 4, title: 'Life Processes (Nutrition & Respiration)', status: 'In Progress', progress: 50, remainingTopics: 'Transportation in human beings' },
-          { number: 5, title: 'Light - Reflection and Refraction', status: 'Not Started', progress: 0, remainingTopics: 'Ray diagrams & lens formula' },
-        ],
-      },
-      {
-        subject: 'English',
-        code: 'ENG-10',
-        progress: 91.0,
-        chapters: [
-          { number: 1, title: 'A Letter to God (G.L. Fuentes)', status: 'Completed', progress: 100 },
-          { number: 2, title: 'Nelson Mandela: Long Walk to Freedom', status: 'Completed', progress: 100 },
-          { number: 3, title: 'Two Stories about Flying', status: 'In Progress', progress: 80, remainingTopics: 'Black Aeroplane critical commentary' },
-          { number: 4, title: 'From the Diary of Anne Frank', status: 'Not Started', progress: 0, remainingTopics: 'Full chapter text analysis' },
-        ],
-      },
-    ];
-
-    return { overallProgress, subjects };
+    const nodes = await this.drizzle.query(
+      `SELECT n.*, s.code FROM principal_curriculum_nodes n
+       JOIN subjects s ON s.id=n.subject_id AND s.organization_id=n.organization_id
+       WHERE n.organization_id=$1 AND EXISTS (
+         SELECT 1 FROM enrollments e
+         JOIN sections sec ON sec.id=e.section_id AND sec.organization_id=e.organization_id
+         JOIN academic_years y ON y.id=e.academic_year_id AND y.organization_id=e.organization_id AND y.is_current
+         JOIN class_subject_assignments c ON c.organization_id=e.organization_id AND c.section_id=e.section_id
+         WHERE e.organization_id=n.organization_id AND e.student_user_id=$2 AND e.status='active'
+           AND c.subject_id=n.subject_id AND n.academic_year_id=e.academic_year_id AND (n.grade=sec.name OR n.grade=(SELECT p.name FROM programs p WHERE p.id=sec.program_id) OR n.grade=(SELECT REPLACE(p.name, 'Class ', '') FROM programs p WHERE p.id=sec.program_id)))
+       ORDER BY n.subject_name, n.created_at`, [organizationId, studentUserId]);
+    const groups = new Map<string, any>();
+    for (const n of nodes) {
+      if (!groups.has(n.subject_id)) groups.set(n.subject_id, { subject: n.subject_name, name: n.subject_name, code: n.code, chapters: [] });
+      const group = groups.get(n.subject_id);
+      group.chapters.push({ id: n.id, number: group.chapters.length + 1, title: n.chapter_name,
+        status: Number(n.actual_completion_percentage) >= 100 ? 'Completed' : Number(n.actual_completion_percentage) > 0 ? 'In Progress' : 'Not Started',
+        progress: Number(n.actual_completion_percentage), learningOutcomes: n.learning_outcomes });
+    }
+    const subjects = [...groups.values()].map(s => ({ ...s, progress: Math.round(s.chapters.reduce((sum: number, c: any) => sum + c.progress, 0) / s.chapters.length) }));
+    const overallProgress = nodes.length ? Math.round(nodes.reduce((sum, n) => sum + Number(n.actual_completion_percentage), 0) / nodes.length) : 0;
+    return { overallProgress, syllabusPace: overallProgress, subjects };
   }
 }

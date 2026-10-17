@@ -18,6 +18,7 @@ import { AuthenticatedRequest } from "../../../common/auth.guard";
 import { StudentGuard } from "../guards/student.guard";
 import { StudentProgressService } from "../services/student-progress.service";
 import {
+  StudentReflectionDto,
   CreateStudentGoalDto,
   CreateStudentSupportRequestDto,
 } from "../dto/student.dto";
@@ -68,4 +69,7 @@ export class StudentProgressController {
       dto,
     );
   }
+  @Post('progress/reflection')
+  saveReflection(@Param('organizationId',ParseUUIDPipe) org:string,@Req() req:AuthenticatedRequest,@Body() dto:StudentReflectionDto) {return this.progressService.saveReflection(org,req.user.id,dto);}
+
 }

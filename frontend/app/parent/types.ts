@@ -14,7 +14,10 @@ export interface WardInfo {
   sectionName: string;
   programName: string;
   attendancePct: number;
-  todayAttendance: 'Present' | 'Absent' | 'Late' | 'Excused';
+  todayAttendance: string;
+  data?: any;
+  organizationId?: string;
+  refresh?: () => Promise<void>;
   checkInTime?: string;
   avatar?: string;
   gpa?: string;

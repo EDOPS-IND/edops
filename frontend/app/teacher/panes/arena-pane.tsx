@@ -25,11 +25,11 @@ export function ArenaPane({ organizationId }: ArenaPaneProps) {
 
   // New Question Form State
   const [prompt, setPrompt] = useState("");
-  const [topic, setTopic] = useState("Quadratic Equations");
-  const [opt1, setOpt1] = useState("2 and 3");
-  const [opt2, setOpt2] = useState("-2 and -3");
-  const [opt3, setOpt3] = useState("1 and 6");
-  const [opt4, setOpt4] = useState("-1 and -6");
+  const [topic, setTopic] = useState("");
+  const [opt1, setOpt1] = useState("");
+  const [opt2, setOpt2] = useState("");
+  const [opt3, setOpt3] = useState("");
+  const [opt4, setOpt4] = useState("");
   const [correctOpt, setCorrectOpt] = useState("opt_1");
   const [saving, setSaving] = useState(false);
 
@@ -74,7 +74,7 @@ export function ArenaPane({ organizationId }: ArenaPaneProps) {
       const targetClass = clsRes?.classes?.[0]?.className || "";
       await createTeacherArenaQuestion(organizationId, {
         sectionId: targetSection,
-        subjectId: clsRes?.classes?.[0]?.subjectCode || "sub-math",
+        subjectId: clsRes?.classes?.[0]?.subjectId || "",
         prompt,
         topic,
         options: [
@@ -87,29 +87,11 @@ export function ArenaPane({ organizationId }: ArenaPaneProps) {
         difficulty: "medium",
         type: "single_choice",
       });
-      setQuestions((prev) => [
-        {
-          id: `aq-${Date.now()}`,
-          prompt,
-          topic,
-          difficulty: "medium",
-          status: "published",
-          classSection: targetClass || "Active Class",
-          attemptsCount: 0,
-          accuracyRate: null,
-          options: [
-            { id: "opt_1", text: opt1 },
-            { id: "opt_2", text: opt2 },
-            { id: "opt_3", text: opt3 },
-            { id: "opt_4", text: opt4 },
-          ]
-        },
-        ...prev,
-      ]);
+      await loadArena();
       setCreateModalOpen(false);
       setPrompt("");
     } catch {
-      setCreateModalOpen(false);
+      // Keep the form open so the user can retry.
     } finally {
       setSaving(false);
     }

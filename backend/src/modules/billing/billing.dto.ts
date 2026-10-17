@@ -221,9 +221,6 @@ export class OnboardSchoolFullDto {
   @ApiProperty() @Transform(trim) @IsString() officialEmail!: string;
   @ApiPropertyOptional() @IsString() officialPhone?: string;
   @ApiPropertyOptional() @IsString() website?: string;
-  @ApiPropertyOptional() @IsString() principalName?: string;
-  @ApiPropertyOptional() @IsString() principalEmail?: string;
-  @ApiPropertyOptional() @IsString() principalPhone?: string;
   @ApiPropertyOptional() @IsString() timeZone?: string;
   @ApiPropertyOptional() @IsString() locale?: string;
   // Admin

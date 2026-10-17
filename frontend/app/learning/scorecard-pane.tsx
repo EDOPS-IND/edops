@@ -53,10 +53,10 @@ export function ProgressPane({
       const [scoresRes, evalsRes] = await Promise.all([
         api<ListResult<Scorecard>>(
           `${root}/scorecards?sectionId=${targetClass.sectionId}&subjectId=${targetClass.subjectId}&limit=100`
-        ).catch(() => ({ items: [] as Scorecard[], total: 0, limit: 100, offset: 0 })),
+        ),
         api<ListResult<ExamEvaluation>>(
           `${root}/evaluations?sectionId=${targetClass.sectionId}&subjectId=${targetClass.subjectId}&limit=100`
-        ).catch(() => ({ items: [] as ExamEvaluation[], total: 0, limit: 100, offset: 0 })),
+        ),
       ]);
       setItems(scoresRes.items);
       setEvaluations(evalsRes.items);
@@ -65,29 +65,6 @@ export function ProgressPane({
     } finally {
       setLoading(false);
     }
-  }
-
-  async function seedStandardExams() {
-    if (!activeClass) return;
-    setError("");
-    const standard = [
-      { title: "Contest 1", maxMarks: 100, weightage: 20 },
-      { title: "Contest 2", maxMarks: 100, weightage: 20 },
-      { title: "Mid Semester Exam", maxMarks: 100, weightage: 30 },
-      { title: "End Semester Exam", maxMarks: 100, weightage: 30 },
-    ];
-    await run(async () => {
-      for (const item of standard) {
-        await createResource(`${root}/evaluations`, {
-          sectionId: activeClass.sectionId,
-          subjectId: activeClass.subjectId,
-          title: item.title,
-          maxMarks: item.maxMarks,
-          weightage: item.weightage,
-        });
-      }
-      await loadTeacherData(activeClass);
-    }, setError);
   }
 
   async function deleteEval(id: string) {
@@ -116,10 +93,10 @@ export function ProgressPane({
             const [scoresRes, evalsRes] = await Promise.all([
               api<ListResult<Scorecard>>(
                 `${root}/scorecards?sectionId=${c.sectionId}&subjectId=${c.subjectId}&limit=10`
-              ).catch(() => ({ items: [] as Scorecard[], total: 0, limit: 10, offset: 0 })),
+              ),
               api<ListResult<ExamEvaluation>>(
                 `${root}/evaluations?sectionId=${c.sectionId}&subjectId=${c.subjectId}&limit=100`
-              ).catch(() => ({ items: [] as ExamEvaluation[], total: 0, limit: 100, offset: 0 })),
+              ),
             ]);
 
             return {
@@ -127,12 +104,8 @@ export function ProgressPane({
               scorecard: scoresRes.items[0] || null,
               evaluations: evalsRes.items || [],
             };
-          } catch {
-            return {
-              classroom: c,
-              scorecard: null,
-              evaluations: [],
-            };
+          } catch (error) {
+            throw error;
           }
         })
       )
@@ -355,7 +328,7 @@ export function ProgressPane({
                           <td>
                             <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
                               75%
-                              {(scorecard?.attendancePct ?? 100) >= 75 ? (
+                              {(scorecard?.attendancePct ?? 0) >= 75 ? (
                                 <span className="status-chip active">Eligible</span>
                               ) : (
                                 <span className="status-chip absent">Shortage</span>
@@ -514,9 +487,7 @@ export function ProgressPane({
                 <p style={{ margin: "0 0 12px 0", color: "var(--muted)", fontSize: "13px" }}>
                   No official exam components created yet for this subject.
                 </p>
-                <button className="secondary-button" onClick={seedStandardExams}>
-                  Initialize standard exams (Contest 1, Contest 2, Mid-Sem, End-Sem)
-                </button>
+
               </div>
             ) : (
               <div style={{ display: "grid", gap: "10px" }}>
@@ -683,8 +654,8 @@ function EvaluationCreateModal({
         sectionId: classroom.sectionId,
         subjectId: classroom.subjectId,
         title: String(data.get("title")),
-        maxMarks: Number(data.get("maxMarks") || 100),
-        weightage: Number(data.get("weightage") || 25),
+        maxMarks: Number(data.get("maxMarks") || 0),
+        weightage: Number(data.get("weightage") || 0),
       });
       onClose();
     }, setError);

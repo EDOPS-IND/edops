@@ -4,7 +4,7 @@ import { User } from '../auth/user.entity';
 import { SchoolRole } from '../tenants/tenant.entity';
 import { SchoolWork } from '../tenants/school-work.service';
 import { AcademicRecord, AcademicYear, ClassSubjectAssignment, Enrollment, Program, Section, Subject } from './academic.entity';
-import { AcademicListDto, AcademicYearDto, EnrollmentDto, ProgramDto, SectionDto, SectionListDto, SectionResourceListDto, SubjectDto, TeacherAssignmentDto, TransferEnrollmentDto, UpdateAcademicYearDto, UpdateEnrollmentDto, UpdateProgramDto, UpdateSectionDto, UpdateSubjectDto, UpdateTeacherAssignmentDto } from './academic.dto';
+import { AcademicListDto, AcademicYearDto, BatchPromotionDto, EnrollmentDto, ProgramDto, SectionDto, SectionListDto, SectionResourceListDto, SubjectDto, TeacherAssignmentDto, TransferEnrollmentDto, UpdateAcademicYearDto, UpdateEnrollmentDto, UpdateProgramDto, UpdateSectionDto, UpdateSubjectDto, UpdateTeacherAssignmentDto } from './academic.dto';
 import { DrizzleService } from '../../database/drizzle.service';
 
 const TABLE_NAMES: Record<string, string> = {
@@ -84,8 +84,8 @@ export class AcademicsService {
           COALESCE((
             SELECT CASE WHEN ar.status = 'present' THEN 'Present' ELSE 'Absent' END
             FROM attendance_records ar
-            JOIN attendance_sessions sess ON sess.id = ar.attendance_session_id
-            WHERE ar.organization_id = $1 AND ar.student_id = user_account.id
+            JOIN attendance_sessions sess ON sess.id = ar.attendance_session_id AND sess.organization_id=ar.organization_id
+            WHERE ar.organization_id = $1 AND ar.student_id = user_account.id AND sess.date=CURRENT_DATE AND sess.status='finalized'
             ORDER BY sess.date DESC LIMIT 1
           ), 'Unknown') AS "todayAttendance"
           FROM parent_student_relationships psr
@@ -94,7 +94,7 @@ export class AcademicsService {
           LEFT JOIN sections section ON section.id = enrollment.section_id AND section.organization_id = $1
           LEFT JOIN programs program ON program.id = section.program_id AND program.organization_id = $1
           WHERE psr.school_id = $1 AND psr.parent_id = $2 AND psr.verification_status = 'verified' AND psr.status = 'active'
-          ORDER BY enrollment.roll_number, user_account.email`, [org, actor.id]).catch(() => []);
+          ORDER BY enrollment.roll_number, user_account.email`, [org, actor.id]);
 
         const messages = await manager.query(
           `SELECT tm.*, su.name as sender_name, su.email as sender_email
@@ -103,7 +103,7 @@ export class AcademicsService {
            WHERE tm.organization_id = $1 AND (tm.recipient_id = $2 OR tm.sender_id = $2)
            ORDER BY tm.created_at DESC LIMIT 20`,
           [org, actor.id]
-        ).catch(() => []);
+        );
 
         return { role: 'parent' as const, children: children || [], messages: messages || [] };
       }
@@ -371,6 +371,53 @@ export class AcademicsService {
       await this.saveRecord(manager, Enrollment, { ...before, status: 'transferred' }, actor, 'enrollment.transferred', before);
       return this.saveRecord(manager, Enrollment, { organizationId: org, studentUserId: beforeStudentId,
         sectionId: section.id, academicYearId: sectionYearId, rollNumber: dto.rollNumber }, actor, 'enrollment.created');
+    });
+  }
+
+  batchPromote(org: string, actor: User, dto: BatchPromotionDto) {
+    return this.work.run(org, actor, 'enrollment.promoted', dto, null, async (manager) => {
+      let count = 0;
+      if (dto.action === 'graduate') {
+        for (const studentId of dto.studentUserIds) {
+          await manager.query(
+            `UPDATE enrollments SET status = 'graduated'
+             WHERE organization_id = $1 AND section_id = $2 AND student_user_id = $3 AND status = 'active'`,
+            [org, dto.sourceSectionId, studentId]
+          );
+          count++;
+        }
+        return { success: true, count, action: 'graduate' };
+      }
+
+      if (!dto.targetSectionId || !dto.targetAcademicYearId) {
+        throw new BadRequestException('Target section and academic year are required for promotion');
+      }
+
+      await this.availableSection(manager, org, dto.targetSectionId);
+
+      for (const studentId of dto.studentUserIds) {
+        await manager.query(
+          `UPDATE enrollments SET status = 'completed'
+           WHERE organization_id = $1 AND section_id = $2 AND student_user_id = $3 AND status = 'active'`,
+          [org, dto.sourceSectionId, studentId]
+        );
+
+        const [cntRes] = await manager.query(
+          `SELECT COUNT(*)::int as count FROM enrollments WHERE organization_id = $1 AND section_id = $2`,
+          [org, dto.targetSectionId]
+        );
+        const roll = `ROLL-${String((cntRes?.count || 0) + 1).padStart(3, '0')}`;
+
+        await manager.query(
+          `INSERT INTO enrollments (organization_id, student_user_id, section_id, academic_year_id, roll_number, status)
+           VALUES ($1, $2, $3, $4, $5, 'active')
+           ON CONFLICT DO NOTHING`,
+          [org, studentId, dto.targetSectionId, dto.targetAcademicYearId, roll]
+        );
+        count++;
+      }
+
+      return { success: true, count, action: 'promote', targetSectionId: dto.targetSectionId };
     });
   }
 }

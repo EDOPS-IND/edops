@@ -343,7 +343,7 @@ function QuestionForm({
     const topic = String(data.get("topic") || "").trim();
     const prompt = String(data.get("prompt") || "");
     const difficulty = String(data.get("difficulty") || "easy");
-    const maxScore = Number(data.get("maxScore") || 1);
+    const maxScore = Number(data.get("maxScore") || 0);
     const tags = String(data.get("tags") || "")
       .split(",")
       .map((item) => item.trim())

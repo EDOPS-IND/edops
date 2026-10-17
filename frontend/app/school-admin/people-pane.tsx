@@ -14,6 +14,8 @@ import {
   getSchoolAdminStaff,
   getSchoolAdminParents,
   getSchoolAdminDepartments,
+  updateParentChildren,
+  updateTeacherEmployment,
 } from "../edops-api";
 import {
   Users,
@@ -46,13 +48,19 @@ import {
 export function PeoplePane({
   organizationId,
   initialSubtab = "students",
+  activeTab,
   onOpenQuickAction,
 }: {
   organizationId?: string;
   initialSubtab?: "students" | "teachers" | "staff" | "parents" | "departments";
+  activeTab?: "students" | "teachers" | "staff" | "parents" | "departments";
   onOpenQuickAction: (action: string) => void;
 }) {
-  const [subtab, setSubtab] = useState<"students" | "teachers" | "staff" | "parents" | "departments">(initialSubtab);
+  const [subtab, setSubtab] = useState<"students" | "teachers" | "staff" | "parents" | "departments">(activeTab || initialSubtab);
+
+  useEffect(() => {
+    if (activeTab) setSubtab(activeTab);
+  }, [activeTab]);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -67,36 +75,149 @@ export function PeoplePane({
 
   // Selected Teacher for Workload Modal
   const [selectedTeacher, setSelectedTeacher] = useState<TeacherRecord | null>(null);
+  const [editingTeacherEmp, setEditingTeacherEmp] = useState(false);
+  const [empIdInput, setEmpIdInput] = useState("");
+  const [empTypeInput, setEmpTypeInput] = useState("Regular Faculty");
+  const [savingTeacherEmp, setSavingTeacherEmp] = useState(false);
+  const [empSaveSuccess, setEmpSaveSuccess] = useState(false);
+
+  const handleOpenTeacherModal = (t: TeacherRecord) => {
+    setSelectedTeacher(t);
+    setEditingTeacherEmp(false);
+    setEmpIdInput(t.empId || "");
+    setEmpTypeInput(t.employmentType || "Regular Faculty");
+    setEmpSaveSuccess(false);
+  };
+
+  const handleSaveTeacherEmp = async () => {
+    if (!selectedTeacher || !organizationId) return;
+    setSavingTeacherEmp(true);
+    try {
+      const teacherId = selectedTeacher.userId || selectedTeacher.id;
+      await updateTeacherEmployment(organizationId, teacherId, {
+        employeeId: empIdInput.trim() || undefined,
+        employmentType: empTypeInput.trim() || undefined,
+      });
+      const updatedTeacher: TeacherRecord = {
+        ...selectedTeacher,
+        empId: empIdInput.trim() || undefined,
+        employmentType: empTypeInput.trim() || undefined,
+      };
+      setSelectedTeacher(updatedTeacher);
+      setTeachers((prev) => prev.map((tc) => (tc.id === selectedTeacher.id ? updatedTeacher : tc)));
+      setEditingTeacherEmp(false);
+      setEmpSaveSuccess(true);
+      setTimeout(() => setEmpSaveSuccess(false), 3000);
+    } catch {
+      // ignore
+    } finally {
+      setSavingTeacherEmp(false);
+    }
+  };
 
   // Selected Department for Department 360° Dashboard
   const [selectedDept, setSelectedDept] = useState<DepartmentRecord | null>(null);
 
   const [loading, setLoading] = useState(false);
+  const [loadedTabs, setLoadedTabs] = useState<Record<string, boolean>>({});
   const [students, setStudents] = useState<StudentRecord[]>([]);
   const [teachers, setTeachers] = useState<TeacherRecord[]>([]);
   const [staff, setStaff] = useState<StaffRecord[]>([]);
   const [parents, setParents] = useState<ParentRecord[]>([]);
   const [departments, setDepartments] = useState<DepartmentRecord[]>([]);
 
+  // Manage Wards State
+  const [manageWardsParent, setManageWardsParent] = useState<ParentRecord | null>(null);
+  const [selectedWardIds, setSelectedWardIds] = useState<string[]>([]);
+  const [wardSearchQuery, setWardSearchQuery] = useState("");
+  const [savingWards, setSavingWards] = useState(false);
+
+  const handleOpenManageWards = (parent: ParentRecord) => {
+    setManageWardsParent(parent);
+    const currentIds = (parent.children || []).map((ch: any) => ch.studentId || ch.id).filter(Boolean);
+    setSelectedWardIds(currentIds);
+    setWardSearchQuery("");
+  };
+
+  const handleSaveWards = async () => {
+    if (!organizationId || !manageWardsParent) return;
+    setSavingWards(true);
+    try {
+      await updateParentChildren(organizationId, manageWardsParent.id, selectedWardIds);
+      const updated = await getSchoolAdminParents(organizationId);
+      setParents(updated || []);
+      setManageWardsParent(null);
+    } catch (err: any) {
+      alert(err?.message || "Failed to update mapped wards");
+    } finally {
+      setSavingWards(false);
+    }
+  };
+
+  const filteredStudentsForWards = students.filter((s) => {
+    if (!wardSearchQuery.trim()) return true;
+    const q = wardSearchQuery.toLowerCase();
+    const nameMatch = (s.name || "").toLowerCase().includes(q);
+    const admMatch = (s.admissionNo || s.admissionNumber || "").toLowerCase().includes(q);
+    const classMatch = [s.grade, s.className, s.section, s.sectionName].filter(Boolean).join(" ").toLowerCase().includes(q);
+    return nameMatch || admMatch || classMatch;
+  });
+
+  const studentParents = selectedStudent
+    ? parents.filter((p) =>
+        (p.children || []).some(
+          (ch: any) =>
+            (ch.id && (ch.id === selectedStudent.userId || ch.id === selectedStudent.id)) ||
+            (ch.studentId && (ch.studentId === selectedStudent.userId || ch.studentId === selectedStudent.id))
+        )
+      )
+    : [];
+
+  // Lazy load per tab on demand with in-memory caching
   useEffect(() => {
     if (!organizationId) return;
+    if (loadedTabs[subtab]) return;
+
     setLoading(true);
-    Promise.all([
-      getSchoolAdminStudents(organizationId).catch(() => []),
-      getSchoolAdminTeachers(organizationId).catch(() => []),
-      getSchoolAdminStaff(organizationId).catch(() => []),
-      getSchoolAdminParents(organizationId).catch(() => []),
-      getSchoolAdminDepartments(organizationId).catch(() => []),
-    ]).then(([st, tc, sf, pr, dp]) => {
-      setStudents(st || []);
-      setTeachers(tc || []);
-      setStaff(sf || []);
-      setParents(pr || []);
-      setDepartments(dp || []);
-    }).finally(() => {
-      setLoading(false);
-    });
-  }, [organizationId]);
+    let fetcher: Promise<any>;
+    if (subtab === "students") {
+      fetcher = getSchoolAdminStudents(organizationId).then((st) => setStudents(st || []));
+    } else if (subtab === "teachers") {
+      fetcher = getSchoolAdminTeachers(organizationId).then((tc) => setTeachers(tc || []));
+    } else if (subtab === "staff") {
+      fetcher = getSchoolAdminStaff(organizationId).then((sf) => setStaff(sf || []));
+    } else if (subtab === "parents") {
+      const p1 = getSchoolAdminParents(organizationId).then((pr) => setParents(pr || []));
+      const p2 = !loadedTabs["students"]
+        ? getSchoolAdminStudents(organizationId).then((st) => {
+            setStudents(st || []);
+            setLoadedTabs((prev) => ({ ...prev, students: true }));
+          }).catch(() => {})
+        : Promise.resolve();
+      fetcher = Promise.all([p1, p2]);
+    } else {
+      fetcher = getSchoolAdminDepartments(organizationId).then((dp) => setDepartments(dp || []));
+    }
+
+    fetcher
+      .catch(() => {})
+      .finally(() => {
+        setLoadedTabs((prev) => ({ ...prev, [subtab]: true }));
+        setLoading(false);
+      });
+  }, [organizationId, subtab, loadedTabs]);
+
+  // Load parents on demand if Student 360 profile is opened
+  useEffect(() => {
+    if (selectedStudent && organizationId && !loadedTabs["parents"]) {
+      getSchoolAdminParents(organizationId)
+        .then((pr) => {
+          setParents(pr || []);
+          setLoadedTabs((prev) => ({ ...prev, parents: true }));
+        })
+        .catch(() => {});
+    }
+  }, [selectedStudent, organizationId, loadedTabs]);
 
   const filteredStudents = students.filter((s) => {
     if (gradeFilter !== "all" && !s.grade.toLowerCase().includes(gradeFilter.toLowerCase())) return false;
@@ -144,31 +265,54 @@ export function PeoplePane({
           })}
         </div>
 
-        <button
-          onClick={() => {
-            if (subtab === "students") onOpenQuickAction("addStudent");
-            else if (subtab === "teachers") onOpenQuickAction("addTeacher");
-            else if (subtab === "staff") onOpenQuickAction("addStaff");
-            else if (subtab === "parents") onOpenQuickAction("mapParent");
-            else onOpenQuickAction("addDepartment");
-          }}
-          style={{
-            padding: "8px 16px",
-            background: "#064E3B",
-            color: "#F8E7C9",
-            border: "none",
-            borderRadius: "8px",
-            fontSize: "12.5px",
-            fontWeight: 700,
-            cursor: "pointer",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: "6px",
-          }}
-        >
-          <Plus size={15} />
-          {subtab === "students" ? "Add Student" : subtab === "teachers" ? "Add Teacher" : subtab === "staff" ? "Add Staff" : subtab === "parents" ? "Map Parent" : "New Department"}
-        </button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          {subtab === "staff" && (
+            <button
+              onClick={() => onOpenQuickAction("addPrincipal")}
+              style={{
+                padding: "8px 14px",
+                background: "#FAF8F5",
+                color: "#064E3B",
+                border: "1px solid #E2DDD5",
+                borderRadius: "8px",
+                fontSize: "12.5px",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <Plus size={15} />
+              Add Principal
+            </button>
+          )}
+          <button
+            onClick={() => {
+              if (subtab === "students") onOpenQuickAction("addStudent");
+              else if (subtab === "teachers") onOpenQuickAction("addTeacher");
+              else if (subtab === "staff") onOpenQuickAction("addStaff");
+              else if (subtab === "parents") onOpenQuickAction("mapParent");
+              else onOpenQuickAction("addDepartment");
+            }}
+            style={{
+              padding: "8px 16px",
+              background: "#064E3B",
+              color: "#F8E7C9",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "12.5px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <Plus size={15} />
+            {subtab === "students" ? "Add Student" : subtab === "teachers" ? "Add Teacher" : subtab === "staff" ? "Add Staff" : subtab === "parents" ? "Map Parent" : "New Department"}
+          </button>
+        </div>
       </div>
 
       {/* ============================================================== */}
@@ -340,34 +484,36 @@ export function PeoplePane({
                   </tr>
                 ) : (
                   teachers.map((t) => {
-                  const workloadPct = Math.round((t.weeklyPeriods / t.maxPeriods) * 100);
-                  const isOverloaded = t.weeklyPeriods > t.maxPeriods;
-                  const isHeavy = t.weeklyPeriods >= 27 && !isOverloaded;
+                  const maxPeriods = t.maxPeriods || 28;
+                  const weeklyPeriods = t.weeklyPeriods || 0;
+                  const workloadPct = Math.round((weeklyPeriods / maxPeriods) * 100);
+                  const isOverloaded = weeklyPeriods > maxPeriods;
+                  const isHeavy = weeklyPeriods >= 26 && !isOverloaded;
                   return (
                     <tr key={t.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
                       <td style={{ padding: "12px 10px" }}>
                         <b>{t.name}</b>
-                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{t.empId} · {t.employmentType}</div>
+                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{t.empId || "ID Unassigned"} · {t.employmentType || "Regular Faculty"}</div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
-                        <span style={{ fontWeight: 650, color: "#064E3B" }}>{t.department}</span>
+                        <span style={{ fontWeight: 650, color: "#064E3B" }}>{t.department || "General"}</span>
                       </td>
                       <td style={{ padding: "12px 10px" }}>{t.designation}</td>
                       <td style={{ padding: "12px 10px" }}>
-                        <span style={{ fontSize: "12px" }}>{t.subjects.join(", ")}</span>
+                        <span style={{ fontSize: "12px" }}>{t.subjects && t.subjects.length > 0 ? t.subjects.join(", ") : "—"}</span>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
                         <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                          {t.classes.map((c) => (
+                          {t.classes && t.classes.length > 0 ? t.classes.map((c) => (
                             <span key={c} style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", padding: "1px 6px", borderRadius: "4px", fontSize: "11px" }}>
                               {c}
                             </span>
-                          ))}
+                          )) : <span style={{ fontSize: "12px", color: "var(--muted)" }}>—</span>}
                         </div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                          <b>{t.weeklyPeriods} / {t.maxPeriods}</b>
+                          <b>{weeklyPeriods} / {maxPeriods}</b>
                           <span style={{
                             fontSize: "10.5px", fontWeight: 700, padding: "1px 6px", borderRadius: "4px",
                             background: isOverloaded ? "#FEE2E2" : isHeavy ? "#FEF3C7" : "#ECFDF5",
@@ -385,7 +531,7 @@ export function PeoplePane({
                       </td>
                       <td style={{ padding: "12px 10px", textAlign: "right" }}>
                         <button
-                          onClick={() => setSelectedTeacher(t)}
+                          onClick={() => handleOpenTeacherModal(t)}
                           style={{ padding: "4px 8px", background: "#FDF9F0", border: "1px solid #E5CCA2", color: "#064E3B", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}
                         >
                           Workload Profile
@@ -514,9 +660,9 @@ export function PeoplePane({
                       <td style={{ padding: "12px 10px" }}>
                         <div style={{ display: "grid", gap: "4px" }}>
                           {p.children && p.children.length > 0 ? (
-                            p.children.map((ch, idx) => (
+                            p.children.map((ch: any, idx) => (
                               <span key={idx} style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", padding: "2px 8px", borderRadius: "6px", fontSize: "11.5px" }}>
-                                <b>{ch.studentName}</b> ({ch.grade} · {ch.section})
+                                <b>{ch.studentName || ch.name}</b> ({[ch.grade, ch.section].filter(Boolean).join(" · ") || ch.class || "Enrolled"})
                               </span>
                             ))
                           ) : (
@@ -530,16 +676,42 @@ export function PeoplePane({
                           background: p.invitationStatus === "Accepted" ? "#ECFDF5" : "#FEF3C7",
                           color: p.invitationStatus === "Accepted" ? "#064E3B" : "#92400E",
                         }}>
-                          {p.invitationStatus}
+                          {p.invitationStatus || p.accountStatus || "Active"}
                         </span>
                       </td>
-                      <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                        <button
-                          onClick={() => alert(`Resending invite link to ${p.email}`)}
-                          style={{ padding: "4px 8px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
-                        >
-                          Resend Invite
-                        </button>
+                      <td style={{ padding: "12px 10px", textAlign: "right", whiteSpace: "nowrap" }}>
+                        <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end" }}>
+                          <button
+                            onClick={() => handleOpenManageWards(p)}
+                            style={{
+                              padding: "4px 10px",
+                              background: "#FAF8F5",
+                              color: "#064E3B",
+                              border: "1px solid #E2DDD5",
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Manage Wards
+                          </button>
+                          <button
+                            onClick={() => alert(`Resending invite link to ${p.email}`)}
+                            style={{
+                              padding: "4px 8px",
+                              background: "#064E3B",
+                              color: "#F8E7C9",
+                              border: "none",
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Resend Invite
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -584,7 +756,38 @@ export function PeoplePane({
                         {d.status}
                       </span>
                     </div>
-                    <p style={{ margin: "4px 0 12px", fontSize: "12px", color: "var(--muted)" }}>Head: <b>{d.headName}</b> ({d.headEmail})</p>
+                    <p style={{ margin: "4px 0 10px", fontSize: "12px", color: "var(--muted)" }}>
+                      Head: <b>{d.headName || "Unassigned"}</b> {d.headEmail ? `(${d.headEmail})` : ""}
+                    </p>
+
+                    <div style={{ marginBottom: "12px" }}>
+                      <div style={{ fontSize: "11px", fontWeight: 650, color: "var(--muted)", marginBottom: "4px" }}>
+                        Mapped Subjects ({d.subjects?.length || 0}):
+                      </div>
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                        {d.subjects && d.subjects.length > 0 ? (
+                          d.subjects.map((s: any) => (
+                            <span
+                              key={s.id}
+                              style={{
+                                fontSize: "11px",
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                background: "#F2F4F7",
+                                color: "#344054",
+                                fontWeight: 500,
+                              }}
+                            >
+                              {s.name} {s.code ? `(${s.code})` : ""}
+                            </span>
+                          ))
+                        ) : (
+                          <span style={{ fontSize: "11.5px", color: "var(--muted)", fontStyle: "italic" }}>
+                            No subjects mapped yet
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", background: "#FAF8F5", padding: "10px", borderRadius: "6px", fontSize: "12px", marginBottom: "14px" }}>
                       <div>Faculty: <b>{d.teachersCount}</b></div>
@@ -687,7 +890,45 @@ export function PeoplePane({
                       <div>Primary Contact: <b>{selectedStudent.parentName}</b></div>
                       <div>Emergency Phone: <b>{selectedStudent.emergencyContact}</b></div>
                       <div>Allergies: <b>None recorded</b></div>
-                      <div>Doctor on Record: <b>Dr. A. Sen (Apollo Clinic)</b></div>
+                      <div>Doctor on Record: <b>Not recorded</b></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {student360Tab === "parents" && (
+                <div style={{ display: "grid", gap: "14px" }}>
+                  <div style={{ background: "#FAF8F5", padding: "14px", borderRadius: "8px" }}>
+                    <b>Primary Guardian on Record</b>
+                    <div style={{ marginTop: "8px", display: "grid", gap: "6px" }}>
+                      <div>Guardian Name: <b>{selectedStudent.guardianName || selectedStudent.parentName || "Not assigned"}</b></div>
+                      <div>Guardian Phone: <b>{selectedStudent.guardianPhone || selectedStudent.parentPhone || "Not assigned"}</b></div>
+                      <div>Emergency Contact: <b>{selectedStudent.emergencyContact || "-"}</b></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <b style={{ fontSize: "13px" }}>Authorized Linked Parent Accounts ({studentParents.length})</b>
+                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>Read-only · Manage via Parents & Mappings tab</span>
+                    </div>
+                    <div style={{ display: "grid", gap: "8px" }}>
+                      {studentParents.length === 0 ? (
+                        <div style={{ padding: "16px", background: "#FAF8F5", borderRadius: "8px", color: "var(--muted)", fontSize: "12px", textAlign: "center" }}>
+                          No parent portal accounts are currently linked to this student. Mappings can be added or updated anytime from the <b>Parents & Mappings</b> subtab.
+                        </div>
+                      ) : (
+                        studentParents.map((p) => (
+                          <div key={p.id} style={{ padding: "10px 14px", background: "#FFF", border: "1px solid #E2DDD5", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                              <div style={{ fontWeight: 700, color: "#111827" }}>{p.name}</div>
+                              <div style={{ fontSize: "11.5px", color: "var(--muted)" }}>{p.email} · {p.mobile}</div>
+                            </div>
+                            <span style={{ fontSize: "11px", fontWeight: 750, padding: "3px 10px", borderRadius: "10px", background: "#ECFDF5", color: "#064E3B" }}>
+                              {p.relationship || "Guardian"}
+                            </span>
+                          </div>
+                        ))
+                      )}
                     </div>
                   </div>
                 </div>
@@ -708,7 +949,7 @@ export function PeoplePane({
                     <b>Recent Absence Log</b>
                     <div style={{ marginTop: "6px", display: "grid", gap: "6px" }}>
                       <div style={{ padding: "8px 12px", background: "#FFF", border: "1px solid #E2DDD5", borderRadius: "6px", display: "flex", justifyContent: "space-between" }}>
-                        <span>Oct 02, 2026 · Absent (Sick Leave note verified by Class Teacher)</span>
+                        <span>No absence details loaded</span>
                         <span style={{ color: "#064E3B", fontWeight: 700 }}>Excused</span>
                       </div>
                     </div>
@@ -737,7 +978,7 @@ export function PeoplePane({
               )}
 
               {/* Default fallback for other tabs */}
-              {!["personal", "attendance", "fees"].includes(student360Tab) && (
+              {!["personal", "parents", "attendance", "fees"].includes(student360Tab) && (
                 <div style={{ padding: "20px", textAlign: "center", background: "#FAF8F5", borderRadius: "8px", color: "var(--muted)" }}>
                   <b>{student360Tab.toUpperCase()} Records Synchronized</b>
                   <p style={{ margin: "4px 0 0", fontSize: "12px" }}>
@@ -753,6 +994,619 @@ export function PeoplePane({
               </button>
             </div>
           </section>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* MANAGE WARDS MODAL                                             */}
+      {/* ============================================================== */}
+      {manageWardsParent && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "12px",
+              width: "100%",
+              maxWidth: "540px",
+              maxHeight: "85vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+              border: "1px solid #E5E7EB",
+              overflow: "hidden",
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 750, color: "#111827" }}>
+                  Manage Mapped Wards
+                </h3>
+                <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--muted)" }}>
+                  Assign or unassign children for <b>{manageWardsParent.name}</b> ({manageWardsParent.email})
+                </p>
+              </div>
+              <button
+                onClick={() => setManageWardsParent(null)}
+                style={{ background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: "var(--muted)", lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Search Input & Selection Counter */}
+            <div style={{ padding: "12px 20px", borderBottom: "1px solid #F3F4F6", background: "#F9FAFB" }}>
+              <div style={{ position: "relative" }}>
+                <Search size={15} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
+                <input
+                  type="text"
+                  placeholder="Search students by name, class, or admission no..."
+                  value={wardSearchQuery}
+                  onChange={(e) => setWardSearchQuery(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "7px 10px 7px 32px",
+                    fontSize: "12.5px",
+                    border: "1px solid #D1D5DB",
+                    borderRadius: "6px",
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
+                />
+              </div>
+              <div style={{ marginTop: "8px", fontSize: "11.5px", color: "var(--muted)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span><b>{selectedWardIds.length}</b> student{selectedWardIds.length === 1 ? "" : "s"} selected</span>
+                {selectedWardIds.length > 0 && (
+                  <button
+                    onClick={() => setSelectedWardIds([])}
+                    style={{ background: "none", border: "none", color: "#DC2626", fontSize: "11.5px", cursor: "pointer", padding: 0, fontWeight: 600 }}
+                  >
+                    Clear selection
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Student Checkbox List */}
+            <div style={{ flex: 1, overflowY: "auto", padding: "12px 20px", display: "grid", gap: "6px" }}>
+              {filteredStudentsForWards.length === 0 ? (
+                <div style={{ padding: "32px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+                  No matching students found
+                </div>
+              ) : (
+                filteredStudentsForWards.map((s) => {
+                  const sid = s.userId || s.id;
+                  const isChecked = selectedWardIds.includes(sid);
+                  return (
+                    <label
+                      key={sid}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "12px",
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        border: isChecked ? "1.5px solid #064E3B" : "1px solid #E5E7EB",
+                        background: isChecked ? "#F0FDF4" : "#FFFFFF",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedWardIds((prev) => [...prev, sid]);
+                          } else {
+                            setSelectedWardIds((prev) => prev.filter((id) => id !== sid));
+                          }
+                        }}
+                        style={{ width: "16px", height: "16px", accentColor: "#064E3B", cursor: "pointer" }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: "13px", fontWeight: 650, color: "#111827" }}>{s.name}</div>
+                        <div style={{ fontSize: "11.5px", color: "var(--muted)" }}>
+                          {[s.grade || s.className, s.section || s.sectionName].filter(Boolean).join(" · ") || "Enrolled"} · Adm: {s.admissionNo || s.admissionNumber || s.id.slice(0, 8)}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ padding: "14px 20px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", gap: "10px", background: "#F9FAFB" }}>
+              <button
+                onClick={() => setManageWardsParent(null)}
+                disabled={savingWards}
+                style={{
+                  padding: "6px 14px",
+                  background: "#FFFFFF",
+                  border: "1px solid #D1D5DB",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: savingWards ? "not-allowed" : "pointer",
+                  color: "#374151",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveWards}
+                disabled={savingWards}
+                style={{
+                  padding: "6px 18px",
+                  background: "#064E3B",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: savingWards ? "not-allowed" : "pointer",
+                  color: "#F8E7C9",
+                  opacity: savingWards ? 0.7 : 1,
+                }}
+              >
+                {savingWards ? "Saving..." : "Save Mappings"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* DEPARTMENT 360° MODAL                                           */}
+      {/* ============================================================== */}
+      {selectedDept && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onMouseDown={(e) => e.target === e.currentTarget && setSelectedDept(null)}
+        >
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "14px",
+              width: "100%",
+              maxWidth: "580px",
+              maxHeight: "85vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+              border: "1px solid #E5E7EB",
+              overflow: "hidden",
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 750, color: "#111827" }}>
+                    {selectedDept.name}
+                  </h3>
+                  <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "10px", background: "#ECFDF5", color: "#064E3B", fontFamily: "monospace" }}>
+                    {selectedDept.code}
+                  </span>
+                </div>
+                <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "var(--muted)" }}>
+                  Head of Department: <b>{selectedDept.headName || "Unassigned"}</b> {selectedDept.headEmail ? `(${selectedDept.headEmail})` : ""}
+                  {selectedDept.location ? ` · Location: ${selectedDept.location}` : ""}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedDept(null)}
+                style={{ background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: "var(--muted)", lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div style={{ padding: "20px 22px", overflowY: "auto", display: "grid", gap: "18px" }}>
+              {/* Metrics Grid */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
+                <div style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", borderRadius: "8px", padding: "12px" }}>
+                  <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>Active Faculty</span>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#064E3B", marginTop: "2px" }}>
+                    {selectedDept.teachersCount} Teachers
+                  </div>
+                </div>
+                <div style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", borderRadius: "8px", padding: "12px" }}>
+                  <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>Student Load</span>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#064E3B", marginTop: "2px" }}>
+                    {selectedDept.studentsCount} Students
+                  </div>
+                </div>
+                <div style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", borderRadius: "8px", padding: "12px" }}>
+                  <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>Average Attendance</span>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#064E3B", marginTop: "2px" }}>
+                    {selectedDept.avgAttendancePct || 95}%
+                  </div>
+                </div>
+                <div style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", borderRadius: "8px", padding: "12px" }}>
+                  <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>Syllabus Completion</span>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#064E3B", marginTop: "2px" }}>
+                    {selectedDept.syllabusCompletionPct || 0}%
+                  </div>
+                  <div style={{ height: "4px", background: "#E2DDD5", borderRadius: "2px", marginTop: "6px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${selectedDept.syllabusCompletionPct || 0}%`, background: "#064E3B", borderRadius: "2px" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Mapped Subjects Breakdown */}
+              <div>
+                <h4 style={{ margin: "0 0 8px", fontSize: "13px", fontWeight: 700, color: "#111827" }}>
+                  Mapped Curriculum Subjects ({selectedDept.subjects?.length || 0})
+                </h4>
+                {selectedDept.subjects && selectedDept.subjects.length > 0 ? (
+                  <div style={{ border: "1px solid #E5E7EB", borderRadius: "8px", overflow: "hidden" }}>
+                    {selectedDept.subjects.map((sub: any, idx: number) => (
+                      <div
+                        key={sub.id || idx}
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          padding: "10px 14px",
+                          borderBottom: idx < (selectedDept.subjects?.length || 0) - 1 ? "1px solid #F3F4F6" : "none",
+                          background: idx % 2 === 0 ? "#FFFFFF" : "#FAFAFA",
+                          fontSize: "12.5px",
+                        }}
+                      >
+                        <div style={{ fontWeight: 600, color: "#111827" }}>{sub.name}</div>
+                        {sub.code && (
+                          <span style={{ fontSize: "11px", fontFamily: "monospace", color: "#475467", background: "#F2F4F7", padding: "2px 6px", borderRadius: "4px" }}>
+                            {sub.code}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ padding: "18px", textAlign: "center", background: "#FAF8F5", borderRadius: "8px", color: "var(--muted)", fontSize: "12px" }}>
+                    No subjects currently mapped to this department.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div style={{ padding: "14px 22px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", background: "#F9FAFB" }}>
+              <button
+                onClick={() => setSelectedDept(null)}
+                style={{
+                  padding: "7px 18px",
+                  background: "#064E3B",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  color: "#F8E7C9",
+                }}
+              >
+                Close View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* TEACHER WORKLOAD PROFILE MODAL                                 */}
+      {/* ============================================================== */}
+      {selectedTeacher && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onMouseDown={(e) => e.target === e.currentTarget && setSelectedTeacher(null)}
+        >
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "14px",
+              width: "100%",
+              maxWidth: "580px",
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+              border: "1px solid #E5E7EB",
+              overflow: "hidden",
+            }}
+          >
+            {/* Header */}
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#064E3B", color: "#F8E7C9", display: "grid", placeItems: "center", fontSize: "16px", fontWeight: 800 }}>
+                  {(selectedTeacher.name || "T")[0].toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 750, color: "#111827" }}>
+                      {selectedTeacher.name}
+                    </h3>
+                    <span style={{
+                      fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "10px",
+                      background: selectedTeacher.status === "Active" ? "#ECFDF5" : "#FEF3C7",
+                      color: selectedTeacher.status === "Active" ? "#064E3B" : "#92400E",
+                    }}>
+                      {selectedTeacher.status}
+                    </span>
+                  </div>
+                  <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>
+                    {selectedTeacher.designation} · {selectedTeacher.department || "General Faculty"} · {selectedTeacher.email}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSelectedTeacher(null)}
+                style={{ background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: "var(--muted)", lineHeight: 1 }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Content Body */}
+            <div style={{ padding: "20px 22px", overflowY: "auto", display: "grid", gap: "16px" }}>
+              {/* Workload Capacity Card */}
+              {(() => {
+                const max = selectedTeacher.maxPeriods || 28;
+                const current = selectedTeacher.weeklyPeriods || 0;
+                const pct = Math.round((current / max) * 100);
+                const isOverloaded = current > max;
+                const isHeavy = current >= 26 && !isOverloaded;
+                const isBalanced = current >= 16 && !isHeavy && !isOverloaded;
+                const isPending = selectedTeacher.status === "Pending Invite";
+
+                return (
+                  <div style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                      <span style={{ fontSize: "12px", fontWeight: 700, color: "#064E3B", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                        Weekly Teaching Workload
+                      </span>
+                      <span style={{
+                        fontSize: "11px", fontWeight: 700, padding: "2px 10px", borderRadius: "12px",
+                        background: isPending ? "#F3F4F6" : isOverloaded ? "#FEE2E2" : isHeavy ? "#FEF3C7" : "#ECFDF5",
+                        color: isPending ? "#4B5563" : isOverloaded ? "#991B1B" : isHeavy ? "#92400E" : "#064E3B",
+                      }}>
+                        {isPending ? "Pending Activation" : isOverloaded ? "Overloaded" : isHeavy ? "Near Capacity" : isBalanced ? "Balanced Workload" : "Light Allocation"}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "baseline", gap: "6px", margin: "6px 0 10px" }}>
+                      <span style={{ fontSize: "28px", fontWeight: 800, color: "#111827" }}>{current}</span>
+                      <span style={{ fontSize: "14px", color: "var(--muted)", fontWeight: 550 }}>/ {max} periods/week allocated</span>
+                      <span style={{ fontSize: "13px", fontWeight: 700, color: isOverloaded ? "#DC2626" : "#064E3B", marginLeft: "auto" }}>
+                        {pct}% Capacity
+                      </span>
+                    </div>
+
+                    {/* Capacity Bar */}
+                    <div style={{ height: "8px", width: "100%", background: "#E5E7EB", borderRadius: "4px", overflow: "hidden" }}>
+                      <div style={{
+                        width: `${Math.min(100, pct)}%`,
+                        height: "100%",
+                        background: isOverloaded ? "#EF4444" : isHeavy ? "#F59E0B" : "#10B981",
+                        borderRadius: "4px",
+                        transition: "width 0.3s ease",
+                      }} />
+                    </div>
+
+                    <p style={{ margin: "10px 0 0", fontSize: "11.5px", color: "var(--muted)", lineHeight: 1.45 }}>
+                      <b>Statutory Standard:</b> 24–28 periods/week (4–5 periods daily). Allocations above 30 periods flag workload fatigue alerts.
+                    </p>
+                  </div>
+                );
+              })()}
+
+              {/* Roster & Teaching Scopes */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div style={{ border: "1px solid #E5E7EB", borderRadius: "8px", padding: "12px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", marginBottom: "6px" }}>
+                    Assigned Subjects ({selectedTeacher.subjects?.length || 0})
+                  </div>
+                  {selectedTeacher.subjects && selectedTeacher.subjects.length > 0 ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                      {selectedTeacher.subjects.map((sub, i) => (
+                        <span key={i} style={{ fontSize: "11.5px", fontWeight: 600, padding: "2px 8px", background: "#EFF8FF", color: "#175CD3", borderRadius: "4px", border: "1px solid #B2DDFF" }}>
+                          {sub}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: "12px", color: "var(--muted)", fontStyle: "italic" }}>
+                      {selectedTeacher.department ? `Specialty: ${selectedTeacher.department}` : "No subjects mapped"}
+                    </span>
+                  )}
+                </div>
+
+                <div style={{ border: "1px solid #E5E7EB", borderRadius: "8px", padding: "12px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", marginBottom: "6px" }}>
+                    Classes / Sections ({selectedTeacher.classes?.length || 0})
+                  </div>
+                  {selectedTeacher.classes && selectedTeacher.classes.length > 0 ? (
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                      {selectedTeacher.classes.map((cls, i) => (
+                        <span key={i} style={{ fontSize: "11.5px", fontWeight: 600, padding: "2px 8px", background: "#FAF8F5", color: "#064E3B", borderRadius: "4px", border: "1px solid #E2DDD5" }}>
+                          {cls}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span style={{ fontSize: "12px", color: "var(--muted)", fontStyle: "italic" }}>
+                      No classroom sections assigned
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Faculty Info Card */}
+              <div style={{ border: "1px solid #E5E7EB", borderRadius: "8px", padding: "14px", fontSize: "12.5px", display: "grid", gap: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>
+                    Faculty Record & Contract
+                  </span>
+                  {!editingTeacherEmp && (
+                    <button
+                      onClick={() => setEditingTeacherEmp(true)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#064E3B",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                      }}
+                    >
+                      Edit Contract Details
+                    </button>
+                  )}
+                </div>
+
+                {empSaveSuccess && (
+                  <div style={{ padding: "6px 10px", borderRadius: "6px", background: "#ECFDF5", color: "#064E3B", fontSize: "12px", fontWeight: 600 }}>
+                    ✓ Employee contract details updated successfully!
+                  </div>
+                )}
+
+                {editingTeacherEmp ? (
+                  <div style={{ display: "grid", gap: "10px", padding: "10px", background: "#F9FAFB", borderRadius: "8px", border: "1px solid #E5E7EB" }}>
+                    <label style={{ display: "grid", gap: "4px" }}>
+                      <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#374151" }}>Employee ID / Code</span>
+                      <input
+                        type="text"
+                        value={empIdInput}
+                        onChange={(e) => setEmpIdInput(e.target.value)}
+                        placeholder="e.g. EMP-1042"
+                        style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "12.5px", outline: "none" }}
+                      />
+                    </label>
+
+                    <label style={{ display: "grid", gap: "4px" }}>
+                      <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#374151" }}>Employment Contract Type</span>
+                      <select
+                        value={empTypeInput}
+                        onChange={(e) => setEmpTypeInput(e.target.value)}
+                        style={{ padding: "6px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "12.5px", outline: "none", background: "#FFFFFF" }}
+                      >
+                        <option value="Regular Faculty">Regular Faculty (Permanent Full-Time)</option>
+                        <option value="Probationary Faculty">Probationary Faculty</option>
+                        <option value="Contractual Faculty">Contractual / Ad-hoc Faculty</option>
+                        <option value="Visiting / Part-Time">Visiting / Part-Time Faculty</option>
+                      </select>
+                    </label>
+
+                    <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "4px" }}>
+                      <button
+                        onClick={() => setEditingTeacherEmp(false)}
+                        disabled={savingTeacherEmp}
+                        style={{ padding: "4px 10px", borderRadius: "4px", border: "1px solid #D1D5DB", background: "#FFFFFF", fontSize: "11.5px", cursor: "pointer" }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveTeacherEmp}
+                        disabled={savingTeacherEmp}
+                        style={{ padding: "4px 14px", borderRadius: "4px", border: "none", background: "#064E3B", color: "#F8E7C9", fontSize: "11.5px", fontWeight: 700, cursor: savingTeacherEmp ? "not-allowed" : "pointer" }}
+                      >
+                        {savingTeacherEmp ? "Saving..." : "Save Details"}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: "var(--muted)" }}>Employee ID:</span>
+                      <b style={{ fontFamily: selectedTeacher.empId ? "monospace" : "inherit" }}>
+                        {selectedTeacher.empId || "Not Assigned"}
+                      </b>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: "var(--muted)" }}>Account Status:</span>
+                      <span style={{
+                        fontSize: "11px",
+                        fontWeight: 700,
+                        padding: "2px 8px",
+                        borderRadius: "10px",
+                        background: selectedTeacher.status === "Active" ? "#ECFDF5" : "#FEF3C7",
+                        color: selectedTeacher.status === "Active" ? "#064E3B" : "#92400E",
+                      }}>
+                        ● {selectedTeacher.status === "Active" ? "Active (Verified)" : "Pending Activation"}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: "var(--muted)" }}>Employment Contract:</span>
+                      <b style={{ color: selectedTeacher.employmentType ? "#111827" : "var(--muted)" }}>
+                        {selectedTeacher.employmentType || "Not Specified"}
+                      </b>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: "var(--muted)" }}>Registered Phone:</span>
+                      <b>{selectedTeacher.phone || "Not specified"}</b>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ color: "var(--muted)" }}>Joining / Invite Date:</span>
+                      <b>{selectedTeacher.joiningDate || "Recent"}</b>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div style={{ padding: "14px 22px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", background: "#F9FAFB" }}>
+              <button
+                onClick={() => setSelectedTeacher(null)}
+                style={{
+                  padding: "7px 18px",
+                  background: "#064E3B",
+                  border: "none",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  color: "#F8E7C9",
+                }}
+              >
+                Close Profile
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

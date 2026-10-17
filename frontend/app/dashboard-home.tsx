@@ -189,11 +189,7 @@ export function DashboardHome({
   // TEACHER DASHBOARD VIEW (Exact Demo Layout)
   // ==========================================
   if (role === "teacher") {
-    const defaultTimetable = [
-      { sectionId: "1", subjectId: "1", period: 1, subjectName: "Mathematics", sectionName: "(Grade 10-A)", time: "08:30 AM" },
-      { sectionId: "2", subjectId: "2", period: 2, subjectName: "Advanced Algebra", sectionName: "(Grade 11-B)", time: "10:00 AM" },
-      { sectionId: "3", subjectId: "3", period: 3, subjectName: "Physics Lab", sectionName: "", time: "01:15 PM" },
-    ];
+    const defaultTimetable = ([] as any[]);
     const timetable = classes.length > 0
       ? classes.slice(0, 3).map((cls, idx) => ({
           sectionId: cls.sectionId,
@@ -205,11 +201,7 @@ export function DashboardHome({
         }))
       : defaultTimetable;
 
-    const defaultAssignments = [
-      { id: "1", title: "Assignments Review 1", date: "December 11, 2023", progress: 65 },
-      { id: "2", title: "Assignments Content 2", date: "December 11, 2023", progress: 68 },
-      { id: "3", title: "Assignments Pending Review", date: "December 11, 2023", progress: 62 },
-    ];
+    const defaultAssignments = ([] as any[]);
     const pendingAssignments = published.length > 0
       ? published.slice(0, 3).map((item, idx) => ({
           id: item.id,
@@ -219,11 +211,7 @@ export function DashboardHome({
         }))
       : defaultAssignments;
 
-    const defaultNotices = [
-      { id: "n1", text: "These gives class sit amet, consetetur adipiscing elit. This veek and ar solotions to day.", time: "13 hours ago" },
-      { id: "n2", text: "These Class Notices are it-consectetur adipiscing elit, failed to keep class has different coachments as action.", time: "14 hours ago" },
-      { id: "n3", text: "Salam Class Notices internations & ferrrs and updates.", time: "14 hours ago" },
-    ];
+    const defaultNotices = ([] as any[]);
     const notices = published.length > 0
       ? published.slice(0, 3).map((item) => {
           const diff = now - new Date(item.dueAt).getTime();
@@ -243,7 +231,7 @@ export function DashboardHome({
         {/* HEADER */}
         <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
           <h1 style={{ fontSize: "26px", fontWeight: 800, margin: 0, color: "#064E3B", letterSpacing: "-0.02em" }}>
-            Welcome back, Mrs. Sarah Jenkins
+            Welcome back
           </h1>
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <button
@@ -368,7 +356,7 @@ export function DashboardHome({
                 color: "#064E3B",
               }}
             >
-              18 submissions to grade
+              View saved submissions
             </div>
           </section>
 
@@ -443,10 +431,7 @@ export function DashboardHome({
   const totalArenaAttempts = activeScorecards.reduce((sum, s) => sum + (s.arenaAttemptCount || 0), 0);
   const arenaXPDisplay = totalArenaAttempts > 0 ? (totalArenaAttempts * 50).toLocaleString() : "2,450";
 
-  const defaultStudentDeadlines = [
-    { id: "d1", title: "Physics Lab Report -", due: "Due 4:00 PM" },
-    { id: "d2", title: "Calculus Problem Set 5", due: "Due 4:00 PM" },
-  ];
+  const defaultStudentDeadlines = ([] as any[]);
   const pendingDeadlines = activeUpcoming.length > 0
     ? activeUpcoming.slice(0, 3).map((item) => ({
         id: item.id,
@@ -456,11 +441,7 @@ export function DashboardHome({
       }))
     : defaultStudentDeadlines;
 
-  const defaultSubjectProgress = [
-    { name: "Mathematics", pct: 88 },
-    { name: "Chemistry", pct: 92 },
-    { name: "Computer Science", pct: 95 },
-  ];
+  const defaultSubjectProgress = ([] as any[]);
   const subjectProgressList = classes.length > 0
     ? classes.slice(0, 4).map((cls, idx) => {
         const key = `${cls.sectionId}:${cls.subjectId}`;
@@ -523,7 +504,7 @@ export function DashboardHome({
         </div>
         <div style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "18px 24px", boxShadow: "0 1px 3px rgba(6,78,59,0.03)" }}>
           <div style={{ fontSize: "16px", fontWeight: 700, color: "#064E3B" }}>
-            Current GPA: <span style={{ fontWeight: 800, color: "#064E3B" }}>3.9</span>
+            Current GPA: <span style={{ fontWeight: 800, color: "#064E3B" }}>—</span>
           </div>
         </div>
         <div style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "18px 24px", boxShadow: "0 1px 3px rgba(6,78,59,0.03)" }}>

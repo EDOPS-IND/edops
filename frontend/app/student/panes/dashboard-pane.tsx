@@ -104,40 +104,13 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
     );
   }
 
-  const enrollment = data?.enrollment || {
-    classSection: "Grade 10-A",
-    academicYear: "2026-2027",
-    rollNumber: "10A-24",
-    classTeacher: "Dr. K. Raman",
-  };
+  const enrollment = data?.enrollment || { classSection: "", academicYear: "", rollNumber: "", classTeacher: "" };
 
-  const kpis = data?.kpis || {
-    overallAttendance: 96.2,
-    academicAverage: 92.4,
-    improvement: 4.5,
-    assignmentCompletion: 90,
-    assignmentsPending: 1,
-    curriculumProgress: 92.4,
-  };
+  const kpis = data?.kpis || { overallAttendance: 0, academicAverage: 0, improvement: 0, assignmentCompletion: 0, assignmentsPending: 0, curriculumProgress: 0 };
 
-  const healthScore = Math.round(
-    ((kpis.overallAttendance ?? 96.2) * 0.35) +
-    ((kpis.academicAverage ?? 92.4) * 0.35) +
-    ((kpis.assignmentCompletion ?? 90) * 0.15) +
-    (88.5 * 0.15)
-  );
+  const healthScore = kpis.academicAverage == null ? null : Math.round(kpis.academicAverage);
 
-  const nextClass = data?.nextClass || {
-    subject: "Mathematics",
-    teacher: "Dr. K. Raman",
-    room: "Room 302",
-    startTime: "08:30 AM",
-    endTime: "09:15 AM",
-    startsInMinutes: 15,
-    topic: "Quadratic Equations: Derivation & Roots",
-    lessonStatus: "Starting Soon",
-    lessonPlanStatus: "Approved & Ready",
-  };
+  const nextClass = data?.nextClass || { subject: "", teacher: "", room: "", startTime: "", endTime: "", startsInMinutes: 0, topic: "", lessonStatus: "", lessonPlanStatus: "" };
 
   const timetable = data?.timetable || [];
   const attentionItems = data?.attentionRequired || (data?.pendingTasks ? data.pendingTasks.map((t: any) => ({
@@ -150,13 +123,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
     type: t.type || "assignment",
   })) : []);
 
-  const activityLogs = data?.recentActivity || [
-    { id: "act-1", text: "Submitted Problem Set 3: Quadratic Formula", category: "Assignments", time: "Today, 09:15 AM" },
-    { id: "act-2", text: "Attendance marked Present for Period 1 (Mathematics)", category: "Attendance", time: "Today, 08:35 AM" },
-    { id: "act-3", text: "Completed Arena Speed Drill: 92% Accuracy", category: "Arena", time: "Yesterday, 04:20 PM" },
-    { id: "act-4", text: "Accessed Ray Optics Lecture Notes & Formula Sheet", category: "Resources", time: "Yesterday, 02:10 PM" },
-    { id: "act-5", text: "Completed Chapter 4 of 7 in Math Curriculum", category: "Curriculum", time: "14 Oct 2026" },
-  ];
+  const activityLogs = data?.recentActivity || ([] as any[]);
 
   const messages = data?.recentMessages || [];
 
@@ -321,12 +288,12 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
       {/* 2. TOP EXECUTIVE KPI CARDS (Admin StatCard Grid) */}
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
         {[
-          { label: "Attendance Rate", value: `${kpis?.overallAttendance ?? 96}%`, sub: (kpis?.overallAttendance ?? 96) >= 75 ? "≥ 75% CBSE threshold met" : "Below 75% threshold", tab: "attendance" as StudentTab, icon: CheckCircle2 },
-          { label: "Overall Score", value: `${kpis?.academicAverage ?? 92}%`, sub: `+${kpis?.improvement ?? 4.5}% vs last term`, tab: "performance" as StudentTab, icon: TrendingUp },
+          { label: "Attendance Rate", value: `${kpis?.overallAttendance ?? 0}%`, sub: (kpis?.overallAttendance ?? 0) >= 75 ? "≥ 75% CBSE threshold met" : "Below 75% threshold", tab: "attendance" as StudentTab, icon: CheckCircle2 },
+          { label: "Overall Score", value: `${kpis?.academicAverage ?? 0}%`, sub: `+${kpis?.improvement ?? 0}% vs last term`, tab: "performance" as StudentTab, icon: TrendingUp },
           { label: "Assignments Due", value: String(kpis?.assignmentsPending ?? 0), sub: (kpis?.assignmentsPending ?? 0) > 0 ? `${kpis.assignmentsPending} pending submission` : "All submissions clear", tab: "assignments" as StudentTab, icon: FileText },
-          { label: "Curriculum Pacing", value: `${kpis?.curriculumProgress ?? 92}%`, sub: "Chapter 4 of 7 completed", tab: "curriculum" as StudentTab, icon: BookOpen },
-          { label: "Arena Scoreboard", value: `${data?.metrics?.xp ?? 1480} XP`, sub: `Rank #${data?.metrics?.rank ?? 1} in Class 10-A`, tab: "arena" as StudentTab, icon: Trophy },
-          { label: "Formative Tests", value: String(data?.metrics?.completedTests ?? 8), sub: "Assessment schedule on track", tab: "assessments" as StudentTab, icon: Award },
+          { label: "Curriculum Pacing", value: `${kpis?.curriculumProgress ?? 0}%`, sub: "Saved curriculum progress", tab: "curriculum" as StudentTab, icon: BookOpen },
+          { label: "Arena Practice", value: String(data?.metrics?.completedTests ?? 0), sub: "Questions attempted", tab: "arena" as StudentTab, icon: Trophy },
+          { label: "Academic Average", value: kpis.academicAverage == null ? "—" : `${kpis.academicAverage}%`, sub: "Saved assessment results", tab: "assessments" as StudentTab, icon: Award },
         ].map((kpi, idx) => {
           const Icon = kpi.icon;
           return (
@@ -395,28 +362,28 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
           <div style={{ display: "flex", alignItems: "center", gap: "24px", margin: "18px 0" }}>
             <div style={{ position: "relative", width: "96px", height: "96px", borderRadius: "50%", background: `conic-gradient(#101828 0% ${healthScore}%, #E2DDD5 ${healthScore}% 100%)`, display: "grid", placeItems: "center" }}>
               <div style={{ width: "76px", height: "76px", borderRadius: "50%", background: "#FFFFFF", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "24px", fontWeight: 900, color: S.ink, lineHeight: 1 }}>{healthScore}</span>
+                <span style={{ fontSize: "24px", fontWeight: 900, color: S.ink, lineHeight: 1 }}>{healthScore ?? "—"}</span>
                 <span style={{ fontSize: "10px", fontWeight: 700, color: S.faint }}>/100</span>
               </div>
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: "inline-block", background: S.greenBg, border: `1px solid ${S.greenBdr}`, padding: "3px 10px", borderRadius: "12px", fontSize: "11.5px", fontWeight: 700, color: S.greenTxt }}>
-                Tier A · {healthScore >= 80 ? "Distinction Standing" : "Review Needed"}
+                {healthScore == null ? "No graded results" : "Recorded academic average"}
               </div>
               <p style={{ margin: "8px 0 0", fontSize: "12.5px", color: "#334155", lineHeight: 1.5 }}>
-                Verified attendance ({kpis?.overallAttendance ?? 96}%), homework completion ({kpis?.assignmentCompletion ?? 90}%), and academic average ({kpis?.academicAverage ?? 92}%) live in register.
+                Verified attendance ({kpis?.overallAttendance ?? 0}%), homework completion ({kpis?.assignmentCompletion ?? 0}%), and academic average ({kpis?.academicAverage ?? 0}%) live in register.
               </p>
             </div>
           </div>
 
           {showHealthExplainer && (
             <div style={{ background: S.cardRowBg, border: `1px solid ${S.borderSubtle}`, borderRadius: "8px", padding: "12px 14px", marginTop: "12px", fontSize: "12px", color: "#334155" }}>
-              <b style={{ color: S.ink }}>Deterministic Score Formulation:</b>
+              <b style={{ color: S.ink }}>Recorded indicators:</b>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
-                <div>• Attendance (35% wt): {kpis.overallAttendance}%</div>
-                <div>• Academic Average (35% wt): {kpis.academicAverage}%</div>
-                <div>• Coursework Completion (15% wt): {kpis.assignmentCompletion}%</div>
-                <div>• Practice Drills (15% wt): 88.5%</div>
+                <div>• Attendance: {kpis.overallAttendance}%</div>
+                <div>• Academic Average: {kpis.academicAverage}%</div>
+                <div>• Coursework Completion: {kpis.assignmentCompletion}%</div>
+                <div>Practice drill results are shown in Arena</div>
               </div>
             </div>
           )}

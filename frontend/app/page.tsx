@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { AcademicYear, api, createResource, loadRoleWorkspace, loadSchool, login, logout, Member, Organization, OrganizationSummary, Profile, Program, profile as getProfile, RoleWorkspaceData, SchoolData, updateResource } from "./edops-api";
+import { AcademicYear, api, createResource, getInvitationInfo, InvitationInfo, loadRoleWorkspace, loadSchool, login, logout, Member, Organization, OrganizationSummary, Profile, Program, profile as getProfile, RoleWorkspaceData, SchoolData, updateResource } from "./edops-api";
 import { LearningWorkspace, SchoolBilling } from "./learning-workspace";
 import { PlatformWorkspace } from "./platform-workspace";
 import { DashboardHome } from "./dashboard-home";
@@ -269,8 +269,8 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("student@edops.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -284,20 +284,6 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
       setBusy(false);
     }
   }
-
-  const handleQuickLogin = async (demoEmail: string, demoPassword = "password123") => {
-    setEmail(demoEmail);
-    setPassword(demoPassword);
-    setBusy(true);
-    setError("");
-    try {
-      onLogin(await login(demoEmail, demoPassword));
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Sign in failed");
-    } finally {
-      setBusy(false);
-    }
-  };
 
   return (
     <main className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden" style={{ fontFamily: '"Space Grotesk", Inter, system-ui, sans-serif' }}>
@@ -328,7 +314,7 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
               {error && <div className="text-red-500 text-sm p-3 bg-red-50 rounded border border-red-200" role="alert">{error}</div>}
 
               <div className="flex flex-col gap-1.5">
-                <label className="block text-sm text-[#212121] font-medium">Email or Simple ID</label>
+                <label className="block text-sm text-[#212121] font-medium">Email</label>
                 <input
                   name="email"
                   type="text"
@@ -381,49 +367,7 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
                 Accept an invitation
               </button>
 
-              {/* 1-Click Training Accounts */}
-              <div className="mt-2 pt-4 border-t border-slate-200">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider m-0">
-                    Training Accounts (1-Click Login):
-                  </p>
-                  <span className="text-[10px] bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
-                    Instant Access
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {[
-                    { label: "🎓 Student", id: "student", email: "student@edops.com", role: "Aarav Sharma" },
-                    { label: "👨‍👩‍👧 Parent", id: "parent", email: "parent@edops.com", role: "Rajesh Sharma" },
-                    { label: "👨‍🏫 Teacher", id: "teacher", email: "teacher@edops.com", role: "Dr. K. Raman" },
-                    { label: "🏛️ Principal", id: "principal", email: "principal@edops.com", role: "Leadership" },
-                    { label: "⚙️ Admin", id: "admin", email: "admin@edops.com", role: "Operations" },
-                  ].map((demo) => (
-                    <button
-                      key={demo.id}
-                      type="button"
-                      disabled={busy}
-                      onClick={() => handleQuickLogin(demo.email)}
-                      className="text-left p-2 rounded-lg border border-slate-200 bg-slate-50 hover:bg-slate-100 transition-colors group cursor-pointer"
-                    >
-                      <div className="font-bold text-xs text-slate-800 flex items-center justify-between">
-                        <span>{demo.label}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-mono mt-0.5">
-                        ID: <span className="font-bold text-slate-700">{demo.id}</span>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-3 p-2 bg-slate-50 rounded border border-slate-200 text-[11px] text-slate-600 space-y-1">
-                  <div>
-                    🔑 Simple ID: <code className="font-mono bg-white text-indigo-700 px-1 py-0.5 rounded border border-slate-200 font-bold">student</code> / <code className="font-mono bg-white text-indigo-700 px-1 py-0.5 rounded border border-slate-200 font-bold">parent</code> / <code className="font-mono bg-white text-indigo-700 px-1 py-0.5 rounded border border-slate-200 font-bold">teacher</code> / <code className="font-mono bg-white text-indigo-700 px-1 py-0.5 rounded border border-slate-200 font-bold">principal</code> / <code className="font-mono bg-white text-indigo-700 px-1 py-0.5 rounded border border-slate-200 font-bold">admin</code>
-                  </div>
-                  <div>
-                    🔒 Simple Password: <code className="font-mono bg-white text-emerald-700 px-1.5 py-0.5 rounded border border-slate-200 font-bold">password123</code>
-                  </div>
-                </div>
-              </div>
+
             </form>
           </div>
         </div>
@@ -437,20 +381,27 @@ function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => v
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const initialToken = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite") ?? "" : "";
+  const [token, setToken] = useState(initialToken);
+  const [info, setInfo] = useState<InvitationInfo | null>(null);
+
+  useEffect(() => {
+    if (token && token.length === 64) {
+      getInvitationInfo(token).then(setInfo).catch(() => setInfo(null));
+    } else {
+      setInfo(null);
+    }
+  }, [token]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setBusy(true);
     setError("");
     const data = new FormData(event.currentTarget);
-    const body: Record<string, string> = { token: String(data.get("token")) };
+    const body: Record<string, string> = { token: token.trim() };
     if (!signedIn) body.password = String(data.get("password"));
     const specialty = String(data.get("specialty") || "").trim();
     if (specialty) body.specialty = specialty;
-    const phone = String(data.get("phone") || "").trim();
-    if (phone) body.phone = phone;
-    const name = String(data.get("name") || "").trim();
-    if (name) body.name = name;
     try {
       await api("/auth/invitations/accept", { method: "POST", body });
       setSuccess(true);
@@ -461,6 +412,17 @@ function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => v
     }
   }
 
+  const roleLabel = (role?: string) => {
+    switch (role) {
+      case "school_admin": return "School Administrator";
+      case "principal": return "Principal";
+      case "teacher": return "Teacher";
+      case "student": return "Student";
+      case "parent": return "Parent";
+      default: return role || "Member";
+    }
+  };
+
   return (
     <main className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden" style={{ fontFamily: '"Space Grotesk", Inter, system-ui, sans-serif' }}>
       <section className="bg-[#020617] text-white flex flex-col justify-between p-12 lg:p-24 lg:w-1/2 h-full overflow-hidden">
@@ -470,8 +432,8 @@ function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => v
         </div>
 
         <div className="my-24 lg:my-auto">
-          <h1 className="text-white text-[72px] font-normal leading-none tracking-[-1.44px] m-0">Join the<br />network.</h1>
-          <p className="mt-8 text-lg text-[#cbd5e1] max-w-[400px] leading-[1.4] mb-0">Securely accept your invitation to access decentralized property infrastructure.</p>
+          <h1 className="text-white text-[72px] font-normal leading-none tracking-[-1.44px] m-0">Activate<br />account.</h1>
+          <p className="mt-8 text-lg text-[#cbd5e1] max-w-[400px] leading-[1.4] mb-0">Securely set your password to activate your school workspace.</p>
         </div>
 
         <div className="flex gap-8 text-sm text-[#94a3b8]">
@@ -482,7 +444,7 @@ function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => v
 
       <section className="bg-white lg:w-1/2 h-full overflow-y-auto flex flex-col">
         <div className="flex-1 flex items-center justify-center p-8 lg:p-24 min-h-max">
-          <div className="w-full max-w-[400px] my-auto">
+          <div className="w-full max-w-[420px] my-auto">
             {success ? (
               <>
                 <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-6">
@@ -490,7 +452,7 @@ function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => v
                 </div>
                 <h2 className="mb-2 text-[48px] font-normal text-[#212121] leading-[1.2] tracking-[-0.48px] mt-0">Invitation accepted</h2>
                 <p className="mb-10 text-base text-[#75758a] leading-normal mt-0">
-                  {signedIn ? "Your school membership is ready. Refresh your dashboard to continue." : "Your account is ready. Sign in with your email and new password."}
+                  {signedIn ? "Your school membership is ready. Refresh your dashboard to continue." : "Your account is activated. Sign in with your email and new password."}
                 </p>
                 <button
                   type="button"
@@ -502,28 +464,49 @@ function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => v
               </>
             ) : (
               <>
-                <h2 className="mb-2 text-[48px] font-normal text-[#212121] leading-[1.2] tracking-[-0.48px] mt-0">Join EDOPS</h2>
-                <p className="mb-10 text-base text-[#75758a] leading-normal mt-0">
-                  {signedIn ? "Paste the invitation token sent to your account." : "Paste your invitation token and set a password."}
+                <h2 className="mb-2 text-[40px] font-normal text-[#212121] leading-[1.2] tracking-[-0.48px] mt-0">
+                  {info ? `Join ${info.schoolName}` : "Join EDOPS"}
+                </h2>
+                <p className="mb-6 text-sm text-[#75758a] leading-normal mt-0">
+                  {info ? (
+                    <span>Role: <strong className="text-slate-800">{roleLabel(info.role)}</strong> · Account: <strong className="text-slate-800">{info.email}</strong></span>
+                  ) : (
+                    signedIn ? "Paste the invitation token sent to your account." : "Paste your invitation token and set a password."
+                  )}
                 </p>
 
-                <form className="flex flex-col gap-6" onSubmit={submit}>
+                {info && (
+                  <div className="mb-6 p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 flex flex-col gap-1">
+                    <div className="text-xs text-emerald-800 font-bold uppercase tracking-wider">Invitation Verified</div>
+                    <div className="text-sm font-semibold text-slate-800">{info.name || info.email}</div>
+                    <div className="text-xs text-slate-500">
+                      {info.schoolName} ({roleLabel(info.role)})
+                      {info.specialty ? ` · Subject: ${info.specialty}` : ""}
+                    </div>
+                  </div>
+                )}
+
+                <form className="flex flex-col gap-5" onSubmit={submit}>
                   {error && <div className="text-red-500 text-sm p-3 bg-red-50 rounded border border-red-200" role="alert">{error}</div>}
 
-                  <div className="flex flex-col gap-2">
-                    <label className="block text-sm text-[#212121] font-medium">Invitation token</label>
-                    <input
-                      name="token"
-                      minLength={64}
-                      maxLength={64}
-                      required
-                      defaultValue={typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("invite") ?? "" : ""}
-                      className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
-                    />
-                  </div>
+                  {!initialToken && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="block text-sm text-[#212121] font-medium">Invitation token</label>
+                      <input
+                        name="token"
+                        value={token}
+                        onChange={(e) => setToken(e.target.value.trim())}
+                        minLength={64}
+                        maxLength={64}
+                        required
+                        placeholder="Paste 64-character token"
+                        className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
+                      />
+                    </div>
+                  )}
 
                   {!signedIn && (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-1.5">
                       <label className="block text-sm text-[#212121] font-medium">Create password</label>
                       <div className="relative flex items-center">
                         <input
@@ -532,6 +515,7 @@ function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => v
                           minLength={12}
                           maxLength={128}
                           required
+                          placeholder="At least 12 characters"
                           autoComplete="new-password"
                           className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border pr-10 focus:border-[#A0B6D9]"
                         />
@@ -544,52 +528,53 @@ function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => v
                           {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                         </button>
                       </div>
+                      <span className="text-xs text-[#75758a]">Minimum 12 characters</span>
                     </div>
                   )}
 
-                  <div className="flex flex-col gap-2">
-                    <label className="block text-sm text-[#212121] font-medium">Phone number <span className="text-[#e11d48]">*</span></label>
-                    <input
-                      name="phone"
-                      type="tel"
-                      required
-                      placeholder="+91 98765 43210"
-                      maxLength={32}
-                      className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="block text-sm text-[#212121] font-medium">Full name</label>
-                    <input
-                      name="name"
-                      placeholder="Confirm your name"
-                      maxLength={120}
-                      className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <label className="block text-sm text-[#212121] font-medium">Subject Specialty <span className="opacity-65 text-[0.85em] font-normal">(for teachers, e.g. Mathematics)</span></label>
-                    <input
-                      name="specialty"
-                      placeholder="e.g. Mathematics, Physics, Chemistry"
-                      maxLength={100}
-                      className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
-                    />
-                  </div>
+                  {/* Specialty ONLY for teachers */}
+                  {info?.role === "teacher" && (
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex justify-between items-center">
+                        <label className="block text-sm text-[#212121] font-medium">
+                          Subject Specialty
+                        </label>
+                        {info.specialty && (
+                          <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold border border-emerald-200">
+                            Assigned by Admin
+                          </span>
+                        )}
+                      </div>
+                      <input
+                        name="specialty"
+                        defaultValue={info.specialty || ""}
+                        placeholder="e.g. Mathematics, Physics, Chemistry"
+                        maxLength={100}
+                        className="w-full text-base px-4 py-3 bg-white border border-[#d9d9dd] rounded text-[#212121] outline-none transition-shadow box-border focus:border-[#A0B6D9]"
+                      />
+                      {info.specialty ? (
+                        <span className="text-xs text-[#75758a]">
+                          Pre-filled from your invitation. You can keep or edit it.
+                        </span>
+                      ) : (
+                        <span className="text-xs text-[#75758a]">
+                          e.g. Mathematics, Physics, English
+                        </span>
+                      )}
+                    </div>
+                  )}
 
                   <button
                     type="submit"
-                    className="w-full flex items-center justify-center gap-2 text-sm mt-4 bg-[#17171c] px-6 py-[14px] rounded-[32px] font-medium border-none cursor-pointer hover:bg-[#000000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full flex items-center justify-center gap-2 text-sm mt-2 bg-[#17171c] px-6 py-[14px] rounded-[32px] font-medium border-none cursor-pointer hover:bg-[#000000] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     disabled={busy}
                   >
-                    <span className="text-white">{busy ? "Accepting..." : "Accept invitation"}</span>
+                    <span className="text-white">{busy ? "Activating..." : "Activate account"}</span>
                   </button>
 
                   <button
                     type="button"
-                    className="bg-transparent border-none text-black font-medium text-sm cursor-pointer text-center p-0 mt-[-8px] hover:text-[#212121] transition-colors"
+                    className="bg-transparent border-none text-black font-medium text-sm cursor-pointer text-center p-0 hover:text-[#212121] transition-colors"
                     onClick={onDone}
                   >
                     Back to sign in
@@ -651,11 +636,7 @@ function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }
         };
       });
     }
-    return [
-      { id: "ml", name: "Machine Learning", code: "ML" },
-      { id: "ds", name: "Data Structures", code: "DS" },
-      { id: "math", name: "Mathematics", code: "MATH" },
-    ];
+    return [];
   }, [data]);
 
   useEffect(() => {

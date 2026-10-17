@@ -12,368 +12,65 @@ export class PrincipalStudentsService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async getStudentsOverview(orgId: string, _actor: User) {
-    const manager = this.drizzle;
-
-    // Fetch enrolled students
-    const students = await manager
-      .query(
-        `SELECT
-        u.id,
-        u.name,
-        u.email,
-        e.roll_number as "rollNumber",
-        s.name as "sectionName",
-        p.name as "className"
-       FROM enrollments e
-       JOIN users u ON u.id = e.student_user_id
-       JOIN sections s ON s.id = e.section_id
-       JOIN programs p ON p.id = s.program_id
-       WHERE e.organization_id = $1 AND e.status = 'active'
-       ORDER BY p.sequence_order ASC, s.name ASC, e.roll_number ASC
-       LIMIT 50`,
-        [orgId],
-      )
-      .catch(() => []);
-
-    const enriched = (
-      students.length
-        ? students
-        : [
-            {
-              id: "stu-1",
-              name: "Aarav Patel",
-              email: "aarav.patel@school.in",
-              rollNumber: "01",
-              sectionName: "10-A",
-              className: "Grade 10",
-            },
-            {
-              id: "stu-2",
-              name: "Priya Sharma",
-              email: "priya.sharma@school.in",
-              rollNumber: "02",
-              sectionName: "10-A",
-              className: "Grade 10",
-            },
-            {
-              id: "stu-3",
-              name: "Vikas Kumar",
-              email: "vikas.kumar@school.in",
-              rollNumber: "03",
-              sectionName: "10-A",
-              className: "Grade 10",
-            },
-            {
-              id: "stu-4",
-              name: "Rohan Mehra",
-              email: "rohan.mehra@school.in",
-              rollNumber: "04",
-              sectionName: "10-A",
-              className: "Grade 10",
-            },
-            {
-              id: "stu-5",
-              name: "Ananya Gupta",
-              email: "ananya.gupta@school.in",
-              rollNumber: "05",
-              sectionName: "10-A",
-              className: "Grade 10",
-            },
-          ]
-    ).map((s: any, idx: number) => {
-      const avg = s.name === "Vikas Kumar" ? 62.4 : 76.0 + (idx % 5) * 4.2;
-      const att = s.name === "Vikas Kumar" ? 68.5 : 92.0 + (idx % 4) * 1.8;
-      const risk =
-        s.name === "Vikas Kumar"
-          ? "Academic & Attendance Risk"
-          : avg < 65
-            ? "Academic Risk"
-            : att < 75
-              ? "Attendance Risk"
-              : "On Track";
-
-      return {
-        id: s.id,
-        name: s.name || s.email.split("@")[0],
-        email: s.email,
-        rollNumber: s.rollNumber || "01",
-        className: s.className || "Grade 10",
-        sectionName: s.sectionName || "10-A",
-        overallAverage: Number(avg.toFixed(1)),
-        attendanceRate: Number(att.toFixed(1)),
-        assignmentCompletion: s.name === "Vikas Kumar" ? 54 : 90,
-        riskStatus: risk,
-        needsIntervention: risk !== "On Track",
-      };
+    const students = await this.drizzle.query(
+      `SELECT u.id,u.name,u.email,e.roll_number AS "rollNumber",s.name AS "sectionName",p.name AS "className",
+        (SELECT AVG(r.percentage) FROM principal_exam_results r WHERE r.organization_id=e.organization_id AND r.student_user_id=u.id AND r.status='Published') AS "overallAverage",
+        (SELECT 100.0*COUNT(*) FILTER (WHERE ar.status IN ('present','late'))/NULLIF(COUNT(*),0) FROM attendance_records ar
+         JOIN attendance_sessions ats ON ats.id=ar.attendance_session_id AND ats.organization_id=ar.organization_id
+         WHERE ar.organization_id=e.organization_id AND ar.student_id=u.id AND ats.status='finalized') AS "attendanceRate",
+        (SELECT 100.0*COUNT(*) FILTER (WHERE ss.status IN ('submitted','late','graded'))/NULLIF(COUNT(*),0) FROM submissions ss WHERE ss.organization_id=e.organization_id AND ss.student_id=u.id) AS "assignmentCompletion"
+       FROM enrollments e JOIN users u ON u.id=e.student_user_id
+       JOIN sections s ON s.id=e.section_id AND s.organization_id=e.organization_id
+       JOIN programs p ON p.id=s.program_id AND p.organization_id=s.organization_id
+       WHERE e.organization_id=$1 AND e.status='active' ORDER BY s.name,e.roll_number`, [orgId]);
+    const enriched = students.map(s=> {
+      const avg = s.overallAverage==null?null:Number(s.overallAverage);
+      const att = s.attendanceRate==null?null:Number(s.attendanceRate);
+      const riskStatus = avg!=null && avg<40 ? 'Academic Risk' : att!=null && att<75 ? 'Attendance Risk' : 'On Track';
+      return { ...s,overallAverage:avg,attendanceRate:att,assignmentCompletion:s.assignmentCompletion==null?null:Number(s.assignmentCompletion),riskStatus,needsIntervention:riskStatus!=='On Track' };
     });
-
-    return {
-      totalEnrolled: enriched.length,
-      students: enriched,
-    };
+    const remedialPrograms = await this.drizzle.query(`SELECT * FROM principal_remedial_programs WHERE organization_id=$1 ORDER BY created_at DESC`, [orgId]);
+    const enrichmentPrograms = await this.drizzle.query(`SELECT * FROM principal_enrichment_programs WHERE organization_id=$1 ORDER BY created_at DESC`, [orgId]);
+    return { totalEnrolled:enriched.length,students:enriched,remedialPrograms,enrichmentPrograms };
   }
 
   async getStudent360(orgId: string, _actor: User, studentId: string) {
-    const manager = this.drizzle;
-
-    const [user] = await manager
-      .query(
-        `SELECT u.id, u.name, u.email FROM users u WHERE u.id = $1 LIMIT 1`,
-        [studentId],
-      )
-      .catch(() => []);
-
-    const interventions = await manager
-      .query(
-        `SELECT * FROM principal_student_interventions WHERE organization_id = $1 AND student_user_id = $2 ORDER BY created_at DESC`,
-        [orgId, studentId],
-      )
-      .catch(() => []);
-
-    const name =
-      user?.name || (studentId === "stu-3" ? "Vikas Kumar" : "Vikas Kumar");
-    const isVikas = name.includes("Vikas");
-
-    return {
-      overview: {
-        id: studentId,
-        name,
-        email: user?.email || "vikas.kumar@school.in",
-        admissionNumber: "ADM-2024-089",
-        className: "Grade 10",
-        section: "10-A",
-        rollNumber: "03",
-        guardianName: "Suresh Kumar",
-        guardianPhone: "+91 98765 43210",
-        overallAverage: isVikas ? 62.4 : 84.5,
-        attendanceRate: isVikas ? 68.5 : 94.0,
-        assignmentCompletion: isVikas ? 54 : 92,
-        assessmentAverage: isVikas ? 58.0 : 86.0,
-        attentionCategory: isVikas
-          ? "High Priority Academic & Attendance Support"
-          : "Good Standing",
-      },
-      academics: [
-        {
-          subject: "Mathematics",
-          teacher: "Rahul Sharma",
-          currentScore: isVikas ? 42.0 : 88.0,
-          previousScore: 68.0,
-          change: isVikas ? -26.0 : 4.0,
-          trend: isVikas ? "Declining" : "Improving",
-        },
-        {
-          subject: "Science",
-          teacher: "Dr. Anita Desai",
-          currentScore: isVikas ? 71.0 : 92.0,
-          previousScore: 74.0,
-          change: isVikas ? -3.0 : 2.0,
-          trend: "Stable",
-        },
-        {
-          subject: "English",
-          teacher: "Pooja Verma",
-          currentScore: isVikas ? 78.0 : 86.0,
-          previousScore: 75.0,
-          change: 3.0,
-          trend: "Improving",
-        },
-        {
-          subject: "Social Science",
-          teacher: "Vikram Seth",
-          currentScore: isVikas ? 64.0 : 82.0,
-          previousScore: 66.0,
-          change: -2.0,
-          trend: "Stable",
-        },
-        {
-          subject: "Information Technology",
-          teacher: "Sunita Rao",
-          currentScore: isVikas ? 82.0 : 94.0,
-          previousScore: 80.0,
-          change: 2.0,
-          trend: "Improving",
-        },
-      ],
-      attendance: {
-        presentDays: isVikas ? 82 : 112,
-        totalWorkingDays: 120,
-        attendancePercentage: isVikas ? 68.5 : 93.3,
-        threshold: 75.0,
-        isDefaulter: isVikas,
-        recentAbsences: [
-          {
-            date: "2026-10-04",
-            reason: "Unexcused Absence",
-            parentNotified: true,
-          },
-          {
-            date: "2026-09-28",
-            reason: "Medical (Fever)",
-            parentNotified: true,
-          },
-          {
-            date: "2026-09-22",
-            reason: "Unexcused Absence",
-            parentNotified: true,
-          },
-        ],
-      },
-      assignments: {
-        totalAssigned: 28,
-        submitted: isVikas ? 15 : 27,
-        evaluated: isVikas ? 15 : 26,
-        pendingSubmission: isVikas ? 13 : 1,
-        averageAssignmentScore: isVikas ? 56.0 : 88.5,
-      },
-      assessments: [
-        {
-          assessment: "Periodic Test 1",
-          date: "July 2026",
-          mathScore: 68,
-          scienceScore: 76,
-          rank: "18 / 42",
-        },
-        {
-          assessment: "Periodic Test 2",
-          date: "Sep 2026",
-          mathScore: 42,
-          scienceScore: 71,
-          rank: "38 / 42",
-        },
-      ],
-      learningOutcomes: [
-        {
-          loCode: "LO-MATH-01",
-          description: "Real Numbers & Fundamental Arithmetic",
-          mastery: isVikas ? 55 : 90,
-          status: isVikas ? "Low Mastery" : "Mastered",
-        },
-        {
-          loCode: "LO-MATH-02",
-          description: "Polynomials & Geometric Zero Meaning",
-          mastery: isVikas ? 48 : 88,
-          status: isVikas ? "Low Mastery" : "Mastered",
-        },
-        {
-          loCode: "LO-MATH-04",
-          description: "Quadratic Equations & Discriminant",
-          mastery: isVikas ? 32 : 85,
-          status: isVikas ? "Critical Gap" : "Mastered",
-        },
-        {
-          loCode: "LO-SCI-06",
-          description: "Cellular Respiration & Photosynthesis",
-          mastery: isVikas ? 74 : 94,
-          status: "Mastered",
-        },
-      ],
-      competencies: [
-        { dimension: "Conceptual Understanding", score: isVikas ? 58 : 88 },
-        { dimension: "Critical Problem Solving", score: isVikas ? 38 : 82 },
-        { dimension: "Application of Concepts", score: isVikas ? 45 : 85 },
-        { dimension: "Communication & Reasoning", score: isVikas ? 68 : 89 },
-      ],
-      interventions: interventions.length
-        ? interventions
-        : [
-            {
-              id: "int-1",
-              studentName: name,
-              problemArea: "Algebra and Quadratic Equations Mastery Drop",
-              evidence:
-                "PT2 Score 42%, Homework Completion 54%, 3 weeks missed attendance.",
-              goal: "Attain 70%+ mastery in Quadratic Equations and increase attendance to 80%+",
-              interventionStrategy:
-                "Assigned 4x weekly zero-period remedial clinic with Rahul Sharma; paired with peer mentor Priya Sharma.",
-              responsibleTeacherName: "Rahul Sharma",
-              startDate: "2026-10-05",
-              reviewDate: "2026-11-15",
-              expectedOutcome:
-                "Recovery of foundational algebra fluency before CBSE pre-boards.",
-              status: "Active",
-            },
-          ],
-      teacherFeedback: [
-        {
-          teacher: "Rahul Sharma",
-          subject: "Mathematics",
-          feedback:
-            "Capable learner who experienced conceptual drop after missing key instruction on factorization. Receptive in remedial session.",
-        },
-        {
-          teacher: "Dr. Anita Desai",
-          subject: "Science",
-          feedback:
-            "Good curiosity during laboratory work; needs encouraging support with theoretical derivations.",
-        },
-      ],
-      holisticProgress: {
-        cognitiveSummary:
-          "Demonstrates good spatial intuition; algebraic abstraction requires continuous scaffolding.",
-        affectiveSummary:
-          "Courteous and attentive; occasional hesitancy to ask questions during whole-class lecture.",
-        socioEmotionalSummary:
-          "Collaborates constructively in peer laboratory pairs.",
-        psychomotorSummary:
-          "Accurate and safe apparatus handling in physical science experiments.",
-        creativeSummary: "Active participant in school robotics maker club.",
-      },
-    };
+    const overviewData = await this.getStudentsOverview(orgId,_actor);
+    const student = overviewData.students.find(s=>s.id===studentId);
+    if (!student) throw new NotFoundException('Student not found in this school');
+    const [profile] = await this.drizzle.query(`SELECT * FROM student_profiles WHERE organization_id=$1 AND student_user_id=$2`, [orgId,studentId]);
+    const academics = await this.drizzle.query(
+      `SELECT subject_name AS subject,AVG(percentage) AS "currentScore" FROM principal_exam_results
+       WHERE organization_id=$1 AND student_user_id=$2 AND status='Published' GROUP BY subject_name`, [orgId,studentId]);
+    const assessments = await this.drizzle.query(
+      `SELECT exam_name AS assessment,subject_name AS subject,marks_obtained AS score,max_marks AS "maxMarks",published_at AS date
+       FROM principal_exam_results WHERE organization_id=$1 AND student_user_id=$2 AND status='Published' ORDER BY published_at DESC`, [orgId,studentId]);
+    const [attendance] = await this.drizzle.query(
+      `SELECT COUNT(*)::int AS "totalWorkingDays",COUNT(*) FILTER (WHERE ar.status IN ('present','late'))::int AS "presentDays"
+       FROM attendance_records ar JOIN attendance_sessions s ON s.id=ar.attendance_session_id AND s.organization_id=ar.organization_id
+       WHERE ar.organization_id=$1 AND ar.student_id=$2 AND s.status='finalized'`, [orgId,studentId]);
+    const [assignments] = await this.drizzle.query(
+      `SELECT COUNT(*)::int AS "totalAssigned",COUNT(*) FILTER (WHERE status IN ('submitted','late','graded'))::int AS submitted,
+        COUNT(*) FILTER (WHERE status='graded')::int AS evaluated,COUNT(*) FILTER (WHERE status='pending')::int AS "pendingSubmission",AVG(score) AS "averageAssignmentScore"
+       FROM submissions WHERE organization_id=$1 AND student_id=$2`, [orgId,studentId]);
+    const interventions = await this.drizzle.query(`SELECT * FROM principal_student_interventions WHERE organization_id=$1 AND student_user_id=$2 ORDER BY created_at DESC`, [orgId,studentId]);
+    const teacherFeedback = await this.drizzle.query(
+      `SELECT u.name AS teacher,su.name AS subject,s.feedback FROM submissions s
+       JOIN assignments a ON a.id=s.assignment_id AND a.organization_id=s.organization_id
+       JOIN subjects su ON su.id=a.subject_id AND su.organization_id=a.organization_id JOIN users u ON u.id=s.graded_by
+       WHERE s.organization_id=$1 AND s.student_id=$2 AND s.feedback IS NOT NULL`, [orgId,studentId]);
+    const [holisticProgress] = await this.drizzle.query(`SELECT cognitive_summary AS "cognitiveSummary",affective_summary AS "affectiveSummary",socio_emotional_summary AS "socioEmotionalSummary",psychomotor_summary AS "psychomotorSummary",creative_summary AS "creativeSummary" FROM principal_holistic_progress WHERE organization_id=$1 AND student_user_id=$2 ORDER BY created_at DESC LIMIT 1`, [orgId,studentId]);
+    return { overview:{ ...student,section:student.sectionName,admissionNumber:profile?.admission_number || '',guardianName:profile?.guardian_name || '',guardianPhone:profile?.guardian_phone || '',attentionCategory:student.riskStatus },
+      academics:academics.map(a=>({...a,currentScore:Number(a.currentScore),previousScore:null,change:null,trend:null})),
+      attendance:{ ...attendance,attendancePercentage:student.attendanceRate,threshold:75,isDefaulter:student.attendanceRate!=null && student.attendanceRate<75,recentAbsences:[] },
+      assignments,assessments,learningOutcomes:[],competencies:[],interventions,teacherFeedback,holisticProgress:holisticProgress || {} };
   }
 
   async getAtRiskStudents(orgId: string, _actor: User) {
-    return {
-      summary: {
-        totalAtRisk: 18,
-        academicDropCount: 8,
-        attendanceRiskCount: 6,
-        assignmentLapseCount: 4,
-      },
-      students: [
-        {
-          id: "stu-3",
-          name: "Vikas Kumar",
-          className: "Grade 10-A",
-          riskCategory: "High Priority (Math & Attendance)",
-          indicators:
-            "Math drop from 68% to 42%; Attendance 68.5% (Threshold 75%)",
-          responsibleFaculty: "Rahul Sharma",
-          interventionStatus: "Active Booster Clinic",
-          reviewDate: "2026-11-15",
-        },
-        {
-          id: "stu-4",
-          name: "Rohan Mehra",
-          className: "Grade 10-A",
-          riskCategory: "Academic Risk (Math)",
-          indicators: "Math PT2 score 47.5%; 4 missing homework worksheets",
-          responsibleFaculty: "Rahul Sharma",
-          interventionStatus: "Planned Peer Tutoring",
-          reviewDate: "2026-11-20",
-        },
-        {
-          id: "stu-12",
-          name: "Kavita Singh",
-          className: "Grade 9-B",
-          riskCategory: "Attendance Risk",
-          indicators: "Attendance 71.0%; consecutive Monday unexcused absences",
-          responsibleFaculty: "Class Teacher & Counselor",
-          interventionStatus: "Parent Counseling Scheduled",
-          reviewDate: "2026-10-25",
-        },
-        {
-          id: "stu-22",
-          name: "Devansh Roy",
-          className: "Grade 11-A",
-          riskCategory: "Sudden Performance Decline",
-          indicators: "Physics practical score drop of 24% following midterm",
-          responsibleFaculty: "Dr. Anita Desai",
-          interventionStatus: "Lab Clinic Assigned",
-          reviewDate: "2026-11-05",
-        },
-      ],
-    };
+    const data = await this.getStudentsOverview(orgId,_actor);
+    const students = data.students.filter(s=>s.needsIntervention).map(s=>({...s,riskCategory:s.riskStatus,indicators:`Attendance: ${s.attendanceRate ?? 'Unknown'}; average: ${s.overallAverage ?? 'Unknown'}`}));
+    return { summary:{ totalAtRisk:students.length,academicDropCount:students.filter(s=>s.overallAverage!=null && s.overallAverage<40).length,
+      attendanceRiskCount:students.filter(s=>s.attendanceRate!=null && s.attendanceRate<75).length,assignmentLapseCount:students.filter(s=>s.assignmentCompletion!=null && s.assignmentCompletion<50).length },students };
   }
 
   async createIntervention(
@@ -426,8 +123,8 @@ export class PrincipalStudentsService {
         dto.className,
         dto.assignedTeacherName,
         dto.schedule,
-        dto.enrolledStudentCount || 10,
-        dto.targetCompetency || "Foundational Algebra & Geometry",
+        dto.enrolledStudentCount ?? 0,
+        dto.targetCompetency || "",
       ],
     );
     return inserted;
@@ -450,7 +147,7 @@ export class PrincipalStudentsService {
         dto.category || "Olympiad & Research",
         dto.assignedMentorName,
         dto.schedule,
-        dto.enrolledStudentCount || 15,
+        dto.enrolledStudentCount ?? 0,
       ],
     );
     return inserted;

@@ -43,7 +43,7 @@ export class TeacherArenaService {
         });
         return { questions };
       }
-    } catch {}
+    } catch (error) { throw error; }
 
     return {
       questions: [],
@@ -51,54 +51,10 @@ export class TeacherArenaService {
   }
 
   async createQuestion(organizationId: string, user: User, dto: CreateTeacherArenaQuestionDto) {
-    let resolvedSectionId = dto.sectionId;
-    let resolvedSubjectId = dto.subjectId;
-
-    try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.sectionId);
-      if (!isUuid) {
-        const cleanName = dto.sectionId.replace(/^sec-/, '').replace('-', ' ');
-        const [sec] = await this.drizzle.query(
-          `SELECT id FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
-          [organizationId, `%${cleanName}%`, dto.sectionId]
-        );
-        if (sec?.id) resolvedSectionId = sec.id;
-        else {
-          const [firstSec] = await this.drizzle.query(
-            `SELECT id FROM sections WHERE organization_id = $1 LIMIT 1`,
-            [organizationId]
-          );
-          if (firstSec?.id) resolvedSectionId = firstSec.id;
-        }
-      }
-    } catch {}
-
-    try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.subjectId);
-      if (!isUuid) {
-        const [sub] = await this.drizzle.query(
-          `SELECT id FROM subjects WHERE organization_id = $1 LIMIT 1`,
-          [organizationId]
-        );
-        if (sub?.id) resolvedSubjectId = sub.id;
-      }
-    } catch {}
-
-    let creatorId = user.id;
-    try {
-      const [m] = await this.drizzle.query(
-        `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
-        [organizationId, user.id]
-      );
-      if (!m) {
-        const [anyMember] = await this.drizzle.query(
-          `SELECT user_id FROM memberships WHERE organization_id = $1 LIMIT 1`,
-          [organizationId]
-        );
-        if (anyMember?.user_id) creatorId = anyMember.user_id;
-      }
-    } catch {}
-
+    const resolvedSectionId=dto.sectionId, resolvedSubjectId=dto.subjectId;
+    const teacherId=user.id, creatorId=user.id;
+    const [assignment] = await this.drizzle.query(`SELECT 1 FROM class_subject_assignments WHERE organization_id=$1 AND section_id=$2 AND subject_id=$3 AND teacher_user_id=$4 LIMIT 1`, [organizationId,dto.sectionId,dto.subjectId,user.id]);
+    if (!assignment) throw new NotFoundException('Assigned section and subject not found');
     const contentObj = {
       prompt: dto.prompt,
       options: dto.options,
@@ -211,12 +167,12 @@ export class TeacherArenaService {
             question: content.prompt || r.topic,
             accuracy: Number(r.accuracy || 0),
             mostCommonWrongAnswer: `Attempts recorded: ${r.attempts}`,
-            discriminationIndex: Number((Math.max(0.2, (100 - Number(r.accuracy || 0)) / 100)).toFixed(2)),
+            discriminationIndex: null,
             recommendation: `Targeted review on ${r.topic}`,
           };
         });
       }
-    } catch {}
+    } catch (error) { throw error; }
 
     return {
       overview: {

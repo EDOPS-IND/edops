@@ -33,7 +33,7 @@ export const CurriculumPane: React.FC<CurriculumPaneProps> = ({ organizationId }
     return <div className="p-8 text-center text-slate-500 animate-pulse">Loading curriculum syllabus tracker...</div>;
   }
 
-  const overallProgress = data?.overallProgress || 86.0;
+  const overallProgress = data?.overallProgress || 0;
   const subjects = data?.subjects || [];
   const currentSub = subjects.find((s: any) => s.subject === selectedSubject) || subjects[0] || { chapters: [] };
 
@@ -50,7 +50,7 @@ export const CurriculumPane: React.FC<CurriculumPaneProps> = ({ organizationId }
         <div>
           <span className="text-xs font-semibold text-slate-500 uppercase">Overall School Curriculum Pacing</span>
           <div className="text-2xl font-extrabold text-slate-900 mt-1">{overallProgress}% Covered</div>
-          <p className="text-xs text-slate-400 mt-0.5">Aligned with CBSE Class 10 annual academic schedule</p>
+          <p className="text-xs text-slate-400 mt-0.5">Your enrolled curriculum</p>
         </div>
         <div className="w-full sm:w-64 bg-slate-100 rounded-full h-3 overflow-hidden">
           <div className="bg-indigo-600 h-full rounded-full" style={{ width: `${overallProgress}%` }} />

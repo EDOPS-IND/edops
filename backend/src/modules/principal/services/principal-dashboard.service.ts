@@ -468,7 +468,7 @@ export class PrincipalDashboardService {
          AND (LOWER(u.name) LIKE $2 OR LOWER(u.email) LIKE $2)
        LIMIT 5`,
       [orgId, `%${q}%`],
-    ).catch(() => []);
+    );
 
     // Search teachers
     const teachers = await manager.query(
@@ -479,18 +479,18 @@ export class PrincipalDashboardService {
          AND (LOWER(u.name) LIKE $2 OR LOWER(u.email) LIKE $2)
        LIMIT 5`,
       [orgId, `%${q}%`],
-    ).catch(() => []);
+    );
 
     // Search subjects and classes
     const subjects = await manager.query(
       `SELECT id, name, code, 'subject' as type FROM subjects WHERE organization_id = $1 AND (LOWER(name) LIKE $2 OR LOWER(code) LIKE $2) LIMIT 5`,
       [orgId, `%${q}%`],
-    ).catch(() => []);
+    );
 
     const classes = await manager.query(
       `SELECT id, name, 'class' as type FROM sections WHERE organization_id = $1 AND LOWER(name) LIKE $2 LIMIT 5`,
       [orgId, `%${q}%`],
-    ).catch(() => []);
+    );
 
     return {
       query: q,

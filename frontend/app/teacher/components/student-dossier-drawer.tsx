@@ -62,65 +62,7 @@ export function StudentDossierDrawer({
       const res = await getTeacherStudent360(organizationId, studentId);
       setData(res);
     } catch {
-      setData({
-        student: {
-          id: studentId,
-          name: "Enrolled Student",
-          rollNumber: "01",
-          classSection: "Class 10-A",
-          email: "student@school.edu",
-          guardianName: "Parent / Guardian",
-        },
-        subjectScope: {
-          subjectName: "Mathematics",
-          currentAverage: 81.5,
-          previousAverage: 71.5,
-          improvementPct: "+10.0%",
-          classPercentile: "82nd percentile",
-          status: "On Track",
-        },
-        attendance: {
-          subjectAttendancePct: 92.4,
-          totalClassesConducted: 42,
-          classesAttended: 39,
-        },
-        assignments: {
-          totalAssigned: 10,
-          submitted: 9,
-          evaluated: 9,
-          completionRate: 90.0,
-        },
-        assessments: [
-          { name: "Unit Test 1 (Real Numbers)", score: 38, maxMarks: 40, percentage: 95.0, date: "2026-08-20" },
-          { name: "Unit Test 2 (Polynomials)", score: 34, maxMarks: 40, percentage: 85.0, date: "2026-09-10" },
-          { name: "Formative Assessment 2 (Quadratics)", score: 37, maxMarks: 50, percentage: 74.0, date: "2026-10-02" },
-        ],
-        competencies: [
-          { competency: "Conceptual Understanding", level: "Strong (88%)", evidence: "Explains remainder theorem with ease" },
-          { competency: "Mathematical Application", level: "Developing (74%)", evidence: "Occasionally misinterprets real-world word problems" },
-          { competency: "Problem Solving & Calculation", level: "Strong (86%)", evidence: "Accurate algebraic manipulations" },
-          { competency: "Mathematical Communication", level: "On Track (80%)", evidence: "Clear stepwise working in answer scripts" },
-        ],
-        weakAreas: [
-          "Word problems requiring quadratic formulation from speed-distance setups",
-          "Complex fractions simplification under square roots",
-        ],
-        strengths: [
-          "Pure algebraic factorizations",
-          "Graphing linear inequalities",
-          "Speed and mental arithmetic",
-        ],
-        activeInterventions: [
-          {
-            id: "int-1",
-            type: "Remedial Practice",
-            problemArea: "Quadratic word problem formulation",
-            goal: "Attain >=80% on word problems",
-            status: "Active",
-            reviewDate: "2026-10-18",
-          }
-        ]
-      });
+      setData(null);
     } finally {
       setLoading(false);
     }

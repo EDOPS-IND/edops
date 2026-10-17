@@ -92,19 +92,18 @@ export function PlatformWorkspace({
           slug: s.slug,
           status: s.status,
           createdAt: s.createdAt,
-          code: s.code || (s.slug || "SCH").slice(0, 3).toUpperCase() + "001",
-          board: s.board || "CBSE",
+          code: s.code || "",
+          board: s.board || "",
           studentsCount: String(s.studentsCount ?? "0"),
           teachersCount: String(s.teachersCount ?? "0"),
           parentsCount: String(s.parentsCount ?? "0"),
-          plan: s.plan || "Basic",
-          healthScore: s.healthScore ?? 98,
+          plan: s.plan || "",
+          healthScore: s.healthScore ?? 0,
           storageUsageGb: Number(s.storageUsageGb ?? 0),
           apiRequests: Number(s.apiRequests ?? 0),
-          city: s.city || "New Delhi",
-          state: s.state || "Delhi",
-          officialEmail: s.officialEmail || `admin@${s.slug}.edu`,
-          principalName: s.principalName || "Principal",
+          city: s.city || "",
+          state: s.state || "",
+          officialEmail: s.officialEmail || "",
         })));
       } else {
         setSchools([]);
@@ -299,8 +298,8 @@ export function PlatformWorkspace({
 
   async function handleSendAnnouncement(announcementData: any) {
     try {
-      await createAnnouncement(announcementData);
-      setAnnouncements(prev => [{ ...announcementData, id: String(Date.now()), channels: ["dashboard"], status: "published", createdAt: "Just now" }, ...prev]);
+      const saved = await createAnnouncement(announcementData);
+      setAnnouncements(prev => [saved, ...prev]);
       setAnnouncementModal(false);
       setSuccessMsg("Announcement broadcasted");
     } catch (err: any) {

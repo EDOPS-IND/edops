@@ -122,24 +122,12 @@ export class PrincipalAcademicsService {
   }
 
   async getClassPerformance(orgId: string, _actor: User, classId: string) {
-    return {
-      classId,
-      name: 'Grade 10-A',
-      studentCount: 42,
-      averageScore: 78.5,
-      passRate: 94.2,
-      attendance: 93.8,
-      curriculumProgress: 88.0,
-      assignmentCompletion: 91.2,
-      subjects: [
-        { name: 'Mathematics', teacher: 'Rahul Sharma', avg: 72.4, target: 82.0, status: 'Attention' },
-        { name: 'Science', teacher: 'Dr. Anita Desai', avg: 86.2, target: 80.0, status: 'Good' },
-        { name: 'English', teacher: 'Pooja Verma', avg: 85.0, target: 82.0, status: 'Good' },
-        { name: 'Social Science', teacher: 'Vikram Seth', avg: 79.2, target: 80.0, status: 'Stable' },
-      ],
-      atRiskStudentsCount: 4,
-      remedialAssignedCount: 6,
-    };
+    const [section] = await this.drizzle.query(`SELECT id,name FROM sections WHERE organization_id=$1 AND id=$2`, [orgId,classId]);
+    if (!section) throw new NotFoundException('Class section not found');
+    const [counts] = await this.drizzle.query(`SELECT COUNT(*)::int AS students FROM enrollments WHERE organization_id=$1 AND section_id=$2 AND status='active'`, [orgId,classId]);
+    const subjects = await this.drizzle.query(`SELECT sub.name,u.name AS teacher,AVG(100.0*ss.score/NULLIF(a.max_score,0)) AS avg FROM class_subject_assignments c JOIN subjects sub ON sub.organization_id=c.organization_id AND sub.id=c.subject_id JOIN users u ON u.id=c.teacher_user_id LEFT JOIN assignments a ON a.organization_id=c.organization_id AND a.section_id=c.section_id AND a.subject_id=c.subject_id LEFT JOIN submissions ss ON ss.organization_id=a.organization_id AND ss.assignment_id=a.id AND ss.status='graded' WHERE c.organization_id=$1 AND c.section_id=$2 GROUP BY sub.name,u.name`, [orgId,classId]);
+    const measured=subjects.filter(s=>s.avg!=null);
+    return { classId,name:section.name,studentCount:counts.students,averageScore:measured.length?measured.reduce((sum,s)=>sum+Number(s.avg),0)/measured.length:null,passRate:null,attendance:null,curriculumProgress:null,assignmentCompletion:null,subjects:subjects.map(s=>({...s,avg:s.avg==null?null:Number(s.avg),target:null,status:s.avg==null?'No results':'Recorded'})),atRiskStudentsCount:null,remedialAssignedCount:null };
   }
 
   async updateCurriculumProgress(orgId: string, _actor: User, dto: UpdateCurriculumProgressDto) {

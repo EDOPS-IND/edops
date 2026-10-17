@@ -30,13 +30,15 @@ export const ReportsPane: React.FC<ReportsPaneProps> = ({ organizationId }) => {
       const cls = res?.classes || [];
       setClassesList(cls);
       if (cls.length > 0) {
-        setSelectedClass(cls[0].sectionId || cls[0].className || '10-A');
+        setSelectedClass(cls[0].sectionId);
       } else {
-        setSelectedClass('10-A');
+        setSelectedClass('');
+        setLoading(false);
       }
     } catch {
       setClassesList([]);
-      setSelectedClass('10-A');
+      setSelectedClass('');
+        setLoading(false);
     }
   };
 
@@ -54,7 +56,11 @@ export const ReportsPane: React.FC<ReportsPaneProps> = ({ organizationId }) => {
   };
 
   const handleExport = (format: 'pdf' | 'excel') => {
-    alert(`Exporting ${selectedClass} Mathematics Academic Report as ${format.toUpperCase()}...`);
+    if (format === 'pdf') { window.print(); return; }
+    const rows = [['Student','Class','Subject','Average'], ...(reportData?.students || []).map((s: any) => [s.name,s.className,s.subject,s.avg ?? ''])];
+    const csv = rows.map(row => row.map((v: any) => '"' + String(v ?? '').replaceAll('"','""') + '"').join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
+    const link = document.createElement('a'); link.href=url; link.download='academic-report.csv'; link.click(); URL.revokeObjectURL(url);
   };
 
   if (loading) {
@@ -68,8 +74,8 @@ export const ReportsPane: React.FC<ReportsPaneProps> = ({ organizationId }) => {
   const strongCount = students.filter((s: any) => s.avg >= 80).length;
   const onTrackCount = students.filter((s: any) => s.avg >= 60 && s.avg < 80).length;
   const needsSupportCount = students.filter((s: any) => s.avg >= 45 && s.avg < 60).length;
-  const criticalCount = students.filter((s: any) => s.avg < 45).length;
-  const totalCount = students.length || 1;
+  const criticalCount = students.filter((s: any) => s.avg != null && s.avg < 45).length;
+  const totalCount = students.length || 0;
   const strongPct = students.length ? Math.round((strongCount / totalCount) * 100) : 0;
   const onTrackPct = students.length ? Math.round((onTrackCount / totalCount) * 100) : 0;
   const needsSupportPct = students.length ? Math.round((needsSupportCount / totalCount) * 100) : 0;
@@ -109,7 +115,7 @@ export const ReportsPane: React.FC<ReportsPaneProps> = ({ organizationId }) => {
                 </option>
               ))
             ) : (
-              <option value="10-A">Class 10-A (Mathematics)</option>
+              <option value="">No assigned classes</option>
             )}
           </select>
           <button

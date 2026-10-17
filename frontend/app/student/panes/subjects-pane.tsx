@@ -132,7 +132,7 @@ export const SubjectsPane: React.FC<SubjectsPaneProps> = ({ organizationId, onNa
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
               <span className="text-xs font-semibold text-slate-500 uppercase">Current Curriculum Chapter</span>
               <h4 className="text-sm font-bold text-slate-900">{selectedSubject.currentTopic}</h4>
-              <p className="text-xs text-slate-500">75% of unit completed in classroom lectures</p>
+              <p className="text-xs text-slate-500">See saved curriculum progress</p>
             </div>
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
               <span className="text-xs font-semibold text-slate-500 uppercase">Learning Outcomes Mastered</span>
@@ -144,7 +144,7 @@ export const SubjectsPane: React.FC<SubjectsPaneProps> = ({ organizationId, onNa
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
               <span className="text-xs font-semibold text-slate-500 uppercase">Classroom Pacing Status</span>
               <h4 className="text-sm font-bold text-emerald-600">On Schedule (NCERT)</h4>
-              <p className="text-xs text-slate-500">Aligned with CBSE Term 1 examination calendar</p>
+              <p className="text-xs text-slate-500">Enrolled subject information</p>
             </div>
           </div>
         </div>

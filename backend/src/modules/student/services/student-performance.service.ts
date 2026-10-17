@@ -1,91 +1,33 @@
 import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
+
 @Injectable()
 export class StudentPerformanceService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async getPerformance(organizationId: string, studentUserId: string) {
-    const overall = {
-      currentAverage: 82.0,
-      previousAverage: 77.0,
-      targetAverage: 85.0,
-      gap: -3.0,
-      trend: 'Improving',
-      growthPercentage: 5.0,
-    };
-
-    const monthlyTrends = [
-      { month: 'Jun 2026', percentage: 71.0 },
-      { month: 'Jul 2026', percentage: 75.0 },
-      { month: 'Aug 2026', percentage: 79.0 },
-      { month: 'Sep 2026', percentage: 82.0 },
-    ];
-
-    const subjectScores = [
-      { subject: 'Mathematics', score: 84.0, target: 90.0, trend: 'Improving', status: 'On Track' },
-      { subject: 'Science', score: 88.0, target: 90.0, trend: 'Improving', status: 'Strong' },
-      { subject: 'English', score: 79.0, target: 85.0, trend: 'Steady', status: 'On Track' },
-      { subject: 'Social Science', score: 81.0, target: 85.0, trend: 'Improving', status: 'On Track' },
-      { subject: 'Hindi', score: 83.0, target: 85.0, trend: 'Improving', status: 'On Track' },
-      { subject: 'Computer Science', score: 91.0, target: 95.0, trend: 'Improving', status: 'Strong' },
-    ];
-
-    const learningOutcomes = [
-      {
-        code: 'MATH-10-LO1',
-        subject: 'Mathematics',
-        title: 'Quadratic Equations & Roots Nature',
-        status: 'Achieved',
-        evidence: 'Scored 92% in Periodic Test 2 and 90% in Arena Practice Drill',
-      },
-      {
-        code: 'MATH-10-LO2',
-        subject: 'Mathematics',
-        title: 'Word Problems on Quadratic Applications',
-        status: 'Developing',
-        evidence: 'Partial credit in Assignment 3; needs extra multi-step word problem drill',
-      },
-      {
-        code: 'SCI-10-LO1',
-        subject: 'Science',
-        title: 'Balancing Chemical Equations & Redox',
-        status: 'Achieved',
-        evidence: '100% in Worksheet 2 and Lab Titration assessment',
-      },
-      {
-        code: 'ENG-10-LO1',
-        subject: 'English',
-        title: 'Formal Letter Writing & Structured Format',
-        status: 'Achieved',
-        evidence: 'Scored 9/10 in Assignment 3',
-      },
-      {
-        code: 'SST-10-LO1',
-        subject: 'Social Science',
-        title: 'Map Skills & Spatial Comprehension of Soil Types',
-        status: 'Needs Practice',
-        evidence: 'Requires review of Western Ghats soil demarcation on physical outline map',
-      },
-    ];
-
-    const competencies = [
-      { name: 'Problem Solving', level: 'Advanced', description: 'Strong analytical breakdown in multi-step equations.' },
-      { name: 'Conceptual Understanding', level: 'Proficient', description: 'Grasps fundamental principles quickly across STEM.' },
-      { name: 'Application & Inquiry', level: 'Developing', description: 'Applying formulas to real-world scenarios requires additional practice.' },
-      { name: 'Critical Thinking', level: 'Proficient', description: 'Evaluates logical arguments and scientific hypotheses well.' },
-      { name: 'Communication & Expression', level: 'Developing', description: 'Encourage longer written essays and oral class presentations.' },
-      { name: 'Collaboration & Teamwork', level: 'Advanced', description: 'Active contributor in Science practical group exercises.' },
-    ];
-
-    const holisticProgress = {
-      academicGrowth: 85,
-      cognitiveSkills: 82,
-      creativeExpression: 78,
-      physicalHealth: 88,
-      socialCollaboration: 90,
-      portfolioStatus: 'Up to Date',
-    };
-
-    return { overall, monthlyTrends, subjectScores, learningOutcomes, competencies, holisticProgress };
+    const results = await this.drizzle.query(
+      `SELECT subject_name AS subject, marks_obtained AS marks, max_marks AS max, percentage, grade,
+        to_char(published_at,'YYYY-MM') AS month
+       FROM principal_exam_results WHERE organization_id=$1 AND student_user_id=$2 AND status='Published'
+       ORDER BY published_at`, [organizationId, studentUserId]);
+    const grouped = new Map<string, number[]>();
+    const months = new Map<string, number[]>();
+    for (const r of results) {
+      if (!grouped.has(r.subject)) grouped.set(r.subject, []);
+      grouped.get(r.subject)!.push(Number(r.percentage));
+      if (!months.has(r.month)) months.set(r.month, []);
+      months.get(r.month)!.push(Number(r.percentage));
+    }
+    const average = (values: number[]) => values.length ? Number((values.reduce((a,b) => a+b,0)/values.length).toFixed(1)) : null;
+    const subjectScores = [...grouped].map(([subject, values]) => ({ subject, score: average(values), target: null, trend: null, status: 'Published' }));
+    const monthlyTrends = [...months].map(([month,values]) => ({ month, percentage: average(values) }));
+    const currentAverage = average(results.map(r => Number(r.percentage)));
+    const [holisticProgress] = await this.drizzle.query(
+      `SELECT cognitive_summary AS "cognitiveSummary", affective_summary AS "affectiveSummary",
+        socio_emotional_summary AS "socioEmotionalSummary", psychomotor_summary AS "psychomotorSummary", creative_summary AS "creativeSummary", teacher_reflection AS "teacherReflection"
+       FROM principal_holistic_progress WHERE organization_id=$1 AND student_user_id=$2 ORDER BY created_at DESC LIMIT 1`, [organizationId, studentUserId]);
+    return { overall: { currentAverage, previousAverage: null, targetAverage: null, gap: null, trend: null, growthPercentage: null },
+      monthlyTrends, subjectScores, learningOutcomes: [], competencies: [], holisticProgress: holisticProgress || {} };
   }
 }

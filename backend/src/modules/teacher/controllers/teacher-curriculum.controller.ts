@@ -27,8 +27,8 @@ export class TeacherCurriculumController {
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
     @Param('chapterId') chapterId: string,
     @Req() req: AuthenticatedRequest,
-    @Body('completedLessons') completedLessons: number
+    @Body('completionPct') completionPct: number
   ) {
-    return this.curriculumService.updateProgress(organizationId, req.user, chapterId, completedLessons);
+    return this.curriculumService.updateProgress(organizationId, req.user, chapterId, completionPct);
   }
 }

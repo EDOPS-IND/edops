@@ -1,3 +1,4 @@
+import { RequestErrorBanner } from "./request-error-banner";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import { headers } from "next/headers";
@@ -24,5 +25,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="en"><body className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable}`}>{children}</body></html>;
+  return <html lang="en"><body className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable}`}>{children}<RequestErrorBanner /></body></html>;
 }

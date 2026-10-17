@@ -87,7 +87,8 @@ export class AuthController {
     const [membership] = await this.auth.drizzle.query(
       `SELECT role FROM memberships WHERE user_id = $1 AND organization_id = $2 AND status = 'active' LIMIT 1`,
       [user.id, body.schoolId]
-    ).catch(() => []);
+    );
+    if (!membership && !user.isPlatformAdmin) throw new UnauthorizedException("Active school membership required");
     const accessToken = signAccessToken({
       sub: user.id,
       email: user.email,

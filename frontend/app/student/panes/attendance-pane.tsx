@@ -32,15 +32,7 @@ export const AttendancePane: React.FC<AttendancePaneProps> = ({ organizationId }
     return <div className="p-8 text-center text-slate-500 animate-pulse">Loading attendance records...</div>;
   }
 
-  const summary = data?.summary || {
-    overallPercentage: 94.0,
-    totalWorkingDays: 150,
-    presentDays: 141,
-    absentDays: 7,
-    lateDays: 2,
-    leaveDays: 3,
-    thresholdPercentage: 75.0,
-  };
+  const summary = data?.summary || { overallPercentage: 0, totalWorkingDays: 0, presentDays: 0, absentDays: 0, lateDays: 0, leaveDays: 0, thresholdPercentage: 0 };
 
   const subjectWise = data?.subjectWise || [];
   const calendarDays = data?.calendarDays || [];

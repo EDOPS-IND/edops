@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Users,
@@ -19,7 +19,7 @@ import {
   X,
   Plus,
 } from 'lucide-react';
-import { OrganizationSummary } from '../edops-api';
+import { loadRoleWorkspace, getParentChildDetails, createParentLeave, createParentQuery, OrganizationSummary } from '../edops-api';
 import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from './types';
 
 // Panes
@@ -53,78 +53,56 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
   const [activeTab, setActiveTab] = useState<ParentTab>('overview');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Wards List
-  const wards: WardInfo[] = [
-    {
-      studentUserId: 'std-demo-01',
-      name: 'Aarav Sharma',
-      email: 'aarav.sharma@school.edu',
-      rollNumber: '10A-24',
-      sectionName: 'Grade 10-A',
-      programName: 'Secondary CBSE Curriculum',
-      attendancePct: 96.2,
-      todayAttendance: 'Present',
-      checkInTime: '07:42 AM',
-      gradeScore: 88.5,
-      pendingHomeworkCount: 2,
-    },
-    {
-      studentUserId: 'std-demo-02',
-      name: 'Ananya Sharma',
-      email: 'ananya.sharma@school.edu',
-      rollNumber: '06B-12',
-      sectionName: 'Grade 6-B',
-      programName: 'Middle School CBSE Curriculum',
-      attendancePct: 98.0,
-      todayAttendance: 'Present',
-      checkInTime: '07:38 AM',
-      gradeScore: 94.0,
-      pendingHomeworkCount: 1,
-    },
-  ];
-
-  const [selectedWardId, setSelectedWardId] = useState<string>(initialWardId || wards[0].studentUserId);
-  const selectedWard = wards.find((w) => w.studentUserId === selectedWardId) || wards[0];
+  const [wards,setWards] = useState<WardInfo[]>([]);
+  const [loading,setLoading] = useState(true);
+  const [error,setError] = useState('');
+  const [selectedWardId,setSelectedWardId] = useState(initialWardId || '');
+  const [details,setDetails] = useState<any>(null);
+  const [detailLoading,setDetailLoading] = useState(false);
+  const selected = wards.find(w=>w.studentUserId===selectedWardId) || wards[0];
+  const refreshDetails = async () => {
+    if (!selected) return;
+    const data=await getParentChildDetails(organization.id,selected.studentUserId);
+    setDetails(data);setLeavesList(data.leaves);setQueriesList(data.queries);
+  };
+  const loadWards = async () => {
+    setLoading(true);setError('');
+    try {
+      const data=await loadRoleWorkspace(organization.id);
+      if (data.role!=='parent') throw new Error('Parent workspace required');
+      setWards(data.children as WardInfo[]);
+    } catch(e) { setError(e instanceof Error?e.message:'Unable to load children'); }
+    finally { setLoading(false); }
+  };
+  useEffect(()=>{ loadWards(); },[organization.id]);
+  useEffect(()=>{
+    let active=true;
+    setDetails(null);setLeavesList([]);setQueriesList([]);
+    if (!selected) return;
+    setDetailLoading(true);setError('');
+    getParentChildDetails(organization.id,selected.studentUserId).then(data=>{
+      if(active) { setDetails(data);setLeavesList(data.leaves);setQueriesList(data.queries); }
+    }).catch(e=>{ if(active) setError(e.message); }).finally(()=>{ if(active)setDetailLoading(false); });
+  return ()=>{ active=false; };
+  },[organization.id,selected?.studentUserId]);
+  const selectedWard = selected ? { ...selected,data:details,organizationId:organization.id,refresh:refreshDetails } : undefined;
 
   // Modals state
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
 
-  // Applications & Queries state
-  const [leavesList, setLeavesList] = useState<LeaveApplication[]>([
-    {
-      id: 'leave-1',
-      studentUserId: 'std-demo-01',
-      childName: 'Aarav Sharma',
-      leaveType: 'Medical / Doctor Visit',
-      startDate: '2026-10-05',
-      endDate: '2026-10-06',
-      reason: 'Dental checkup and follow-up appointment.',
-      status: 'approved',
-      submittedAt: '2026-10-04',
-    },
-  ]);
-
-  const [queriesList, setQueriesList] = useState<ParentQuery[]>([
-    {
-      id: 'qry-1',
-      studentUserId: 'std-demo-01',
-      childName: 'Aarav Sharma',
-      subject: 'Math Periodic Test 2 Feedback',
-      category: 'Academic Quality & Evaluation',
-      queryText: 'Requesting clarity on deduction in Section B calculus proofs.',
-      status: 'resolved',
-      submittedAt: '2026-10-08',
-    },
-  ]);
-
-  const handleApplyLeave = (newLeave: LeaveApplication) => {
-    setLeavesList([newLeave, ...leavesList]);
+  const [leavesList,setLeavesList] = useState<LeaveApplication[]>([]);
+  const [queriesList,setQueriesList] = useState<ParentQuery[]>([]);
+  const handleApplyLeave = async (leave: Pick<LeaveApplication,'leaveType'|'startDate'|'endDate'|'reason'>) => {
+    if (!selectedWard) throw new Error('Select a linked child');
+    await createParentLeave(organization.id,selectedWard.studentUserId,leave);
+    await refreshDetails();
   };
-
-  const handlePostQuery = (newQuery: ParentQuery) => {
-    setQueriesList([newQuery, ...queriesList]);
+  const handlePostQuery = async (query: Pick<ParentQuery,'subject'|'queryText'>) => {
+    if (!selectedWard) throw new Error('Select a linked child');
+    await createParentQuery(organization.id,selectedWard.studentUserId,query);
+    await refreshDetails();
   };
 
   const navItems = [
@@ -135,6 +113,9 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
     { id: 'ptm', label: 'PTM Slot Scheduling', icon: CalendarDays, tab: 'ptm' as ParentTab },
     { id: 'notices', label: 'School Notices & Grievance', icon: Bell, tab: 'notices' as ParentTab },
   ];
+
+    if (loading) return <div className="p-8">Loading linked children…</div>;
+  if (!selectedWard) return <div className="p-8 space-y-4"><h1>Parent portal</h1><p>{error || 'No verified children are linked to your account.'}</p><button onClick={loadWards}>Retry</button><button onClick={onLogout}>Sign out</button></div>;
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col antialiased text-slate-800">
@@ -234,9 +215,9 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
           <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
             <div
               className="w-8 h-8 rounded-full bg-[#090D16] text-white flex items-center justify-center font-bold text-xs border border-[#1A243D]"
-              title="Rajesh Sharma (Guardian)"
+              title="Parent account"
             >
-              RS
+              P
             </div>
             <button
               onClick={onLogout}
@@ -364,13 +345,15 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
               <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
               <span>Verified Guardian Session</span>
             </div>
-            <p className="text-slate-300">Rajesh Sharma • 2 Linked Wards</p>
+            <p className="text-slate-300">{wards.length} linked children</p>
           </div>
         </aside>
 
         {/* 4. MAIN CONTENT CANVASES */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
+            {error && <div role="alert" className="p-4 mb-4 bg-red-50 text-red-800">{error} <button onClick={()=>refreshDetails().then(()=>setError('')).catch(e=>setError(e.message))}>Retry</button></div>}
+            {detailLoading && <p>Loading child records…</p>}
             {activeTab === 'overview' && (
               <OverviewPane
                 selectedWard={selectedWard}
@@ -408,7 +391,6 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
               <NoticesPane
                 selectedWard={selectedWard}
                 queriesList={queriesList}
-                messages={[]}
                 onOpenQueryModal={() => setQueryModalOpen(true)}
               />
             )}

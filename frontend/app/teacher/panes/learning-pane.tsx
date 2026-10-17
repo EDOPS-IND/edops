@@ -33,11 +33,11 @@ export function LearningPane({
   const [activeTab, setActiveTab] = useState<"plans" | "materials" | "reflections">("plans");
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [matTitle, setMatTitle] = useState("");
-  const [matChapter, setMatChapter] = useState("Quadratic Equations");
-  const [matTopic, setMatTopic] = useState("Roots & Discriminant");
+  const [matChapter, setMatChapter] = useState("");
+  const [matTopic, setMatTopic] = useState("");
   const [matSectionId, setMatSectionId] = useState("");
   const [matFileType, setMatFileType] = useState("pdf");
-  const [matFileUrl, setMatFileUrl] = useState("https://cdn.edops.in/demo/quad-notes.pdf");
+  const [matFileUrl, setMatFileUrl] = useState("");
   const [savingMaterial, setSavingMaterial] = useState(false);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export function LearningPane({
       const cls = res?.classes || [];
       setClassesList(cls);
       if (cls.length > 0) {
-        setMatSectionId(cls[0].sectionId);
+        setMatSectionId(`${cls[0].sectionId}:${cls[0].subjectId}`);
       }
     } catch {
       setClassesList([]);
@@ -266,8 +266,8 @@ export function LearningPane({
                 setSavingMaterial(true);
                 try {
                   await uploadTeacherStudyMaterial(organizationId, {
-                    sectionId: matSectionId,
-                    subjectId: "sub-math",
+                    sectionId: matSectionId.split(":")[0],
+                    subjectId: matSectionId.split(":")[1],
                     chapter: matChapter,
                     topic: matTopic,
                     title: matTitle,
@@ -278,7 +278,7 @@ export function LearningPane({
                   setMatTitle("");
                   loadLearning();
                 } catch {
-                  setUploadModalOpen(false);
+                  // The shared request banner reports the failure; keep the form for retry.
                 } finally {
                   setSavingMaterial(false);
                 }
@@ -307,7 +307,7 @@ export function LearningPane({
                   >
                     {classesList.length > 0 ? (
                       classesList.map((c) => (
-                        <option key={c.sectionId || c.className} value={c.sectionId || c.className}>
+                        <option key={`${c.sectionId}:${c.subjectId}`} value={`${c.sectionId}:${c.subjectId}`}>
                           {c.className} ({c.subjectName})
                         </option>
                       ))

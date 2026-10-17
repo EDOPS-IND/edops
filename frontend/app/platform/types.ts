@@ -15,7 +15,6 @@ export type School = {
   state?: string;
   officialEmail?: string;
   officialPhone?: string;
-  principalName?: string;
   healthScore?: number;
   storageUsageGb?: number;
   apiRequests?: number;

@@ -18,9 +18,10 @@ export function CreateInterventionModal({
   onClose,
   organizationId,
   defaultStudentId = "",
-  defaultSubjectId = "sub-math",
+  defaultSubjectId = "",
   onSuccess,
 }: CreateInterventionModalProps) {
+  const [subjectId, setSubjectId] = useState(defaultSubjectId);
   const [students, setStudents] = useState<any[]>([]);
   const [studentId, setStudentId] = useState(defaultStudentId);
   const [problemArea, setProblemArea] = useState("");
@@ -30,6 +31,7 @@ export function CreateInterventionModal({
   const [interventionType, setInterventionType] = useState("Remedial Practice");
   const [reviewDate, setReviewDate] = useState(new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     if (isOpen) {
@@ -41,6 +43,8 @@ export function CreateInterventionModal({
     try {
       const clsRes = await getTeacherClasses(organizationId);
       const firstSection = clsRes?.classes?.[0]?.sectionId;
+      setSubjectId(clsRes?.classes?.[0]?.subjectId || "");
+      if (!firstSection) { setStudents([]); return; }
       const res = await getTeacherClassStudents(organizationId, firstSection);
       const list = res?.students || [];
       setStudents(list);
@@ -56,23 +60,23 @@ export function CreateInterventionModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setSaving(true);
     try {
       await createTeacherIntervention(organizationId, {
-        studentId: studentId || "std-target",
-        subjectId: defaultSubjectId,
-        problemArea: problemArea || "Targeted academic support",
-        evidence: evidence || "Academic assessment performance",
-        goal: goal || "Achieve proficiency in core competencies",
-        recommendedAction: recommendedAction || "After-school remedial drill",
+        studentId,
+        subjectId,
+        problemArea,
+        evidence,
+        goal,
+        recommendedAction,
         interventionType,
         reviewDate,
       });
       if (onSuccess) onSuccess();
       onClose();
-    } catch {
-      if (onSuccess) onSuccess();
-      onClose();
+    } catch (err: any) {
+      setError(err?.message || "Could not save. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -96,6 +100,7 @@ export function CreateInterventionModal({
           </button>
         </div>
 
+        {error && <p role="alert" className="text-red-600">{error}</p>}
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -217,7 +222,7 @@ export function CreateInterventionModal({
             </button>
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || !studentId || !subjectId}
               className="px-4 py-1.5 font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg shadow-sm transition"
             >
               {saving ? "Registering..." : "Assign Intervention"}

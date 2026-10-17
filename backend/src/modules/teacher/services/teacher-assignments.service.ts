@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { AssignmentsService } from '../../assignments/assignments.service';
 import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '../../auth/user.entity';
@@ -5,7 +7,7 @@ import { CreateTeacherAssignmentDto, GradeSubmissionDto } from '../dto/teacher.d
 
 @Injectable()
 export class TeacherAssignmentsService {
-  constructor(private readonly drizzle: DrizzleService) {}
+  constructor(private readonly drizzle: DrizzleService,private readonly assignmentsService:AssignmentsService) {}
 
   async getAssignments(organizationId: string, user: User) {
     try {
@@ -21,9 +23,9 @@ export class TeacherAssignmentsService {
          FROM assignments a
          LEFT JOIN sections sec ON sec.id = a.section_id AND sec.organization_id = a.organization_id
          LEFT JOIN subjects sub ON sub.id = a.subject_id AND sub.organization_id = a.organization_id
-         WHERE a.organization_id = $1
+         WHERE a.organization_id = $1 AND a.created_by=$2
          ORDER BY a.created_at DESC`,
-        [organizationId]
+        [organizationId,user.id]
       );
 
       if (rows && rows.length > 0) {
@@ -48,7 +50,7 @@ export class TeacherAssignmentsService {
         });
         return { assignments };
       }
-    } catch {}
+    } catch (error) { throw error; }
 
     return { assignments: [] };
   }
@@ -68,9 +70,9 @@ export class TeacherAssignmentsService {
          JOIN users u ON u.id = s.student_id
          LEFT JOIN enrollments e ON e.organization_id = s.organization_id AND e.student_user_id = s.student_id AND e.section_id = a.section_id
          LEFT JOIN sections sec ON sec.id = a.section_id AND sec.organization_id = a.organization_id
-         WHERE s.organization_id = $1 AND s.status IN ('submitted', 'late')
+         WHERE s.organization_id = $1 AND a.created_by=$2 AND s.status IN ('submitted', 'late')
          ORDER BY s.submitted_at DESC NULLS LAST LIMIT 20`,
-        [organizationId]
+        [organizationId,user.id]
       );
 
       if (rows && rows.length > 0) {
@@ -89,132 +91,19 @@ export class TeacherAssignmentsService {
         }));
         return { pendingQueue };
       }
-    } catch {}
+    } catch (error) { throw error; }
 
     return { pendingQueue: [] };
   }
 
   async createAssignment(organizationId: string, user: User, dto: CreateTeacherAssignmentDto) {
-    let resolvedSectionId = dto.sectionId;
-    let resolvedSubjectId = dto.subjectId;
-
-    // Resolve sectionId
-    try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.sectionId);
-      if (!isUuid) {
-        const cleanName = dto.sectionId.replace(/^sec-/, '').replace('-', ' ');
-        const [sec] = await this.drizzle.query(
-          `SELECT id FROM sections WHERE organization_id = $1 AND (name ILIKE $2 OR name ILIKE $3) LIMIT 1`,
-          [organizationId, `%${cleanName}%`, dto.sectionId]
-        );
-        if (sec?.id) resolvedSectionId = sec.id;
-        else {
-          const [firstSec] = await this.drizzle.query(
-            `SELECT id FROM sections WHERE organization_id = $1 LIMIT 1`,
-            [organizationId]
-          );
-          if (firstSec?.id) resolvedSectionId = firstSec.id;
-        }
-      }
-    } catch {}
-
-    // Resolve subjectId
-    try {
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(dto.subjectId);
-      if (!isUuid) {
-        const [sub] = await this.drizzle.query(
-          `SELECT id FROM subjects WHERE organization_id = $1 LIMIT 1`,
-          [organizationId]
-        );
-        if (sub?.id) resolvedSubjectId = sub.id;
-      }
-    } catch {}
-
-    // Resolve creator in memberships
-    let creatorId = user.id;
-    try {
-      const [m] = await this.drizzle.query(
-        `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
-        [organizationId, user.id]
-      );
-      if (!m) {
-        const [anyMember] = await this.drizzle.query(
-          `SELECT user_id FROM memberships WHERE organization_id = $1 LIMIT 1`,
-          [organizationId]
-        );
-        if (anyMember?.user_id) creatorId = anyMember.user_id;
-      }
-    } catch {}
-
-    const [inserted] = await this.drizzle.query(
-      `INSERT INTO assignments (
-        organization_id, section_id, subject_id, created_by, title, description, due_at, max_score, status, published_at
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'published', now())
-      RETURNING *`,
-      [
-        organizationId,
-        resolvedSectionId,
-        resolvedSubjectId,
-        creatorId,
-        dto.title,
-        dto.description || '',
-        dto.dueAt || new Date(Date.now() + 7 * 86400000).toISOString(),
-        dto.maxScore || 20,
-      ]
-    );
-
-    // Create submissions placeholders for students enrolled in section
-    try {
-      await this.drizzle.query(
-        `INSERT INTO submissions (organization_id, assignment_id, student_id, status)
-         SELECT $1, $2, e.student_user_id, 'pending'
-         FROM enrollments e
-         JOIN memberships m ON m.organization_id = e.organization_id AND m.user_id = e.student_user_id
-         WHERE e.organization_id = $1 AND e.section_id = $3 AND e.status = 'active'
-         ON CONFLICT (organization_id, assignment_id, student_id) DO NOTHING`,
-        [organizationId, inserted.id, resolvedSectionId]
-      );
-    } catch {}
-
-    return {
-      success: true,
-      assignment: inserted,
-      message: 'Assignment published to student portals.',
-    };
+    const assignment=await this.assignmentsService.create(organizationId,user,{sectionId:dto.sectionId,subjectId:dto.subjectId,title:dto.title,description:dto.description || '',dueAt:dto.dueAt,maxScore:dto.maxScore},randomUUID());
+    const published=await this.assignmentsService.publish(organizationId,user,assignment.id,randomUUID());
+    return { success:true,assignment:published };
   }
 
   async gradeSubmission(organizationId: string, user: User, submissionId: string, dto: GradeSubmissionDto) {
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(submissionId);
-    if (isUuid) {
-      try {
-        let graderId = user.id;
-        const [m] = await this.drizzle.query(
-          `SELECT user_id FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1`,
-          [organizationId, user.id]
-        );
-        if (!m) {
-          const [anyMember] = await this.drizzle.query(
-            `SELECT user_id FROM memberships WHERE organization_id = $1 LIMIT 1`,
-            [organizationId]
-          );
-          if (anyMember?.user_id) graderId = anyMember.user_id;
-        }
-
-        await this.drizzle.query(
-          `UPDATE submissions
-           SET score = $1, feedback = $2, graded_by = $3, graded_at = now(), status = 'graded'
-           WHERE organization_id = $4 AND id = $5`,
-          [dto.score, dto.feedback || 'Evaluated', graderId, organizationId, submissionId]
-        );
-      } catch {}
-    }
-
-    return {
-      success: true,
-      submissionId,
-      score: dto.score,
-      message: 'Submission graded and feedback sent to student.',
-    };
+    const submission=await this.assignmentsService.grade(organizationId,user,submissionId,{score:dto.score,feedback:dto.feedback});
+    return { success:true,submissionId:submission.id,score:submission.score };
   }
 }

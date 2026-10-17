@@ -29,9 +29,7 @@ export class TeacherTimetableService {
          ORDER BY t.period_number ASC`,
         [organizationId, user?.id, todayNum],
       );
-    } catch {
-      slots = [];
-    }
+    } catch (error) { throw error; }
 
     // Query today's finalized attendance sessions
     let markedSet = new Set<string>();
@@ -42,7 +40,7 @@ export class TeacherTimetableService {
         [organizationId]
       );
       markedSet = new Set((markedSessions || []).map((m: any) => `${m.section_id}_${m.period}`));
-    } catch {}
+    } catch (error) { throw error; }
 
     const now = new Date();
     const currentMins = now.getHours() * 60 + now.getMinutes();
@@ -131,7 +129,7 @@ export class TeacherTimetableService {
           });
         }
       }
-    } catch {}
+    } catch (error) { throw error; }
 
     const totalWeekly = Object.values(grid).reduce((sum, list) => sum + list.length, 0);
 

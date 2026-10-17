@@ -1,11 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { FeeStructureRecord, FeeDefaulterRecord } from "./types";
 import {
   getSchoolAdminFinance,
   sendSchoolAdminFeeReminder,
   grantSchoolAdminFeeConcession,
+  createSchoolAdminFeeStructure,
+  recordSchoolAdminFeePayment,
+  batchSendSchoolAdminFeeReminders,
 } from "../edops-api";
 import {
   CreditCard,
@@ -17,83 +20,292 @@ import {
   Plus,
   Search,
   Filter,
+  X,
 } from "lucide-react";
 
 export function FinancePane({ organizationId }: { organizationId?: string }) {
   const [subtab, setSubtab] = useState<"dashboard" | "defaulters" | "structure">("dashboard");
   const [loading, setLoading] = useState(false);
+  const [financeData, setFinanceData] = useState<any>(null);
 
-  const [feeStructures, setFeeStructures] = useState<FeeStructureRecord[]>([
-    { id: "fs-1", grade: "Grade 10", tuitionFee: 42000, annualFee: 12000, transportFee: 15000, examFee: 2500, totalFee: 71500, frequency: "Quarterly" },
-    { id: "fs-2", grade: "Grade 9", tuitionFee: 38000, annualFee: 12000, transportFee: 15000, examFee: 2500, totalFee: 67500, frequency: "Quarterly" },
-    { id: "fs-3", grade: "Grade 11 & 12 (Science)", tuitionFee: 55000, annualFee: 15000, transportFee: 15000, examFee: 3500, totalFee: 88500, frequency: "Quarterly" },
-    { id: "fs-4", grade: "Middle School (6-8)", tuitionFee: 32000, annualFee: 10000, transportFee: 14000, examFee: 2000, totalFee: 58000, frequency: "Quarterly" },
-  ]);
+  const [feeStructures, setFeeStructures] = useState<FeeStructureRecord[]>([]);
+  const [defaulters, setDefaulters] = useState<FeeDefaulterRecord[]>([]);
 
-  const [defaulters, setDefaulters] = useState<FeeDefaulterRecord[]>([
-    { id: "def-1", studentName: "Ananya Iyer", admissionNo: "ED-2024-042", grade: "Grade 10", section: "10-A", parentName: "Venkat Iyer", parentPhone: "+91 98112 34567", amountDue: 18500, daysOverdue: 22, lastPaymentDate: "2026-06-20" },
-    { id: "def-2", studentName: "Rohan Verma", admissionNo: "ED-2024-089", grade: "Grade 9", section: "9-B", parentName: "Sunil Verma", parentPhone: "+91 97123 98765", amountDue: 17000, daysOverdue: 35, lastPaymentDate: "2026-06-15" },
-    { id: "def-3", studentName: "Manav Joshi", admissionNo: "ED-2023-140", grade: "Grade 11", section: "11-A", parentName: "Dinesh Joshi", parentPhone: "+91 98889 11223", amountDue: 22000, daysOverdue: 42, lastPaymentDate: "2026-05-10" },
-  ]);
+  // Modals & Forms State
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentDueId, setPaymentDueId] = useState("");
+  const [paymentAmount, setPaymentAmount] = useState<number | string>("");
+  const [paymentMode, setPaymentMode] = useState<string>("cash");
+  const [referenceNo, setReferenceNo] = useState("");
+  const [paymentNotes, setPaymentNotes] = useState("");
+  const [submittingPayment, setSubmittingPayment] = useState(false);
 
-  useEffect(() => {
+  const [showConcessionModal, setShowConcessionModal] = useState(false);
+  const [concessionDue, setConcessionDue] = useState<FeeDefaulterRecord | null>(null);
+  const [concessionAmount, setConcessionAmount] = useState<number | string>("");
+  const [concessionReason, setConcessionReason] = useState("");
+  const [submittingConcession, setSubmittingConcession] = useState(false);
+
+  const [showStructureModal, setShowStructureModal] = useState(false);
+  const [structureName, setStructureName] = useState("");
+  const [structureClassDigit, setStructureClassDigit] = useState("");
+  const [structureAcademicYearId, setStructureAcademicYearId] = useState("");
+  const [tuitionFee, setTuitionFee] = useState<number | string>("");
+  const [developmentFee, setDevelopmentFee] = useState<number | string>("");
+  const [transportFee, setTransportFee] = useState<number | string>("");
+  const [labFee, setLabFee] = useState<number | string>("");
+  const [installmentsCount, setInstallmentsCount] = useState<number>(4);
+  const [submittingStructure, setSubmittingStructure] = useState(false);
+
+  const [batchSending, setBatchSending] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const fetchFinance = async () => {
     if (!organizationId) return;
     setLoading(true);
-    getSchoolAdminFinance(organizationId)
-      .then((data) => {
-        if (data?.structures && Array.isArray(data.structures) && data.structures.length > 0) {
-          setFeeStructures(
-            data.structures.map((s: any) => ({
-              id: s.id,
-              grade: s.grade || s.name,
-              tuitionFee: Number(s.tuition_fee || 0),
-              annualFee: Number(s.development_fee || 0),
-              transportFee: Number(s.transport_fee || 0),
-              examFee: Number((s.lab_fee || 0) + (s.library_fee || 0)),
-              totalFee: Number(s.total_annual || 0),
-              frequency: `${s.installments_count || 4} Installments`,
-            }))
-          );
-        }
-        if (data?.dues && Array.isArray(data.dues) && data.dues.length > 0) {
-          setDefaulters(
-            data.dues.map((d: any) => ({
-              id: d.id,
-              studentName: d.student_name,
-              admissionNo: `ADM-${d.roll_number || "01"}`,
-              grade: "Class",
-              section: d.section_name || "Section",
-              parentName: "Parent/Guardian",
-              parentPhone: "+91 98112 34567",
-              amountDue: Number(d.amount_pending || 0),
-              daysOverdue: Number(d.days_overdue || 0),
-              lastPaymentDate: d.due_date ? String(d.due_date).slice(0, 10) : "2026-09-01",
-            }))
-          );
-        }
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    try {
+      const data = await getSchoolAdminFinance(organizationId);
+      setFinanceData(data);
+      if (data?.structures && Array.isArray(data.structures)) {
+        setFeeStructures(
+          data.structures.map((s: any) => ({
+            id: s.id,
+            grade: s.grade || s.name,
+            tuitionFee: Number(s.tuition_fee || 0),
+            annualFee: Number(s.development_fee || 0),
+            transportFee: Number(s.transport_fee || 0),
+            examFee: Number((s.lab_fee || 0) + (s.library_fee || 0)),
+            totalFee: Number(s.total_annual || 0),
+            frequency: s.installments_count == null ? "Not recorded" : `${s.installments_count} Installments`,
+          }))
+        );
+      }
+      if (data?.dues && Array.isArray(data.dues)) {
+        setDefaulters(
+          data.dues.map((d: any) => ({
+            id: d.id,
+            studentName: d.student_name,
+            admissionNo: d.admission_number || d.roll_number || "—",
+            grade: d.grade || "Class",
+            section: d.section_name || "Section",
+            parentName: d.guardian_name || "Parent/Guardian",
+            parentPhone: d.guardian_phone || "Not on file",
+            amountDue: Number(d.amount_pending || 0),
+            daysOverdue: Number(d.days_overdue || 0),
+            lastPaymentDate: d.due_date ? String(d.due_date).slice(0, 10) : "",
+          }))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFinance();
   }, [organizationId]);
 
-  const handleSendReminder = (dueId: string, phone: string) => {
-    if (organizationId) {
-      sendSchoolAdminFeeReminder(organizationId, dueId, "whatsapp").catch(() => {});
+  const handleSendReminder = async (dueId: string) => {
+    if (!organizationId) return;
+    try {
+      await sendSchoolAdminFeeReminder(organizationId, dueId, "in_app");
+      setToastMessage("Reminder dispatched directly to parent inbox.");
+      setTimeout(() => setToastMessage(null), 3000);
+    } catch (err: any) {
+      alert(err.message || "Failed to send reminder");
     }
-    alert(`Sent WhatsApp Fee Reminder to ${phone}`);
+  };
+
+  const handleBatchSendReminders = async () => {
+    if (!organizationId) return;
+    const unpaid = defaulters.filter((d) => d.amountDue > 0);
+    if (unpaid.length === 0) {
+      alert("No students with pending dues found to send reminders to.");
+      return;
+    }
+    setBatchSending(true);
+    try {
+      const res = await batchSendSchoolAdminFeeReminders(organizationId, "in_app");
+      setToastMessage(`Dispatched fee reminders to ${res.sentCount || 0} parent inboxes.`);
+      setTimeout(() => setToastMessage(null), 4000);
+      await fetchFinance();
+    } catch (err: any) {
+      alert(err.message || "Failed to send batch fee reminders.");
+    } finally {
+      setBatchSending(false);
+    }
+  };
+
+  const openPaymentForDue = (due?: FeeDefaulterRecord) => {
+    if (due) {
+      setPaymentDueId(due.id);
+      setPaymentAmount(due.amountDue > 0 ? due.amountDue : "");
+    } else {
+      setPaymentDueId(defaulters[0]?.id || "");
+      setPaymentAmount(defaulters[0]?.amountDue > 0 ? defaulters[0]?.amountDue : "");
+    }
+    setShowPaymentModal(true);
+  };
+
+  const handleRecordPayment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!organizationId || !paymentDueId || !paymentAmount) return;
+    setSubmittingPayment(true);
+    try {
+      await recordSchoolAdminFeePayment(organizationId, {
+        dueId: paymentDueId,
+        amount: Number(paymentAmount),
+        paymentMode,
+        referenceNo: referenceNo.trim() || undefined,
+        notes: paymentNotes.trim() || undefined,
+      });
+      setShowPaymentModal(false);
+      setPaymentDueId("");
+      setPaymentAmount("");
+      setReferenceNo("");
+      setPaymentNotes("");
+      setToastMessage("Payment recorded successfully!");
+      setTimeout(() => setToastMessage(null), 3000);
+      await fetchFinance();
+    } catch (err: any) {
+      alert(err.message || "Failed to record payment");
+    } finally {
+      setSubmittingPayment(false);
+    }
+  };
+
+  const openConcession = (due: FeeDefaulterRecord) => {
+    setConcessionDue(due);
+    setConcessionAmount("");
+    setConcessionReason("");
+    setShowConcessionModal(true);
+  };
+
+  const handleApplyConcession = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!organizationId || !concessionDue || !concessionAmount || !concessionReason.trim()) return;
+    setSubmittingConcession(true);
+    try {
+      await grantSchoolAdminFeeConcession(
+        organizationId,
+        concessionDue.id,
+        Number(concessionAmount),
+        concessionReason.trim()
+      );
+      setShowConcessionModal(false);
+      setConcessionDue(null);
+      setConcessionAmount("");
+      setConcessionReason("");
+      setToastMessage("Audited fee concession applied successfully!");
+      setTimeout(() => setToastMessage(null), 3000);
+      await fetchFinance();
+    } catch (err: any) {
+      alert(err.message || "Failed to apply concession");
+    } finally {
+      setSubmittingConcession(false);
+    }
+  };
+
+  const handleCreateStructure = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!organizationId || !structureName.trim() || !structureClassDigit.trim()) return;
+    setSubmittingStructure(true);
+    try {
+      await createSchoolAdminFeeStructure(organizationId, {
+        name: structureName.trim(),
+        grade: `Class ${structureClassDigit.trim()}`,
+        academicYearId: structureAcademicYearId || undefined,
+        tuitionFee: Number(tuitionFee || 0),
+        developmentFee: Number(developmentFee || 0),
+        transportFee: Number(transportFee || 0),
+        labFee: Number(labFee || 0),
+        libraryFee: 0,
+        installmentsCount: Number(installmentsCount || 4),
+      });
+      setShowStructureModal(false);
+      setStructureName("");
+      setStructureClassDigit("");
+      setTuitionFee("");
+      setDevelopmentFee("");
+      setTransportFee("");
+      setLabFee("");
+      setToastMessage("Class fee structure registered!");
+      setTimeout(() => setToastMessage(null), 3000);
+      await fetchFinance();
+    } catch (err: any) {
+      alert(err.message || "Failed to create fee structure");
+    } finally {
+      setSubmittingStructure(false);
+    }
   };
 
   const totalPending = defaulters.reduce((acc, d) => acc + d.amountDue, 0);
 
+  const collectionTrends = useMemo(() => {
+    const dues = financeData?.dues || [];
+    if (!dues.length) return [];
+    const map: Record<string, { collected: number; total: number }> = {};
+    for (const d of dues) {
+      const label = d.section_name || d.grade || "General";
+      const key = label.includes(" ") ? label.split(" ")[0] : label;
+      if (!map[key]) map[key] = { collected: 0, total: 0 };
+      map[key].collected += Number(d.amount_paid || 0);
+      map[key].total += Number(d.total_due || 0);
+    }
+    return Object.entries(map).map(([wing, s]) => ({
+      wing: wing.startsWith("Class") ? wing : `Class ${wing}`,
+      collected: `₹${s.collected.toLocaleString("en-IN")}`,
+      total: `₹${s.total.toLocaleString("en-IN")}`,
+      pct: s.total > 0 ? Math.round((s.collected / s.total) * 100) : 0,
+    }));
+  }, [financeData?.dues]);
+
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
-      {/* Subtab Selector */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E2DDD5", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+    <div style={{ display: "grid", gap: "20px", position: "relative" }}>
+      {/* Toast Feedback */}
+      {toastMessage && (
+        <div
+          style={{
+            position: "fixed",
+            bottom: "24px",
+            right: "24px",
+            background: "#064E3B",
+            color: "#F8E7C9",
+            padding: "12px 20px",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+            zIndex: 9999,
+            fontSize: "13px",
+            fontWeight: 700,
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+          }}
+        >
+          <CheckCircle2 size={16} />
+          {toastMessage}
+        </div>
+      )}
+
+      {/* Subtab Selector & Action Bar */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          borderBottom: "1px solid #E2DDD5",
+          paddingBottom: "12px",
+          flexWrap: "wrap",
+          gap: "10px",
+        }}
+      >
         <div style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "dashboard", label: "Fee Collections Overview (§41)" },
             { id: "defaulters", label: `Fee Defaulters Desk (${defaulters.length})` },
-            { id: "structure", label: `Grade Fee Structures (${feeStructures.length})` },
+            { id: "structure", label: `Class Fee Structures (${feeStructures.length})` },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -114,7 +326,22 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
           ))}
         </div>
 
-        <button style={{ padding: "8px 16px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+        <button
+          onClick={() => openPaymentForDue()}
+          style={{
+            padding: "8px 16px",
+            background: "#064E3B",
+            color: "#F8E7C9",
+            border: "none",
+            borderRadius: "8px",
+            fontSize: "12.5px",
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
           <Plus size={15} /> Record Offline Payment
         </button>
       </div>
@@ -125,46 +352,61 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
             <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
               <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Q3 Expected Target</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>₹1.56 Cr</div>
+              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>
+                ₹{(financeData?.dues || []).reduce((sum: number, d: any) => sum + Number(d.total_due || 0), 0).toLocaleString("en-IN")}
+              </div>
               <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Total Tuition & Transports</span>
             </div>
             <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
               <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Total Collected</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>₹1.42 Cr</div>
-              <span style={{ fontSize: "11.5px", color: "#064E3B", fontWeight: 700 }}>91.0% Realized</span>
+              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>
+                ₹{(financeData?.dues || []).reduce((sum: number, d: any) => sum + Number(d.amount_paid || 0), 0).toLocaleString("en-IN")}
+              </div>
+              <span style={{ fontSize: "11.5px", color: "#064E3B", fontWeight: 700 }}>Saved collections</span>
             </div>
             <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
               <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Pending / Overdue</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#B45309", margin: "4px 0" }}>₹14.2 Lakh</div>
-              <span style={{ fontSize: "11.5px", color: "#B45309", fontWeight: 700 }}>64 Unpaid Student Accounts</span>
+              <div style={{ fontSize: "26px", fontWeight: 800, color: "#B45309", margin: "4px 0" }}>
+                ₹{totalPending.toLocaleString("en-IN")}
+              </div>
+              <span style={{ fontSize: "11.5px", color: "#B45309", fontWeight: 700 }}>
+                {defaulters.filter((d) => d.amountDue > 0).length} unpaid accounts
+              </span>
             </div>
             <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Today's Counter Collection</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>₹84,500</div>
-              <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>6 Receipts (UPI & NetBanking)</span>
+              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Active Fee Structures</span>
+              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>
+                {feeStructures.length}
+              </div>
+              <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Configured across classes</span>
             </div>
           </div>
 
           <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
-            <h3 style={{ margin: "0 0 14px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Quarterly Collection Trends by Wing</h3>
-            <div style={{ display: "grid", gap: "10px" }}>
-              {[
-                { wing: "Senior Secondary (11-12)", collected: "₹42.8 Lakh", total: "₹45.0 Lakh", pct: 95 },
-                { wing: "Secondary Wing (9-10)", collected: "₹46.2 Lakh", total: "₹51.0 Lakh", pct: 90 },
-                { wing: "Middle School (6-8)", collected: "₹34.5 Lakh", total: "₹38.5 Lakh", pct: 89 },
-                { wing: "Primary & Foundational (Nur-5)", collected: "₹18.5 Lakh", total: "₹21.5 Lakh", pct: 86 },
-              ].map((w, idx) => (
-                <div key={idx} style={{ padding: "12px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E2DDD5" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-                    <b>{w.wing}</b>
-                    <span style={{ fontWeight: 700, color: "#064E3B" }}>{w.collected} / {w.total} ({w.pct}%)</span>
+            <h3 style={{ margin: "0 0 14px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
+              Collection Trends by Class
+            </h3>
+            {collectionTrends.length > 0 ? (
+              <div style={{ display: "grid", gap: "10px" }}>
+                {collectionTrends.map((w, idx) => (
+                  <div key={idx} style={{ padding: "12px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E2DDD5" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
+                      <b>{w.wing}</b>
+                      <span style={{ fontWeight: 700, color: "#064E3B" }}>
+                        {w.collected} / {w.total} ({w.pct}%)
+                      </span>
+                    </div>
+                    <div style={{ width: "100%", height: "6px", background: "#E2DDD5", borderRadius: "3px", marginTop: "8px", overflow: "hidden" }}>
+                      <div style={{ width: `${w.pct}%`, height: "100%", background: "#064E3B" }} />
+                    </div>
                   </div>
-                  <div style={{ width: "100%", height: "6px", background: "#E2DDD5", borderRadius: "3px", marginTop: "8px", overflow: "hidden" }}>
-                    <div style={{ width: `${w.pct}%`, height: "100%", background: "#064E3B" }} />
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ color: "var(--muted)", fontSize: "13px", padding: "20px", textAlign: "center", background: "#FAF8F5", borderRadius: "8px" }}>
+                No fee collection activity recorded yet.
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -172,13 +414,32 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
       {/* 2. FEE DEFAULTERS ACTION DESK (§42) */}
       {subtab === "defaulters" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
             <div>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Fee Defaulters Desk (§42)</h3>
-              <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Direct actionable operational triggers: Send Reminder, View Ledger, Record Payment, or Apply Concession</p>
+              <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>
+                Direct actionable operational triggers: Send Reminder, Record Payment, or Apply Concession
+              </p>
             </div>
-            <button style={{ padding: "8px 16px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
-              Batch Send WhatsApp Payment Link
+            <button
+              onClick={handleBatchSendReminders}
+              disabled={batchSending}
+              style={{
+                padding: "8px 16px",
+                background: batchSending ? "#9CA3AF" : "#064E3B",
+                color: "#F8E7C9",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "12px",
+                fontWeight: 700,
+                cursor: batchSending ? "not-allowed" : "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <Send size={13} />
+              {batchSending ? "Dispatching..." : "Batch Send Payment Link & Reminders"}
             </button>
           </div>
 
@@ -190,64 +451,146 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                 <th style={{ padding: "10px" }}>Parent / Contact</th>
                 <th style={{ padding: "10px" }}>Amount Due</th>
                 <th style={{ padding: "10px" }}>Days Overdue</th>
-                <th style={{ padding: "10px" }}>Last Payment</th>
+                <th style={{ padding: "10px" }}>Due Date</th>
                 <th style={{ padding: "10px", textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {defaulters.map((d) => (
-                <tr key={d.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
-                  <td style={{ padding: "12px 10px" }}>
-                    <b>{d.studentName}</b>
-                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>{d.admissionNo}</div>
-                  </td>
-                  <td style={{ padding: "12px 10px" }}>{d.section}</td>
-                  <td style={{ padding: "12px 10px" }}>
-                    <div>{d.parentName}</div>
-                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>{d.parentPhone}</div>
-                  </td>
-                  <td style={{ padding: "12px 10px", fontWeight: 800, color: "#B45309" }}>
-                    ₹{d.amountDue.toLocaleString()}
-                  </td>
-                  <td style={{ padding: "12px 10px" }}>
-                    <span style={{ background: d.daysOverdue > 30 ? "#FEE2E2" : "#FEF3C7", color: d.daysOverdue > 30 ? "#991B1B" : "#92400E", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700 }}>
-                      {d.daysOverdue} Days Late
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px 10px", color: "var(--muted)", fontSize: "12px" }}>{d.lastPaymentDate}</td>
-                  <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                    <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
-                      <button
-                        onClick={() => handleSendReminder(d.id, d.parentPhone)}
-                        style={{ padding: "5px 10px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
-                      >
-                        Send Reminder
-                      </button>
-                      <button
-                        onClick={() => alert(`Opening concession dialog for ${d.studentName}`)}
-                        style={{ padding: "5px 10px", background: "#FAF8F5", border: "1px solid #E2DDD5", color: "#064E3B", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}
-                      >
-                        Concession
-                      </button>
-                    </div>
+              {defaulters.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ padding: "30px", textAlign: "center", color: "var(--muted)" }}>
+                    No outstanding fee dues or defaulters found.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                defaulters.map((d) => (
+                  <tr key={d.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
+                    <td style={{ padding: "12px 10px" }}>
+                      <b>{d.studentName}</b>
+                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{d.admissionNo}</div>
+                    </td>
+                    <td style={{ padding: "12px 10px" }}>
+                      {d.grade ? `${d.grade} ` : ""}{d.section}
+                    </td>
+                    <td style={{ padding: "12px 10px" }}>
+                      <div>{d.parentName}</div>
+                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{d.parentPhone}</div>
+                    </td>
+                    <td style={{ padding: "12px 10px", fontWeight: 800, color: d.amountDue > 0 ? "#B45309" : "#064E3B" }}>
+                      ₹{d.amountDue.toLocaleString("en-IN")}
+                    </td>
+                    <td style={{ padding: "12px 10px" }}>
+                      {d.amountDue > 0 ? (
+                        <span
+                          style={{
+                            background: d.daysOverdue > 30 ? "#FEE2E2" : "#FEF3C7",
+                            color: d.daysOverdue > 30 ? "#991B1B" : "#92400E",
+                            padding: "2px 8px",
+                            borderRadius: "10px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                          }}
+                        >
+                          {d.daysOverdue} Days Late
+                        </span>
+                      ) : (
+                        <span style={{ color: "#064E3B", fontSize: "11.5px", fontWeight: 700 }}>Paid</span>
+                      )}
+                    </td>
+                    <td style={{ padding: "12px 10px", color: "var(--muted)", fontSize: "12px" }}>{d.lastPaymentDate || "—"}</td>
+                    <td style={{ padding: "12px 10px", textAlign: "right" }}>
+                      <div style={{ display: "flex", gap: "6px", justifyContent: "flex-end" }}>
+                        <button
+                          onClick={() => openPaymentForDue(d)}
+                          style={{
+                            padding: "5px 10px",
+                            background: "#064E3B",
+                            color: "#F8E7C9",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Pay
+                        </button>
+                        <button
+                          onClick={() => handleSendReminder(d.id)}
+                          style={{
+                            padding: "5px 10px",
+                            background: "#FAF8F5",
+                            border: "1px solid #E2DDD5",
+                            color: "#064E3B",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Send Reminder
+                        </button>
+                        <button
+                          onClick={() => openConcession(d)}
+                          style={{
+                            padding: "5px 10px",
+                            background: "#FAF8F5",
+                            border: "1px solid #E2DDD5",
+                            color: "#064E3B",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Concession
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       )}
 
-      {/* 3. GRADE FEE STRUCTURES (§40) */}
+      {/* 3. CLASS FEE STRUCTURES (§40) */}
       {subtab === "structure" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Grade-Wise Fee Structures & Head Allocations</h3>
-          <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Tuition, Annual Establishment, Transport Fleet, and Lab/Exam Fee Breakdown</p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+            <div>
+              <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
+                Class-Wise Fee Structures & Head Allocations
+              </h3>
+              <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)" }}>
+                Tuition, Annual Establishment, Transport Fleet, and Lab/Exam Fee Breakdown
+              </p>
+            </div>
+            <button
+              onClick={() => setShowStructureModal(true)}
+              style={{
+                padding: "8px 16px",
+                background: "#064E3B",
+                color: "#F8E7C9",
+                border: "none",
+                borderRadius: "8px",
+                fontSize: "12.5px",
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <Plus size={15} /> Add Fee Structure
+            </button>
+          </div>
 
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #E2DDD5", color: "var(--muted)" }}>
-                <th style={{ padding: "10px" }}>Grade / Stream</th>
+                <th style={{ padding: "10px" }}>Class / Stream</th>
                 <th style={{ padding: "10px" }}>Tuition Fee</th>
                 <th style={{ padding: "10px" }}>Annual Fee</th>
                 <th style={{ padding: "10px" }}>Transport Fee</th>
@@ -257,19 +600,620 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
               </tr>
             </thead>
             <tbody>
-              {feeStructures.map((f) => (
-                <tr key={f.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
-                  <td style={{ padding: "12px 10px", fontWeight: 700, color: "#064E3B" }}>{f.grade}</td>
-                  <td style={{ padding: "12px 10px" }}>₹{f.tuitionFee.toLocaleString()}</td>
-                  <td style={{ padding: "12px 10px" }}>₹{f.annualFee.toLocaleString()}</td>
-                  <td style={{ padding: "12px 10px" }}>₹{f.transportFee.toLocaleString()}</td>
-                  <td style={{ padding: "12px 10px" }}>₹{f.examFee.toLocaleString()}</td>
-                  <td style={{ padding: "12px 10px", fontWeight: 800, color: "#064E3B" }}>₹{f.totalFee.toLocaleString()}</td>
-                  <td style={{ padding: "12px 10px" }}>{f.frequency}</td>
+              {feeStructures.length === 0 ? (
+                <tr>
+                  <td colSpan={7} style={{ padding: "30px", textAlign: "center", color: "var(--muted)" }}>
+                    No fee structures defined yet. Click &quot;Add Fee Structure&quot; to configure one.
+                  </td>
                 </tr>
-              ))}
+              ) : (
+                feeStructures.map((f) => (
+                  <tr key={f.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
+                    <td style={{ padding: "12px 10px", fontWeight: 700, color: "#064E3B" }}>{f.grade}</td>
+                    <td style={{ padding: "12px 10px" }}>₹{f.tuitionFee.toLocaleString("en-IN")}</td>
+                    <td style={{ padding: "12px 10px" }}>₹{f.annualFee.toLocaleString("en-IN")}</td>
+                    <td style={{ padding: "12px 10px" }}>₹{f.transportFee.toLocaleString("en-IN")}</td>
+                    <td style={{ padding: "12px 10px" }}>₹{f.examFee.toLocaleString("en-IN")}</td>
+                    <td style={{ padding: "12px 10px", fontWeight: 800, color: "#064E3B" }}>
+                      ₹{f.totalFee.toLocaleString("en-IN")}
+                    </td>
+                    <td style={{ padding: "12px 10px" }}>{f.frequency}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* RECORD OFFLINE PAYMENT MODAL */}
+      {showPaymentModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "16px",
+          }}
+        >
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "12px",
+              padding: "24px",
+              maxWidth: "500px",
+              width: "100%",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
+                Record Offline Counter Payment
+              </h3>
+              <button
+                onClick={() => setShowPaymentModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleRecordPayment} style={{ display: "grid", gap: "14px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                  Select Student Account *
+                </label>
+                <select
+                  required
+                  value={paymentDueId}
+                  onChange={(e) => {
+                    setPaymentDueId(e.target.value);
+                    const selected = defaulters.find((d) => d.id === e.target.value);
+                    if (selected && selected.amountDue > 0) {
+                      setPaymentAmount(selected.amountDue);
+                    }
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    border: "1px solid #E2DDD5",
+                    fontSize: "13px",
+                  }}
+                >
+                  <option value="">-- Select Student / Pending Due --</option>
+                  {defaulters.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.studentName} ({d.admissionNo}) — Pending: ₹{d.amountDue.toLocaleString("en-IN")}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                  Amount Received (₹) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                  placeholder="e.g. 15000"
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    border: "1px solid #E2DDD5",
+                    fontSize: "13px",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                    Payment Mode *
+                  </label>
+                  <select
+                    value={paymentMode}
+                    onChange={(e) => setPaymentMode(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #E2DDD5",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <option value="cash">Cash (Counter)</option>
+                    <option value="upi">UPI / QR Code</option>
+                    <option value="cheque">Cheque</option>
+                    <option value="bank_transfer">Bank Transfer / NEFT</option>
+                    <option value="card">Debit / Credit Card</option>
+                    <option value="dd">Demand Draft (DD)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                    Reference / Receipt No.
+                  </label>
+                  <input
+                    type="text"
+                    value={referenceNo}
+                    onChange={(e) => setReferenceNo(e.target.value)}
+                    placeholder="e.g. REC-2026-091"
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #E2DDD5",
+                      fontSize: "13px",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                  Notes / Counter Remarks
+                </label>
+                <input
+                  type="text"
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                  placeholder="Optional counter remarks"
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    border: "1px solid #E2DDD5",
+                    fontSize: "13px",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowPaymentModal(false)}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "6px",
+                    border: "1px solid #E2DDD5",
+                    background: "#FAF8F5",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingPayment}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    border: "none",
+                    background: "#064E3B",
+                    color: "#F8E7C9",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    cursor: submittingPayment ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {submittingPayment ? "Recording..." : "Save Payment"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* GRANT CONCESSION MODAL */}
+      {showConcessionModal && concessionDue && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "16px",
+          }}
+        >
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "12px",
+              padding: "24px",
+              maxWidth: "460px",
+              width: "100%",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
+                Grant Fee Concession
+              </h3>
+              <button
+                onClick={() => setShowConcessionModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div
+              style={{
+                background: "#FAF8F5",
+                border: "1px solid #E2DDD5",
+                borderRadius: "8px",
+                padding: "12px",
+                marginBottom: "14px",
+                fontSize: "13px",
+              }}
+            >
+              <div>
+                <b>Student:</b> {concessionDue.studentName} ({concessionDue.admissionNo})
+              </div>
+              <div style={{ marginTop: "4px" }}>
+                <b>Current Outstanding Balance:</b> ₹{concessionDue.amountDue.toLocaleString("en-IN")}
+              </div>
+            </div>
+
+            <form onSubmit={handleApplyConcession} style={{ display: "grid", gap: "14px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                  Concession / Waiver Amount (₹) *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={concessionDue.amountDue}
+                  required
+                  value={concessionAmount}
+                  onChange={(e) => setConcessionAmount(e.target.value)}
+                  placeholder="e.g. 5000"
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    border: "1px solid #E2DDD5",
+                    fontSize: "13px",
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                  Justification / Audited Reason *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={concessionReason}
+                  onChange={(e) => setConcessionReason(e.target.value)}
+                  placeholder="e.g. Merit Scholarship / EWS Quota / Sibling Discount"
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    border: "1px solid #E2DDD5",
+                    fontSize: "13px",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowConcessionModal(false)}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "6px",
+                    border: "1px solid #E2DDD5",
+                    background: "#FAF8F5",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingConcession}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    border: "none",
+                    background: "#064E3B",
+                    color: "#F8E7C9",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    cursor: submittingConcession ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {submittingConcession ? "Applying..." : "Grant Concession"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ADD FEE STRUCTURE MODAL */}
+      {showStructureModal && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.5)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: "16px",
+          }}
+        >
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "12px",
+              padding: "24px",
+              maxWidth: "540px",
+              width: "100%",
+              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
+                Add Class Fee Structure
+              </h3>
+              <button
+                onClick={() => setShowStructureModal(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "var(--muted)" }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateStructure} style={{ display: "grid", gap: "12px" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                  Structure Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={structureName}
+                  onChange={(e) => setStructureName(e.target.value)}
+                  placeholder="e.g. Class 10 Standard Annual 2026-27"
+                  style={{
+                    width: "100%",
+                    padding: "8px 10px",
+                    borderRadius: "6px",
+                    border: "1px solid #E2DDD5",
+                    fontSize: "13px",
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                    Class (Digits Only) *
+                  </label>
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    <span
+                      style={{
+                        padding: "8px 10px",
+                        background: "#FAF8F5",
+                        border: "1px solid #E2DDD5",
+                        borderRight: "none",
+                        borderRadius: "6px 0 0 6px",
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: "#064E3B",
+                      }}
+                    >
+                      Class
+                    </span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="12"
+                      required
+                      value={structureClassDigit}
+                      onChange={(e) => setStructureClassDigit(e.target.value)}
+                      placeholder="e.g. 10"
+                      style={{
+                        width: "100%",
+                        padding: "8px 10px",
+                        borderRadius: "0 6px 6px 0",
+                        border: "1px solid #E2DDD5",
+                        fontSize: "13px",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                    Installments Count
+                  </label>
+                  <select
+                    value={installmentsCount}
+                    onChange={(e) => setInstallmentsCount(Number(e.target.value))}
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #E2DDD5",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <option value={1}>1 (Annual)</option>
+                    <option value={2}>2 (Bi-annual)</option>
+                    <option value={4}>4 (Quarterly)</option>
+                    <option value={10}>10 (Monthly)</option>
+                    <option value={12}>12 (Full Year Monthly)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                    Tuition Fee (₹) *
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    required
+                    value={tuitionFee}
+                    onChange={(e) => setTuitionFee(e.target.value)}
+                    placeholder="e.g. 30000"
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #E2DDD5",
+                      fontSize: "13px",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                    Annual / Development Fee (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={developmentFee}
+                    onChange={(e) => setDevelopmentFee(e.target.value)}
+                    placeholder="e.g. 8000"
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #E2DDD5",
+                      fontSize: "13px",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                    Transport Fee (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={transportFee}
+                    onChange={(e) => setTransportFee(e.target.value)}
+                    placeholder="e.g. 12000"
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #E2DDD5",
+                      fontSize: "13px",
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "12px", fontWeight: 700, marginBottom: "4px" }}>
+                    Exam & Lab Fee (₹)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={labFee}
+                    onChange={(e) => setLabFee(e.target.value)}
+                    placeholder="e.g. 4000"
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: "6px",
+                      border: "1px solid #E2DDD5",
+                      fontSize: "13px",
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: "#FAF8F5",
+                  border: "1px solid #E2DDD5",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  fontSize: "13px",
+                  fontWeight: 750,
+                  color: "#064E3B",
+                }}
+              >
+                <span>Calculated Annual Total:</span>
+                <span>
+                  ₹
+                  {(
+                    Number(tuitionFee || 0) +
+                    Number(developmentFee || 0) +
+                    Number(transportFee || 0) +
+                    Number(labFee || 0)
+                  ).toLocaleString("en-IN")}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", marginTop: "8px" }}>
+                <button
+                  type="button"
+                  onClick={() => setShowStructureModal(false)}
+                  style={{
+                    padding: "8px 14px",
+                    borderRadius: "6px",
+                    border: "1px solid #E2DDD5",
+                    background: "#FAF8F5",
+                    fontSize: "13px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingStructure}
+                  style={{
+                    padding: "8px 16px",
+                    borderRadius: "6px",
+                    border: "none",
+                    background: "#064E3B",
+                    color: "#F8E7C9",
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    cursor: submittingStructure ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {submittingStructure ? "Creating..." : "Save Fee Structure"}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

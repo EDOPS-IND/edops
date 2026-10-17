@@ -34,13 +34,7 @@ export const ArenaPane: React.FC<ArenaPaneProps> = ({ organizationId, onStartAre
   }
 
   const activities = data?.activities || [];
-  const performance = data?.performance || {
-    attemptedCount: 8,
-    completedCount: 8,
-    averageScore: 78,
-    bestScore: 92,
-    topicMastery: [],
-  };
+  const performance = data?.performance || { attemptedCount: 0, completedCount: 0, averageScore: 0, bestScore: 0, topicMastery: ([] as any[]) };
 
   return (
     <div className="space-y-6">
@@ -55,7 +49,7 @@ export const ArenaPane: React.FC<ArenaPaneProps> = ({ organizationId, onStartAre
         <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-semibold text-slate-500 uppercase">Quizzes Completed</span>
           <div className="text-2xl font-extrabold text-slate-900 mt-1">{performance.completedCount} Drills</div>
-          <p className="text-xs text-slate-400 mt-1">100% completion rate</p>
+          <p className="text-xs text-slate-400 mt-1">Saved attempts</p>
         </div>
         <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-semibold text-slate-500 uppercase">Average Accuracy</span>
@@ -65,12 +59,12 @@ export const ArenaPane: React.FC<ArenaPaneProps> = ({ organizationId, onStartAre
         <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-semibold text-slate-500 uppercase">Personal Best</span>
           <div className="text-2xl font-extrabold text-emerald-600 mt-1">{performance.bestScore}%</div>
-          <p className="text-xs text-slate-400 mt-1">In Algebra Speed Drill</p>
+          <p className="text-xs text-slate-400 mt-1">Across recorded attempts</p>
         </div>
         <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-semibold text-slate-500 uppercase">Practice Streak</span>
           <div className="text-2xl font-extrabold text-amber-500 mt-1 flex items-center gap-1">
-            <Flame className="w-5 h-5 fill-amber-500" /> 4 Days
+            <Flame className="w-5 h-5 fill-amber-500" /> —
           </div>
           <p className="text-xs text-slate-400 mt-1">Consistent daily practice</p>
         </div>

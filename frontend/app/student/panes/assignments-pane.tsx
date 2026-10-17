@@ -38,13 +38,7 @@ export const AssignmentsPane: React.FC<AssignmentsPaneProps> = ({
   }
 
   const assignments = data?.assignments || [];
-  const summary = data?.summary || {
-    totalAssigned: 30,
-    submitted: 27,
-    pending: 3,
-    late: 2,
-    completionPct: 90,
-  };
+  const summary = data?.summary || { totalAssigned: 0, submitted: 0, pending: 0, late: 0, completionPct: 0 };
 
   const tabs = [
     { id: 'all', label: 'All Tasks' },
@@ -80,8 +74,8 @@ export const AssignmentsPane: React.FC<AssignmentsPaneProps> = ({
         </div>
         <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
           <span className="text-xs font-semibold text-slate-500 uppercase">Graded Work</span>
-          <div className="text-2xl font-extrabold text-emerald-600 mt-1">25 Graded</div>
-          <p className="text-xs text-slate-400 mt-1">Average: 91% accuracy</p>
+          <div className="text-2xl font-extrabold text-emerald-600 mt-1">{assignments.filter((a:any)=>a.status==='graded').length} Graded</div>
+          <p className="text-xs text-slate-400 mt-1">See saved grades below</p>
         </div>
       </div>
 

@@ -112,10 +112,10 @@ export function SupportPane({
               <div key={a.id} style={{ padding: "14px", border: "1px solid #E5E7EB", borderRadius: "8px", background: "#F9FAFB" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div style={{ fontWeight: 700, fontSize: "13.5px" }}>{a.title}</div>
-                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#10B981" }}>{a.status.toUpperCase()}</span>
+                  <span style={{ fontSize: "11px", fontWeight: 700, color: "#10B981" }}>{(a.status || "published").toUpperCase()}</span>
                 </div>
                 <p style={{ margin: "6px 0", fontSize: "12.5px", color: "#4B5563" }}>{a.message}</p>
-                <div style={{ fontSize: "11px", color: "#6B7280" }}>Target Audience: <b>{a.audience.toUpperCase()}</b> · Channels: {a.channels ? a.channels.join(", ") : "dashboard"}</div>
+                <div style={{ fontSize: "11px", color: "#6B7280" }}>Target Audience: <b>{(a.audience || "all").toUpperCase()}</b> · Channels: {a.channels ? a.channels.join(", ") : "dashboard"}</div>
               </div>
             ))
           ) : (

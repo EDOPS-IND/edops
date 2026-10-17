@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Req } from '@nestjs/common';
 import { ApiBody, ApiCreatedResponse, ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
@@ -78,6 +78,14 @@ export class OrganizationsController {
 @Controller('auth/invitations')
 export class InvitationsController {
   constructor(private readonly tenants: TenantsService, private readonly auth: AuthService) {}
+
+  @Public()
+  @Get('info')
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Look up invitation context by token' })
+  getInfo(@Query('token') token: string) {
+    return this.tenants.getInvitationInfo(token);
+  }
 
   @Public()
   @Post('accept')

@@ -50,15 +50,7 @@ export const WorkloadPane: React.FC<WorkloadPaneProps> = ({ organizationId }) =>
     return <div className="p-8 text-center text-slate-500 animate-pulse">Loading academic workload & tasks...</div>;
   }
 
-  const workload = data?.workload || {
-    teachingPeriods: 0,
-    maxPeriods: 30,
-    preparationPeriods: 0,
-    remedialPeriods: 0,
-    dutyPeriods: 0,
-    totalLoad: 0,
-    status: 'No Active Workload',
-  };
+  const workload = data?.workload || { teachingPeriods: 0, maxPeriods: 0, preparationPeriods: 0, remedialPeriods: 0, dutyPeriods: 0, totalLoad: 0, status: "" };
 
   const tasks = data?.tasks || [];
   const filteredTasks = tasks.filter((t: any) => {
@@ -66,7 +58,7 @@ export const WorkloadPane: React.FC<WorkloadPaneProps> = ({ organizationId }) =>
     return t.status === filter;
   });
 
-  const percentage = Math.min(Math.round((workload.teachingPeriods / (workload.maxPeriods || 30)) * 100), 100);
+  const percentage = Math.min(Math.round((workload.teachingPeriods / (workload.maxPeriods || 0)) * 100), 100);
 
   return (
     <div className="space-y-6">

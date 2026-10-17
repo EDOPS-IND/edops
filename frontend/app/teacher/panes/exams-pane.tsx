@@ -74,7 +74,7 @@ export function ExamsPane({ organizationId }: ExamsPaneProps) {
                 <div className="p-3 bg-gray-50  rounded-xl space-y-1">
                   <span className="text-gray-400 font-medium">Marks Entry Deadline</span>
                   <div className="font-bold text-amber-600 text-sm">{exam.marksSubmissionDeadline}</div>
-                  <div className="text-gray-500">Lock enforced at 05:00 PM</div>
+                  <div className="text-gray-500">See saved assessment status</div>
                 </div>
 
                 <div className="p-3 bg-gray-50  rounded-xl space-y-1">

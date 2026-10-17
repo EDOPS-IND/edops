@@ -1,78 +1,39 @@
 import { DrizzleService } from '../../../database/drizzle.service';
 import { Injectable } from '@nestjs/common';
+
 @Injectable()
 export class StudentExamsService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async getExamsAndScorecards(organizationId: string, studentUserId: string) {
-    const upcomingExams = [
-      {
-        id: 'exam-midterm-2026',
-        name: 'Mid-Term Examination (Term 1)',
-        academicYear: '2026-27',
-        startDate: 'Oct 15, 2026',
-        endDate: 'Oct 25, 2026',
-        status: 'Scheduled',
-        schedule: [
-          { date: 'Oct 15, 2026', time: '09:30 AM - 12:30 PM', subject: 'Mathematics', room: 'Hall A', maxMarks: 80 },
-          { date: 'Oct 17, 2026', time: '09:30 AM - 12:30 PM', subject: 'Science', room: 'Hall A', maxMarks: 80 },
-          { date: 'Oct 19, 2026', time: '09:30 AM - 12:30 PM', subject: 'English', room: 'Hall A', maxMarks: 80 },
-          { date: 'Oct 21, 2026', time: '09:30 AM - 12:30 PM', subject: 'Social Science', room: 'Hall A', maxMarks: 80 },
-          { date: 'Oct 23, 2026', time: '09:30 AM - 12:30 PM', subject: 'Hindi', room: 'Hall A', maxMarks: 80 },
-        ],
-      },
-    ];
-
-    const scorecards = [
-      {
-        id: 'sc-quarterly-2026',
-        examName: 'Quarterly Examination 2026',
-        term: 'Term 1',
-        status: 'Published',
-        publishedAt: 'Aug 28, 2026',
-        totalMarks: 415,
-        maxTotal: 500,
-        percentage: 83.0,
-        grade: 'A',
-        subjects: [
-          { subject: 'Mathematics', max: 100, marks: 84, percentage: 84, grade: 'A', trend: 'up' },
-          { subject: 'Science', max: 100, marks: 88, percentage: 88, grade: 'A', trend: 'up' },
-          { subject: 'English', max: 100, marks: 79, percentage: 79, grade: 'B+', trend: 'steady' },
-          { subject: 'Social Science', max: 100, marks: 81, percentage: 81, grade: 'A', trend: 'up' },
-          { subject: 'Hindi', max: 100, marks: 83, percentage: 83, grade: 'A', trend: 'up' },
-        ],
-        teacherRemarks: 'Good performance across STEM subjects. Encourage more focus on English written expressions.',
-      },
-      {
-        id: 'sc-pt1-2026',
-        examName: 'Periodic Test 1',
-        term: 'Term 1',
-        status: 'Published',
-        publishedAt: 'Jul 15, 2026',
-        totalMarks: 114,
-        maxTotal: 150,
-        percentage: 76.0,
-        grade: 'B+',
-        subjects: [
-          { subject: 'Mathematics', max: 30, marks: 22, percentage: 73.3, grade: 'B', trend: 'steady' },
-          { subject: 'Science', max: 30, marks: 24, percentage: 80.0, grade: 'A', trend: 'up' },
-          { subject: 'English', max: 30, marks: 23, percentage: 76.6, grade: 'B+', trend: 'steady' },
-          { subject: 'Social Science', max: 30, marks: 22, percentage: 73.3, grade: 'B', trend: 'steady' },
-          { subject: 'Hindi', max: 30, marks: 23, percentage: 76.6, grade: 'B+', trend: 'steady' },
-        ],
-        teacherRemarks: 'Steady foundation. Regular homework practice advised.',
-      },
-    ];
-
-    // Growth comparison
-    const comparison = {
-      previousExam: 'Periodic Test 1 (76%)',
-      currentExam: 'Quarterly Examination (83%)',
-      improvementPct: 7.0,
-      strongestSubject: 'Science (88%)',
-      highestGrowthSubject: 'Mathematics (+10.7%)',
-    };
-
-    return { upcomingExams, scorecards, comparison };
+    const plans = await this.drizzle.query(
+      `SELECT ep.id, ep.exam_name, ep.term, to_char(ep.exam_date,'YYYY-MM-DD') AS date,
+        ep.start_time, ep.end_time, ep.max_marks, s.name AS subject
+       FROM principal_exam_plans ep JOIN subjects s ON s.id=ep.subject_id AND s.organization_id=ep.organization_id
+       WHERE ep.organization_id=$1 AND ep.status='scheduled' AND ep.exam_date>=CURRENT_DATE
+       AND EXISTS (SELECT 1 FROM enrollments e WHERE e.organization_id=ep.organization_id AND e.section_id=ep.section_id AND e.student_user_id=$2 AND e.status='active')
+       ORDER BY ep.exam_date,ep.start_time`, [organizationId, studentUserId]);
+    const results = await this.drizzle.query(
+      `SELECT * FROM principal_exam_results WHERE organization_id=$1 AND student_user_id=$2 AND status='Published'
+       ORDER BY published_at DESC, subject_name`, [organizationId, studentUserId]);
+    const examGroups = new Map<string, any>();
+    for (const p of plans) {
+      const key = JSON.stringify([p.exam_name,p.term]);
+      if (!examGroups.has(key)) examGroups.set(key, { id: p.id, name: p.exam_name, term: p.term, status: 'Scheduled', startDate: p.date, endDate: p.date, schedule: [] });
+      const exam = examGroups.get(key);
+      exam.endDate = p.date;
+      exam.schedule.push({ date: p.date, subject: p.subject, time: `${p.start_time} - ${p.end_time}`, maxMarks: Number(p.max_marks) });
+    }
+    const resultGroups = new Map<string, any>();
+    for (const r of results) {
+      const key = JSON.stringify([r.exam_name,r.term]);
+      if (!resultGroups.has(key)) resultGroups.set(key, { id: r.id, examName: r.exam_name, term: r.term, publishedAt: r.published_at, totalMarks: 0, maxTotal: 0, subjects: [] });
+      const card = resultGroups.get(key);
+      card.totalMarks += Number(r.marks_obtained);
+      card.maxTotal += Number(r.max_marks);
+      card.subjects.push({ subject: r.subject_name, marks: Number(r.marks_obtained), max: Number(r.max_marks), percentage: Number(r.percentage), grade: r.grade });
+    }
+    const scorecards = [...resultGroups.values()].map(c => ({ ...c, percentage: c.maxTotal ? Number((100*c.totalMarks/c.maxTotal).toFixed(1)) : 0 }));
+    return { upcomingExams: [...examGroups.values()], scorecards, comparison: null };
   }
 }

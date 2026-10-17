@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, HelpCircle, CheckCircle2, AlertCircle } from 'lucide-react';
-import { createStudentSupportRequest } from '../../edops-api';
+import { createStudentSupportRequest, getStudentSubjects } from '../../edops-api';
 
 interface SupportRequestModalProps {
   isOpen: boolean;
@@ -18,13 +18,17 @@ export const SupportRequestModal: React.FC<SupportRequestModalProps> = ({
   onSuccess,
 }) => {
   const [category, setCategory] = useState<'academic' | 'doubt' | 'counselling' | 'subject_help'>('doubt');
-  const [subject, setSubject] = useState('Mathematics');
+  const [subject, setSubject] = useState('');
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState<'low' | 'normal' | 'urgent'>('normal');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  const [subjects, setSubjects] = useState<any[]>([]);
+  useEffect(() => {
+    if (isOpen) getStudentSubjects(organizationId).then(res => setSubjects(res.subjects || [])).catch(() => setSubjects([]));
+  }, [isOpen, organizationId]);
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -39,6 +43,7 @@ export const SupportRequestModal: React.FC<SupportRequestModalProps> = ({
     try {
       await createStudentSupportRequest(organizationId, {
         category,
+        subjectId: subject || undefined,
         description,
         urgency,
       });
@@ -80,7 +85,7 @@ export const SupportRequestModal: React.FC<SupportRequestModalProps> = ({
               <CheckCircle2 className="w-6 h-6" />
             </div>
             <h4 className="text-base font-bold text-slate-900">Request Sent!</h4>
-            <p className="text-xs text-slate-500">Your teacher has been notified and will reply shortly in your inbox.</p>
+            <p className="text-xs text-slate-500">Your support request has been saved.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-5 space-y-4">
@@ -113,10 +118,8 @@ export const SupportRequestModal: React.FC<SupportRequestModalProps> = ({
                   onChange={(e) => setSubject(e.target.value)}
                   className="w-full px-3 py-2 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 bg-white"
                 >
-                  <option value="Mathematics">Mathematics (Rahul Sharma)</option>
-                  <option value="Science">Science (Priya Nair)</option>
-                  <option value="English">English (Anita Roy)</option>
-                  <option value="Social Science">Social Science (Vikram Joshi)</option>
+                  <option value="">General support</option>
+                  {subjects.map(s => <option key={s.id} value={s.id}>{s.name}{s.teacher ? ` (${s.teacher})` : ''}</option>)}
                 </select>
               </div>
             </div>

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { TeachingModule } from '../assignments/teaching.module';
 import { StudentGuard } from './guards/student.guard';
 
 // Services
@@ -34,6 +35,7 @@ import { StudentCommunicationController } from './controllers/student-communicat
 import { StudentProgressController } from './controllers/student-progress.controller';
 
 @Module({
+  imports: [TeachingModule],
   controllers: [
     StudentDashboardController,
     StudentClassesController,

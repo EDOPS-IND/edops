@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Target, HelpCircle, CheckCircle2, TrendingUp, Sparkles, Plus, AlertCircle, Award, HeartHandshake, Dumbbell, Palette, Save } from 'lucide-react';
-import { getStudentProgress } from '../../edops-api';
+import { api,getStudentProgress } from '../../edops-api';
 
 interface ProgressPaneProps {
   organizationId: string;
@@ -21,30 +21,18 @@ export const ProgressPane: React.FC<ProgressPaneProps> = ({
 
   // CBSE HPC Self-Reflection State
   const [hpcRatings, setHpcRatings] = useState({
-    cognitive: 4,
-    socioEmotional: 5,
-    psychomotor: 4,
-    creative: 4,
+    cognitive: 0,
+    socioEmotional: 0,
+    psychomotor: 0,
+    creative: 0,
   });
-  const [reflectionText, setReflectionText] = useState('This term I enjoyed the geometry proofs seminar and collaborating in the science practicals.');
-  const [improvementText, setImprovementText] = useState('I am working on time management during long-form chemistry tests.');
+  const [reflectionText, setReflectionText] = useState('');
+  const [improvementText, setImprovementText] = useState('');
   const [hpcSaved, setHpcSaved] = useState(false);
 
   useEffect(() => {
     loadProgress();
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(`edops_hpc_${organizationId}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed.ratings) setHpcRatings(parsed.ratings);
-          if (parsed.reflectionText) setReflectionText(parsed.reflectionText);
-          if (parsed.improvementText) setImprovementText(parsed.improvementText);
-        }
-      } catch {
-        // ignore
-      }
-    }
+
   }, [organizationId]);
 
   const loadProgress = async () => {
@@ -52,6 +40,9 @@ export const ProgressPane: React.FC<ProgressPaneProps> = ({
     try {
       const res = await getStudentProgress(organizationId);
       setData(res);
+      if (res.selfReflection) {
+        setHpcRatings(res.selfReflection.ratings);setReflectionText(res.selfReflection.reflectionText);setImprovementText(res.selfReflection.improvementText);
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -59,78 +50,20 @@ export const ProgressPane: React.FC<ProgressPaneProps> = ({
     }
   };
 
-  const handleSaveHpc = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(
-          `edops_hpc_${organizationId}`,
-          JSON.stringify({ ratings: hpcRatings, reflectionText, improvementText })
-        );
-      } catch {
-        // ignore
-      }
-    }
-    setHpcSaved(true);
-    setTimeout(() => setHpcSaved(false), 2500);
+  const handleSaveHpc = async (e:React.FormEvent) => {
+    e.preventDefault();setHpcSaved(false);
+    try {await api(`/organizations/${organizationId}/student/progress/reflection`,{method:'POST',body:{...hpcRatings,reflectionText,improvementText}});setHpcSaved(true);} catch {}
   };
 
   if (loading) {
     return <div className="p-8 text-center text-slate-500 animate-pulse">Loading personal academic progress & recommendations...</div>;
   }
 
-  const gapsAndStrengths = data?.gapsAndStrengths || [
-    {
-      subject: 'Mathematics',
-      strength: 'High speed in algebraic quadratic derivations and linear equations.',
-      needsPractice: 'Trigonometric identities and surface area word problems.',
-      recommendations: [
-        'Complete Arena Trigonometry Drill Set 2',
-        'Review NCERT exemplar questions for Chapter 8',
-      ],
-    },
-    {
-      subject: 'Science (Physics)',
-      strength: 'Clear conceptual understanding in electric circuits and Ohm’s Law.',
-      needsPractice: 'Ray optics sign convention in concave mirror diagrams.',
-      recommendations: [
-        'Re-watch recorded lecture on Mirror Formulas & Ray Tracing',
-        'Submit optics practice worksheet by Thursday',
-      ],
-    },
-  ];
+  const gapsAndStrengths = data?.gapsAndStrengths || ([] as any[]);
 
-  const goals = data?.goals || [
-    {
-      id: 'g-1',
-      title: 'Score 90%+ in Mathematics Term 2 Pre-Boards',
-      status: 'active',
-      currentScore: 84,
-      targetScore: 92,
-      deadline: 'Nov 20, 2026',
-      progressPct: 82,
-    },
-    {
-      id: 'g-2',
-      title: 'Maintain 95%+ in Science Practical Lab Sessions',
-      status: 'active',
-      currentScore: 90,
-      targetScore: 95,
-      deadline: 'Dec 05, 2026',
-      progressPct: 90,
-    },
-  ];
+  const goals = data?.goals || ([] as any[]);
 
-  const supportRequests = data?.supportRequests || [
-    {
-      id: 'sr-1',
-      subject: 'Mathematics',
-      category: 'Subject Doubt',
-      status: 'resolved',
-      description: 'Sir, please clarify quadratic equation derivations with negative discriminants.',
-      response: 'Reviewed during zero-period remedial class. Roots are complex conjugate pairs; keep practicing!',
-    },
-  ];
+  const supportRequests = data?.supportRequests || ([] as any[]);
 
   return (
     <div className="space-y-6">
