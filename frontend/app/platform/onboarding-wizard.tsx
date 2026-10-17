@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState, useEffect } from "react";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Copy, Check, Clock } from "lucide-react";
 import { Plan } from "./types";
 import { getPlatformFeatures } from "../edops-api";
 
@@ -17,6 +17,7 @@ export function OnboardingWizard({
   busy: boolean;
 }) {
   const [onboardStep, setOnboardStep] = useState(1);
+  const [copied, setCopied] = useState(false);
   const [onboardData, setOnboardData] = useState({
     name: "", slug: "", code: "", schoolType: "Private", board: "CBSE",
     establishedYear: new Date().getFullYear(), addressLine1: "", city: "", state: "", pincode: "",
@@ -167,7 +168,10 @@ export function OnboardingWizard({
                   type="email"
                   placeholder="admin@school.edu.in"
                   value={onboardData.officialEmail}
-                  onChange={e => setOnboardData({ ...onboardData, officialEmail: e.target.value })}
+                  onChange={e => {
+                    const email = e.target.value;
+                    setOnboardData(prev => ({ ...prev, officialEmail: email, adminEmail: email }));
+                  }}
                   style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
                 />
               </div>
@@ -212,15 +216,29 @@ export function OnboardingWizard({
                 />
               </div>
               <div>
-                <label style={{ fontSize: "12px", fontWeight: 600 }}>Admin Email (For Invitation) *</label>
+                <label style={{ fontSize: "12px", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+                  Admin Email (Auto-filled from Official School Email) *
+                </label>
                 <input
-                  required
+                  readOnly
+                  disabled
                   type="email"
-                  placeholder="principal@school.edu.in"
+                  placeholder="admin@school.edu.in"
                   value={onboardData.adminEmail}
-                  onChange={e => setOnboardData({ ...onboardData, adminEmail: e.target.value })}
-                  style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
+                  style={{
+                    width: "100%",
+                    padding: "8px",
+                    borderRadius: "6px",
+                    border: "1px solid #D1D5DB",
+                    marginTop: "4px",
+                    background: "#F3F4F6",
+                    color: "#4B5563",
+                    cursor: "not-allowed",
+                  }}
                 />
+                <span style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px", display: "block" }}>
+                  🔒 Locked: synced from Official School Email entered in Step 1.
+                </span>
               </div>
               <div>
                 <label style={{ fontSize: "12px", fontWeight: 600 }}>Designation</label>
@@ -430,10 +448,44 @@ export function OnboardingWizard({
                   <div><b>Invitation Status:</b> Pending Acceptance (Valid 48 hours)</div>
                 </div>
 
-                <div style={{ marginTop: "16px", background: "#FFF", padding: "14px", borderRadius: "8px", border: "1px solid #A7F3D0" }}>
-                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#064E3B" }}>One-Time Admin Activation Link:</div>
-                  <div style={{ wordBreak: "break-all", fontSize: "11.5px", fontFamily: "monospace", marginTop: "4px", color: "#064E3B" }}>
+                <div style={{ marginTop: "16px", background: "#FFF", padding: "16px", borderRadius: "8px", border: "1px solid #A7F3D0" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                    <div style={{ fontSize: "12px", fontWeight: 700, color: "#064E3B", display: "flex", alignItems: "center", gap: "6px" }}>
+                      <Clock size={15} /> One-Time School Admin Activation Link:
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const url = `${typeof window !== "undefined" ? window.location.origin : "https://edops.in"}/?invite=${onboardResult.invitation.token}`;
+                        if (navigator?.clipboard?.writeText) {
+                          navigator.clipboard.writeText(url);
+                        }
+                        setCopied(true);
+                        setTimeout(() => setCopied(false), 2500);
+                      }}
+                      style={{
+                        padding: "6px 14px",
+                        background: copied ? "#059669" : "#064E3B",
+                        color: "#F8E7C9",
+                        border: "none",
+                        borderRadius: "6px",
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      {copied ? <Check size={14} /> : <Copy size={14} />}
+                      {copied ? "Copied!" : "Copy Link"}
+                    </button>
+                  </div>
+                  <div style={{ wordBreak: "break-all", fontSize: "12px", fontFamily: "monospace", padding: "10px", background: "#FAF8F5", borderRadius: "6px", border: "1px solid #E2DDD5", color: "#064E3B" }}>
                     {typeof window !== "undefined" ? window.location.origin : "https://edops.in"}/?invite={onboardResult.invitation.token}
+                  </div>
+                  <div style={{ fontSize: "11.5px", color: "#047857", marginTop: "8px" }}>
+                    ℹ️ This link will remain visible and copyable in the Schools Directory until accepted by the administrator or until it expires in 48 hours.
                   </div>
                 </div>
 

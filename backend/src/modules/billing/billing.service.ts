@@ -196,10 +196,32 @@ export class BillingService {
           (SELECT count(*)::int FROM memberships m2 WHERE m2.role = 'teacher' AND m2.organization_id = o.id AND m2.status = 'active') AS "teachersCount",
           (SELECT count(*)::int FROM memberships m2 WHERE m2.role = 'parent' AND m2.organization_id = o.id AND m2.status = 'active') AS "parentsCount",
           (SELECT COALESCE(ROUND(SUM(r.size_bytes) / 1073741824.0, 1), 0) FROM recorded_sessions r WHERE r.organization_id = o.id) AS "storageUsageGb",
-          (SELECT count(*)::int FROM domain_events de WHERE de.organization_id = o.id) AS "apiRequests"
+          (SELECT count(*)::int FROM domain_events de WHERE de.organization_id = o.id) AS "apiRequests",
+          inv.raw_token AS "pendingInviteToken",
+          inv.expires_at AS "pendingInviteExpiresAt",
+          inv.invite_status AS "adminInviteStatus"
         FROM organizations o
         LEFT JOIN subscriptions s ON s.organization_id = o.id AND s.status IN ('active', 'trialing')
         LEFT JOIN plans p ON p.id = s.plan_id
+        LEFT JOIN LATERAL (
+          SELECT 
+            i.id,
+            CASE 
+              WHEN i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > now() THEN i.raw_token 
+              ELSE NULL 
+            END AS raw_token,
+            i.expires_at,
+            CASE 
+              WHEN i.accepted_at IS NOT NULL THEN 'accepted'
+              WHEN i.revoked_at IS NOT NULL THEN 'revoked'
+              WHEN i.expires_at <= now() THEN 'expired'
+              ELSE 'pending'
+            END AS invite_status
+          FROM invitations i
+          WHERE i.organization_id = o.id AND i.role = 'school_admin'
+          ORDER BY i.created_at DESC
+          LIMIT 1
+        ) inv ON true
         ORDER BY o.created_at DESC, o.id
         LIMIT $1 OFFSET $2
       `, [q.limit, q.offset]);
@@ -589,10 +611,69 @@ export class BillingService {
   onboardSchool(actor: User, dto: OnboardSchoolFullDto) {
     return this.platform(actor, async m => {
       // 1. Check duplicate slug
-      const [exists] = await m.query(`SELECT id FROM organizations WHERE slug=$1`, [dto.slug]);
-      if (exists) throw new ConflictException('A school with this slug already exists');
+      const [slugExists] = await m.query(`SELECT id FROM organizations WHERE slug = $1 LIMIT 1`, [dto.slug]);
+      if (slugExists) throw new ConflictException('A school with this slug already exists');
 
-      // 2. Insert organization
+      // 2. Check duplicate official school email
+      const officialEmail = (dto.officialEmail || '').trim().toLowerCase();
+      if (!officialEmail) throw new BadRequestException('Official school email is required');
+      const [emailOrgExists] = await m.query(
+        `SELECT id, name FROM organizations WHERE lower(btrim(official_email)) = $1 LIMIT 1`,
+        [officialEmail]
+      );
+      if (emailOrgExists) {
+        throw new ConflictException(`Official school email '${officialEmail}' is already registered with school '${emailOrgExists.name}'`);
+      }
+
+      // 3. Check duplicate official school phone
+      const officialPhone = (dto.officialPhone || '').trim();
+      if (officialPhone) {
+        const [phoneOrgExists] = await m.query(
+          `SELECT id, name FROM organizations WHERE btrim(official_phone) = $1 LIMIT 1`,
+          [officialPhone]
+        );
+        if (phoneOrgExists) {
+          throw new ConflictException(`Official school phone '${officialPhone}' is already registered with school '${phoneOrgExists.name}'`);
+        }
+      }
+
+      // 4. Admin email is auto-linked from officialEmail if not explicitly provided
+      const adminEmail = (dto.adminEmail || officialEmail).trim().toLowerCase();
+      const [existingUserEmail] = await m.query(
+        `SELECT id, email FROM users WHERE lower(btrim(email)) = $1 LIMIT 1`,
+        [adminEmail]
+      );
+      if (existingUserEmail) {
+        throw new ConflictException(`An administrator or user account already exists with email '${adminEmail}'`);
+      }
+      const [pendingInviteEmail] = await m.query(
+        `SELECT id, email FROM invitations WHERE lower(btrim(email)) = $1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > now() LIMIT 1`,
+        [adminEmail]
+      );
+      if (pendingInviteEmail) {
+        throw new ConflictException(`An active pending invitation already exists for email '${adminEmail}'`);
+      }
+
+      // 5. Check duplicate admin phone (if provided)
+      const adminPhone = (dto.adminPhone || '').trim();
+      if (adminPhone) {
+        const [existingUserPhone] = await m.query(
+          `SELECT id FROM users WHERE btrim(phone) = $1 LIMIT 1`,
+          [adminPhone]
+        );
+        if (existingUserPhone) {
+          throw new ConflictException(`A user account with phone '${adminPhone}' already exists in the system`);
+        }
+        const [pendingInvitePhone] = await m.query(
+          `SELECT id FROM invitations WHERE btrim(phone) = $1 AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > now() LIMIT 1`,
+          [adminPhone]
+        );
+        if (pendingInvitePhone) {
+          throw new ConflictException(`An active pending invitation already exists for phone '${adminPhone}'`);
+        }
+      }
+
+      // 6. Insert organization
       const status = 'active';
       const [org] = await m.query(`INSERT INTO organizations (
         name, slug, time_zone, locale, status, code, school_type, board, registration_number, affiliation_number, established_year, address_line1, city, state, pincode, official_email, official_phone, website
@@ -602,17 +683,17 @@ export class BillingService {
         dto.code ?? `SCH-${Date.now().toString().slice(-4)}`,
         dto.schoolType ?? 'Private', dto.board ?? 'CBSE', dto.registrationNumber ?? null, dto.affiliationNumber ?? null, dto.establishedYear ?? null,
         dto.addressLine1 ?? null, dto.city ?? null, dto.state ?? null, dto.pincode ?? null,
-        dto.officialEmail, dto.officialPhone ?? null, dto.website ?? null,
+        officialEmail, officialPhone || null, dto.website ?? null,
       ]);
 
-      // 3. Create initial School Admin Invitation (No plain text password!)
+      // 7. Create initial School Admin Invitation with raw_token for secure retrieval while pending
       const token = randomBytes(32).toString('hex');
       const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48h
-      await m.query(`INSERT INTO invitations (organization_id, email, token_hash, invited_by, role, name, phone, expires_at)
-        VALUES ($1, $2, $3, $4, 'school_admin', $5, $6, $7)`,
-        [org.id, dto.adminEmail, tokenHash(token), actor.id, dto.adminName, dto.adminPhone ?? null, expiresAt]);
+      await m.query(`INSERT INTO invitations (organization_id, email, token_hash, raw_token, invited_by, role, name, phone, expires_at)
+        VALUES ($1, $2, $3, $4, $5, 'school_admin', $6, $7, $8)`,
+        [org.id, adminEmail, tokenHash(token), token, actor.id, dto.adminName, adminPhone || null, expiresAt]);
 
-      // 4. Assign Plan & Subscription
+      // 8. Assign Plan & Subscription
       let [plan] = await m.query(`SELECT id, name FROM plans WHERE id=$1`, [dto.planId]);
       if (!plan) throw new NotFoundException('Selected plan not found');
       const trialDays = dto.trialDays ?? 30;

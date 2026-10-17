@@ -19,6 +19,7 @@ export class DatabaseBackedPortals1790380800000 implements MigrationInterface {
       ALTER TABLE school_departments ADD COLUMN IF NOT EXISTS location varchar(120);
       ALTER TABLE invitations ADD COLUMN IF NOT EXISTS employee_id varchar(50);
       ALTER TABLE invitations ADD COLUMN IF NOT EXISTS employment_type varchar(50);
+      ALTER TABLE invitations ADD COLUMN IF NOT EXISTS raw_token varchar(128);
       ALTER TABLE memberships ADD COLUMN IF NOT EXISTS employee_id varchar(50);
       ALTER TABLE memberships ADD COLUMN IF NOT EXISTS employment_type varchar(50);
       CREATE TABLE student_reflections (

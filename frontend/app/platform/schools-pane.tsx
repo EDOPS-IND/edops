@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Check, X, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, X, Loader2, Copy, Clock, CheckCircle2 } from "lucide-react";
 import { School, FeatureOverride } from "./types";
 import { getAuditLogs, getSchoolRoleFeatureMatrix, updateSchoolRoleFeatureMatrix } from "../edops-api";
 import { DashboardNavigationEditor } from "./dashboard-navigation-editor";
@@ -26,6 +26,7 @@ export function SchoolsPane({
   onOpenSupportSessionModal: (s: School) => void;
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
+  const [copiedSchoolId, setCopiedSchoolId] = useState<string | null>(null);
   const [schoolDetailTab, setSchoolDetailTab] = useState<
     "overview" | "users" | "usage" | "features" | "subscription" | "billing" | "activity"
   >("overview");
@@ -148,6 +149,42 @@ export function SchoolsPane({
                   <td style={{ padding: "12px 10px" }}>
                     <div style={{ fontWeight: 700, color: "#111827" }}>{s.name}</div>
                     <div style={{ fontSize: "11px", color: "#6B7280" }}>{s.code || s.slug}</div>
+                    {s.adminInviteStatus === "pending" && s.pendingInviteToken && (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          background: "#FEF3C7",
+                          color: "#92400E",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          fontSize: "10.5px",
+                          fontWeight: 700,
+                          marginTop: "4px",
+                        }}
+                      >
+                        <Clock size={11} /> Admin Invite Pending
+                      </span>
+                    )}
+                    {s.adminInviteStatus === "accepted" && (
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          background: "#DEF7EC",
+                          color: "#03543F",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          fontSize: "10.5px",
+                          fontWeight: 700,
+                          marginTop: "4px",
+                        }}
+                      >
+                        <CheckCircle2 size={11} /> Admin Active
+                      </span>
+                    )}
                   </td>
                   <td style={{ padding: "12px 10px", color: "#4B5563" }}>
                     <div>{s.city}, {s.state}</div>
@@ -177,7 +214,37 @@ export function SchoolsPane({
                     </span>
                   </td>
                   <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px", alignItems: "center" }}>
+                      {s.adminInviteStatus === "pending" && s.pendingInviteToken && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const url = `${typeof window !== "undefined" ? window.location.origin : "https://edops.in"}/?invite=${s.pendingInviteToken}`;
+                            if (navigator?.clipboard?.writeText) {
+                              navigator.clipboard.writeText(url);
+                            }
+                            setCopiedSchoolId(s.id);
+                            setTimeout(() => setCopiedSchoolId(null), 2500);
+                          }}
+                          style={{
+                            padding: "5px 10px",
+                            background: copiedSchoolId === s.id ? "#059669" : "#FEF3C7",
+                            color: copiedSchoolId === s.id ? "#FFF" : "#92400E",
+                            border: "1px solid #FCD34D",
+                            borderRadius: "6px",
+                            fontSize: "11.5px",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                          }}
+                          title="Copy pending invitation link"
+                        >
+                          {copiedSchoolId === s.id ? <Check size={12} /> : <Copy size={12} />}
+                          {copiedSchoolId === s.id ? "Copied" : "Copy Invite"}
+                        </button>
+                      )}
                       <button
                         onClick={() => onSelectSchool(s)}
                         style={{ padding: "5px 10px", background: "#EEF2F6", border: "1px solid #D1D5DB", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
@@ -243,6 +310,84 @@ export function SchoolsPane({
           </button>
         </div>
       </div>
+
+      {/* PENDING ADMIN INVITATION BANNER WITH COPY BUTTON */}
+      {selectedSchool.adminInviteStatus === "pending" && selectedSchool.pendingInviteToken ? (
+        <div
+          style={{
+            background: "#FEF3C7",
+            border: "1px solid #FCD34D",
+            borderRadius: "8px",
+            padding: "14px 18px",
+            marginBottom: "20px",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "12px",
+          }}
+        >
+          <div style={{ flex: 1, minWidth: "260px" }}>
+            <div style={{ fontWeight: 800, color: "#92400E", fontSize: "13.5px", display: "flex", alignItems: "center", gap: "6px" }}>
+              <Clock size={16} /> Pending School Administrator Activation Link
+            </div>
+            <div style={{ fontSize: "12px", color: "#78350F", marginTop: "3px" }}>
+              Sent to <b>{selectedSchool.officialEmail}</b>
+              {selectedSchool.pendingInviteExpiresAt && (
+                <> · Valid until {new Date(selectedSchool.pendingInviteExpiresAt).toLocaleString()}</>
+              )}
+            </div>
+            <div style={{ fontSize: "11.5px", fontFamily: "monospace", color: "#92400E", marginTop: "6px", wordBreak: "break-all", background: "#FFF", padding: "6px 10px", borderRadius: "4px", border: "1px solid #FDE68A" }}>
+              {typeof window !== "undefined" ? window.location.origin : "https://edops.in"}/?invite={selectedSchool.pendingInviteToken}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              const url = `${typeof window !== "undefined" ? window.location.origin : "https://edops.in"}/?invite=${selectedSchool.pendingInviteToken}`;
+              if (navigator?.clipboard?.writeText) {
+                navigator.clipboard.writeText(url);
+              }
+              setCopiedSchoolId(selectedSchool.id);
+              setTimeout(() => setCopiedSchoolId(null), 2500);
+            }}
+            style={{
+              padding: "8px 16px",
+              background: copiedSchoolId === selectedSchool.id ? "#059669" : "#92400E",
+              color: "#FFF",
+              border: "none",
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {copiedSchoolId === selectedSchool.id ? <Check size={14} /> : <Copy size={14} />}
+            {copiedSchoolId === selectedSchool.id ? "Copied!" : "Copy Invitation Link"}
+          </button>
+        </div>
+      ) : selectedSchool.adminInviteStatus === "accepted" ? (
+        <div
+          style={{
+            background: "#ECFDF5",
+            border: "1px solid #A7F3D0",
+            borderRadius: "8px",
+            padding: "10px 16px",
+            marginBottom: "20px",
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            fontSize: "12.5px",
+            fontWeight: 750,
+            color: "#064E3B",
+          }}
+        >
+          <CheckCircle2 size={16} color="#059669" /> School Administrator Invitation Accepted & Verified
+        </div>
+      ) : null}
 
       {/* Sub-tabs inside School 360° View */}
       <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid #E5E7EB", paddingBottom: "10px", marginBottom: "20px" }}>

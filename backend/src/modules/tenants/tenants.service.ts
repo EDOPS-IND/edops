@@ -217,7 +217,7 @@ export class TenantsService {
         }
       }
 
-      await manager.query('UPDATE invitations SET accepted_at = NOW() WHERE id = $1', [invitation.id]);
+      await manager.query('UPDATE invitations SET accepted_at = NOW(), raw_token = NULL WHERE id = $1', [invitation.id]);
       await this.audit.record(manager, {
         organizationId: organization.id, actorId: userId, action: 'invitation.accepted', details: { invitationId: invitation.id },
       });

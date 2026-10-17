@@ -18,6 +18,9 @@ export type School = {
   healthScore?: number;
   storageUsageGb?: number;
   apiRequests?: number;
+  pendingInviteToken?: string;
+  pendingInviteExpiresAt?: string;
+  adminInviteStatus?: "pending" | "accepted" | "expired" | "revoked";
 };
 
 export type Plan = {
