@@ -324,7 +324,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
         </article>
       </section>
 
-      {/* Conflict Alert Banner (§32) */}
+      {/* Conflict Alert Banner */}
       {conflicts.length > 0 ? (
         <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>

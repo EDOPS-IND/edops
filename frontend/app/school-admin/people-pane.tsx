@@ -472,7 +472,7 @@ export function PeoplePane({
       </section>
 
       {/* ============================================================== */}
-      {/* 1. STUDENTS TAB (§13, §14: Roster & Student 360° Profile)       */}
+      {/* 1. STUDENTS TAB (, : Roster & Student 360° Profile)       */}
       {/* ============================================================== */}
       {subtab === "students" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
@@ -614,7 +614,7 @@ export function PeoplePane({
       )}
 
       {/* ============================================================== */}
-      {/* 2. TEACHERS & WORKLOAD TAB (§15, §16: Periods 28/30 Calculator) */}
+      {/* 2. TEACHERS & WORKLOAD TAB (, : Periods 28/30 Calculator) */}
       {/* ============================================================== */}
       {subtab === "teachers" && (
         <div style={{ display: "grid", gap: "20px" }}>
@@ -730,7 +730,7 @@ export function PeoplePane({
       )}
 
       {/* ============================================================== */}
-      {/* 3. STAFF INTELLIGENCE TAB (§8, §17: Non-Teaching Staff Roster)   */}
+      {/* 3. STAFF INTELLIGENCE TAB (, : Non-Teaching Staff Roster)   */}
       {/* ============================================================== */}
       {subtab === "staff" && (
         <div style={{ display: "grid", gap: "20px" }}>
@@ -809,12 +809,12 @@ export function PeoplePane({
       )}
 
       {/* ============================================================== */}
-      {/* 4. PARENTS & M:N MAPPING TAB (§18 - §21: Children Switcher)      */}
+      {/* 4. PARENTS & M:N MAPPING TAB ( - : Children Switcher)      */}
       {/* ============================================================== */}
       {subtab === "parents" && (
         <div style={{ display: "grid", gap: "20px" }}>
           <div style={{ background: "#ffffff", border: "1px solid #E4E6E9", borderRadius: "10px", padding: "16px 20px", boxShadow: "0 1px 2px rgba(12, 30, 51, 0.04)" }}>
-            <b style={{ color: "#0c1e33", fontSize: "14px" }}>Many-to-Many Authorized Guardian Mapping Enabled (§19)</b>
+            <b style={{ color: "#0c1e33", fontSize: "14px" }}>Many-to-Many Authorized Guardian Mapping Enabled</b>
             <p style={{ margin: "3px 0 0", fontSize: "12px", color: "var(--muted)" }}>
               A parent can have multiple enrolled children across grades. Passwords are never exposed; parents activate via secure encrypted single-use tokens.
             </p>
@@ -934,7 +934,7 @@ export function PeoplePane({
       )}
 
       {/* ============================================================== */}
-      {/* 5. DEPARTMENTS TAB (§9 - §11: Department 360° Management)       */}
+      {/* 5. DEPARTMENTS TAB ( - : Department 360° Management)       */}
       {/* ============================================================== */}
       {subtab === "departments" && (
         <div style={{ display: "grid", gap: "20px" }}>
@@ -1029,7 +1029,7 @@ export function PeoplePane({
       )}
 
       {/* ============================================================== */}
-      {/* STUDENT 360° PROFILE MODAL (§14: 13 Individual Tabs)           */}
+      {/* STUDENT 360° PROFILE MODAL (: 13 Individual Tabs)           */}
       {/* ============================================================== */}
       {selectedStudent && (
         <div

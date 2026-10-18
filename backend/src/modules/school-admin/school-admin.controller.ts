@@ -10,13 +10,18 @@ import {
   CreateDisciplineIncidentDto,
   CreateFeeStructureDto,
   CreateLeaveRequestDto,
+  CreateLibraryBookDto,
+  CreateSchoolAssetDto,
   CreateTimetableEntryDto,
+  CreateTransportVehicleDto,
   GrantFeeConcessionDto,
   RecordOfflinePaymentDto,
   ScheduleExamDto,
+  SchedulePtmDto,
   SendFeeReminderDto,
   UpdateLeaveStatusDto,
   UpdateParentChildrenDto,
+  UpdateSchoolConfigDto,
   UpdateTeacherEmploymentDto,
   UpdateTimetableEntryDto,
 } from './school-admin.dto';
@@ -282,6 +287,46 @@ export class SchoolAdminController {
     return this.service.getOperationsOverview(orgId, req.user);
   }
 
+  @Post('operations/ptm')
+  @ApiOperation({ summary: 'Schedule Next PTM Window' })
+  schedulePtm(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: SchedulePtmDto,
+  ) {
+    return this.service.createPtmSchedule(orgId, req.user, dto);
+  }
+
+  @Post('operations/transport')
+  @ApiOperation({ summary: 'Add Transport Vehicle to Fleet' })
+  addTransportVehicle(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateTransportVehicleDto,
+  ) {
+    return this.service.createTransportVehicle(orgId, req.user, dto);
+  }
+
+  @Post('operations/library')
+  @ApiOperation({ summary: 'Add Book to Library Catalog' })
+  addLibraryBook(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateLibraryBookDto,
+  ) {
+    return this.service.createLibraryBook(orgId, req.user, dto);
+  }
+
+  @Post('operations/assets')
+  @ApiOperation({ summary: 'Add Asset to School Inventory' })
+  addAsset(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateSchoolAssetDto,
+  ) {
+    return this.service.createSchoolAsset(orgId, req.user, dto);
+  }
+
   @Get('governance/overview')
   @ApiOperation({ summary: 'Governance alerts, discipline log and immutable audit trail' })
   governance(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
@@ -296,6 +341,16 @@ export class SchoolAdminController {
     @Body() dto: CreateDisciplineIncidentDto,
   ) {
     return this.service.createDisciplineIncident(orgId, req.user, dto);
+  }
+
+  @Patch('settings/configuration')
+  @ApiOperation({ summary: 'Update school identity, statutory attendance and workload policy configuration' })
+  updateSchoolConfiguration(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UpdateSchoolConfigDto,
+  ) {
+    return this.service.updateSchoolConfiguration(orgId, req.user, dto);
   }
   @Get('learning/overview')
   getLearning(@Param('organizationId',ParseUUIDPipe) org:string,@Req() req:AuthenticatedRequest) {return this.service.getLearningOverview(org,req.user);}

@@ -220,10 +220,10 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
           {[
-            { id: "transport", label: "Transport Fleet & Routes (§49)" },
-            { id: "library", label: "Library Circulation (§50)" },
-            { id: "inventory", label: "Inventory & Assets (§51)" },
-            { id: "ptm", label: "Events & PTM Desk (§47)" },
+            { id: "transport", label: "Transport Fleet & Routes" },
+            { id: "library", label: "Library Circulation" },
+            { id: "inventory", label: "Inventory & Assets" },
+            { id: "ptm", label: "Events & PTM Desk" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -250,7 +250,7 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
         </button>
       </div>
 
-      {/* 1. TRANSPORT FLEET TAB (§49) */}
+      {/* 1. TRANSPORT FLEET TAB */}
       {subtab === "transport" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Transport Fleet, Routes & Real-Time Tracking</h3>
@@ -304,7 +304,7 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
         </div>
       )}
 
-      {/* 2. LIBRARY CIRCULATION TAB (§50) */}
+      {/* 2. LIBRARY CIRCULATION TAB */}
       {subtab === "library" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Library Circulation & Catalog Desk</h3>
@@ -346,7 +346,7 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
         </div>
       )}
 
-      {/* 3. INVENTORY & ASSETS TAB (§51) */}
+      {/* 3. INVENTORY & ASSETS TAB */}
       {subtab === "inventory" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>School Assets & Equipment Register</h3>
@@ -395,12 +395,12 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
         </div>
       )}
 
-      {/* 4. EVENTS & PTM DESK (§47) */}
+      {/* 4. EVENTS & PTM DESK */}
       {subtab === "ptm" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Parent Teacher Meeting (PTM) Desk (§47)</h3>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Parent Teacher Meeting (PTM) Desk</h3>
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Time slot booking, teacher tables, and attendance confirmation records</p>
             </div>
             <button style={{ padding: "8px 14px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700 }}>

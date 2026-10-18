@@ -21,7 +21,7 @@ export function SecurityPane({
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
-      {/* Platform Staff Members Table (§26, §27) */}
+      {/* Platform Staff Members Table (, ) */}
       <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700 }}>Platform Staff Accounts</h3>
@@ -73,7 +73,7 @@ export function SecurityPane({
         </table>
       </div>
 
-      {/* Role RBAC Definition (§26) */}
+      {/* Role RBAC Definition */}
       <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "20px" }}>
         <h3 style={{ margin: "0 0 14px", fontSize: "16px", fontWeight: 700 }}>Platform Role RBAC Matrix</h3>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
@@ -96,7 +96,7 @@ export function SecurityPane({
         </table>
       </div>
 
-      {/* Immutable Audit Logs Table (§22) */}
+      {/* Immutable Audit Logs Table */}
       <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700 }}>Immutable Platform Audit Trail</h3>

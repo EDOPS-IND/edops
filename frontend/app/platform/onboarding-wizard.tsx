@@ -90,7 +90,7 @@ export function OnboardingWizard({
       </div>
 
       <form onSubmit={handleSubmit}>
-        {/* STEP 1: SCHOOL INFORMATION (§3) */}
+        {/* STEP 1: SCHOOL INFORMATION */}
         {onboardStep === 1 && (
           <div style={{ display: "grid", gap: "16px", maxWidth: "800px" }}>
             <h3 style={{ fontSize: "15px", margin: 0, fontWeight: 700 }}>Step 1: School Identity & Location</h3>
@@ -196,7 +196,7 @@ export function OnboardingWizard({
           </div>
         )}
 
-        {/* STEP 2: SCHOOL ADMIN (§4 - INVITATION WORKFLOW, NO PASSWORD!) */}
+        {/* STEP 2: SCHOOL ADMIN ( - INVITATION WORKFLOW, NO PASSWORD!) */}
         {onboardStep === 2 && (
           <div style={{ display: "grid", gap: "16px", maxWidth: "800px" }}>
             <h3 style={{ fontSize: "15px", margin: 0, fontWeight: 700 }}>Step 2: Initial School Administrator</h3>
@@ -268,7 +268,7 @@ export function OnboardingWizard({
           </div>
         )}
 
-        {/* STEP 3: PLAN SELECTION (§5) */}
+        {/* STEP 3: PLAN SELECTION */}
         {onboardStep === 3 && (
           <div style={{ display: "grid", gap: "16px" }}>
             <h3 style={{ fontSize: "15px", margin: 0, fontWeight: 700 }}>Step 3: Select Subscription Plan Tier</h3>
@@ -318,7 +318,7 @@ export function OnboardingWizard({
           </div>
         )}
 
-        {/* STEP 4: FEATURE CONFIGURATION (§6, §7) */}
+        {/* STEP 4: FEATURE CONFIGURATION (, ) */}
         {onboardStep === 4 && (
           <div style={{ display: "grid", gap: "16px" }}>
             <h3 style={{ fontSize: "15px", margin: 0, fontWeight: 700 }}>Step 4: Configure Feature Entitlements & Overrides</h3>
@@ -409,7 +409,7 @@ export function OnboardingWizard({
           </div>
         )}
 
-        {/* STEP 5: FINALIZE & EXECUTE TRANSACTION (§29) */}
+        {/* STEP 5: FINALIZE & EXECUTE TRANSACTION */}
         {onboardStep === 5 && (
           <div style={{ display: "grid", gap: "16px", maxWidth: "800px" }}>
             <h3 style={{ fontSize: "15px", margin: 0, fontWeight: 700, color: "#064E3B" }}>Step 5: Review & Execute Provisioning</h3>
@@ -436,7 +436,7 @@ export function OnboardingWizard({
                 </div>
               </>
             ) : (
-              /* FINAL STATUS DISPLAY (§29) */
+              /* FINAL STATUS DISPLAY */
               <div style={{ background: "#ECFDF5", border: "2px solid #064E3B", borderRadius: "10px", padding: "20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#064E3B", fontWeight: 800, fontSize: "16px" }}>
                   <CheckCircle2 size={20} /> SCHOOL CREATED SUCCESSFULLY

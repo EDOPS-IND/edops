@@ -377,6 +377,7 @@ export function scheduleSchoolAdminExam(
     body: payload,
   });
 }
+export const createSchoolAdminExam = scheduleSchoolAdminExam;
 
 export function createAcademicSection(orgId: string, payload: { academicYearId: string; programId: string; name: string; capacity: number }) {
   return api<any>(`/organizations/${orgId}/academics/sections`, { method: "POST", body: payload, idempotent: true });
@@ -429,11 +430,33 @@ export async function getSchoolAdminOperations(orgId: string) {
   return api<any>(`/organizations/${orgId}/school-admin/operations/overview`);
 }
 
+export function createSchoolAdminPtmSchedule(orgId: string, data: any) {
+  return api<any>(`/organizations/${orgId}/school-admin/operations/ptm`, { method: "POST", body: data });
+}
+
+export function createSchoolAdminTransportVehicle(orgId: string, data: any) {
+  return api<any>(`/organizations/${orgId}/school-admin/operations/transport`, { method: "POST", body: data });
+}
+
+export function createSchoolAdminLibraryBook(orgId: string, data: any) {
+  return api<any>(`/organizations/${orgId}/school-admin/operations/library`, { method: "POST", body: data });
+}
+
+export function createSchoolAdminAsset(orgId: string, data: any) {
+  return api<any>(`/organizations/${orgId}/school-admin/operations/assets`, { method: "POST", body: data });
+}
+
 export async function getSchoolAdminGovernance(orgId: string) {
   return api<any>(`/organizations/${orgId}/school-admin/governance/overview`);
 }
 
-export function createSchoolAdminDiscipline(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/school-admin/governance/discipline`, { method: "POST", body: data }); }
+export function createSchoolAdminDiscipline(orgId: string, data: any) {
+  return api<any>(`/organizations/${orgId}/school-admin/governance/discipline`, { method: "POST", body: data });
+}
+
+export function updateSchoolAdminConfiguration(orgId: string, data: any) {
+  return api<any>(`/organizations/${orgId}/school-admin/settings/configuration`, { method: "PATCH", body: data });
+}
 
 // Principal Control Center APIs
 export async function getPrincipalDashboard(orgId: string) {

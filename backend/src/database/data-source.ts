@@ -23,6 +23,7 @@ import { PrincipalExamPlans1790121600000 } from './migrations/1790121600000-Prin
 import { PrincipalExamTermScope1790208000000 } from './migrations/1790208000000-PrincipalExamTermScope';
 import { DatabaseBackedPortals1790380800000 } from './migrations/1790380800000-DatabaseBackedPortals';
 import { DashboardNavigation1790294400000 } from './migrations/1790294400000-DashboardNavigation';
+import { SchoolPolicySettings1790467200000 } from './migrations/1790467200000-SchoolPolicySettings';
 import { ArenaAttempt, ArenaQuestion } from '../modules/arena/arena.entity';
 import { Recording } from '../modules/content/recording.entity';
 import { Assignment, AttendanceSession, ExamEvaluation, Submission } from '../modules/assignments/teaching.entity';
@@ -56,6 +57,7 @@ export function databaseOptions(config: AppConfig): DataSourceOptions {
       PrincipalExamTermScope1790208000000,
       DashboardNavigation1790294400000,
       DatabaseBackedPortals1790380800000,
+      SchoolPolicySettings1790467200000,
     ],
     migrationsTransactionMode: 'all',
     synchronize: false,

@@ -11,12 +11,17 @@ import {
   CreateDisciplineIncidentDto,
   CreateFeeStructureDto,
   CreateLeaveRequestDto,
+  CreateLibraryBookDto,
+  CreateSchoolAssetDto,
   CreateTimetableEntryDto,
+  CreateTransportVehicleDto,
   GrantFeeConcessionDto,
   RecordOfflinePaymentDto,
   ScheduleExamDto,
+  SchedulePtmDto,
   SendFeeReminderDto,
   UpdateLeaveStatusDto,
+  UpdateSchoolConfigDto,
   UpdateTeacherEmploymentDto,
   UpdateTimetableEntryDto,
 } from './school-admin.dto';
@@ -312,7 +317,9 @@ export class SchoolAdminService {
           NULL as "house",
           (SELECT CASE WHEN COUNT(*)=0 THEN NULL WHEN SUM(d.amount_pending)>0 THEN 'Due' ELSE 'Paid' END FROM student_fee_dues d WHERE d.organization_id=m.organization_id AND d.student_user_id=u.id) as "feeStatus",
           NULL as "academicStatus",
-          (SELECT ROUND(AVG(CASE WHEN ar.status IN ('present','late') THEN 100.0 ELSE 0.0 END),1) FROM attendance_records ar WHERE ar.organization_id=m.organization_id AND ar.student_id=u.id) as "attendancePct"
+          (SELECT ROUND(AVG(CASE WHEN ar.status IN ('present','late') THEN 100.0 ELSE 0.0 END),1) FROM attendance_records ar WHERE ar.organization_id=m.organization_id AND ar.student_id=u.id) as "attendancePct",
+          NULL::text as "inviteToken",
+          NULL::timestamptz as "inviteExpiresAt"
          FROM memberships m
          JOIN users u ON u.id = m.user_id
          LEFT JOIN enrollments e ON e.student_user_id = u.id AND e.organization_id = m.organization_id
@@ -349,7 +356,9 @@ export class SchoolAdminService {
           NULL as "house",
           'Pending' as "feeStatus",
           NULL as "academicStatus",
-          NULL::numeric as "attendancePct"
+          NULL::numeric as "attendancePct",
+          i.raw_token as "inviteToken",
+          i.expires_at as "inviteExpiresAt"
          FROM invitations i
          LEFT JOIN sections sec ON sec.id = i.section_id
          LEFT JOIN programs prog ON prog.id = sec.program_id
@@ -426,7 +435,9 @@ export class SchoolAdminService {
           'Active' as "status",
           COUNT(DISTINCT csa.id) as "assignedSectionsCount",
           COUNT(DISTINCT csa.subject_id) as "assignedSubjectsCount",
-          NULL::text as "workloadStatus"
+          NULL::text as "workloadStatus",
+          NULL::text as "inviteToken",
+          NULL::timestamptz as "inviteExpiresAt"
          FROM memberships m
          JOIN users u ON u.id = m.user_id
          LEFT JOIN class_subject_assignments csa ON csa.teacher_user_id = u.id AND csa.organization_id = m.organization_id
@@ -455,7 +466,9 @@ export class SchoolAdminService {
           'Pending Invite' as "status",
           0 as "assignedSectionsCount",
           0 as "assignedSubjectsCount",
-          'Pending' as "workloadStatus"
+          'Pending' as "workloadStatus",
+          i.raw_token as "inviteToken",
+          i.expires_at as "inviteExpiresAt"
          FROM invitations i
          WHERE i.organization_id = $1 AND i.role = 'teacher' AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
 
@@ -507,7 +520,9 @@ export class SchoolAdminService {
           CASE WHEN m.role = 'principal' THEN 'Principal / Head of School' ELSE 'Staff Officer' END as "designation",
           m.employment_type as "employmentType",
           to_char(m.created_at, 'YYYY-MM-DD') as "joiningDate",
-          'Active' as "status"
+          'Active' as "status",
+          NULL::text as "inviteToken",
+          NULL::timestamptz as "inviteExpiresAt"
          FROM memberships m
          JOIN users u ON u.id = m.user_id
          WHERE m.organization_id = $1 AND m.role NOT IN ('student', 'teacher', 'parent')
@@ -525,7 +540,9 @@ export class SchoolAdminService {
           CASE WHEN i.role = 'principal' THEN 'Principal (Invited)' ELSE 'Staff Officer (Invited)' END as "designation",
           i.employment_type as "employmentType",
           to_char(i.created_at, 'YYYY-MM-DD') as "joiningDate",
-          'Pending Invite' as "status"
+          'Pending Invite' as "status",
+          i.raw_token as "inviteToken",
+          i.expires_at as "inviteExpiresAt"
          FROM invitations i
          WHERE i.organization_id = $1 AND i.role IN ('staff', 'principal') AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
 
@@ -569,7 +586,9 @@ export class SchoolAdminService {
             LEFT JOIN programs prog ON prog.id = sec.program_id
             WHERE psr.school_id = m.organization_id AND psr.parent_id = u.id AND psr.status = 'active'
           ), '[]'::json) as "children",
-          json_build_object('attendance', true, 'fees', true, 'exams', true, 'assignments', true, 'communication', true, 'transport', true) as "permissions"
+          json_build_object('attendance', true, 'fees', true, 'exams', true, 'assignments', true, 'communication', true, 'transport', true) as "permissions",
+          NULL::text as "inviteToken",
+          NULL::timestamptz as "inviteExpiresAt"
          FROM memberships m
          JOIN users u ON u.id = m.user_id
          WHERE m.organization_id = $1 AND m.role = 'parent'
@@ -603,7 +622,9 @@ export class SchoolAdminService {
             LEFT JOIN programs prog ON prog.id = sec.program_id
             WHERE i.child_student_ids IS NOT NULL AND (i.child_student_ids::jsonb) ? s_u.id::text
           ), '[]'::json) as "children",
-          json_build_object('attendance', true, 'fees', true, 'exams', true, 'assignments', true, 'communication', true, 'transport', true) as "permissions"
+          json_build_object('attendance', true, 'fees', true, 'exams', true, 'assignments', true, 'communication', true, 'transport', true) as "permissions",
+          i.raw_token as "inviteToken",
+          i.expires_at as "inviteExpiresAt"
          FROM invitations i
          WHERE i.organization_id = $1 AND i.role = 'parent' AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
 
@@ -1454,10 +1475,189 @@ export class SchoolAdminService {
     });
   }
 
+  async createPtmSchedule(orgId: string, actor: User, dto: SchedulePtmDto) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+
+      const mins = (s: string) => {
+        const match = s.match(/^(\d{1,2}):(\d{2})$/);
+        return match ? Number(match[1]) * 60 + Number(match[2]) : NaN;
+      };
+      const start = mins(dto.startTime);
+      const end = mins(dto.endTime);
+      const duration = dto.slotDurationMinutes || 15;
+
+      if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) {
+        throw new BadRequestException('End time must be after start time');
+      }
+      const totalSlots = Math.floor((end - start) / duration);
+      if (totalSlots <= 0) {
+        throw new BadRequestException('Time window too short for given slot duration');
+      }
+
+      const [row] = await manager.query(
+        `INSERT INTO ptm_schedules (organization_id, title, event_date, start_time, end_time, slot_duration_minutes, target_grades, total_slots, booked_slots, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, 'open')
+         RETURNING *`,
+        [
+          orgId,
+          dto.title.trim(),
+          dto.eventDate,
+          dto.startTime,
+          dto.endTime,
+          duration,
+          dto.targetGrades && dto.targetGrades.length > 0 ? dto.targetGrades : ['All Classes'],
+          totalSlots,
+        ],
+      );
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: 'ptm.schedule.created',
+        details: { scheduleId: row.id, title: row.title },
+      });
+
+      return row;
+    });
+  }
+
+  async createTransportVehicle(orgId: string, actor: User, dto: CreateTransportVehicleDto) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+
+      const [existing] = await manager.query(
+        `SELECT id FROM transport_fleet WHERE organization_id = $1 AND vehicle_number = $2`,
+        [orgId, dto.vehicleNumber.trim()],
+      );
+      if (existing) {
+        throw new ConflictException(`Vehicle number ${dto.vehicleNumber} already exists`);
+      }
+
+      const [row] = await manager.query(
+        `INSERT INTO transport_fleet (organization_id, vehicle_number, route_name, capacity, driver_name, driver_phone, status)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        [
+          orgId,
+          dto.vehicleNumber.trim(),
+          dto.routeName.trim(),
+          dto.capacity || 40,
+          dto.driverName.trim(),
+          dto.driverPhone.trim(),
+          dto.status || 'idle',
+        ],
+      );
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: 'transport.vehicle.created',
+        details: { vehicleId: row.id, vehicleNumber: row.vehicle_number },
+      });
+
+      return row;
+    });
+  }
+
+  async createLibraryBook(orgId: string, actor: User, dto: CreateLibraryBookDto) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+
+      const [existing] = await manager.query(
+        `SELECT id FROM library_catalog WHERE organization_id = $1 AND isbn = $2`,
+        [orgId, dto.isbn.trim()],
+      );
+      if (existing) {
+        throw new ConflictException(`ISBN ${dto.isbn} already exists in library catalog`);
+      }
+
+      const totalCopies = dto.totalCopies || 1;
+      const [row] = await manager.query(
+        `INSERT INTO library_catalog (organization_id, isbn, title, author, category, total_copies, available_copies, shelf_location)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          orgId,
+          dto.isbn.trim(),
+          dto.title.trim(),
+          dto.author.trim(),
+          dto.category?.trim() || 'General',
+          totalCopies,
+          totalCopies,
+          dto.shelfLocation?.trim() || 'A-1',
+        ],
+      );
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: 'library.book.created',
+        details: { bookId: row.id, title: row.title },
+      });
+
+      return row;
+    });
+  }
+
+  async createSchoolAsset(orgId: string, actor: User, dto: CreateSchoolAssetDto) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+
+      const [existing] = await manager.query(
+        `SELECT id FROM school_assets WHERE organization_id = $1 AND asset_code = $2`,
+        [orgId, dto.assetCode.trim()],
+      );
+      if (existing) {
+        throw new ConflictException(`Asset code ${dto.assetCode} already exists`);
+      }
+
+      const [row] = await manager.query(
+        `INSERT INTO school_assets (organization_id, asset_code, name, category, location, purchase_cost, condition, custodian_name)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         RETURNING *`,
+        [
+          orgId,
+          dto.assetCode.trim(),
+          dto.name.trim(),
+          dto.category.trim(),
+          dto.location.trim(),
+          dto.purchaseCost || 0,
+          dto.condition || 'good',
+          dto.custodianName?.trim() || 'School Property',
+        ],
+      );
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: 'school.asset.created',
+        details: { assetId: row.id, assetCode: row.asset_code },
+      });
+
+      return row;
+    });
+  }
+
   // 10. GOVERNANCE & DISCIPLINE
   async getGovernanceOverview(orgId: string, actor: User) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
+
+      await manager.query(`
+        ALTER TABLE organizations ADD COLUMN IF NOT EXISTS attendance_threshold integer DEFAULT 75;
+        ALTER TABLE organizations ADD COLUMN IF NOT EXISTS workload_threshold integer DEFAULT 30;
+      `).catch(() => null);
+
+      const [school] = await manager.query(
+        `SELECT id, name, slug, code, school_type AS "schoolType", board, affiliation_number AS "affiliationNumber",
+                official_email AS "officialEmail", official_phone AS "officialPhone", address_line1 AS "addressLine1",
+                city, state, pincode, website, time_zone AS "timeZone", locale,
+                COALESCE(attendance_threshold, 75) AS "attendanceThreshold",
+                COALESCE(workload_threshold, 30) AS "workloadThreshold"
+         FROM organizations WHERE id = $1`,
+        [orgId],
+      );
 
       const discipline = await manager.query(
         `SELECT * FROM discipline_incidents WHERE organization_id = $1 ORDER BY incident_date DESC LIMIT 30`,
@@ -1474,7 +1674,117 @@ export class SchoolAdminService {
         [orgId],
       );
 
-      return { discipline, auditLogs };
+      const alerts: any[] = [];
+      const [pendingLeaves] = await manager.query(
+        `SELECT COUNT(*)::int as count FROM leave_requests WHERE organization_id = $1 AND status = 'pending'`,
+        [orgId],
+      );
+      if (pendingLeaves?.count > 0) {
+        alerts.push({
+          type: 'Pending Leave Approvals',
+          source: 'Attendance & Leave',
+          desc: `${pendingLeaves.count} leave request(s) awaiting administrative review.`,
+          action: 'Review Leaves',
+        });
+      }
+
+      const [overdueFees] = await manager.query(
+        `SELECT COUNT(*)::int as count, COALESCE(SUM(amount_pending), 0)::int as total FROM student_fee_dues WHERE organization_id = $1 AND status IN ('overdue', 'pending') AND due_date < CURRENT_DATE`,
+        [orgId],
+      );
+      if (overdueFees?.count > 0) {
+        alerts.push({
+          type: 'Statutory Fee Recovery Overdue',
+          source: 'Finance Management',
+          desc: `${overdueFees.count} student account(s) have overdue fee balances totaling ₹${Number(overdueFees.total).toLocaleString('en-IN')}.`,
+          action: 'View Fee Dues',
+        });
+      }
+
+      const [unresolvedIncidents] = await manager.query(
+        `SELECT COUNT(*)::int as count FROM discipline_incidents WHERE organization_id = $1 AND status = 'open'`,
+        [orgId],
+      );
+      if (unresolvedIncidents?.count > 0) {
+        alerts.push({
+          type: 'Open Discipline Matters',
+          source: 'Discipline Register',
+          desc: `${unresolvedIncidents.count} recorded student behavioral incident(s) currently open under investigation.`,
+          action: 'Investigate',
+        });
+      }
+
+      return { school: school || null, alerts, discipline, auditLogs };
+    });
+  }
+
+  async updateSchoolConfiguration(orgId: string, actor: User, dto: UpdateSchoolConfigDto) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+
+      await manager.query(`
+        ALTER TABLE organizations ADD COLUMN IF NOT EXISTS attendance_threshold integer DEFAULT 75;
+        ALTER TABLE organizations ADD COLUMN IF NOT EXISTS workload_threshold integer DEFAULT 30;
+      `).catch(() => null);
+
+      const updates: string[] = [];
+      const values: any[] = [];
+      let idx = 1;
+
+      if (dto.name !== undefined) {
+        updates.push(`name = $${idx++}`);
+        values.push(dto.name.trim());
+      }
+      if (dto.affiliationNumber !== undefined) {
+        updates.push(`affiliation_number = $${idx++}`);
+        values.push(dto.affiliationNumber.trim());
+      }
+      if (dto.board !== undefined) {
+        updates.push(`board = $${idx++}`);
+        values.push(dto.board.trim());
+      }
+      if (dto.officialEmail !== undefined) {
+        updates.push(`official_email = $${idx++}`);
+        values.push(dto.officialEmail.trim().toLowerCase());
+      }
+      if (dto.officialPhone !== undefined) {
+        updates.push(`official_phone = $${idx++}`);
+        values.push(dto.officialPhone.trim());
+      }
+      if (dto.attendanceThreshold !== undefined) {
+        updates.push(`attendance_threshold = $${idx++}`);
+        values.push(dto.attendanceThreshold);
+      }
+      if (dto.workloadThreshold !== undefined) {
+        updates.push(`workload_threshold = $${idx++}`);
+        values.push(dto.workloadThreshold);
+      }
+
+      if (updates.length === 0) {
+        throw new BadRequestException('No fields to update');
+      }
+
+      updates.push(`updated_at = NOW()`);
+      values.push(orgId);
+
+      const [updated] = await manager.query(
+        `UPDATE organizations
+         SET ${updates.join(', ')}
+         WHERE id = $${idx}
+         RETURNING id, name, slug, board, affiliation_number AS "affiliationNumber",
+                   official_email AS "officialEmail", official_phone AS "officialPhone",
+                   attendance_threshold AS "attendanceThreshold", workload_threshold AS "workloadThreshold"`,
+        values,
+      );
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: 'school.configuration.updated',
+        details: { changes: dto },
+      });
+
+      return updated;
     });
   }
 

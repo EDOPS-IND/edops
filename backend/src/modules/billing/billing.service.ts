@@ -190,7 +190,27 @@ export class BillingService {
           o.state AS state,
           o.official_email AS "officialEmail",
           COALESCE(o.official_phone, '') AS "officialPhone",
-          o.health_score AS "healthScore",
+          COALESCE(
+            ROUND(
+              COALESCE((
+                SELECT (COUNT(*) FILTER (WHERE ar.status IN ('present', 'late'))::numeric / NULLIF(COUNT(*), 0)) * 100
+                FROM attendance_records ar
+                JOIN attendance_sessions as_sess ON ar.attendance_session_id = as_sess.id
+                WHERE as_sess.organization_id = o.id
+              ), 0) * 0.40 +
+              COALESCE((
+                SELECT (SUM(amount_paid)::numeric / NULLIF(SUM(total_due), 0)) * 100
+                FROM student_fee_dues
+                WHERE organization_id = o.id
+              ), 0) * 0.35 +
+              COALESCE((
+                SELECT AVG(actual_completion_percentage)
+                FROM principal_curriculum_nodes
+                WHERE organization_id = o.id
+              ), 0) * 0.25
+            )::int,
+            0
+          ) AS "healthScore",
           COALESCE(p.name, 'Basic') AS plan,
           (SELECT count(*)::int FROM memberships m2 WHERE m2.organization_id = o.id AND m2.role = 'student' AND m2.status = 'active') AS "studentsCount",
           (SELECT count(*)::int FROM memberships m2 WHERE m2.role = 'teacher' AND m2.organization_id = o.id AND m2.status = 'active') AS "teachersCount",
@@ -361,14 +381,14 @@ export class BillingService {
     });
   }
 
-  // §6 & §7: Centralized Feature Catalog
+  //  & : Centralized Feature Catalog
   featureCatalog(actor: User) {
     return this.platform(actor, async m => {
       return m.query(`SELECT key, category, name, description, has_quota AS "hasQuota", default_quota AS "defaultQuota" FROM feature_catalog ORDER BY category, key`);
     });
   }
 
-  // §10: Plan Feature Matrix
+  // : Plan Feature Matrix
   featureMatrix(actor: User) {
     return this.platform(actor, async m => {
       const plans = await m.query(`SELECT id, name, features, active FROM plans ORDER BY name ASC`);
@@ -389,7 +409,7 @@ export class BillingService {
     });
   }
 
-  // §8: School-Specific Feature Overrides
+  // : School-Specific Feature Overrides
   getDetailedOverrides(actor: User, org: string) {
     return this.platform(actor, async m => {
       return m.query(`SELECT o.id, o.feature_key AS "featureKey", o.role, o.enabled, o.custom_limit AS "customLimit", o.custom_quota AS "customQuota", o.start_date AS "startDate", o.expiry_date AS "expiryDate", o.reason, o.created_at AS "createdAt", COALESCE(f.name, o.feature_key) AS "featureName", f.category FROM feature_overrides o LEFT JOIN feature_catalog f ON f.key = o.feature_key WHERE o.organization_id=$1 ORDER BY o.created_at DESC`, [org]);
@@ -428,7 +448,7 @@ export class BillingService {
     });
   }
 
-  // §8b: Complete 2D Role-Feature Matrix
+  // : Complete 2D Role-Feature Matrix
   async getRoleFeatureMatrix(actor: User, org: string) {
     return this.platform(actor, async m => {
       const catalog = await m.query(`SELECT key, category, name, description, has_quota AS "hasQuota", default_quota AS "defaultQuota" FROM feature_catalog ORDER BY category, name`);
@@ -500,7 +520,7 @@ export class BillingService {
     });
   }
 
-  // §23: Support Center Tickets
+  // : Support Center Tickets
   tickets(actor: User, q: AcademicListDto) {
     return this.platform(actor, async m => {
       const [count] = await m.query(`SELECT count(*)::int AS total FROM support_tickets`);
@@ -531,7 +551,7 @@ export class BillingService {
     });
   }
 
-  // §24: Audited Support Impersonation
+  // : Audited Support Impersonation
   startSupportSession(actor: User, dto: StartSupportSessionDto) {
     return this.platform(actor, async m => {
       const [org] = await m.query(`SELECT id, name FROM organizations WHERE id=$1`, [dto.organizationId]);
@@ -555,7 +575,7 @@ export class BillingService {
     });
   }
 
-  // §25: Platform Announcements
+  // : Platform Announcements
   announcements(actor: User) {
     return this.platform(actor, async m => {
       return m.query(`SELECT id, title, message, type, priority, audience, target_plans AS "targetPlans", channels, status, start_date AS "startDate", end_date AS "endDate", created_at AS "createdAt" FROM platform_announcements ORDER BY created_at DESC`);
@@ -573,7 +593,7 @@ export class BillingService {
     });
   }
 
-  // §12: Payments & Refunds
+  // : Payments & Refunds
   payments(actor: User, q: AcademicListDto) {
     return this.platform(actor, async m => {
       const [count] = await m.query(`SELECT count(*)::int AS total FROM payments`);
@@ -607,7 +627,7 @@ export class BillingService {
     });
   }
 
-  // §3, §4, §5, §6, §29: Full Transactional School Onboarding
+  // , , , , : Full Transactional School Onboarding
   onboardSchool(actor: User, dto: OnboardSchoolFullDto) {
     return this.platform(actor, async m => {
       // 1. Check duplicate slug
@@ -727,7 +747,7 @@ export class BillingService {
     });
   }
 
-  // §28: School Lifecycle Transitions
+  // : School Lifecycle Transitions
   schoolLifecycle(actor: User, id: string, dto: SchoolLifecycleTransitionDto) {
     return this.platform(actor, async m => {
       const [org] = await m.query(`SELECT id, name, status FROM organizations WHERE id=$1`, [id]);
@@ -747,7 +767,7 @@ export class BillingService {
     });
   }
 
-  // §35: Global Search across schools, tickets, invoices, plans
+  // : Global Search across schools, tickets, invoices, plans
   globalSearch(actor: User, query: string) {
     return this.platform(actor, async m => {
       const q = `%${(query || '').trim()}%`;
@@ -761,19 +781,34 @@ export class BillingService {
     });
   }
 
-  // §34: Detailed Platform Health
+  // : Detailed Platform Health
   detailedHealth(actor: User) {
-    return this.platform(actor,async m=>{
-      const start=Date.now();
+    return this.platform(actor, async m => {
+      const start = Date.now();
       await m.query('SELECT 1');
-      const latencyMs=Date.now()-start;
-      const [storage]=await m.query(`SELECT COALESCE(SUM(size_bytes),0)/1073741824.0 AS used FROM recorded_sessions`);
-      const [events]=await m.query(`SELECT COUNT(*)::int AS total,COUNT(*) FILTER (WHERE failed_at IS NOT NULL)::int AS failed FROM domain_events`);
-      return { overall:'HEALTHY',services:[{ name:'PostgreSQL Database',status:'HEALTHY',latencyMs,uptime:null }],metrics:{ errorRate:events.total?`${(100*events.failed/events.total).toFixed(2)}%`:null,avgLatencyMs:null,activeSessions:null,dailyActiveUsers:null,storageUsedGb:Number(storage.used),storageLimitGb:null } };
+      const latencyMs = Date.now() - start;
+      const [storage] = await m.query(`SELECT COALESCE(SUM(size_bytes), 0)/1073741824.0 AS used FROM recorded_sessions`);
+      const [events] = await m.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE failed_at IS NOT NULL)::int AS failed FROM domain_events`);
+      const [sess] = await m.query(`SELECT COUNT(*)::int AS count FROM sessions WHERE expire > now()`);
+      const [dau] = await m.query(`SELECT COUNT(DISTINCT actor_id)::int AS count FROM audit_events WHERE created_at >= now() - INTERVAL '24 hours' AND actor_id IS NOT NULL`);
+      const errorRateNum = events.total ? Number(((events.failed / events.total) * 100).toFixed(2)) : 0;
+      const isHealthy = errorRateNum < 5 && latencyMs < 1000;
+      return {
+        overall: isHealthy ? 'HEALTHY' : 'DEGRADED',
+        services: [{ name: 'PostgreSQL Database', status: latencyMs < 1000 ? 'HEALTHY' : 'DEGRADED', latencyMs, uptime: null }],
+        metrics: {
+          errorRate: `${errorRateNum}%`,
+          avgLatencyMs: latencyMs,
+          activeSessions: Number(sess?.count ?? 0),
+          dailyActiveUsers: Number(dau?.count ?? 0),
+          storageUsedGb: Number(Number(storage.used).toFixed(2)),
+          storageLimitGb: null,
+        },
+      };
     });
   }
 
-  // §26 & §27: Platform Staff Management
+  //  & : Platform Staff Management
   staff(actor: User) {
     return this.platform(actor, async m => {
       const users = await m.query(`SELECT id, email, name, phone, platform_role AS "platformRole", is_platform_admin AS "isSuperAdmin", created_at AS "createdAt" FROM users WHERE is_platform_admin = true OR platform_role != 'none' ORDER BY created_at ASC`);

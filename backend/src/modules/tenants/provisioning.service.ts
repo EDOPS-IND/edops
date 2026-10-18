@@ -67,8 +67,8 @@ export class ProvisioningService {
       for (const record of records) {
         const token = randomBytes(32).toString('hex');
         const [invitation] = await manager.query(
-          `INSERT INTO invitations (organization_id, batch_id, email, role, name, phone, specialty, section_id, child_student_ids, employee_id, employment_type, invited_by, expires_at, token_hash)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+          `INSERT INTO invitations (organization_id, batch_id, email, role, name, phone, specialty, section_id, child_student_ids, employee_id, employment_type, invited_by, expires_at, token_hash, raw_token)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
            RETURNING id, email, role`,
           [
             org,
@@ -85,6 +85,7 @@ export class ProvisioningService {
             actor.id,
             expiresAt,
             tokenHash(token),
+            token,
           ]
         );
         invitations.push({ id: invitation.id, email: invitation.email, role: invitation.role, token, expiresAt });
@@ -108,6 +109,7 @@ export class ProvisioningService {
       const [batch] = await manager.query('SELECT id FROM invitation_batches WHERE organization_id = $1 AND id = $2', [org, id]);
       if (!batch) throw new NotFoundException('Batch not found');
       const invitations = await manager.query(`SELECT id, email, role, expires_at AS "expiresAt", accepted_at AS "acceptedAt", revoked_at AS "revokedAt",
+        CASE WHEN accepted_at IS NULL AND revoked_at IS NULL AND expires_at > now() THEN raw_token ELSE NULL END AS "token",
         CASE WHEN accepted_at IS NOT NULL THEN 'accepted' WHEN revoked_at IS NOT NULL THEN 'revoked'
         WHEN expires_at <= now() THEN 'expired' ELSE 'pending' END AS status
         FROM invitations WHERE organization_id = $1 AND batch_id = $2 ORDER BY created_at, id`, [org, id]);
@@ -123,7 +125,7 @@ export class ProvisioningService {
       );
       if (!invitation || invitation.role === 'school_admin') throw new NotFoundException('Invitation not found');
       if (invitation.acceptedAt || invitation.revokedAt) throw new ConflictException('Invitation is already accepted or revoked');
-      await manager.query('UPDATE invitations SET revoked_at = NOW() WHERE id = $1', [id]);
+      await manager.query('UPDATE invitations SET revoked_at = NOW(), raw_token = NULL WHERE id = $1', [id]);
       await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'invitation.revoked', details: { invitationId: id } });
       return { id, status: 'revoked' };
     });

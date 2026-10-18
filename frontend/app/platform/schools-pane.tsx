@@ -269,7 +269,7 @@ export function SchoolsPane({
     );
   }
 
-  /* 360° SCHOOL DETAIL VIEW WITH SUB-TABS (§14) */
+  /* 360° SCHOOL DETAIL VIEW WITH SUB-TABS */
   return (
     <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "24px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", borderBottom: "1px solid #E5E7EB", paddingBottom: "16px" }}>
@@ -456,7 +456,7 @@ export function SchoolsPane({
         </div>
       )}
 
-      {/* Subtab 3: Usage & Quotas (§15) */}
+      {/* Subtab 3: Usage & Quotas */}
       {schoolDetailTab === "usage" && (
         <div style={{ display: "grid", gap: "14px" }}>
           <div style={{ background: "#F9FAFB", padding: "16px", borderRadius: "8px" }}>
@@ -480,7 +480,7 @@ export function SchoolsPane({
         </div>
       )}
 
-      {/* Subtab 4: Features & Overrides (§8) - 2D Role Matrix */}
+      {/* Subtab 4: Features & Overrides - 2D Role Matrix */}
       {schoolDetailTab === "features" && (
         <div style={{ display: "grid", gap: "16px" }}>
           <DashboardNavigationEditor organizationId={selectedSchool.id} />

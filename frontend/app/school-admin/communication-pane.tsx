@@ -20,10 +20,10 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
   const [subtab, setSubtab] = useState<"broadcast" | "inbox" | "newBroadcast">("broadcast");
   const [loading, setLoading] = useState(false);
 
-  // Broadcasts history (§44)
+  // Broadcasts history
   const [broadcasts, setBroadcasts] = useState<BroadcastRecord[]>(([] as any[]));
 
-  // Unified Inquiries & Tickets (§46)
+  // Unified Inquiries & Tickets
   const [tickets, setTickets] = useState<CommunicationTicket[]>(([] as any[]));
 
   useEffect(() => {
@@ -231,8 +231,8 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
           {[
-            { id: "broadcast", label: "Broadcast Dispatches (§44)" },
-            { id: "inbox", label: "Unified Inquiries Inbox (§46)" },
+            { id: "broadcast", label: "Broadcast Dispatches" },
+            { id: "inbox", label: "Unified Inquiries Inbox" },
             { id: "newBroadcast", label: "+ Compose Broadcast" },
           ].map((tab) => (
             <button
@@ -256,7 +256,7 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
         </div>
       </div>
 
-      {/* 1. BROADCAST DISPATCHES TAB (§44) */}
+      {/* 1. BROADCAST DISPATCHES TAB */}
       {subtab === "broadcast" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -314,10 +314,10 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
         </div>
       )}
 
-      {/* 2. UNIFIED INBOX & TICKET TRIAGE (§46) */}
+      {/* 2. UNIFIED INBOX & TICKET TRIAGE */}
       {subtab === "inbox" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Unified Inquiries & Escalation Inbox (§46)</h3>
+          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Unified Inquiries & Escalation Inbox</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Parent queries, transport reports, teacher requests and administrative escalations</p>
 
           <div style={{ display: "grid", gap: "10px" }}>
@@ -355,7 +355,7 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
         </div>
       )}
 
-      {/* 3. COMPOSE BROADCAST FORM (§44) */}
+      {/* 3. COMPOSE BROADCAST FORM */}
       {subtab === "newBroadcast" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "22px", maxWidth: "700px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Compose Multi-Channel School Broadcast</h3>
