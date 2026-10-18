@@ -14,10 +14,15 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
   public readonly pool: pg.Pool;
 
   constructor(@InjectConfig() private readonly config: AppConfig) {
+    const isPooler = config.databaseUrl.includes('-pooler');
+    const dbOptions = isPooler || config.databaseSchema === 'public'
+      ? undefined
+      : `-c search_path=${config.databaseSchema} -c timezone=UTC`;
+
     this.pool = new pg.Pool({
       connectionString: config.databaseUrl,
       ssl: config.databaseSsl ? { rejectUnauthorized: true } : false,
-      options: `-c search_path=${config.databaseSchema} -c timezone=UTC`,
+      ...(dbOptions ? { options: dbOptions } : {}),
       max: Number(process.env.DB_POOL_MAX ?? 10),
       connectionTimeoutMillis: 5000,
       idleTimeoutMillis: 30000,

@@ -65,7 +65,9 @@ export function databaseOptions(config: AppConfig): DataSourceOptions {
     synchronize: false,
     logging: process.env.DB_LOGGING === 'true',
     extra: {
-      options: `-c search_path=${config.databaseSchema} -c timezone=UTC`,
+      ...(config.databaseUrl.includes('-pooler') || config.databaseSchema === 'public'
+        ? {}
+        : { options: `-c search_path=${config.databaseSchema} -c timezone=UTC` }),
       max: Number(process.env.DB_POOL_MAX ?? 10),
       connectionTimeoutMillis: 5000,
       idleTimeoutMillis: 30000,
