@@ -16,6 +16,7 @@ import {
   getSchoolAdminDepartments,
   updateParentChildren,
   updateTeacherEmployment,
+  getStudentAvatarUrl,
 } from "../edops-api";
 import {
   Users,
@@ -532,9 +533,13 @@ export function PeoplePane({
                       <div style={{ fontSize: "11px", color: "var(--muted)" }}>House: {s.house}</div>
                     </td>
                     <td style={{ padding: "12px 10px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <div style={{ width: "30px", height: "30px", borderRadius: "8px", background: "#F4F6F7", display: "grid", placeItems: "center", fontWeight: 700, color: "#0c1e33", border: "1px solid #E4E6E9", fontSize: "12px" }}>
-                          {s.name[0]}
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", background: "#F5F6F8", border: "1px solid #E4E6E9", flexShrink: 0 }}>
+                          <img
+                            src={getStudentAvatarUrl(s.name, s.admissionNo || s.rollNo)}
+                            alt={s.name}
+                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                          />
                         </div>
                         <div>
                           <b>{s.name}</b>
@@ -647,8 +652,19 @@ export function PeoplePane({
                   return (
                     <tr key={t.id} style={{ borderBottom: "1px solid #F4F6F7" }}>
                       <td style={{ padding: "12px 10px" }}>
-                        <b>{t.name}</b>
-                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{t.empId || "ID Unassigned"} · {t.employmentType || "Regular Faculty"}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", background: "#F5F6F8", border: "1px solid #E4E6E9", flexShrink: 0 }}>
+                            <img
+                              src={getStudentAvatarUrl(t.name, t.email || t.empId)}
+                              alt={t.name}
+                              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            />
+                          </div>
+                          <div>
+                            <b>{t.name}</b>
+                            <div style={{ fontSize: "11px", color: "var(--muted)" }}>{t.empId || "ID Unassigned"} · {t.employmentType || "Regular Faculty"}</div>
+                          </div>
+                        </div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
                         <span style={{ fontWeight: 600, color: "#0c1e33" }}>{t.department || "General"}</span>
@@ -747,8 +763,19 @@ export function PeoplePane({
                   staff.map((s) => (
                     <tr key={s.id} style={{ borderBottom: "1px solid #F4F6F7" }}>
                       <td style={{ padding: "12px 10px" }}>
-                        <b>{s.name}</b>
-                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.empId}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", background: "#F5F6F8", border: "1px solid #E4E6E9", flexShrink: 0 }}>
+                            <img
+                              src={getStudentAvatarUrl(s.name, s.email || s.empId)}
+                              alt={s.name}
+                              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            />
+                          </div>
+                          <div>
+                            <b>{s.name}</b>
+                            <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.empId}</div>
+                          </div>
+                        </div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
                         <span style={{ fontWeight: 600, color: "#0c1e33" }}>{s.department}</span>
@@ -806,8 +833,19 @@ export function PeoplePane({
                   parents.map((p) => (
                     <tr key={p.id} style={{ borderBottom: "1px solid #F4F6F7" }}>
                       <td style={{ padding: "12px 10px" }}>
-                        <b>{p.name}</b>
-                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.occupation}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", background: "#F5F6F8", border: "1px solid #E4E6E9", flexShrink: 0 }}>
+                            <img
+                              src={getStudentAvatarUrl(p.name, p.mobile || p.email)}
+                              alt={p.name}
+                              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            />
+                          </div>
+                          <div>
+                            <b>{p.name}</b>
+                            <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.occupation}</div>
+                          </div>
+                        </div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
                         <div>{p.mobile}</div>
@@ -1017,8 +1055,12 @@ export function PeoplePane({
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E4E6E9", paddingBottom: "14px", marginBottom: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "#0c1e33", color: "#ffffff", display: "grid", placeItems: "center", fontSize: "18px", fontWeight: 700 }}>
-                  {selectedStudent.name[0]}
+                <div style={{ width: "46px", height: "46px", borderRadius: "10px", overflow: "hidden", border: "1px solid #ced8e5", background: "#f5f6f8", flexShrink: 0 }}>
+                  <img
+                    src={getStudentAvatarUrl(selectedStudent.name, selectedStudent.admissionNo || selectedStudent.rollNo)}
+                    alt={selectedStudent.name}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 650, color: "#0c1e33" }}>{selectedStudent.name} (360° Profile)</h3>

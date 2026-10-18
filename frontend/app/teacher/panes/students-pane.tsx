@@ -14,7 +14,7 @@ import {
   CheckCircle2,
   FileText,
 } from "lucide-react";
-import { getTeacherStudents } from "../../edops-api";
+import { getTeacherStudents, getStudentAvatarUrl } from "../../edops-api";
 
 const T = {
   navy: "#0c1e33",
@@ -440,8 +440,19 @@ export function StudentsPane({
                       #{s.rollNumber || "101"}
                     </td>
                     <td style={{ padding: "14px 16px" }}>
-                      <div style={{ fontWeight: 600, color: T.navy, fontSize: "13px" }}>{s.name}</div>
-                      <div style={{ fontSize: "11px", color: T.slate }}>{s.guardianName || "Parent / Guardian"}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                        <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", background: "#f5f6f8", border: `1px solid ${T.border}`, flexShrink: 0 }}>
+                          <img
+                            src={getStudentAvatarUrl(s.name, s.rollNumber)}
+                            alt={s.name}
+                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                          />
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, color: T.navy, fontSize: "13px" }}>{s.name}</div>
+                          <div style={{ fontSize: "11px", color: T.slate }}>{s.guardianName || "Parent / Guardian"}</div>
+                        </div>
+                      </div>
                     </td>
                     <td style={{ padding: "14px 16px", color: T.slate }}>
                       {s.classSection || "Class 10-A"}

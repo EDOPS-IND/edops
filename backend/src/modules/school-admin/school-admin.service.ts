@@ -197,9 +197,8 @@ export class SchoolAdminService {
         });
       }
 
-      // Operational timeline derived from today's timetable sessions
-      const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const currentDay = dayNames[new Date().getDay()];
+      // Operational timeline derived from today's timetable sessions (day_of_week smallint 1..6)
+      const currentDayNumber = new Date().getDay() === 0 ? 1 : new Date().getDay(); // 1=Mon..6=Sat
       const dailyTimeline = await manager.query(
         `SELECT
           t.id,
@@ -213,10 +212,10 @@ export class SchoolAdminService {
          JOIN programs p ON p.id = s.program_id AND p.organization_id = t.organization_id
          JOIN subjects sub ON sub.id = t.subject_id AND sub.organization_id = t.organization_id
          LEFT JOIN users u ON u.id = t.teacher_user_id
-         WHERE t.organization_id = $1 AND (t.day_of_week = $2 OR t.day_of_week = 'Monday')
+         WHERE t.organization_id = $1 AND (t.day_of_week = $2 OR t.day_of_week = 1)
          ORDER BY t.start_time, t.period_number
          LIMIT 6`,
-        [orgId, currentDay],
+        [orgId, currentDayNumber],
       );
 
       // Live audit activity from real audit_events

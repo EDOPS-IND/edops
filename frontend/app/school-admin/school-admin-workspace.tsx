@@ -24,6 +24,7 @@ import {
   createSchoolAdminDiscipline, createSchoolAdminDepartment,
   createSchoolInvitation, getSchoolAdminAcademics, getSchoolAdminStudents,
   getSchoolAdminTeachers, createAcademicSection, createAcademicProgram,
+  getStudentAvatarUrl,
 } from "../edops-api";
 
 // ─── Design Tokens (Strictly matching Student & Teacher Dashboard specification) ──
@@ -440,6 +441,8 @@ export function SchoolAdminWorkspace({
     .join("")
     .toUpperCase();
 
+  const adminAvatarUrl = getStudentAvatarUrl(schoolName, "admin@edops.internal");
+
   return (
     <div style={{
       display: "flex",
@@ -600,13 +603,13 @@ export function SchoolAdminWorkspace({
                     alignItems: "center",
                     justifyContent: "center",
                     border: "1px solid rgba(255, 255, 255, 0.12)",
-                    fontSize: "13px",
-                    fontWeight: 700,
-                    color: "#ffffff",
-                    letterSpacing: "0.02em",
                   }}
                 >
-                  {initials || "SA"}
+                  <img
+                    src={adminAvatarUrl}
+                    alt={schoolName}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
                 </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "2px", whiteSpace: "nowrap", overflow: "hidden", minWidth: 0 }}>
                   <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#ffffff", textOverflow: "ellipsis", overflow: "hidden" }}>
@@ -806,31 +809,31 @@ export function SchoolAdminWorkspace({
               />
             </button>
 
-            {/* Avatar Dropdown */}
+            {/* Avatar Dropdown - Exactly matching Student Dashboard Profile Avatar */}
             <div style={{ position: "relative" }}>
               <div
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                title="School Admin Profile & Settings"
                 style={{
-                  width: "38px",
-                  height: "38px",
-                  borderRadius: "10px",
-                  background: S.navy,
-                  border: `1px solid ${S.border}`,
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  border: profileMenuOpen ? "2px solid #0c1e33" : `1px solid ${S.border}`,
+                  background: "#f0f4f8",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "13px",
-                  fontWeight: 600,
-                  color: "#ffffff",
-                  letterSpacing: "0.02em",
-                  userSelect: "none",
-                  cursor: "pointer",
-                  transition: "opacity 0.15s ease",
+                  boxShadow: profileMenuOpen ? "0 0 0 3px rgba(12, 30, 51, 0.1)" : "none",
+                  transition: "all 0.15s ease",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
-                onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
               >
-                {initials || "SA"}
+                <img
+                  src={adminAvatarUrl}
+                  alt={schoolName}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
               </div>
 
               {profileMenuOpen && (
@@ -844,7 +847,7 @@ export function SchoolAdminWorkspace({
                       position: "absolute",
                       top: "calc(100% + 8px)",
                       right: 0,
-                      width: "220px",
+                      width: "240px",
                       background: "#FFFFFF",
                       border: `1px solid ${S.border}`,
                       borderRadius: "10px",
@@ -853,12 +856,31 @@ export function SchoolAdminWorkspace({
                       zIndex: 100,
                     }}
                   >
-                    <div style={{ padding: "10px 12px", borderBottom: `1px solid ${S.border}`, marginBottom: "6px" }}>
-                      <div style={{ fontSize: "13.5px", fontWeight: 600, color: S.navy, letterSpacing: "-0.01em" }}>
-                        {schoolName}
+                    <div style={{ padding: "10px 12px", borderBottom: `1px solid ${S.border}`, marginBottom: "6px", display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div
+                        style={{
+                          width: "34px",
+                          height: "34px",
+                          borderRadius: "50%",
+                          overflow: "hidden",
+                          flexShrink: 0,
+                          border: `1px solid ${S.border}`,
+                          background: "#f0f4f8",
+                        }}
+                      >
+                        <img
+                          src={adminAvatarUrl}
+                          alt={schoolName}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        />
                       </div>
-                      <div style={{ fontSize: "11.5px", color: S.slate, marginTop: "2px" }}>
-                        School Administrator
+                      <div style={{ minWidth: 0, overflow: "hidden" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: S.navy, letterSpacing: "-0.01em", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                          {schoolName}
+                        </div>
+                        <div style={{ fontSize: "11px", color: S.slate }}>
+                          School Administrator
+                        </div>
                       </div>
                     </div>
                     <button
