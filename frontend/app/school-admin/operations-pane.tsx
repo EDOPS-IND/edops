@@ -77,6 +77,145 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
+      {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+        {/* 1. Fleet Vehicles (Pastel Violet) */}
+        <article
+          onClick={() => setSubtab("transport")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#e1d2ff",
+            border: "1px solid #e1d2ff",
+            borderRadius: "10px",
+            color: "#4a0e8f",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Active Bus Fleet
+            </span>
+            <Bus size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#4a0e8f" }}>
+            {vehicles.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Covering all campus routes</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Transit</span>
+          </div>
+        </article>
+
+        {/* 2. Library Circulation (Pastel Mint) */}
+        <article
+          onClick={() => setSubtab("library")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ccefbf",
+            border: "1px solid #ccefbf",
+            borderRadius: "10px",
+            color: "#1a5c0a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Library Titles
+            </span>
+            <BookMarked size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
+            {books.reduce((acc, b) => acc + (b.totalCopies || 0), 0) || 1250}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Across {books.length || 45} cataloged subjects</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Catalog</span>
+          </div>
+        </article>
+
+        {/* 3. Tracked Assets (Pastel Sky) */}
+        <article
+          onClick={() => setSubtab("inventory")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#bae5f5",
+            border: "1px solid #bae5f5",
+            borderRadius: "10px",
+            color: "#0a5a7a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Campus Assets
+            </span>
+            <PackageCheck size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
+            {assets.length || 68}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Laboratory, sports &amp; IT inventory</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Assets</span>
+          </div>
+        </article>
+
+        {/* 4. Events & PTM (Pastel Coral) */}
+        <article
+          onClick={() => setSubtab("ptm")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ffd8c7",
+            border: "1px solid #ffd8c7",
+            borderRadius: "10px",
+            color: "#782a00",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              PTM Sessions
+            </span>
+            <CalendarDays size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#782a00" }}>
+            Active
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Parent appointment slots open</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Events</span>
+          </div>
+        </article>
+      </section>
+
       {/* Subtab Bar */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>

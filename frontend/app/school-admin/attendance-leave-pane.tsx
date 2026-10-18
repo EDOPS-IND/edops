@@ -130,41 +130,130 @@ export function AttendanceLeavePane({ organizationId }: { organizationId?: strin
             const submittedCount = registers.filter((r) => r.status === "Submitted").length;
 
             return (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
-                <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "16px" }}>
-                  <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Today's Student Rate</span>
-                  <div style={{ fontSize: "26px", fontWeight: 800, color: "#0c1e33", margin: "4px 0" }}>{avgRate}</div>
-                  <span style={{ fontSize: "11.5px", color: "#047857", fontWeight: 700 }}>
-                    {totalEnrolled > 0 ? `${totalPresent} of ${totalEnrolled} present` : "Recorded class registers below"}
-                  </span>
-                </div>
-                <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "16px" }}>
-                  <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Registers Submitted</span>
-                  <div style={{ fontSize: "26px", fontWeight: 800, color: "#0c1e33", margin: "4px 0" }}>
-                    {registers.length > 0 ? `${submittedCount} / ${registers.length}` : "—"}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+                {/* 1. Student Attendance Rate (Pastel Violet) */}
+                <article
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    height: "148px",
+                    padding: "20px",
+                    background: "#e1d2ff",
+                    border: "1px solid #e1d2ff",
+                    borderRadius: "10px",
+                    color: "#4a0e8f",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Today's Student Turnout
+                    </span>
+                    <CalendarCheck2 size={18} />
                   </div>
-                  <span style={{ fontSize: "11.5px", color: "#047857", fontWeight: 700 }}>
-                    {registers.length > 0 ? `${Math.round((submittedCount / registers.length) * 100)}% completion` : "No active sessions today"}
-                  </span>
-                </div>
-                <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "16px" }}>
-                  <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Pending Registers</span>
-                  <div style={{ fontSize: "26px", fontWeight: 800, color: pendingCount > 0 ? "#B45309" : "#0c1e33", margin: "4px 0" }}>
-                    {registers.length > 0 ? pendingCount : "—"}
+                  <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#4a0e8f" }}>
+                    {avgRate}
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "11px" }}>
+                      {totalEnrolled > 0 ? `${totalPresent} of ${totalEnrolled} present` : "Recorded daily turnout"}
+                    </span>
+                    <span style={{ fontSize: "11px", fontWeight: 600 }}>Real-Time</span>
                   </div>
-                  <span style={{ fontSize: "11.5px", color: pendingCount > 0 ? "#B45309" : "#047857", fontWeight: 700 }}>
-                    {pendingCount > 0 ? "Teachers yet to submit register" : "All registers up to date"}
-                  </span>
-                </div>
-                <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "16px" }}>
-                  <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Absences & Late Arrivals</span>
-                  <div style={{ fontSize: "26px", fontWeight: 800, color: totalAbsent > 0 ? "#DC2626" : "#0c1e33", margin: "4px 0" }}>
-                    {registers.length > 0 ? totalAbsent : "—"}
+                </article>
+
+                {/* 2. Registers Submitted (Pastel Mint) */}
+                <article
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    height: "148px",
+                    padding: "20px",
+                    background: "#ccefbf",
+                    border: "1px solid #ccefbf",
+                    borderRadius: "10px",
+                    color: "#1a5c0a",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Registers Submitted
+                    </span>
+                    <CheckCircle2 size={18} />
                   </div>
-                  <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>
-                    {registers.length > 0 ? `${totalLate} late arrivals recorded` : "No gate check-in data available"}
-                  </span>
-                </div>
+                  <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
+                    {registers.length > 0 ? `${submittedCount}/${registers.length}` : "—"}
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "11px" }}>
+                      {registers.length > 0 ? `${Math.round((submittedCount / registers.length) * 100)}% registers finalized` : "No sessions pending"}
+                    </span>
+                    <span style={{ fontSize: "11px", fontWeight: 600 }}>Active</span>
+                  </div>
+                </article>
+
+                {/* 3. Pending Roll Calls (Pastel Sky) */}
+                <article
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    height: "148px",
+                    padding: "20px",
+                    background: "#bae5f5",
+                    border: "1px solid #bae5f5",
+                    borderRadius: "10px",
+                    color: "#0a5a7a",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Pending Roll Calls
+                    </span>
+                    <Clock size={18} />
+                  </div>
+                  <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
+                    {registers.length > 0 ? pendingCount : 0}
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "11px" }}>
+                      {pendingCount > 0 ? "Awaiting teacher roll call" : "All homerooms submitted"}
+                    </span>
+                    <span style={{ fontSize: "11px", fontWeight: 600 }}>Register</span>
+                  </div>
+                </article>
+
+                {/* 4. Absences & Late (Pastel Coral) */}
+                <article
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    height: "148px",
+                    padding: "20px",
+                    background: "#ffd8c7",
+                    border: "1px solid #ffd8c7",
+                    borderRadius: "10px",
+                    color: "#782a00",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      Absences &amp; Late
+                    </span>
+                    <AlertTriangle size={18} />
+                  </div>
+                  <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#782a00" }}>
+                    {totalAbsent}
+                  </p>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "11px" }}>
+                      {totalLate} late arrivals registered
+                    </span>
+                    <span style={{ fontSize: "11px", fontWeight: 600 }}>Triage</span>
+                  </div>
+                </article>
               </div>
             );
           })()}

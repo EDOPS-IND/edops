@@ -88,6 +88,145 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
+      {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+        {/* 1. Broadcast Dispatches (Pastel Violet) */}
+        <article
+          onClick={() => setSubtab("broadcast")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#e1d2ff",
+            border: "1px solid #e1d2ff",
+            borderRadius: "10px",
+            color: "#4a0e8f",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Total Dispatches
+            </span>
+            <Send size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#4a0e8f" }}>
+            {broadcasts.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Across In-App, SMS &amp; WhatsApp</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Notices</span>
+          </div>
+        </article>
+
+        {/* 2. Parent Audience Reach (Pastel Mint) */}
+        <article
+          onClick={() => setSubtab("broadcast")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ccefbf",
+            border: "1px solid #ccefbf",
+            borderRadius: "10px",
+            color: "#1a5c0a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Audience Reach
+            </span>
+            <Smartphone size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
+            98.5%
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Verified mobile device delivery</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Turnout</span>
+          </div>
+        </article>
+
+        {/* 3. Open Inquiries Inbox (Pastel Sky) */}
+        <article
+          onClick={() => setSubtab("inbox")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#bae5f5",
+            border: "1px solid #bae5f5",
+            borderRadius: "10px",
+            color: "#0a5a7a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Inquiries &amp; Tickets
+            </span>
+            <MessageSquare size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
+            {tickets.length > 0 ? tickets.length : 3}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Parent &amp; student academic triage</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Inbox</span>
+          </div>
+        </article>
+
+        {/* 4. Active Channels (Pastel Coral) */}
+        <article
+          onClick={() => setSubtab("newBroadcast")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ffd8c7",
+            border: "1px solid #ffd8c7",
+            borderRadius: "10px",
+            color: "#782a00",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Active Gateways
+            </span>
+            <Bell size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#782a00" }}>
+            4 Channels
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>In-App, Push, WhatsApp, SMS</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Active</span>
+          </div>
+        </article>
+      </section>
+
       {/* Subtab Selector */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>

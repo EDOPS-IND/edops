@@ -350,37 +350,136 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
       {/* 1. FEE COLLECTIONS OVERVIEW (§41) */}
       {subtab === "dashboard" && (
         <div style={{ display: "grid", gap: "20px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
-            <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Q3 Expected Target</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#0c1e33", margin: "4px 0" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+            {/* 1. Target Fee (Pastel Violet) */}
+            <article
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: "#e1d2ff",
+                border: "1px solid #e1d2ff",
+                borderRadius: "10px",
+                color: "#4a0e8f",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Expected Realization Target
+                </span>
+                <CreditCard size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "32px", fontWeight: 700, lineHeight: 1, color: "#4a0e8f" }}>
                 ₹{(financeData?.dues || []).reduce((sum: number, d: any) => sum + Number(d.total_due || 0), 0).toLocaleString("en-IN")}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "11px" }}>Total assessed tuition &amp; services</span>
+                <span style={{ fontSize: "11px", fontWeight: 600 }}>Assessed</span>
               </div>
-              <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Total Tuition & Transports</span>
-            </div>
-            <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Total Collected</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#0c1e33", margin: "4px 0" }}>
+            </article>
+
+            {/* 2. Total Collected (Pastel Mint) */}
+            <article
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: "#ccefbf",
+                border: "1px solid #ccefbf",
+                borderRadius: "10px",
+                color: "#1a5c0a",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Realized Collections
+                </span>
+                <CheckCircle2 size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "32px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
                 ₹{(financeData?.dues || []).reduce((sum: number, d: any) => sum + Number(d.amount_paid || 0), 0).toLocaleString("en-IN")}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "11px" }}>Bank &amp; Bursar deposits cleared</span>
+                <span style={{ fontSize: "11px", fontWeight: 600 }}>Cleared</span>
               </div>
-              <span style={{ fontSize: "11.5px", color: "#047857", fontWeight: 700 }}>Saved collections</span>
-            </div>
-            <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Pending / Overdue</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#B45309", margin: "4px 0" }}>
+            </article>
+
+            {/* 3. Overdue Balance (Pastel Coral) */}
+            <article
+              onClick={() => setSubtab("defaulters")}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: "#ffd6d6",
+                border: "1px solid #ffd6d6",
+                borderRadius: "10px",
+                color: "#7a1a1a",
+                cursor: "pointer",
+                transition: "transform 0.15s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Overdue Balance
+                </span>
+                <AlertTriangle size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "32px", fontWeight: 700, lineHeight: 1, color: "#7a1a1a" }}>
                 ₹{totalPending.toLocaleString("en-IN")}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "11px" }}>{defaulters.filter((d) => d.amountDue > 0).length} unpaid student accounts</span>
+                <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+                  Defaulters <ArrowRight size={13} />
+                </span>
               </div>
-              <span style={{ fontSize: "11.5px", color: "#B45309", fontWeight: 700 }}>
-                {defaulters.filter((d) => d.amountDue > 0).length} unpaid accounts
-              </span>
-            </div>
-            <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Active Fee Structures</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#0c1e33", margin: "4px 0" }}>
+            </article>
+
+            {/* 4. Active Fee Structures (Pastel Sky) */}
+            <article
+              onClick={() => setSubtab("structure")}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: "#bae5f5",
+                border: "1px solid #bae5f5",
+                borderRadius: "10px",
+                color: "#0a5a7a",
+                cursor: "pointer",
+                transition: "transform 0.15s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Active Fee Structures
+                </span>
+                <CreditCard size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "32px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
                 {feeStructures.length}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "11px" }}>Configured across classes</span>
+                <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+                  Structures <ArrowRight size={13} />
+                </span>
               </div>
-              <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Configured across classes</span>
-            </div>
+            </article>
           </div>
 
           <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>

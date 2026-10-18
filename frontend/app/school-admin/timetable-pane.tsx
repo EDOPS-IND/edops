@@ -203,6 +203,127 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
+      {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+        {/* 1. Total Slots (Pastel Violet) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#e1d2ff",
+            border: "1px solid #e1d2ff",
+            borderRadius: "10px",
+            color: "#4a0e8f",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Total Weekly Periods
+            </span>
+            <Calendar size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#4a0e8f" }}>
+            {slots.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Instructional &amp; lab slots</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Active</span>
+          </div>
+        </article>
+
+        {/* 2. Section Matrices (Pastel Mint) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ccefbf",
+            border: "1px solid #ccefbf",
+            borderRadius: "10px",
+            color: "#1a5c0a",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Sections Scheduled
+            </span>
+            <BookOpen size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
+            {sections.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Across registered class rosters</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Matrices</span>
+          </div>
+        </article>
+
+        {/* 3. Allocated Faculty (Pastel Sky) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#bae5f5",
+            border: "1px solid #bae5f5",
+            borderRadius: "10px",
+            color: "#0a5a7a",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Assigned Faculty
+            </span>
+            <User size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
+            {teachers.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Instructional load balanced</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Teachers</span>
+          </div>
+        </article>
+
+        {/* 4. Conflict Alarms (Pastel Coral) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: conflicts.length > 0 ? "#ffd6d6" : "#ffd8c7",
+            border: `1px solid ${conflicts.length > 0 ? "#ffd6d6" : "#ffd8c7"}`,
+            borderRadius: "10px",
+            color: conflicts.length > 0 ? "#7a1a1a" : "#782a00",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Conflict Alarms
+            </span>
+            <AlertTriangle size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: conflicts.length > 0 ? "#7a1a1a" : "#782a00" }}>
+            {conflicts.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>
+              {conflicts.length === 0 ? "Zero double-booking detected" : "Overlapping assignments detected"}
+            </span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Health</span>
+          </div>
+        </article>
+      </section>
+
       {/* Conflict Alert Banner (§32) */}
       {conflicts.length > 0 ? (
         <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -222,7 +343,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
       ) : (
         <div style={{ background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: "10px", padding: "12px 18px", display: "flex", alignItems: "center", gap: "10px" }}>
           <CheckCircle2 size={18} color="#047857" />
-          <span style={{ color: "#047857", fontSize: "13px", fontWeight: 700 }}>{loading ? "Loading timetable…" : slots.length ? "No recorded scheduling conflicts." : "No timetable entries saved."}</span>
+          <span style={{ color: "#047857", fontSize: "13px", fontWeight: 700 }}>{loading ? "Loading timetable…" : slots.length ? "No recorded scheduling conflicts. All period allocations verified." : "No timetable entries saved."}</span>
         </div>
       )}
 

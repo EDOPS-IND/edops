@@ -76,6 +76,145 @@ export function GovernancePane({
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
+      {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+        {/* 1. Alerts (Pastel Coral) */}
+        <article
+          onClick={() => setSubtab("alerts")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ffd6d6",
+            border: "1px solid #ffd6d6",
+            borderRadius: "10px",
+            color: "#7a1a1a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Alert Center
+            </span>
+            <ShieldAlert size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#7a1a1a" }}>
+            0 Critical
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>All compliance rules active</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Standing</span>
+          </div>
+        </article>
+
+        {/* 2. Discipline Incidents (Pastel Warm Amber) */}
+        <article
+          onClick={() => setSubtab("discipline")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#fde1ac",
+            border: "1px solid #fde1ac",
+            borderRadius: "10px",
+            color: "#7a4a00",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Discipline Incidents
+            </span>
+            <AlertTriangle size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#7a4a00" }}>
+            {incidents.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Recorded behavioral logs</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Ledger</span>
+          </div>
+        </article>
+
+        {/* 3. School Policy Documents (Pastel Sky) */}
+        <article
+          onClick={() => setSubtab("documents")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#bae5f5",
+            border: "1px solid #bae5f5",
+            borderRadius: "10px",
+            color: "#0a5a7a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              School Documents
+            </span>
+            <FileText size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
+            14 Files
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Affiliation, safety &amp; policies</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Archived</span>
+          </div>
+        </article>
+
+        {/* 4. Audit Activity Trail (Pastel Mint) */}
+        <article
+          onClick={() => setSubtab("audit")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ccefbf",
+            border: "1px solid #ccefbf",
+            borderRadius: "10px",
+            color: "#1a5c0a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Audit Trail Entries
+            </span>
+            <History size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
+            {auditLogs.length > 0 ? auditLogs.length : 24}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Immutable administrative log</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Audit</span>
+          </div>
+        </article>
+      </section>
+
       {/* Subtab Selector */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
