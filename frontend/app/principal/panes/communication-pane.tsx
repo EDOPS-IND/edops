@@ -44,35 +44,23 @@ export function CommunicationPane({
     alert(`Parent query updated to ${status}.`);
   };
 
+  const resolvedQueriesCount = queryList.filter((q: any) => q.status === "resolved").length;
+  const urgentMessagesCount = inboxList.filter((m: any) => m.isUrgent).length;
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* Sub navigation & Trigger Action */}
+      {/* Header & Broadcast Trigger */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-        <div style={{ display: "flex", gap: "8px" }}>
-          {[
-            { id: "inbox", label: "Principal Inbox" },
-            { id: "parent_queries", label: "Parent Academic Queries & Complaints" },
-            { id: "ptm", label: "PTM Management & Academic Notes" },
-          ].map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setSubTab(t.id as any)}
-              style={{
-                padding: "8px 16px",
-                borderRadius: "8px",
-                border: "1px solid",
-                borderColor: subTab === t.id ? "#0c1e33" : "#e4e6e9",
-                background: subTab === t.id ? "#0c1e33" : "#ffffff",
-                color: subTab === t.id ? "#ffffff" : "#475569",
-                fontSize: "12px",
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
+        <div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <MessageSquare size={22} color="#0c1e33" />
+            <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0c1e33", margin: 0 }}>
+              Institutional Communication & Parent Relations
+            </h2>
+          </div>
+          <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>
+            Administrative inbox, parent grievance resolutions, circular broadcasts, and PTM slot oversight
+          </p>
         </div>
 
         <button
@@ -93,6 +81,151 @@ export function CommunicationPane({
         >
           <Send size={15} /> + Academic Broadcast
         </button>
+      </div>
+
+      {/* 4 Standard Pastel KPI Cards (strictly 148px height) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        {/* Card 1: Mint - Grievance Resolutions */}
+        <div
+          style={{
+            height: "148px",
+            background: "#ccefbf",
+            border: "1px solid #b2e49f",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#1a5c0a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Resolved Inquiries
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#1a5c0a", marginTop: "4px" }}>
+              {resolvedQueriesCount} / {queryList.length || 0}
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#23720e", fontWeight: 500 }}>
+            {queryList.length > 0 ? `${Math.round((resolvedQueriesCount / queryList.length) * 100)}% resolution SLA` : "All queries resolved"}
+          </div>
+        </div>
+
+        {/* Card 2: Sky - Active Messages */}
+        <div
+          style={{
+            height: "148px",
+            background: "#bae5f5",
+            border: "1px solid #9ad7ef",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#0a5a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Principal Inbox
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#0a5a7a", marginTop: "4px" }}>
+              {inboxList.length || 0}
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#0d6f96", fontWeight: 500 }}>
+            Official memos and faculty reports
+          </div>
+        </div>
+
+        {/* Card 3: Violet - PTM Scheduled */}
+        <div
+          style={{
+            height: "148px",
+            background: "#e1d2ff",
+            border: "1px solid #cdb5ff",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#4a0e8f", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              PTM Sessions
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#4a0e8f", marginTop: "4px" }}>
+              {ptmList.length || 0}
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#5b14ae", fontWeight: 500 }}>
+            Parent-Teacher conference calendar
+          </div>
+        </div>
+
+        {/* Card 4: Peach - Escalated Directives */}
+        <div
+          style={{
+            height: "148px",
+            background: "#ffd8c7",
+            border: "1px solid #ffbe9f",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#782a00", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Urgent Priority
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#782a00", marginTop: "4px" }}>
+              {urgentMessagesCount}
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#923402", fontWeight: 500 }}>
+            Flagged for immediate response
+          </div>
+        </div>
+      </div>
+
+      {/* Sub navigation Switcher */}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        {[
+          { id: "inbox", label: "Principal Inbox" },
+          { id: "parent_queries", label: "Parent Academic Queries & Complaints" },
+          { id: "ptm", label: "PTM Management & Academic Notes" },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setSubTab(t.id as any)}
+            style={{
+              padding: "8px 16px",
+              borderRadius: "8px",
+              border: "1px solid",
+              borderColor: subTab === t.id ? "#0c1e33" : "#e4e6e9",
+              background: subTab === t.id ? "#0c1e33" : "#ffffff",
+              color: subTab === t.id ? "#ffffff" : "#475569",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* 1. Principal Inbox Tab (Section 47) */}

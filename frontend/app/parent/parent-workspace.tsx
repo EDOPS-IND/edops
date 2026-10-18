@@ -155,9 +155,9 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
     { id: "overview", label: "Family Overview", icon: LayoutDashboard, tab: "overview" as ParentTab },
     { id: "academics", label: "Children & Academics", icon: BookOpen, tab: "academics" as ParentTab },
     { id: "attendance", label: "Attendance & Leaves", icon: CheckCircle2, tab: "attendance" as ParentTab },
-    { id: "fees", label: "Fee Invoicing & Receipts", icon: CreditCard, tab: "fees" as ParentTab },
-    { id: "ptm", label: "PTM Slot Scheduling", icon: CalendarDays, tab: "ptm" as ParentTab },
-    { id: "notices", label: "School Notices & Grievance", icon: Bell, tab: "notices" as ParentTab },
+    { id: "fees", label: "Fee Invoicing & Dues", icon: CreditCard, tab: "fees" as ParentTab },
+    { id: "ptm", label: "PTM Appointments", icon: CalendarDays, tab: "ptm" as ParentTab },
+    { id: "notices", label: "Notices & Grievances", icon: Bell, tab: "notices" as ParentTab },
   ];
 
   if (loading) {
@@ -200,60 +200,333 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f4f6f7", display: "flex", flexDirection: "column" }}>
-      {/* 1. TOP STICKY HEADER */}
-      <header
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f4f6f7", fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif' }}>
+      {/* 1. UNIVERSAL MIDNIGHT OBSIDIAN SIDEBAR (#0b0f19) */}
+      <aside
+        id="parent-sidebar"
+        aria-label="Parent Portal Navigation"
         style={{
+          width: "240px",
+          flexShrink: 0,
+          background: "#0b0f19",
+          borderRight: "1px solid rgba(255, 255, 255, 0.06)",
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
           position: "sticky",
           top: 0,
+          overflow: "hidden",
           zIndex: 40,
-          background: "#ffffff",
-          borderBottom: "1px solid #e4e6e9",
-          padding: "10px 24px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden"
+        {/* Brand Header & Official Logo */}
+        <div
+          style={{
+            height: "68px",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 18px",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            boxSizing: "border-box",
+            flexShrink: 0,
+            cursor: "pointer",
+            gap: "10px",
+          }}
+          onClick={() => setActiveTab("overview")}
+          title="EDOPS Guardian Portal"
+        >
+          <img
+            src="/logo.svg"
+            alt="edops"
             style={{
-              padding: "6px",
-              borderRadius: "6px",
-              border: "1px solid #e4e6e9",
-              background: "#ffffff",
-              cursor: "pointer",
+              height: "32px",
+              width: "auto",
+              display: "block",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
+              transition: "transform 0.15s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+          />
+          <span
+            style={{
+              fontSize: "9.5px",
+              fontWeight: 700,
+              padding: "2px 7px",
+              borderRadius: "5px",
+              background: "rgba(129, 140, 248, 0.16)",
+              color: "#a5b4fc",
+              border: "1px solid rgba(129, 140, 248, 0.3)",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
             }}
           >
-            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
+            PARENT
+          </span>
+        </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        {/* Scrollable Navigation Body */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            padding: "14px 12px",
+            overflowY: "auto",
+            overflowX: "hidden",
+            scrollbarWidth: "none",
+            gap: "16px",
+          }}
+        >
+          {/* Active Ward Profile Card */}
+          <div
+            style={{
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: "10px",
+              padding: "10px 12px",
+            }}
+          >
             <div
               style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "10px",
-                background: "#0b0f19",
-                color: "#ffffff",
+                fontSize: "10px",
+                fontWeight: 700,
+                color: "rgba(255, 255, 255, 0.38)",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: "8px",
                 display: "flex",
+                justifyContent: "space-between",
                 alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 800,
-                fontSize: "15px",
-                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
               }}
             >
-              <Sparkles size={18} color="#818cf8" />
+              <span>ACTIVE STUDENT</span>
+              <span style={{ fontSize: "9px", color: "#10b981", fontWeight: 700 }}>VERIFIED</span>
             </div>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                <span style={{ fontWeight: 800, fontSize: "15px", color: "#0c1e33", letterSpacing: "-0.3px" }}>
-                  EdOps
+
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <img
+                src={getStudentAvatarUrl(selectedWard.name, selectedWard.studentUserId)}
+                alt={selectedWard.name}
+                style={{
+                  width: "34px",
+                  height: "34px",
+                  borderRadius: "50%",
+                  background: "#1c2337",
+                  flexShrink: 0,
+                  border: "1.5px solid #818cf8",
+                }}
+              />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    color: "#ffffff",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {selectedWard.name}
+                </div>
+                <div style={{ fontSize: "11px", color: "#8a92a6" }}>
+                  Class {selectedWard.sectionName || "Enrolled"}
+                </div>
+              </div>
+            </div>
+
+            {/* Multi-ward switcher if guardian has more than 1 student */}
+            {wards.length > 1 && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  paddingTop: "8px",
+                  borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "5px",
+                }}
+              >
+                <span style={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.4)", fontWeight: 600 }}>
+                  Switch Child:
                 </span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                  {wards.map((w) => {
+                    const isCur = w.studentUserId === selectedWard.studentUserId;
+                    return (
+                      <button
+                        key={w.studentUserId}
+                        onClick={() => setSelectedWardId(w.studentUserId)}
+                        style={{
+                          all: "unset",
+                          padding: "3px 8px",
+                          borderRadius: "6px",
+                          fontSize: "11px",
+                          fontWeight: isCur ? 700 : 500,
+                          background: isCur ? "#818cf8" : "rgba(255, 255, 255, 0.06)",
+                          color: isCur ? "#ffffff" : "#cbd5e1",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {w.name.split(" ")[0]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Navigation Links */}
+          <nav style={{ display: "flex", flexDirection: "column", gap: "3px" }} aria-label="Guardian navigation">
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: "rgba(255, 255, 255, 0.38)",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                padding: "8px 12px 4px",
+                userSelect: "none",
+              }}
+            >
+              GUARDIAN WORKSPACE
+            </div>
+
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.tab;
+              return (
+                <button
+                  key={item.id}
+                  id={`nav-${item.id}`}
+                  onClick={() => {
+                    setActiveTab(item.tab);
+                    setMobileMenuOpen(false);
+                  }}
+                  style={{
+                    all: "unset",
+                    boxSizing: "border-box",
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "11px",
+                    height: "40px",
+                    padding: "0 12px",
+                    borderRadius: "10px",
+                    fontSize: "13.5px",
+                    cursor: "pointer",
+                    transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+                    background: isActive ? "#1c2337" : "transparent",
+                    color: isActive ? "#ffffff" : "#8a92a6",
+                    fontWeight: isActive ? 600 : 450,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = "#ffffff";
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = "#8a92a6";
+                      e.currentTarget.style.background = "transparent";
+                    }
+                  }}
+                >
+                  <Icon
+                    size={18}
+                    strokeWidth={isActive ? 2 : 1.75}
+                    style={{
+                      flexShrink: 0,
+                      color: isActive ? "#ffffff" : "#8a92a6",
+                      transition: "color 0.15s ease",
+                    }}
+                  />
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {item.label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Sidebar Footer: Guardian Account Badge & Logout */}
+        <div style={{ marginTop: "auto", padding: "14px 12px", borderTop: "1px solid rgba(255, 255, 255, 0.06)", flexShrink: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "10px 12px",
+              borderRadius: "10px",
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid rgba(255, 255, 255, 0.06)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+              <img
+                src={getStudentAvatarUrl("Guardian", organization.id)}
+                alt=""
+                style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#1c2337", flexShrink: 0 }}
+              />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  Verified Guardian
+                </div>
+                <div style={{ fontSize: "10px", color: "#8a92a6" }}>{wards.length} linked child profile(s)</div>
+              </div>
+            </div>
+
+            <button
+              onClick={onLogout}
+              title="Sign Out"
+              style={{
+                background: "none",
+                border: "none",
+                color: "#8a92a6",
+                cursor: "pointer",
+                padding: "4px",
+                display: "flex",
+                alignItems: "center",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#8a92a6")}
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* 2. RIGHT SIDE CONTENT AREA (Sticky Header + Canvas) */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {/* Top Header Bar */}
+        <header
+          style={{
+            height: "68px",
+            position: "sticky",
+            top: 0,
+            zIndex: 30,
+            background: "#ffffff",
+            borderBottom: "1px solid #e4e6e9",
+            padding: "0 28px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            boxSizing: "border-box",
+          }}
+        >
+          {/* Header Left: School & Ward Context */}
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <h1 style={{ fontSize: "16px", fontWeight: 800, color: "#0c1e33", margin: 0 }}>
+                  {organization.name}
+                </h1>
                 <span
                   style={{
                     fontSize: "10px",
@@ -266,310 +539,126 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                     textTransform: "uppercase",
                   }}
                 >
-                  Parent Portal
+                  Guardian Session
                 </span>
               </div>
-              <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 500 }}>{organization.name}</div>
+              <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 500 }}>
+                Active Profile: <b>{selectedWard.name}</b> (Class {selectedWard.sectionName || "Enrolled"})
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Header Right: Ward Switcher & Quick Actions */}
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {/* Quick Ward Switcher in Header */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "#f8fafc",
-              padding: "4px 8px",
-              borderRadius: "8px",
-              border: "1px solid #e4e6e9",
-            }}
-          >
-            <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", paddingLeft: "4px" }}>Ward:</span>
-            {wards.map((w) => {
-              const isSelected = w.studentUserId === selectedWard.studentUserId;
-              return (
-                <button
-                  key={w.studentUserId}
-                  onClick={() => setSelectedWardId(w.studentUserId)}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    padding: "4px 10px",
-                    borderRadius: "6px",
-                    fontSize: "11px",
-                    fontWeight: 700,
-                    border: "none",
-                    background: isSelected ? "#0c1e33" : "transparent",
-                    color: isSelected ? "#ffffff" : "#475569",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  <img
-                    src={getStudentAvatarUrl(w.name, w.studentUserId)}
-                    alt=""
-                    style={{ width: "18px", height: "18px", borderRadius: "50%", background: "#eaedf2" }}
-                  />
-                  <span>{w.name}</span>
-                  <span
-                    style={{
-                      fontSize: "9px",
-                      padding: "1px 4px",
-                      borderRadius: "3px",
-                      background: isSelected ? "rgba(255,255,255,0.2)" : "#e2e8f0",
-                      color: isSelected ? "#ffffff" : "#475569",
-                    }}
-                  >
-                    {w.sectionName || "Enrolled"}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <button
-            onClick={() => setLeaveModalOpen(true)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "7px 14px",
-              borderRadius: "8px",
-              background: "#ffffff",
-              border: "1px solid #e4e6e9",
-              color: "#0c1e33",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            <Plus size={14} /> Apply Leave
-          </button>
-
-          <button
-            onClick={() => setActiveTab("ptm")}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "7px 14px",
-              borderRadius: "8px",
-              background: "#0c1e33",
-              border: "none",
-              color: "#ffffff",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            <CalendarDays size={14} color="#818cf8" /> Book PTM
-          </button>
-
-          {/* Org Selector */}
-          {organizations.length > 1 && (
-            <select
-              value={organization.id}
-              onChange={(e) => onSwitchOrganization(e.target.value)}
+          {/* Header Right: Ward Switcher & Actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {/* Quick Ward Switcher in Header */}
+            <div
               style={{
-                fontSize: "12px",
-                fontWeight: 600,
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
                 background: "#f8fafc",
-                border: "1px solid #e4e6e9",
+                padding: "4px 8px",
                 borderRadius: "8px",
-                padding: "6px 10px",
-                color: "#334155",
-              }}
-            >
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {/* Parent Profile Avatar & Logout */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingLeft: "10px", borderLeft: "1px solid #e4e6e9" }}>
-            <img
-              src={getStudentAvatarUrl("Guardian", organization.id)}
-              alt="Parent Account"
-              style={{
-                width: "32px",
-                height: "32px",
-                borderRadius: "50%",
-                background: "#0b0f19",
                 border: "1px solid #e4e6e9",
               }}
-              title="Verified Guardian"
-            />
-            <button
-              onClick={onLogout}
-              title="Sign Out"
-              style={{
-                padding: "6px",
-                borderRadius: "6px",
-                border: "none",
-                background: "transparent",
-                color: "#64748b",
-                cursor: "pointer",
-              }}
             >
-              <LogOut size={16} />
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* 2. MAIN WORKSPACE BODY (Sidebar + Main View) */}
-      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
-        {/* Mobile menu backdrop */}
-        {mobileMenuOpen && (
-          <div
-            onClick={() => setMobileMenuOpen(false)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 30,
-              background: "rgba(11, 15, 25, 0.6)",
-              backdropFilter: "blur(2px)",
-            }}
-          />
-        )}
-
-        {/* Universal Midnight Obsidian Sidebar (#0b0f19) */}
-        <aside
-          style={{
-            width: "256px",
-            background: "#0b0f19",
-            borderRight: "1px solid rgba(255, 255, 255, 0.06)",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            flexShrink: 0,
-            zIndex: 35,
-          }}
-        >
-          {/* Top of Sidebar: Ward Selector Card */}
-          <div style={{ padding: "16px 14px", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: "#8a92a6", marginBottom: "8px", paddingLeft: "6px" }}>
-              Active Student Ward
-            </div>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", paddingLeft: "4px" }}>Ward:</span>
               {wards.map((w) => {
                 const isSelected = w.studentUserId === selectedWard.studentUserId;
                 return (
                   <button
                     key={w.studentUserId}
-                    onClick={() => {
-                      setSelectedWardId(w.studentUserId);
-                      setMobileMenuOpen(false);
-                    }}
+                    onClick={() => setSelectedWardId(w.studentUserId)}
                     style={{
-                      width: "100%",
-                      display: "flex",
+                      display: "inline-flex",
                       alignItems: "center",
-                      justifyContent: "space-between",
-                      padding: "8px 10px",
-                      borderRadius: "8px",
-                      border: isSelected ? "1px solid rgba(255, 255, 255, 0.12)" : "1px solid transparent",
-                      background: isSelected ? "#1c2337" : "transparent",
-                      color: isSelected ? "#ffffff" : "#8a92a6",
+                      gap: "6px",
+                      padding: "4px 10px",
+                      borderRadius: "6px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      border: "none",
+                      background: isSelected ? "#0c1e33" : "transparent",
+                      color: isSelected ? "#ffffff" : "#475569",
                       cursor: "pointer",
-                      textAlign: "left",
                       transition: "all 0.15s ease",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <img
-                        src={getStudentAvatarUrl(w.name, w.studentUserId)}
-                        alt=""
-                        style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#1c2337" }}
-                      />
-                      <div>
-                        <div style={{ fontSize: "12px", fontWeight: 700, color: isSelected ? "#ffffff" : "#d1d5db" }}>
-                          {w.name}
-                        </div>
-                        <div style={{ fontSize: "10px", color: "#8a92a6" }}>{w.sectionName || "Enrolled"}</div>
-                      </div>
-                    </div>
-                    {isSelected && (
-                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981" }} />
-                    )}
+                    <img
+                      src={getStudentAvatarUrl(w.name, w.studentUserId)}
+                      alt=""
+                      style={{ width: "18px", height: "18px", borderRadius: "50%", background: "#eaedf2" }}
+                    />
+                    <span>{w.name}</span>
                   </button>
                 );
               })}
             </div>
-          </div>
 
-          {/* Navigation Links */}
-          <div style={{ padding: "16px 12px", flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: "#8a92a6", marginBottom: "8px", paddingLeft: "8px" }}>
-              Navigation
-            </div>
-
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.tab;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.tab);
-                    setMobileMenuOpen(false);
-                  }}
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    padding: "10px 14px",
-                    borderRadius: "8px",
-                    border: "none",
-                    background: isActive ? "#1c2337" : "transparent",
-                    color: isActive ? "#ffffff" : "#8a92a6",
-                    fontSize: "12.5px",
-                    fontWeight: isActive ? 700 : 500,
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                    textAlign: "left",
-                  }}
-                >
-                  <Icon size={16} color={isActive ? "#ffffff" : "#8a92a6"} />
-                  <span>{item.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Sidebar Footer: Verified Session Badge */}
-          <div style={{ padding: "16px", borderTop: "1px solid rgba(255, 255, 255, 0.06)" }}>
-            <div
+            <button
+              onClick={() => setLeaveModalOpen(true)}
               style={{
-                background: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.06)",
-                borderRadius: "10px",
-                padding: "12px",
-                display: "flex",
+                display: "inline-flex",
                 alignItems: "center",
-                gap: "10px",
+                gap: "6px",
+                padding: "7px 14px",
+                borderRadius: "8px",
+                background: "#ffffff",
+                border: "1px solid #e4e6e9",
+                color: "#0c1e33",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
               }}
             >
-              <ShieldCheck size={20} color="#10b981" />
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#ffffff" }}>Verified Guardian</div>
-                <div style={{ fontSize: "10px", color: "#8a92a6" }}>{wards.length} linked child profile(s)</div>
-              </div>
-            </div>
-          </div>
-        </aside>
+              <Plus size={14} /> Apply Leave
+            </button>
 
-        {/* 3. MAIN CONTENT VIEW CANVAS */}
+            <button
+              onClick={() => setActiveTab("ptm")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "7px 14px",
+                borderRadius: "8px",
+                background: "#0c1e33",
+                border: "none",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <CalendarDays size={14} color="#818cf8" /> Book PTM
+            </button>
+
+            {/* Org Switcher */}
+            {organizations.length > 1 && (
+              <select
+                value={organization.id}
+                onChange={(e) => onSwitchOrganization(e.target.value)}
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  background: "#f8fafc",
+                  border: "1px solid #e4e6e9",
+                  borderRadius: "8px",
+                  padding: "6px 10px",
+                  color: "#334155",
+                }}
+              >
+                {organizations.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+        </header>
+
+        {/* Main Canvas */}
         <main style={{ flex: 1, overflowY: "auto", padding: "28px 36px", background: "#f4f6f7" }}>
           <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
             {error && (
@@ -651,7 +740,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
         </main>
       </div>
 
-      {/* 4. GLOBAL PARENT MODALS */}
+      {/* 3. GLOBAL PARENT MODALS */}
       <ApplyLeaveModal
         isOpen={leaveModalOpen}
         onClose={() => setLeaveModalOpen(false)}

@@ -172,12 +172,14 @@ export function AssessmentsPane({
             style={{
               padding: "8px 16px",
               borderRadius: "8px",
-              fontSize: "13px",
-              fontWeight: tab === "assessments" ? 700 : 500,
-              background: tab === "assessments" ? "#1E293B" : "#F8FAFC",
-              color: tab === "assessments" ? "#FFFFFF" : "#64748B",
-              border: "1px solid #E2E8F0",
+              fontSize: "12px",
+              fontWeight: 600,
+              background: tab === "assessments" ? "#0c1e33" : "#ffffff",
+              color: tab === "assessments" ? "#ffffff" : "#475569",
+              border: "1px solid",
+              borderColor: tab === "assessments" ? "#0c1e33" : "#e4e6e9",
               cursor: "pointer",
+              transition: "all 0.15s ease",
             }}
           >
             Assessments & Question Papers
@@ -187,12 +189,14 @@ export function AssessmentsPane({
             style={{
               padding: "8px 16px",
               borderRadius: "8px",
-              fontSize: "13px",
-              fontWeight: tab === "analysis" ? 700 : 500,
-              background: tab === "analysis" ? "#1E293B" : "#F8FAFC",
-              color: tab === "analysis" ? "#FFFFFF" : "#64748B",
-              border: "1px solid #E2E8F0",
+              fontSize: "12px",
+              fontWeight: 600,
+              background: tab === "analysis" ? "#0c1e33" : "#ffffff",
+              color: tab === "analysis" ? "#ffffff" : "#475569",
+              border: "1px solid",
+              borderColor: tab === "analysis" ? "#0c1e33" : "#e4e6e9",
               cursor: "pointer",
+              transition: "all 0.15s ease",
             }}
           >
             Assessment Analysis
@@ -223,15 +227,121 @@ export function AssessmentsPane({
 
       {tab === "assessments" && (
         <>
-          {/* 1. Assessment Scheme & Blueprint Compliance Banner (Derived from stored database records) */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
-            {types.map((item: any, idx: number) => (
-              <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "16px" }}>
-                <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 700, textTransform: "uppercase" }}>{item.type}</div>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: "#1E293B", margin: "4px 0" }}>{item.weight}</div>
-                <div style={{ fontSize: "11px", color: "#15803D", fontWeight: 600 }}>Compliance: {item.compliance} ({item.status})</div>
+          {/* 4 Standard Pastel KPI Cards (strictly 148px height) */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+              gap: "16px",
+            }}
+          >
+            {/* Card 1: Mint - Approved Papers */}
+            <div
+              style={{
+                height: "148px",
+                background: "#ccefbf",
+                border: "1px solid #b2e49f",
+                borderRadius: "10px",
+                padding: "20px",
+                boxSizing: "border-box",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#1a5c0a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Approved Question Papers
+                </div>
+                <div style={{ fontSize: "28px", fontWeight: 800, color: "#1a5c0a", marginTop: "4px" }}>
+                  {papers.filter((p: any) => p.status === "Approved").length} / {papers.length || 0}
+                </div>
               </div>
-            ))}
+              <div style={{ fontSize: "11px", color: "#23720e", fontWeight: 500 }}>
+                Certified blueprints ready for printing
+              </div>
+            </div>
+
+            {/* Card 2: Sky - Total Question Papers */}
+            <div
+              style={{
+                height: "148px",
+                background: "#bae5f5",
+                border: "1px solid #9ad7ef",
+                borderRadius: "10px",
+                padding: "20px",
+                boxSizing: "border-box",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#0a5a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Question Papers Logged
+                </div>
+                <div style={{ fontSize: "28px", fontWeight: 800, color: "#0a5a7a", marginTop: "4px" }}>
+                  {papers.length || 0} Papers
+                </div>
+              </div>
+              <div style={{ fontSize: "11px", color: "#0d6f96", fontWeight: 500 }}>
+                Across Midterm, Periodic, and Final terms
+              </div>
+            </div>
+
+            {/* Card 3: Violet - Under Review */}
+            <div
+              style={{
+                height: "148px",
+                background: "#e1d2ff",
+                border: "1px solid #cdb5ff",
+                borderRadius: "10px",
+                padding: "20px",
+                boxSizing: "border-box",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#4a0e8f", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Pending Principal Review
+                </div>
+                <div style={{ fontSize: "28px", fontWeight: 800, color: "#4a0e8f", marginTop: "4px" }}>
+                  {papers.filter((p: any) => p.status !== "Approved").length || 0}
+                </div>
+              </div>
+              <div style={{ fontSize: "11px", color: "#5b14ae", fontWeight: 500 }}>
+                Awaiting difficulty & competency sign-off
+              </div>
+            </div>
+
+            {/* Card 4: Peach - Competency Mapped */}
+            <div
+              style={{
+                height: "148px",
+                background: "#ffd8c7",
+                border: "1px solid #ffbe9f",
+                borderRadius: "10px",
+                padding: "20px",
+                boxSizing: "border-box",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#782a00", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Competency Mapping
+                </div>
+                <div style={{ fontSize: "28px", fontWeight: 800, color: "#782a00", marginTop: "4px" }}>
+                  {papers.length > 0 ? `${Math.round((papers.filter((p: any) => p.competencyMapped).length / papers.length) * 100)}%` : "100%"}
+                </div>
+              </div>
+              <div style={{ fontSize: "11px", color: "#923402", fontWeight: 500 }}>
+                CBSE Learning Outcomes compliance
+              </div>
+            </div>
           </div>
 
           {/* 2. Question Paper Approval Pipeline */}

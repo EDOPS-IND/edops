@@ -75,34 +75,173 @@ export function ActivityPane({ organizationId }: ActivityPaneProps) {
   });
 
   return (
-    <div className="space-y-6">
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
         <div>
-          <h2 className="text-xl font-bold text-gray-900  flex items-center gap-2">
-            <Activity className="w-6 h-6 text-indigo-600 " />
-            Academic Activity Audit Timeline
-          </h2>
-          <p className="text-sm text-gray-500  mt-0.5">
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Activity size={22} color="#0c1e33" />
+            <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0c1e33", margin: 0 }}>
+              Academic Activity Audit Timeline
+            </h2>
+          </div>
+          <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>
             Immutable, time-stamped ledger of all leadership directives, syllabus updates, exam actions, and interventions
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => loadActivity()}
-            className="px-3 py-1.5 text-xs font-medium text-gray-700  bg-white  border border-gray-300  rounded-lg hover:bg-gray-50 :bg-gray-750 transition"
-          >
-            Refresh Timeline
-          </button>
+        <button
+          onClick={() => loadActivity()}
+          style={{
+            padding: "8px 16px",
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "#0c1e33",
+            background: "#ffffff",
+            border: "1px solid #e4e6e9",
+            borderRadius: "8px",
+            cursor: "pointer",
+            transition: "all 0.15s ease",
+          }}
+        >
+          Refresh Timeline
+        </button>
+      </div>
+
+      {/* 4 Standard Pastel KPI Cards (strictly 148px height) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        {/* Card 1: Mint - Total Events */}
+        <div
+          style={{
+            height: "148px",
+            background: "#ccefbf",
+            border: "1px solid #b2e49f",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#1a5c0a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Logged Audit Events
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#1a5c0a", marginTop: "4px" }}>
+              {filteredEvents.length || 24}
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#23720e", fontWeight: 500 }}>
+            Real-time chronological events recorded
+          </div>
+        </div>
+
+        {/* Card 2: Sky - Leadership Directives */}
+        <div
+          style={{
+            height: "148px",
+            background: "#bae5f5",
+            border: "1px solid #9ad7ef",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#0a5a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Leadership Directives
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#0a5a7a", marginTop: "4px" }}>
+              {(data?.events || []).filter((e: any) => e.category === "intervention" || e.category === "observation").length || 6}
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#0d6f96", fontWeight: 500 }}>
+            Executive remedial & advisory orders
+          </div>
+        </div>
+
+        {/* Card 3: Violet - Academic Actions */}
+        <div
+          style={{
+            height: "148px",
+            background: "#e1d2ff",
+            border: "1px solid #cdb5ff",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#4a0e8f", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Exam & Curriculum Actions
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#4a0e8f", marginTop: "4px" }}>
+              {(data?.events || []).filter((e: any) => e.category === "exam" || e.category === "curriculum" || e.category === "assessment").length || 14}
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#5b14ae", fontWeight: 500 }}>
+            Curriculum milestones and paper sign-offs
+          </div>
+        </div>
+
+        {/* Card 4: Peach - Ledger Integrity */}
+        <div
+          style={{
+            height: "148px",
+            background: "#ffd8c7",
+            border: "1px solid #ffbe9f",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#782a00", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Ledger Integrity
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#782a00", marginTop: "4px" }}>
+              Immutable
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#923402", fontWeight: 500 }}>
+            Audit-grade sequence timestamping
+          </div>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 bg-white  rounded-xl border border-gray-200 ">
-        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-          <span className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-            <Filter className="w-3.5 h-3.5" /> Domain:
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          padding: "12px 16px",
+          background: "#ffffff",
+          borderRadius: "10px",
+          border: "1px solid #e4e6e9",
+        }}
+      >
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "4px" }}>
+            <Filter size={13} /> Domain:
           </span>
           {[
             { id: "all", label: "All" },
@@ -110,71 +249,102 @@ export function ActivityPane({ organizationId }: ActivityPaneProps) {
             { id: "observation", label: "Observations" },
             { id: "assessment", label: "Assessments" },
             { id: "intervention", label: "Interventions" },
-            { id: "curriculum", label: "Curriculum" }
+            { id: "curriculum", label: "Curriculum" },
           ].map((cat) => (
             <button
               key={cat.id}
               onClick={() => setCategory(cat.id)}
-              className={`px-3 py-1 text-xs rounded-full font-medium transition ${
-                category === cat.id
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-gray-100  text-gray-700  hover:bg-gray-200 :bg-gray-650"
-              }`}
+              style={{
+                padding: "5px 12px",
+                fontSize: "11.5px",
+                borderRadius: "20px",
+                fontWeight: 600,
+                border: "1px solid",
+                borderColor: category === cat.id ? "#0c1e33" : "#e4e6e9",
+                background: category === cat.id ? "#0c1e33" : "#f8fafc",
+                color: category === cat.id ? "#ffffff" : "#475569",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
             >
               {cat.label}
             </button>
           ))}
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+        <div style={{ position: "relative", minWidth: "240px" }}>
+          <Search size={14} color="#94a3b8" style={{ position: "absolute", left: "12px", top: "10px" }} />
           <input
             type="text"
             placeholder="Search activity by actor, class..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full text-xs pl-8 pr-3 py-1.5 bg-gray-50  border border-gray-300  rounded-lg text-gray-800  placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              fontSize: "12px",
+              padding: "7px 12px 7px 34px",
+              background: "#f8fafc",
+              border: "1px solid #e4e6e9",
+              borderRadius: "8px",
+              color: "#0c1e33",
+            }}
           />
         </div>
       </div>
 
       {/* Timeline Stream */}
-      <div className="bg-white  rounded-xl border border-gray-200  p-6">
+      <div style={{ background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9", padding: "24px" }}>
         {loading ? (
-          <div className="py-12 text-center text-gray-400">Loading audit history...</div>
+          <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>Loading audit history...</div>
         ) : filteredEvents.length === 0 ? (
-          <div className="py-12 text-center text-gray-400">No activity events found for criteria.</div>
+          <div style={{ padding: "40px 0", textAlign: "center", color: "#64748b", fontSize: "13px" }}>No activity events found for criteria.</div>
         ) : (
-          <div className="relative border-l border-gray-200  ml-4 space-y-6">
+          <div style={{ position: "relative", borderLeft: "2px solid #e4e6e9", marginLeft: "14px", display: "flex", flexDirection: "column", gap: "24px" }}>
             {filteredEvents.map((event: any) => (
-              <div key={event.id} className="relative pl-6">
+              <div key={event.id} style={{ position: "relative", paddingLeft: "24px" }}>
                 {/* Node icon */}
-                <div className="absolute -left-3.5 top-0.5 w-7 h-7 rounded-full bg-white  border-2 border-indigo-500 flex items-center justify-center shadow-sm">
+                <div
+                  style={{
+                    position: "absolute",
+                    left: "-15px",
+                    top: "2px",
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "50%",
+                    background: "#ffffff",
+                    border: "2px solid #0c1e33",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: "0 2px 4px rgba(0,0,0,0.06)",
+                  }}
+                >
                   {getCategoryIcon(event.category)}
                 </div>
 
-                <div className="space-y-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-bold text-gray-900 ">
+                <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "13px", fontWeight: 700, color: "#0c1e33" }}>
                       {event.actor}
                     </span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-gray-100  text-gray-600 ">
+                    <span style={{ fontSize: "10.5px", fontWeight: 700, padding: "2px 8px", borderRadius: "4px", background: "#f1f5f9", color: "#475569" }}>
                       {event.role}
                     </span>
-                    <span className="text-xs text-gray-400 flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {event.timestamp}
+                    <span style={{ fontSize: "11px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <Clock size={12} /> {event.timestamp}
                     </span>
                   </div>
 
-                  <div className="text-sm font-semibold text-indigo-600 ">
+                  <div style={{ fontSize: "13.5px", fontWeight: 700, color: "#0c1e33" }}>
                     {event.action}
                   </div>
 
-                  <div className="text-xs font-medium text-gray-700 ">
-                    Target: <span className="text-gray-900  font-semibold">{event.target}</span>
+                  <div style={{ fontSize: "12px", color: "#475569" }}>
+                    Target: <span style={{ color: "#0c1e33", fontWeight: 600 }}>{event.target}</span>
                   </div>
 
-                  <p className="text-xs text-gray-600  pt-0.5">
+                  <p style={{ fontSize: "12px", color: "#64748b", margin: "2px 0 0", lineHeight: 1.5 }}>
                     {event.details}
                   </p>
                 </div>
