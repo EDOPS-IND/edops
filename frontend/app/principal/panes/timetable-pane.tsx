@@ -589,115 +589,119 @@ export function TimetablePane({
       )}
 
       {/* Substitutions View */}
-      {currentView === "substitutions" && data && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          {/* Uncovered Absences */}
-          <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>Uncovered Faculty Absences</h3>
-                <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#64748b" }}>Periods requiring substitute educator coverage today.</p>
+      {currentView === "substitutions" && data && (() => {
+        const uncovered = data.uncovered ?? [];
+        const substitutions = data.substitutions ?? [];
+        return (
+          <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            {/* Uncovered Absences */}
+            <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>Uncovered Faculty Absences</h3>
+                  <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#64748b" }}>Periods requiring substitute educator coverage today.</p>
+                </div>
+                <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "4px", background: uncovered.length > 0 ? "#fee2e2" : "#dcfce7", color: uncovered.length > 0 ? "#991b1b" : "#166534" }}>
+                  {uncovered.length} periods open
+                </span>
               </div>
-              <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "4px", background: data.uncovered.length > 0 ? "#fee2e2" : "#dcfce7", color: data.uncovered.length > 0 ? "#991b1b" : "#166534" }}>
-                {data.uncovered.length} periods open
-              </span>
-            </div>
 
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                  <th style={{ padding: "12px 16px" }}>Date</th>
-                  <th style={{ padding: "12px 16px" }}>Period</th>
-                  <th style={{ padding: "12px 16px" }}>Class & Subject</th>
-                  <th style={{ padding: "12px 16px" }}>Absent Faculty</th>
-                  <th style={{ padding: "12px 16px", textAlign: "right" }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.uncovered.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ padding: "24px", textAlign: "center", color: "#15803d", fontWeight: 600 }}>
-                      All periods are fully covered. No teacher substitutions required.
-                    </td>
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
+                    <th style={{ padding: "12px 16px" }}>Date</th>
+                    <th style={{ padding: "12px 16px" }}>Period</th>
+                    <th style={{ padding: "12px 16px" }}>Class & Subject</th>
+                    <th style={{ padding: "12px 16px" }}>Absent Faculty</th>
+                    <th style={{ padding: "12px 16px", textAlign: "right" }}>Action</th>
                   </tr>
-                ) : (
-                  data.uncovered.map((item) => (
-                    <tr key={`${item.timetableEntryId}-${item.eventDate}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1e293b" }}>{item.eventDate}</td>
-                      <td style={{ padding: "12px 16px", color: "#475569" }}>Period {item.periodNumber}</td>
-                      <td style={{ padding: "12px 16px", color: "#1e293b", fontWeight: 600 }}>
-                        {item.programName} - {item.sectionName} · {item.subjectName}
-                      </td>
-                      <td style={{ padding: "12px 16px", color: "#991b1b", fontWeight: 600 }}>{item.originalTeacher}</td>
-                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                        <button
-                          type="button"
-                          onClick={() => openSubstitute(item.timetableEntryId, item.eventDate)}
-                          style={{
-                            padding: "6px 12px",
-                            borderRadius: "6px",
-                            background: "#0c1e33",
-                            color: "#ffffff",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Assign Substitute
-                        </button>
+                </thead>
+                <tbody>
+                  {uncovered.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ padding: "24px", textAlign: "center", color: "#15803d", fontWeight: 600 }}>
+                        All periods are fully covered. No teacher substitutions required.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Assigned Substitutions Log */}
-          <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e4e6e9" }}>
-              <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>Confirmed Substitute Assignments</h3>
-              <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#64748b" }}>History of assigned coverage for leave periods.</p>
+                  ) : (
+                    uncovered.map((item) => (
+                      <tr key={`${item.timetableEntryId}-${item.eventDate}`} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1e293b" }}>{item.eventDate}</td>
+                        <td style={{ padding: "12px 16px", color: "#475569" }}>Period {item.periodNumber}</td>
+                        <td style={{ padding: "12px 16px", color: "#1e293b", fontWeight: 600 }}>
+                          {item.programName} - {item.sectionName} · {item.subjectName}
+                        </td>
+                        <td style={{ padding: "12px 16px", color: "#991b1b", fontWeight: 600 }}>{item.originalTeacher}</td>
+                        <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                          <button
+                            type="button"
+                            onClick={() => openSubstitute(item.timetableEntryId, item.eventDate)}
+                            style={{
+                              padding: "6px 12px",
+                              borderRadius: "6px",
+                              background: "#0c1e33",
+                              color: "#ffffff",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              border: "none",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Assign Substitute
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
             </div>
 
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                  <th style={{ padding: "12px 16px" }}>Date</th>
-                  <th style={{ padding: "12px 16px" }}>Period</th>
-                  <th style={{ padding: "12px 16px" }}>Class / Subject</th>
-                  <th style={{ padding: "12px 16px" }}>Absent Teacher</th>
-                  <th style={{ padding: "12px 16px" }}>Substitute Assigned</th>
-                  <th style={{ padding: "12px 16px" }}>Note</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.substitutions.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>
-                      No substitute assignments recorded.
-                    </td>
+            {/* Assigned Substitutions Log */}
+            <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid #e4e6e9" }}>
+                <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>Confirmed Substitute Assignments</h3>
+                <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#64748b" }}>History of assigned coverage for leave periods.</p>
+              </div>
+
+              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+                <thead>
+                  <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
+                    <th style={{ padding: "12px 16px" }}>Date</th>
+                    <th style={{ padding: "12px 16px" }}>Period</th>
+                    <th style={{ padding: "12px 16px" }}>Class / Subject</th>
+                    <th style={{ padding: "12px 16px" }}>Absent Teacher</th>
+                    <th style={{ padding: "12px 16px" }}>Substitute Assigned</th>
+                    <th style={{ padding: "12px 16px" }}>Note</th>
                   </tr>
-                ) : (
-                  data.substitutions.map((item) => (
-                    <tr key={item.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1e293b" }}>{item.eventDate}</td>
-                      <td style={{ padding: "12px 16px", color: "#475569" }}>Period {item.periodNumber}</td>
-                      <td style={{ padding: "12px 16px", color: "#1e293b" }}>
-                        {item.programName} - {item.sectionName} · {item.subjectName}
+                </thead>
+                <tbody>
+                  {substitutions.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>
+                        No substitute assignments recorded.
                       </td>
-                      <td style={{ padding: "12px 16px", color: "#64748b" }}>{item.originalTeacher}</td>
-                      <td style={{ padding: "12px 16px", fontWeight: 700, color: "#166534" }}>{item.substituteTeacher}</td>
-                      <td style={{ padding: "12px 16px", color: "#475569" }}>{item.impactNote || "—"}</td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    substitutions.map((item) => (
+                      <tr key={item.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1e293b" }}>{item.eventDate}</td>
+                        <td style={{ padding: "12px 16px", color: "#475569" }}>Period {item.periodNumber}</td>
+                        <td style={{ padding: "12px 16px", color: "#1e293b" }}>
+                          {item.programName} - {item.sectionName} · {item.subjectName}
+                        </td>
+                        <td style={{ padding: "12px 16px", color: "#64748b" }}>{item.originalTeacher}</td>
+                        <td style={{ padding: "12px 16px", fontWeight: 700, color: "#166534" }}>{item.substituteTeacher}</td>
+                        <td style={{ padding: "12px 16px", color: "#475569" }}>{item.impactNote || "—"}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Conflict Matrix */}
       <ConflictMatrix entries={entries} />
