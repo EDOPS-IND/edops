@@ -38,7 +38,7 @@ if (typeof window !== "undefined") {
 
 function baseUrl() {
   const configured = process.env.NEXT_PUBLIC_EDOPS_API_URL?.replace(/\/$/, "");
-  if (configured) return configured;
+  if (configured) return configured.replace(/\/ap1(\/|$)/, "/api$1");
   if (typeof window !== "undefined") {
     if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
       return `${window.location.origin}/api/v1`;
