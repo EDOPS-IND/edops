@@ -37,16 +37,15 @@ if (typeof window !== "undefined") {
 }
 
 function baseUrl() {
+  const configured = process.env.NEXT_PUBLIC_EDOPS_API_URL?.replace(/\/$/, "");
+  if (configured) return configured;
   if (typeof window !== "undefined") {
     if (window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
       return `${window.location.origin}/api/v1`;
     }
+    return `${window.location.protocol}//${window.location.hostname}:3001/api/v1`;
   }
-  const configured = process.env.NEXT_PUBLIC_EDOPS_API_URL?.replace(/\/$/, "");
-  if (configured && !configured.includes("localhost")) return configured;
-  return typeof window !== "undefined"
-    ? `${window.location.protocol}//${window.location.hostname}:3001/api/v1`
-    : "http://127.0.0.1:3001/api/v1";
+  return "http://127.0.0.1:3001/api/v1";
 }
 
 function generateUUID(): string {
@@ -135,8 +134,10 @@ export async function api<T>(path: string, options: Parameters<typeof request>[1
   }
 }
 
-export async function csrf() { return { csrfToken: "" }; }
 export function login(email: string, password: string) { return api<Profile & { accessToken?: string; refreshToken?: string }>("/auth/login", { method: "POST", body: { email: email.trim().toLowerCase(), password } }); }
+export function forgotPassword(email: string) { return api<{ message: string }>("/auth/forgot-password", { method: "POST", body: { email: email.trim().toLowerCase() } }); }
+export function verifyResetToken(token: string) { return api<{ valid: boolean; email: string }>(`/auth/reset-password/verify?token=${encodeURIComponent(token.trim())}`); }
+export function resetPassword(token: string, password: string) { return api<{ message: string }>("/auth/reset-password", { method: "POST", body: { token: token.trim(), password } }); }
 export function logout(): Promise<null> {
   const currentRefreshToken = jwtRefreshToken;
   jwtAccessToken = undefined;

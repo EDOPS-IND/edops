@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { AcademicYear, api, createResource, getInvitationInfo, InvitationInfo, loadRoleWorkspace, loadSchool, login, logout, Member, Organization, OrganizationSummary, Profile, Program, profile as getProfile, RoleWorkspaceData, SchoolData, updateResource } from "./edops-api";
+import { AcademicYear, api, createResource, getInvitationInfo, InvitationInfo, loadRoleWorkspace, loadSchool, login, logout, Member, Organization, OrganizationSummary, Profile, Program, profile as getProfile, RoleWorkspaceData, SchoolData, updateResource, forgotPassword, verifyResetToken, resetPassword } from "./edops-api";
 import { LearningWorkspace, SchoolBilling } from "./learning-workspace";
 import { PlatformWorkspace } from "./platform-workspace";
 import { DashboardHome } from "./dashboard-home";
@@ -63,6 +63,9 @@ export default function Home() {
   const [action, setAction] = useState<Action>(null);
   const [invitation, setInvitation] = useState<{ token: string; email: string; expiresAt: string } | null>(null);
   const [inviteMode, setInviteMode] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [resetMode, setResetMode] = useState(false);
+  const [forgotMode, setForgotMode] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -84,6 +87,11 @@ export default function Home() {
   useEffect(() => {
     const invite = new URLSearchParams(window.location.search).get("invite");
     if (invite) setInviteMode(true);
+    const reset = new URLSearchParams(window.location.search).get("reset");
+    if (reset) {
+      setResetToken(reset);
+      setResetMode(true);
+    }
     getProfile().then((current) => {
       setProfile(current);
       setWorkspace(selectInitialWorkspace(current));
@@ -115,8 +123,42 @@ export default function Home() {
   }
 
   if (loading && !profile) return <LoadingScreen />;
+  if (resetMode && resetToken) {
+    return (
+      <ResetPasswordScreen
+        token={resetToken}
+        onDone={() => {
+          setResetMode(false);
+          setResetToken(null);
+          window.history.replaceState({}, "", "/");
+          flash("Password updated successfully. Please sign in with your new password.");
+        }}
+        onCancel={() => {
+          setResetMode(false);
+          setResetToken(null);
+          window.history.replaceState({}, "", "/");
+        }}
+      />
+    );
+  }
   if (inviteMode) return <InviteScreen signedIn={Boolean(profile)} onDone={() => { setInviteMode(false); window.history.replaceState({}, "", "/"); }} />;
-  if (!profile) return <LoginScreen onLogin={(current) => { setProfile(current); setWorkspace(selectInitialWorkspace(current)); }} onInvite={() => setInviteMode(true)} />;
+  if (!profile) {
+    return (
+      <>
+        <LoginScreen
+          onLogin={(current) => { setProfile(current); setWorkspace(selectInitialWorkspace(current)); }}
+          onInvite={() => setInviteMode(true)}
+          onForgotPassword={() => setForgotMode(true)}
+        />
+        {forgotMode && (
+          <ForgotPasswordModal
+            onClose={() => setForgotMode(false)}
+            onSent={() => flash("If an account exists, password reset instructions have been dispatched via Brevo.")}
+          />
+        )}
+      </>
+    );
+  }
   const signOut = async () => {
     try {
       await logout();
@@ -276,7 +318,7 @@ function LoadingScreen() {
 }
 function DashboardSkeleton() { return <div className="dashboard-skeleton"><div /><div /><div /><div /></div>; }
 
-function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => void; onInvite: () => void }) {
+function LoginScreen({ onLogin, onInvite, onForgotPassword }: { onLogin: (profile: Profile) => void; onInvite: () => void; onForgotPassword: () => void }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -339,7 +381,16 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
               </div>
 
               <div className="flex flex-col gap-1.5">
-                <label className="block text-sm text-[#212121] font-medium">Password</label>
+                <div className="flex justify-between items-center">
+                  <label className="block text-sm text-[#212121] font-medium">Password</label>
+                  <button
+                    type="button"
+                    onClick={onForgotPassword}
+                    className="text-xs text-[#64748b] hover:text-[#0f172a] bg-transparent border-none cursor-pointer underline font-medium p-0"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
                 <div className="relative flex items-center">
                   <input
                     name="password"
@@ -377,8 +428,6 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
               >
                 Accept an invitation
               </button>
-
-
             </form>
           </div>
         </div>
@@ -386,6 +435,274 @@ function LoginScreen({ onLogin, onInvite }: { onLogin: (profile: Profile) => voi
     </main>
   );
 }
+
+function ForgotPasswordModal({ onClose, onSent }: { onClose: () => void; onSent: () => void }) {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await forgotPassword(email);
+      setSent(true);
+      onSent();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to request password reset");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="modal-backdrop" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0, 0, 0, 0.65)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px" }}>
+      <div style={{ backgroundColor: "#ffffff", borderRadius: "16px", padding: "32px", maxWidth: "440px", width: "100%", position: "relative", boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)" }}>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{ position: "absolute", top: "16px", right: "16px", background: "none", border: "none", fontSize: "20px", cursor: "pointer", color: "#64748b" }}
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+        {sent ? (
+          <div style={{ textAlign: "center", padding: "12px 0" }}>
+            <div style={{ width: "48px", height: "48px", backgroundColor: "#ecfdf5", color: "#059669", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px auto", fontSize: "22px", fontWeight: "bold" }}>
+              ✓
+            </div>
+            <h3 style={{ fontSize: "24px", fontWeight: 500, color: "#0f172a", margin: "0 0 8px 0" }}>Check your email</h3>
+            <p style={{ color: "#64748b", fontSize: "14px", lineHeight: "22px", margin: "0 0 24px 0" }}>
+              We have dispatched a password reset link to <b>{email}</b> via Brevo. The link is valid for 30 minutes.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ width: "100%", backgroundColor: "#0f172a", color: "#ffffff", padding: "12px 24px", borderRadius: "32px", border: "none", fontWeight: 500, cursor: "pointer" }}
+            >
+              Back to sign in
+            </button>
+          </div>
+        ) : (
+          <div>
+            <h3 style={{ fontSize: "24px", fontWeight: 500, color: "#0f172a", margin: "0 0 8px 0" }}>Forgot password</h3>
+            <p style={{ color: "#64748b", fontSize: "14px", lineHeight: "20px", margin: "0 0 20px 0" }}>
+              Enter your account email below. We'll send you a secure link via Brevo to reset your password.
+            </p>
+
+            <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {error && (
+                <div style={{ color: "#ef4444", fontSize: "13px", padding: "10px 14px", backgroundColor: "#fef2f2", borderRadius: "6px", border: "1px solid #fecaca" }}>
+                  {error}
+                </div>
+              )}
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ fontSize: "13px", fontWeight: 500, color: "#0f172a" }}>Email address</label>
+                <input
+                  type="email"
+                  required
+                  autoFocus
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@school.com"
+                  style={{ width: "100%", fontSize: "15px", padding: "12px 14px", borderRadius: "6px", border: "1px solid #d9d9dd", boxSizing: "border-box", outline: "none" }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={{ flex: 1, backgroundColor: "#f1f5f9", color: "#334155", padding: "12px 16px", borderRadius: "32px", border: "none", fontWeight: 500, cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={busy}
+                  style={{ flex: 1, backgroundColor: "#0f172a", color: "#ffffff", padding: "12px 16px", borderRadius: "32px", border: "none", fontWeight: 500, cursor: "pointer", opacity: busy ? 0.6 : 1 }}
+                >
+                  {busy ? "Sending..." : "Send reset link"}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ResetPasswordScreen({ token, onDone, onCancel }: { token: string; onDone: () => void; onCancel: () => void }) {
+  const [loading, setLoading] = useState(true);
+  const [tokenValid, setTokenValid] = useState(false);
+  const [maskedEmail, setMaskedEmail] = useState("");
+  const [verifyError, setVerifyError] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    verifyResetToken(token)
+      .then((res) => {
+        setTokenValid(true);
+        setMaskedEmail(res.email);
+      })
+      .catch((err) => {
+        setTokenValid(false);
+        setVerifyError(err instanceof Error ? err.message : "This password reset link is invalid or has expired.");
+      })
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    if (newPassword.length < 8) {
+      setError("Password must be at least 8 characters long");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    try {
+      await resetPassword(token, newPassword);
+      onDone();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not reset password. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden" style={{ fontFamily: '"Space Grotesk", Inter, system-ui, sans-serif' }}>
+      <section className="bg-[#020617] text-white flex flex-col justify-between p-12 lg:p-24 lg:w-1/2 h-full overflow-hidden">
+        <div className="block">
+          <img src="/logo.svg" alt="EDOPS" className="block h-12 w-auto -ml-2" />
+          <span className="block text-sm font-medium mt-1 uppercase tracking-[0.1em] text-[#94a3b8]">Security Console</span>
+        </div>
+
+        <div className="my-24 lg:my-auto">
+          <h1 className="text-white text-[72px] font-normal leading-none tracking-[-1.44px] m-0">Secure your<br />account.</h1>
+          <p className="mt-8 text-lg text-[#cbd5e1] max-w-[400px] leading-[1.4] mb-0">Choose a new, secure password to regain access to your dashboard.</p>
+        </div>
+
+        <div className="flex gap-8 text-sm text-[#94a3b8]">
+          <span className="cursor-pointer transition-colors duration-200 hover:text-white" onClick={onCancel}>Back to Sign In</span>
+        </div>
+      </section>
+
+      <section className="bg-white lg:w-1/2 h-full overflow-y-auto flex flex-col">
+        <div className="flex-1 flex items-center justify-center p-8 lg:p-24 min-h-max">
+          <div className="w-full max-w-[420px] my-auto">
+            {loading ? (
+              <div className="text-center py-12">
+                <div style={{ width: "36px", height: "36px", border: "3px solid #cbd5e1", borderTopColor: "#0f172a", borderRadius: "50%", margin: "0 auto 16px auto", animation: "spin 1s linear infinite" }} />
+                <p style={{ color: "#64748b", fontSize: "14px" }}>Verifying password reset link...</p>
+              </div>
+            ) : !tokenValid ? (
+              <div style={{ textAlign: "center" }}>
+                <div style={{ width: "48px", height: "48px", backgroundColor: "#fef2f2", color: "#dc2626", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px auto", fontSize: "20px", fontWeight: "bold" }}>
+                  ✕
+                </div>
+                <h2 style={{ fontSize: "28px", fontWeight: 400, color: "#0f172a", margin: "0 0 8px 0" }}>Link Expired or Invalid</h2>
+                <p style={{ color: "#64748b", fontSize: "14px", lineHeight: "22px", margin: "0 0 24px 0" }}>
+                  {verifyError || "This password reset token has expired or has already been used. Please request a new link."}
+                </p>
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  style={{ width: "100%", backgroundColor: "#0f172a", color: "#ffffff", padding: "14px 24px", borderRadius: "32px", border: "none", fontWeight: 500, cursor: "pointer" }}
+                >
+                  Return to Sign In
+                </button>
+              </div>
+            ) : (
+              <div>
+                <h2 style={{ fontSize: "40px", fontWeight: 400, color: "#0f172a", lineHeight: 1.2, letterSpacing: "-0.5px", margin: "0 0 8px 0" }}>Set new password</h2>
+                <p style={{ fontSize: "14px", color: "#64748b", margin: "0 0 24px 0" }}>
+                  Resetting credentials for <b style={{ color: "#0f172a" }}>{maskedEmail}</b>
+                </p>
+
+                <form onSubmit={submit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                  {error && (
+                    <div style={{ color: "#dc2626", fontSize: "13px", padding: "12px 14px", backgroundColor: "#fef2f2", borderRadius: "6px", border: "1px solid #fecaca" }}>
+                      {error}
+                    </div>
+                  )}
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <label style={{ fontSize: "13px", fontWeight: 500, color: "#0f172a" }}>New Password</label>
+                    <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        required
+                        minLength={8}
+                        maxLength={128}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="At least 8 characters"
+                        style={{ width: "100%", fontSize: "15px", padding: "12px 40px 12px 14px", borderRadius: "6px", border: "1px solid #d9d9dd", boxSizing: "border-box", outline: "none" }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((p) => !p)}
+                        style={{ position: "absolute", right: "10px", background: "none", border: "none", cursor: "pointer", color: "#64748b", display: "flex", alignItems: "center", padding: "4px" }}
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    <label style={{ fontSize: "13px", fontWeight: 500, color: "#0f172a" }}>Confirm New Password</label>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      required
+                      minLength={8}
+                      maxLength={128}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Re-enter your new password"
+                      style={{ width: "100%", fontSize: "15px", padding: "12px 14px", borderRadius: "6px", border: "1px solid #d9d9dd", boxSizing: "border-box", outline: "none" }}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={busy}
+                    style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", fontSize: "14px", marginTop: "8px", backgroundColor: "#0f172a", color: "#ffffff", padding: "14px 24px", borderRadius: "32px", border: "none", fontWeight: 500, cursor: "pointer", opacity: busy ? 0.6 : 1 }}
+                  >
+                    <span>{busy ? "Updating..." : "Update password & sign in"}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    style={{ background: "none", border: "none", color: "#64748b", fontWeight: 500, fontSize: "14px", cursor: "pointer", textAlign: "center", padding: 0 }}
+                  >
+                    Cancel and return to sign in
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
 
 function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => void }) {
   const [busy, setBusy] = useState(false);

@@ -7,12 +7,14 @@ import { AcceptInvitationDto, CreateOrganizationDto, UpdateOrganizationDto } fro
 import { OrganizationStatus, SchoolRole } from './tenant.entity';
 import { entitlements, seatUsage } from '../billing/entitlements';
 import { DrizzleService } from '../../database/drizzle.service';
+import { MailService } from '../notifications/mail.service';
 
 @Injectable()
 export class TenantsService {
   constructor(
     private readonly audit: AuditService,
     private readonly drizzle: DrizzleService,
+    private readonly mail: MailService,
   ) {}
 
   async create(dto: CreateOrganizationDto, actor: User) {
@@ -30,6 +32,7 @@ export class TenantsService {
          VALUES ($1, $2, $3, $4, $5)`,
         [organization.id, dto.adminEmail, tokenHash(token), actor.id, expiresAt]
       );
+      this.mail.sendInvitationEmail(dto.adminEmail, token, 'school_admin', organization.name).catch(() => {});
       await this.audit.record(manager, { organizationId: organization.id, actorId: actor.id, action: 'organization.created' });
       return { organization, invitation: { token, email: dto.adminEmail, expiresAt } };
     });

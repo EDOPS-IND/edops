@@ -1,10 +1,11 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import type { Request } from 'express';
 import { AppConfig, InjectConfig } from '../../config';
 import { AuditService } from '../audit/audit.service';
 import { User } from './user.entity';
-import { hashPassword, verifyPassword } from './password';
+import { hashPassword, verifyPassword, tokenHash } from './password';
 import { DrizzleService } from '../../database/drizzle.service';
+import { MailService } from '../notifications/mail.service';
 
 @Injectable()
 export class AuthService {
@@ -12,6 +13,7 @@ export class AuthService {
     public readonly drizzle: DrizzleService,
     private readonly audit: AuditService,
     @InjectConfig() private readonly config: AppConfig,
+    private readonly mail: MailService,
   ) {}
 
   async verifyCredentials(email: string, password: string): Promise<User> {
@@ -143,6 +145,107 @@ export class AuthService {
   async recordLogout(user: User) {
     await this.audit.record(this.drizzle, { organizationId: null, actorId: user.id, action: 'auth.logout' });
   }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const normalized = email.trim().toLowerCase();
+    const [user] = await this.drizzle.query(
+      `SELECT id, email, name, is_active AS "isActive" FROM users WHERE email = $1 LIMIT 1`,
+      [normalized],
+    );
+
+    if (!user) {
+      throw new NotFoundException('No account found with this email address');
+    }
+
+    if (!user.isActive) {
+      throw new BadRequestException('This account is inactive. Please contact support or your school administrator.');
+    }
+
+    const { randomBytes } = await import('node:crypto');
+    const rawToken = randomBytes(32).toString('hex');
+    const hash = tokenHash(rawToken);
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
+
+    await this.drizzle.transaction(async (manager) => {
+      // Invalidate any previously issued unused tokens for this user
+      await manager.query(
+        `UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL`,
+        [user.id],
+      );
+      await manager.query(
+        `INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+        [user.id, hash, expiresAt],
+      );
+      await this.audit.record(manager, {
+        organizationId: null,
+        actorId: user.id,
+        action: 'auth.forgot_password_requested',
+      });
+    });
+
+    await this.mail.sendPasswordResetEmail(user.email, rawToken, user.name);
+  }
+
+  async verifyResetToken(token: string): Promise<{ valid: boolean; email: string }> {
+    const trimmed = (token || '').trim();
+    if (!trimmed || trimmed.length < 32) {
+      throw new BadRequestException('Invalid or missing password reset token');
+    }
+    const hash = tokenHash(trimmed);
+    const [record] = await this.drizzle.query(
+      `SELECT t.id, t.user_id, t.expires_at AS "expiresAt", t.used_at AS "usedAt", u.email, u.is_active AS "isActive"
+       FROM password_reset_tokens t
+       JOIN users u ON u.id = t.user_id
+       WHERE t.token_hash = $1
+       LIMIT 1`,
+      [hash],
+    );
+
+    if (!record || record.usedAt || new Date(record.expiresAt) <= new Date() || !record.isActive) {
+      throw new BadRequestException('This password reset link is invalid or has expired. Please request a new one.');
+    }
+
+    const [localPart, domain] = record.email.split('@');
+    const masked = localPart.length > 2
+      ? `${localPart[0]}***${localPart.slice(-1)}@${domain}`
+      : `***@${domain}`;
+
+    return { valid: true, email: masked };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const trimmedToken = (token || '').trim();
+    if (!trimmedToken || trimmedToken.length < 32) {
+      throw new BadRequestException('Invalid or missing password reset token');
+    }
+    if (!newPassword || newPassword.length < 8 || newPassword.length > 128) {
+      throw new BadRequestException('Password must be between 8 and 128 characters');
+    }
+
+    const hash = tokenHash(trimmedToken);
+    const newPasswordHash = await hashPassword(newPassword);
+
+    await this.drizzle.transaction(async (manager) => {
+      const [record] = await manager.query(
+        `SELECT t.id, t.user_id, t.expires_at AS "expiresAt", t.used_at AS "usedAt", u.email, u.is_active AS "isActive"
+         FROM password_reset_tokens t
+         JOIN users u ON u.id = t.user_id
+         WHERE t.token_hash = $1 AND t.used_at IS NULL AND t.expires_at > NOW() AND u.is_active = true
+         LIMIT 1 FOR UPDATE`,
+        [hash],
+      );
+
+      if (!record) {
+        throw new BadRequestException('This password reset link is invalid or has expired. Please request a new one.');
+      }
+
+      await manager.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [newPasswordHash, record.user_id]);
+      await manager.query(`UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1`, [record.id]);
+      await manager.query(`UPDATE user_refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL`, [record.user_id]);
+      await manager.query(`DELETE FROM sessions WHERE sess->>'userId' = $1`, [record.user_id]);
+      await this.audit.record(manager, { organizationId: null, actorId: record.user_id, action: 'auth.password_reset' });
+    });
+  }
 }
 
 export async function bootstrapAdmin(drizzle: DrizzleService, email: string, password: string, audit = new AuditService()): Promise<string> {
@@ -162,6 +265,20 @@ export async function bootstrapAdmin(drizzle: DrizzleService, email: string, pas
       [email, passwordHash]
     );
     await audit.record(manager, { organizationId: null, actorId: user.id, action: 'user.bootstrap' });
+    return user.id;
+  });
+}
+
+export async function resetUserPassword(drizzle: DrizzleService, email: string, newPassword: string, audit = new AuditService()): Promise<string> {
+  const normalized = email.trim().toLowerCase();
+  const passwordHash = await hashPassword(newPassword);
+  return drizzle.transaction(async (manager) => {
+    const [user] = await manager.query('SELECT id, email FROM users WHERE email = $1 LIMIT 1', [normalized]);
+    if (!user) throw new BadRequestException(`No account found with email '${normalized}'`);
+    await manager.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, user.id]);
+    await manager.query('UPDATE user_refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL', [user.id]);
+    await manager.query(`DELETE FROM sessions WHERE sess->>'userId' = $1`, [user.id]);
+    await audit.record(manager, { organizationId: null, actorId: user.id, action: 'auth.cli_password_reset' });
     return user.id;
   });
 }

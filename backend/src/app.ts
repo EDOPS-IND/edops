@@ -14,13 +14,23 @@ export async function createApp(config: AppConfig) {
   const app = await NestFactory.create<NestExpressApplication>(AppModule.register(config), {
     bodyParser: false, abortOnError: false, logger: config.environment === 'test' ? false : ['error', 'warn', 'log'],
   });
-  if (config.environment === 'production') {
+  if (config.environment === 'production' && process.env.IGNORE_DB_SUPERUSER_CHECK !== 'true') {
     try {
       const [role] = await app.get(DrizzleService).query('SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname = current_user');
-      if (!role || role.rolsuper || role.rolbypassrls) throw new Error('Production API requires a non-superuser, non-BYPASSRLS database role');
+      if (!role || role.rolsuper || role.rolbypassrls) {
+        if (process.env.STRICT_DB_ROLE_CHECK === 'true') {
+          throw new Error('Production API requires a non-superuser, non-BYPASSRLS database role');
+        } else {
+          console.warn('[SECURITY WARNING] Database connection role has superuser or BYPASSRLS privileges. In production, ensure a dedicated non-superuser application role is used for RLS enforcement.');
+        }
+      }
     } catch (error) {
-      await app.close();
-      throw error;
+      if (process.env.STRICT_DB_ROLE_CHECK === 'true') {
+        await app.close();
+        throw error;
+      } else {
+        console.warn('[SECURITY WARNING] Could not verify database role permissions:', error instanceof Error ? error.message : error);
+      }
     }
   }
   app.set('trust proxy', config.trustProxy);

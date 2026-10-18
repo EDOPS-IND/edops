@@ -10,10 +10,15 @@ import { AcademicListDto } from '../academics/academic.dto';
 import { BulkInvitationsDto, MemberInvitationDto, MemberListDto, MembershipStatusDto } from './provisioning.dto';
 import { SchoolWork } from './school-work.service';
 import { requireSeats } from '../billing/entitlements';
+import { MailService } from '../notifications/mail.service';
 
 @Injectable()
 export class ProvisioningService {
-  constructor(private readonly work: SchoolWork, private readonly audit: AuditService) {}
+  constructor(
+    private readonly work: SchoolWork,
+    private readonly audit: AuditService,
+    private readonly mail: MailService,
+  ) {}
 
   async csv(org: string, actor: User, csv: string, key?: string) {
     let records: unknown;
@@ -64,6 +69,7 @@ export class ProvisioningService {
       const [batch] = await manager.query('INSERT INTO invitation_batches (organization_id, created_by, count) VALUES ($1, $2, $3) RETURNING id', [org, actor.id, records.length]);
       const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
       const invitations = [];
+      const [orgData] = await manager.query('SELECT name FROM organizations WHERE id = $1 LIMIT 1', [org]);
       for (const record of records) {
         const token = randomBytes(32).toString('hex');
         const [invitation] = await manager.query(
@@ -89,6 +95,7 @@ export class ProvisioningService {
           ]
         );
         invitations.push({ id: invitation.id, email: invitation.email, role: invitation.role, token, expiresAt });
+        this.mail.sendInvitationEmail(record.email, token, record.role, orgData?.name, record.name).catch(() => {});
       }
       await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'invitations.created', details: { batchId: batch.id, count: records.length } });
       return { batchId: batch.id as string, invitations };

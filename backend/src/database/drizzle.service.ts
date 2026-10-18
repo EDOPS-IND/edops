@@ -67,6 +67,17 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
         JOIN organizations o ON o.id = m.organization_id
         WHERE m.user_id = u.id AND (u.phone IS NULL OR u.phone = '') AND o.official_phone IS NOT NULL AND o.official_phone != '';
       `);
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          token_hash varchar(64) NOT NULL UNIQUE,
+          expires_at timestamptz NOT NULL,
+          used_at timestamptz,
+          created_at timestamptz DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_lookup ON password_reset_tokens(token_hash);
+      `);
     } catch {
       // Non-blocking schema guard
     }

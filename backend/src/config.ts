@@ -74,7 +74,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
   if (!Number.isInteger(throttleLimit) || throttleLimit <= 0) throw new Error('Invalid THROTTLE_LIMIT');
   return {
     environment: environment as AppConfig['environment'],
-    host: env.HOST ?? '127.0.0.1',
+    host: env.HOST ?? (environment === 'production' ? '0.0.0.0' : '127.0.0.1'),
     port,
     databaseUrl: env.DATABASE_URL!,
     databaseSchema,

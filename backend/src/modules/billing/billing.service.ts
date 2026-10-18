@@ -17,6 +17,7 @@ import { dashboardRoles, DashboardRole, dashboardSections } from './dashboard-na
 
 import { DrizzleService } from '../../database/drizzle.service';
 import { Queryable } from './entitlements';
+import { MailService } from '../notifications/mail.service';
 
 const planFields = `id,name,amount_minor AS "amountMinor",currency,billing_cycle AS "billingCycle",max_students AS "maxStudents",max_teachers AS "maxTeachers",features,active,created_at AS "createdAt"`;
 const subscriptionFields = `id,organization_id AS "organizationId",plan_id AS "planId",status,period_start AS "periodStart",period_end AS "periodEnd",updated_at AS "updatedAt"`;
@@ -24,7 +25,12 @@ const invoiceFields = `id,organization_id AS "organizationId",subscription_id AS
 
 @Injectable()
 export class BillingService {
-  constructor(private readonly drizzle: DrizzleService, private readonly work: SchoolWork, private readonly audit: AuditService) {}
+  constructor(
+    private readonly drizzle: DrizzleService,
+    private readonly work: SchoolWork,
+    private readonly audit: AuditService,
+    private readonly mail: MailService,
+  ) {}
 
   private async validatePlanFeatures(m: Queryable, features: Record<string, boolean>) {
     if (!features || typeof features !== 'object' || Array.isArray(features)) throw new BadRequestException('Features must be an object');
@@ -712,6 +718,8 @@ export class BillingService {
       await m.query(`INSERT INTO invitations (organization_id, email, token_hash, raw_token, invited_by, role, name, phone, expires_at)
         VALUES ($1, $2, $3, $4, $5, 'school_admin', $6, $7, $8)`,
         [org.id, adminEmail, tokenHash(token), token, actor.id, dto.adminName, adminPhone || null, expiresAt]);
+
+      this.mail.sendInvitationEmail(adminEmail, token, 'school_admin', org.name, dto.adminName).catch(() => {});
 
       // 8. Assign Plan & Subscription
       let [plan] = await m.query(`SELECT id, name FROM plans WHERE id=$1`, [dto.planId]);

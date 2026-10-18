@@ -54,3 +54,39 @@ export class SwitchSchoolDto {
   schoolId!: string;
 }
 
+export class ForgotPasswordDto {
+  @ApiProperty({
+    example: "admin@school.example",
+    format: "email",
+    maxLength: 254,
+    description: "Account email to request password reset link for.",
+  })
+  @Transform(normalizeEmail)
+  @IsString()
+  @MaxLength(254)
+  email!: string;
+}
+
+export class VerifyResetTokenDto {
+  @ApiProperty({ description: "One-time password reset token string" })
+  @IsString()
+  token!: string;
+}
+
+export class ResetPasswordDto {
+  @ApiProperty({ description: "One-time password reset token string" })
+  @IsString()
+  token!: string;
+
+  @ApiProperty({
+    format: "password",
+    minLength: 8,
+    maxLength: 128,
+    description: "New password between 8 and 128 characters.",
+  })
+  @IsString()
+  @MinLength(8)
+  @MaxLength(128)
+  password!: string;
+}
+

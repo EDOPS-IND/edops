@@ -43,6 +43,7 @@ import {
   SchoolSummary,
 } from "./billing.responses";
 import { BillingService } from "./billing.service";
+import { AuthModule } from "../auth/auth.module";
 
 function Endpoint(
   summary: string,
@@ -506,8 +507,9 @@ export class DashboardNavigationController {
     return this.billing.dashboardNavigation(org, req.user, role);
   }
 }
+
 @Module({
-  imports: [TenantsModule, AuditModule],
+  imports: [TenantsModule, AuditModule, AuthModule],
   controllers: [PlatformBillingController, SchoolBillingController, DashboardNavigationController],
   providers: [BillingService],
 })

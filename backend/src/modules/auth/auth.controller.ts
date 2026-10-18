@@ -1,11 +1,11 @@
-import { Body, Controller, Get, HttpCode, Inject, Post, Req, Res, UnauthorizedException } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { ApiBody, ApiNoContentResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Request, Response } from 'express';
 import { AuthenticatedRequest, Public } from '../../common/auth.guard';
 import { AppConfig, InjectConfig } from '../../config';
 import { AuthService } from './auth.service';
-import { LoginDto, RefreshDto, LogoutDto, SwitchSchoolDto } from './auth.dto';
+import { LoginDto, RefreshDto, LogoutDto, SwitchSchoolDto, ForgotPasswordDto, ResetPasswordDto, VerifyResetTokenDto } from './auth.dto';
 import { ApiErrors, csrfSchema, loginSchema, profileSchema } from '../../common/api-docs';
 
 @ApiTags('Authentication')
@@ -55,6 +55,53 @@ export class AuthController {
       isPlatformAdmin: user.isPlatformAdmin,
     });
     return { ...(await this.auth.profile(user)), accessToken, refreshToken };
+  }
+
+  @Public()
+  @Post('forgot-password')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({
+    summary: 'Request a password reset link',
+    security: [],
+    description: 'Public. Checks if the account exists. If found, generates a 30-minute one-time reset token and emails via Brevo (or console in dev). If not found, refuses with 404. Limit: 5 requests/minute per IP.',
+  })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiOkResponse({ description: 'Password reset dispatch confirmation.' })
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
+    await this.auth.requestPasswordReset(dto.email);
+    return {
+      message: 'Password reset link has been dispatched to your email address.',
+    };
+  }
+
+  @Public()
+  @Get('reset-password/verify')
+  @ApiOperation({
+    summary: 'Verify a password reset token before displaying the reset form',
+    security: [],
+    description: 'Public. Verifies that the token exists, is unexpired, and has not yet been consumed. Returns token validity and masked email.',
+  })
+  async verifyResetToken(@Query('token') token: string) {
+    return this.auth.verifyResetToken(token);
+  }
+
+  @Public()
+  @Post('reset-password')
+  @HttpCode(200)
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({
+    summary: 'Reset password using a verified token',
+    security: [],
+    description: 'Public. Consumes the one-time reset token, updates the scrypt password hash, revokes all existing refresh tokens/sessions for the user, and logs an audit event. Limit: 5 requests/minute per IP.',
+  })
+  @ApiBody({ type: ResetPasswordDto })
+  @ApiOkResponse({ description: 'Password reset confirmation message.' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    await this.auth.resetPassword(dto.token, dto.password);
+    return {
+      message: 'Your password has been successfully reset. You can now sign in with your new password.',
+    };
   }
 
   @Public()
@@ -117,9 +164,8 @@ export class AuthController {
     summary: 'Sign out of the current session', security: [{ cookie: [], csrf: [] }],
     description: 'Revokes the supplied refresh token, clears its cookie and records auth.logout. Other devices and school memberships are unchanged. Limit: 120 requests/minute per IP.',
   })
-  @ApiNoContentResponse({ description: 'Session revoked and cookie cleared. Empty body; do not parse it as JSON.' })
   async logout(@Body() body: LogoutDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
-    const user = await this.auth.userFromRequest(request);
+    const user = (request as any).user || (typeof this.auth.userFromRequest === 'function' ? await this.auth.userFromRequest(request) : null);
     const token = body?.refreshToken || request.cookies?.edops_refresh_token;
     if (token) {
       if (user?.id) {
@@ -132,19 +178,19 @@ export class AuthController {
         );
       }
     }
+    response.clearCookie('edops_refresh_token', {
+      path: '/', httpOnly: true, sameSite: 'lax', secure: this.config.environment === 'production',
+    });
     const sessionCookie = request.cookies?.[this.config.cookieName];
     if (sessionCookie) {
       const sid = typeof sessionCookie === 'string' && sessionCookie.startsWith('s:')
         ? sessionCookie.slice(2).split('.')[0]
         : sessionCookie;
       await this.auth.drizzle.query(`DELETE FROM sessions WHERE sid = $1`, [sid]);
+      response.clearCookie(this.config.cookieName, {
+        path: '/', httpOnly: true, sameSite: 'lax', secure: this.config.environment === 'production',
+      });
     }
-    response.clearCookie('edops_refresh_token', {
-      path: '/', httpOnly: true, sameSite: 'lax', secure: this.config.environment === 'production',
-    });
-    response.clearCookie(this.config.cookieName, {
-      path: '/', httpOnly: true, sameSite: 'lax', secure: this.config.environment === 'production',
-    });
     if (user) {
       await this.auth.recordLogout(user);
     }
