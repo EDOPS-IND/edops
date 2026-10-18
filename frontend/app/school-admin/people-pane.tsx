@@ -392,7 +392,7 @@ export function PeoplePane({
               : subtab === "teachers"
               ? teachers.filter((t) => t.employmentType === "Regular Faculty").length
               : subtab === "staff"
-              ? staff.filter((s) => s.employmentType === "Full-time").length
+              ? staff.filter((s) => s.employmentType === "Full Time").length
               : subtab === "parents"
               ? parents.filter((p) => p.mobile).length
               : departments.length}

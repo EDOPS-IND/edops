@@ -131,40 +131,15 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
   const feeDefaulters = metrics?.feeDefaulters ?? 0;
 
   const studentTeacherRatio =
-    totalTeachers > 0 ? `1:${Math.round(totalStudents / totalTeachers)}` : "1:22";
+    totalTeachers > 0 ? `1:${Math.round(totalStudents / totalTeachers)}` : "N/A";
 
-  const healthScore = Math.round(healthMetrics?.overall ?? 88);
-  const attendanceRate = Math.round(healthMetrics?.attendanceRate ?? 92);
-  const feeCollectionRate = Math.round(healthMetrics?.feeCollectionRate ?? 86);
-  const syllabusCompletion = Math.round(healthMetrics?.syllabusCompletion ?? 84);
+  const healthScore = typeof healthMetrics?.overall === "number" ? Math.round(healthMetrics.overall) : 0;
+  const attendanceRate = typeof healthMetrics?.attendanceRate === "number" ? Math.round(healthMetrics.attendanceRate) : 0;
+  const feeCollectionRate = typeof healthMetrics?.feeCollectionRate === "number" ? Math.round(healthMetrics.feeCollectionRate) : 0;
+  const syllabusCompletion = typeof healthMetrics?.syllabusCompletion === "number" ? Math.round(healthMetrics.syllabusCompletion) : 0;
 
-  // Attention Items
-  const rawAttentionItems: any[] = data?.attentionItems || [
-    {
-      id: "fee-overdue",
-      severity: "high",
-      title: "Fee Defaulters Review Required",
-      desc: `${feeDefaulters > 0 ? feeDefaulters : 14} student accounts have pending balance over 30 days.`,
-      action: "Review Overdue",
-      type: "finance",
-    },
-    {
-      id: "leave-pending",
-      severity: "warning",
-      title: "Faculty Leave Approvals Pending",
-      desc: "3 teacher casual leave applications pending administrative approval for next week.",
-      action: "Review Leaves",
-      type: "staffing",
-    },
-    {
-      id: "attendance-register",
-      severity: "warning",
-      title: "Unsubmitted Attendance Registers",
-      desc: "Grade 9-B and Grade 11-A morning homeroom roll calls awaiting submission.",
-      action: "Check Attendance",
-      type: "academics",
-    },
-  ];
+  // Live Attention Items from Backend
+  const rawAttentionItems: any[] = Array.isArray(data?.attentionItems) ? data.attentionItems : [];
 
   const filteredAttention = rawAttentionItems.filter((a) => {
     if (alertFilter === "all") return true;
@@ -174,79 +149,11 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
     return true;
   });
 
-  // Daily Campus Timeline
-  const operationalTimeline = [
-    {
-      time: "07:45 AM",
-      event: "Campus Gates Open & Transit Inbound",
-      category: "Operations",
-      status: "completed",
-      lead: "Transport Logistics Desk",
-    },
-    {
-      time: "08:15 AM",
-      event: "Morning Assembly & Homeroom Roll Call",
-      category: "Attendance",
-      status: "completed",
-      lead: "Class Teachers",
-    },
-    {
-      time: "10:30 AM",
-      event: "Period 1–3 Academic Instruction Block",
-      category: "Academics",
-      status: "completed",
-      lead: "Academic Faculty",
-    },
-    {
-      time: "12:15 PM",
-      event: "Midday Recess & Attendance Register Close",
-      category: "Attendance",
-      status: "in_progress",
-      lead: "Administrative Registry",
-    },
-    {
-      time: "01:30 PM",
-      event: "Period 4–6 Laboratory & Co-Curricular Work",
-      category: "Academics",
-      status: "upcoming",
-      lead: "Department Supervisors",
-    },
-    {
-      time: "03:45 PM",
-      event: "Dismissal Bell & Bus Route Dispatches",
-      category: "Operations",
-      status: "upcoming",
-      lead: "Discipline & Fleet Safety",
-    },
-  ];
+  // Daily Campus Timeline from Backend
+  const operationalTimeline: any[] = Array.isArray(data?.dailyTimeline) ? data.dailyTimeline : [];
 
-  // Recent Activity Logs
-  const recentActivity = data?.recentActivity || [
-    {
-      time: "10 mins ago",
-      actor: "Registry Office",
-      category: "Admissions",
-      text: "Enrolled new student in Grade 10-A (Roll #101).",
-    },
-    {
-      time: "25 mins ago",
-      actor: "Bursar Desk",
-      category: "Finance",
-      text: "Recorded offline tuition fee payment of ₹45,000 via RTGS.",
-    },
-    {
-      time: "1 hour ago",
-      actor: "Academic Supervisor",
-      category: "Timetable",
-      text: "Reassigned Period 4 Physics substitution to Senior Faculty.",
-    },
-    {
-      time: "2 hours ago",
-      actor: "Transport Lead",
-      category: "Operations",
-      text: "Completed Route 4 vehicle maintenance & driver fitness checklist.",
-    },
-  ];
+  // Recent Activity Logs from Backend
+  const recentActivity: any[] = Array.isArray(data?.recentActivity) ? data.recentActivity : [];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -909,14 +816,15 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                       </div>
                     </div>
                     <p style={{ margin: 0, fontSize: "12px", color: S.slate, lineHeight: 1.4 }}>
-                      {al.desc || al.message}
+                      {al.description || al.desc || al.message}
                     </p>
                     <div style={{ display: "flex", justifyContent: "flex-end" }}>
                       <button
                         type="button"
                         onClick={() => {
-                          if (al.type === "finance" || al.id?.includes("fee")) onNavigate("finance");
+                          if (al.type === "finance" || al.id?.includes("fee") || al.id?.includes("fees")) onNavigate("finance");
                           else if (al.type === "staffing" || al.id?.includes("leave")) onNavigate("attendance");
+                          else if (al.id?.includes("invite") || al.id?.includes("invites")) onNavigate("people");
                           else onNavigate("academics");
                         }}
                         style={{
@@ -1006,69 +914,105 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             </span>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-            {operationalTimeline.map((item, idx) => {
-              const isDone = item.status === "completed";
-              const isLive = item.status === "in_progress";
+          {operationalTimeline.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {operationalTimeline.map((item, idx) => {
+                const isDone = item.status === "completed";
+                const isLive = item.status === "in_progress";
 
-              return (
-                <div
-                  key={idx}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "14px",
-                    padding: "10px 14px",
-                    background: isLive ? "#f0f7ff" : S.chip,
-                    border: `1px solid ${isLive ? "#bae5f5" : S.border}`,
-                    borderRadius: "8px",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      fontWeight: 700,
-                      color: S.navy,
-                      width: "72px",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {item.time}
-                  </span>
+                return (
                   <div
+                    key={idx}
                     style={{
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "50%",
-                      background: isDone ? S.green : isLive ? S.blue : S.faint,
-                      flexShrink: 0,
-                    }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: S.navy }}>
-                      {item.event}
-                    </p>
-                    <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.slate }}>
-                      {item.lead} · {item.category}
-                    </p>
-                  </div>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      color: isDone ? S.green : isLive ? S.blue : S.slate,
-                      background: isDone ? S.greenBg : isLive ? "#d0e6ff" : "rgba(0,0,0,0.04)",
-                      padding: "2px 8px",
-                      borderRadius: "100px",
-                      textTransform: "capitalize",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "14px",
+                      padding: "10px 14px",
+                      background: isLive ? "#f0f7ff" : S.chip,
+                      border: `1px solid ${isLive ? "#bae5f5" : S.border}`,
+                      borderRadius: "8px",
                     }}
                   >
-                    {item.status.replace("_", " ")}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+                    <span
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 700,
+                        color: S.navy,
+                        width: "72px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      {item.time}
+                    </span>
+                    <div
+                      style={{
+                        width: "8px",
+                        height: "8px",
+                        borderRadius: "50%",
+                        background: isDone ? S.green : isLive ? S.blue : S.faint,
+                        flexShrink: 0,
+                      }}
+                    />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: S.navy }}>
+                        {item.event}
+                      </p>
+                      <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.slate }}>
+                        {item.lead} · {item.category}
+                      </p>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: isDone ? S.green : isLive ? S.blue : S.slate,
+                        background: isDone ? S.greenBg : isLive ? "#d0e6ff" : "rgba(0,0,0,0.04)",
+                        padding: "2px 8px",
+                        borderRadius: "100px",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {item.status.replace("_", " ")}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div
+              style={{
+                padding: "32px 16px",
+                textAlign: "center",
+                borderRadius: "8px",
+                background: S.chip,
+                border: `1px dashed ${S.border}`,
+              }}
+            >
+              <Clock size={28} color={S.muted} style={{ margin: "0 auto 8px" }} />
+              <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: S.navy }}>
+                No Timetable Schedule Configured for Today
+              </p>
+              <p style={{ margin: "4px 0 12px", fontSize: "11.5px", color: S.slate }}>
+                Class periods and daily faculty assignments will populate here automatically.
+              </p>
+              <button
+                type="button"
+                onClick={() => onNavigate("timetable")}
+                style={{
+                  background: S.navy,
+                  color: "#fff",
+                  border: "none",
+                  padding: "6px 14px",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Configure Timetable
+              </button>
+            </div>
+          )}
         </article>
 
         {/* Right: Campus Roster Distribution & Capacity */}
@@ -1201,50 +1145,66 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
           </button>
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          {recentActivity.map((log: any, idx: number) => (
-            <div
-              key={idx}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "10px 14px",
-                background: S.chip,
-                borderRadius: "8px",
-                border: `1px solid ${S.border}`,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <span
-                  style={{
-                    fontSize: "10px",
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    padding: "2px 7px",
-                    borderRadius: "4px",
-                    background: "#fff",
-                    border: `1px solid ${S.border}`,
-                    color: S.navy,
-                  }}
-                >
-                  {log.category || "Admin"}
-                </span>
-                <span style={{ fontSize: "13px", color: S.navy, fontWeight: 500 }}>
-                  {log.text || log.action || "Administrative action executed"}
-                </span>
+        {recentActivity.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+            {recentActivity.map((log: any, idx: number) => (
+              <div
+                key={idx}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 14px",
+                  background: S.chip,
+                  borderRadius: "8px",
+                  border: `1px solid ${S.border}`,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      padding: "2px 7px",
+                      borderRadius: "4px",
+                      background: "#fff",
+                      border: `1px solid ${S.border}`,
+                      color: S.navy,
+                    }}
+                  >
+                    {log.category || "Admin"}
+                  </span>
+                  <span style={{ fontSize: "13px", color: S.navy, fontWeight: 500 }}>
+                    {log.detail || log.text || log.action || "Administrative action executed"}
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <span style={{ fontSize: "11px", color: S.slate }}>
+                    {log.actor || "Staff"}
+                  </span>
+                  <span style={{ fontSize: "11px", color: S.faint }}>
+                    {log.time || "Recently"}
+                  </span>
+                </div>
               </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <span style={{ fontSize: "11px", color: S.slate }}>
-                  {log.actor || "Staff"}
-                </span>
-                <span style={{ fontSize: "11px", color: S.faint }}>
-                  {log.time || "Recently"}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: "24px 16px",
+              textAlign: "center",
+              borderRadius: "8px",
+              background: S.chip,
+              border: `1px dashed ${S.border}`,
+              color: S.slate,
+              fontSize: "12.5px",
+            }}
+          >
+            No administrative audit events recorded yet for this session.
+          </div>
+        )}
       </section>
     </div>
   );

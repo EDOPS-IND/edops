@@ -139,10 +139,10 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
             <BookMarked size={18} />
           </div>
           <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
-            {books.reduce((acc, b) => acc + (b.totalCopies || 0), 0) || 1250}
+            {books.reduce((acc, b) => acc + (b.totalCopies || 0), 0)}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "11px" }}>Across {books.length || 45} cataloged subjects</span>
+            <span style={{ fontSize: "11px" }}>Across {books.length} cataloged subjects</span>
             <span style={{ fontSize: "11px", fontWeight: 600 }}>Catalog</span>
           </div>
         </article>
@@ -173,7 +173,7 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
             <PackageCheck size={18} />
           </div>
           <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
-            {assets.length || 68}
+            {assets.length}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: "11px" }}>Laboratory, sports &amp; IT inventory</span>

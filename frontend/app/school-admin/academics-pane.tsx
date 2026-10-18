@@ -548,13 +548,13 @@ export function AcademicsPane({
                 ) : (
                   sections.map((sec: any, i: number) => {
                     const enrolled = Number(sec.enrolledCount || 0);
-                    const cap = Number(sec.capacity || 40);
-                    const over = enrolled > cap;
+                    const cap = Number(sec.capacity || 0);
+                    const over = cap > 0 && enrolled > cap;
                     return (
                       <tr key={sec.id || i} style={{ borderBottom: `1px solid ${S.chip}` }}>
                         <td style={{ padding: '12px 10px', fontWeight: 600, color: S.navy }}>Section {sec.name}</td>
                         <td style={{ padding: '12px 10px', color: S.slate }}>{sec.programName || 'Standard'}</td>
-                        <td style={{ padding: '12px 10px', color: S.slate }}>{cap} students</td>
+                        <td style={{ padding: '12px 10px', color: S.slate }}>{cap > 0 ? `${cap} students` : '—'}</td>
                         <td style={{ padding: '12px 10px', fontWeight: 600, color: S.navy }}>{enrolled}</td>
                         <td style={{ padding: '12px 10px' }}>
                           <span style={{

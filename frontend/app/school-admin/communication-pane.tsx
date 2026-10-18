@@ -41,7 +41,7 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
               channels: b.channels || ["In-App"],
               sentAt: new Date(b.created_at).toLocaleDateString() + " " + new Date(b.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               sentBy: b.sender_name || "School Admin",
-              deliveryStats: typeof b.delivery_stats === "object" && b.delivery_stats ? b.delivery_stats : { sent: b.recipient_count || 100, delivered: b.recipient_count || 100, failed: 0 },
+              deliveryStats: typeof b.delivery_stats === "object" && b.delivery_stats ? b.delivery_stats : { sent: Number(b.recipient_count || 0), delivered: Number(b.recipient_count || 0), failed: 0 },
             }))
           );
         }

@@ -12,6 +12,7 @@ import {
   Eye,
   Plus,
   X,
+  ArrowRight,
 } from "lucide-react";
 
 export function LearningExamsPane({
