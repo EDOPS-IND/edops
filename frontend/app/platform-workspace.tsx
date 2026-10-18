@@ -310,7 +310,7 @@ export function PlatformWorkspace({
   return (
     <div className="platform-control-center content-stack" style={{ gap: "20px", maxWidth: "1600px", margin: "0 auto", padding: "16px 24px" }}>
       
-      {/* 1. TOP AUDITED SUPPORT SESSION / IMPERSONATION BANNER (§24) */}
+      {/* 1. TOP AUDITED SUPPORT SESSION / IMPERSONATION BANNER */}
       {impersonatingSession && (
         <div style={{ background: "#FEF3C7", border: "2px solid #D97706", color: "#92400E", padding: "12px 20px", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center", fontWeight: 700, fontSize: "13px", boxShadow: "0 2px 8px rgba(217, 119, 6, 0.2)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -326,7 +326,7 @@ export function PlatformWorkspace({
         </div>
       )}
 
-      {/* 2. HEADER BAR WITH GLOBAL SEARCH & QUICK ACTIONS (§32, §35) */}
+      {/* 2. HEADER BAR WITH GLOBAL SEARCH & QUICK ACTIONS (, ) */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", borderBottom: "1px solid #E2DDD5", paddingBottom: "16px" }}>
         <div>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
@@ -419,7 +419,7 @@ export function PlatformWorkspace({
         </div>
       )}
 
-      {/* 3. PLATFORM NAVIGATION TABS (ALL 11 SECTIONS - §40) */}
+      {/* 3. PLATFORM NAVIGATION TABS (ALL 11 SECTIONS - ) */}
       <div style={{ display: "flex", gap: "6px", borderBottom: "1px solid #E2DDD5", paddingBottom: "10px", overflowX: "auto" }}>
         {[
           { id: "overview", label: "Overview", icon: BarChart3 },

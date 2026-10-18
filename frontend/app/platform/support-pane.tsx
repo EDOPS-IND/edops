@@ -91,7 +91,7 @@ export function SupportPane({
         </table>
       </div>
 
-      {/* ANNOUNCEMENTS BROADCAST CENTER (§25) */}
+      {/* ANNOUNCEMENTS BROADCAST CENTER */}
       <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
           <div>

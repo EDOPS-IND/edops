@@ -24,6 +24,7 @@ import {
   createSchoolAdminDiscipline, createSchoolAdminDepartment,
   createSchoolInvitation, getSchoolAdminAcademics, getSchoolAdminStudents,
   getSchoolAdminTeachers, createAcademicSection, createAcademicProgram,
+  createSchoolAdminExam,
 } from "../edops-api";
 
 // ─── Colour palette (NO purple / blue gradients) ────────────────────────────
@@ -161,7 +162,7 @@ function NavGroup({ label }: { label: string }) {
 
 // ─── Workspace ───────────────────────────────────────────────────────────────
 export function SchoolAdminWorkspace({
-  schoolName = "Delhi Public Academy",
+  schoolName = "School Workspace",
   organizationId,
   activeTab = "dashboard",
   onTabChange,
@@ -258,10 +259,29 @@ export function SchoolAdminWorkspace({
     if (auto) setDeptCode(auto);
   };
 
+  // Quick action state for Broadcast
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastAudience, setBroadcastAudience] = useState<"all" | "parents" | "teachers" | "students">("all");
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastPriority, setBroadcastPriority] = useState<"normal" | "high" | "urgent">("normal");
+  const [broadcastChannels, setBroadcastChannels] = useState({ inApp: true, whatsapp: true, sms: false, email: false });
+
+  // Quick action state for Exam
+  const [examName, setExamName] = useState("");
+  const [examTerm, setExamTerm] = useState("Term 1");
+  const [examSectionId, setExamSectionId] = useState("");
+  const [examSubjectId, setExamSubjectId] = useState("");
+  const [examDate, setExamDate] = useState("");
+  const [examStartTime, setExamStartTime] = useState("09:00");
+  const [examEndTime, setExamEndTime] = useState("12:00");
+  const [examMaxMarks, setExamMaxMarks] = useState(100);
+
   const isPersonAction = ["addPrincipal", "addTeacher", "addStudent", "addStaff", "mapParent", "addParent"].includes(quickActionModal || "");
   const isDepartmentAction = quickActionModal === "addDepartment";
   const isSectionAction = ["addSection", "section"].includes(quickActionModal || "");
   const isClassAction = ["addClass", "program"].includes(quickActionModal || "");
+  const isBroadcastAction = quickActionModal === "sendBroadcast";
+  const isExamAction = quickActionModal === "scheduleExam";
   const detectedRole: 'principal' | 'teacher' | 'student' | 'staff' | 'parent' =
     quickActionModal === "addPrincipal" ? "principal" :
     quickActionModal === "addTeacher" ? "teacher" :
@@ -283,7 +303,34 @@ export function SchoolAdminWorkspace({
       setCreatedInvite(null); setCopiedLink(false); setActionError("");
       setQuickActionModal(act);
 
-      if (act === "addStudent" && organizationId) {
+      if (act === "sendBroadcast") {
+        setBroadcastTitle("");
+        setBroadcastAudience("all");
+        setBroadcastMessage("");
+        setBroadcastPriority("normal");
+        setBroadcastChannels({ inApp: true, whatsapp: true, sms: false, email: false });
+      } else if (act === "scheduleExam" && organizationId) {
+        setExamName("");
+        setExamTerm("Term 1");
+        setExamSectionId("");
+        setExamSubjectId("");
+        const d = new Date();
+        d.setDate(d.getDate() + 7);
+        setExamDate(d.toISOString().split("T")[0]);
+        setExamStartTime("09:00");
+        setExamEndTime("12:00");
+        setExamMaxMarks(100);
+        getSchoolAdminAcademics(organizationId).then((data) => {
+          if (data?.sections) {
+            setAcademicSections(data.sections);
+            if (data.sections.length > 0) setExamSectionId(data.sections[0].id);
+          }
+          if (data?.subjects) {
+            setAvailableSubjects(data.subjects);
+            if (data.subjects.length > 0) setExamSubjectId(data.subjects[0].id);
+          }
+        }).catch(() => {});
+      } else if (act === "addStudent" && organizationId) {
         getSchoolAdminAcademics(organizationId).then((data) => {
           if (data?.sections) setAcademicSections(data.sections);
         }).catch(() => {});
@@ -408,6 +455,49 @@ export function SchoolAdminWorkspace({
           await createAcademicProgram(organizationId, {
             name: fullClassName,
             sequenceOrder: seqOrder,
+          });
+          setRefreshKey((k) => k + 1);
+          setQuickActionModal(null);
+          return;
+        }
+
+        if (isBroadcastAction) {
+          if (!broadcastTitle.trim()) throw new Error("Please enter broadcast title / subject");
+          if (!broadcastMessage.trim()) throw new Error("Please enter broadcast message body");
+          const activeChannels: string[] = [];
+          if (broadcastChannels.inApp) activeChannels.push("in_app");
+          if (broadcastChannels.whatsapp) activeChannels.push("whatsapp");
+          if (broadcastChannels.sms) activeChannels.push("sms");
+          if (broadcastChannels.email) activeChannels.push("email");
+          if (activeChannels.length === 0) activeChannels.push("in_app");
+
+          await createSchoolAdminBroadcast(organizationId, {
+            title: broadcastTitle.trim(),
+            message: broadcastMessage.trim(),
+            channels: activeChannels,
+            targetAudience: broadcastAudience,
+            priority: broadcastPriority,
+          });
+          setRefreshKey((k) => k + 1);
+          setQuickActionModal(null);
+          return;
+        }
+
+        if (isExamAction) {
+          if (!examName.trim()) throw new Error("Please enter examination title");
+          if (!examSectionId) throw new Error("Please select a target Class & Section");
+          if (!examSubjectId) throw new Error("Please select an Examination Subject");
+          if (!examDate) throw new Error("Please choose an Examination Date");
+
+          await createSchoolAdminExam(organizationId, {
+            sectionId: examSectionId,
+            subjectId: examSubjectId,
+            examName: examName.trim(),
+            term: examTerm,
+            examDate: examDate,
+            startTime: examStartTime,
+            endTime: examEndTime,
+            maxMarks: Number(examMaxMarks) || 100,
           });
           setRefreshKey((k) => k + 1);
           setQuickActionModal(null);
@@ -913,7 +1003,7 @@ export function SchoolAdminWorkspace({
             ) : (
               <>
                 <p style={{ margin: "0 0 2px", fontSize: "11px", fontWeight: 600, color: "#667085", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  {isPersonAction ? "Member Onboarding" : (isDepartmentAction || isSectionAction || isClassAction) ? "Academic Structure" : "Quick Action"}
+                  {isPersonAction ? "Member Onboarding" : (isDepartmentAction || isSectionAction || isClassAction) ? "Academic Structure" : isBroadcastAction ? "Communication" : isExamAction ? "Examinations & Assessments" : "Quick Action"}
                 </p>
                 <h2 style={{ margin: "0 0 16px", fontSize: "17px", fontWeight: 600, color: "#101828", letterSpacing: "-0.02em" }}>
                   {isSectionAction
@@ -922,6 +1012,10 @@ export function SchoolAdminWorkspace({
                     ? "Add Class"
                     : quickActionModal === "addDepartment"
                     ? "Add Academic Department"
+                    : isBroadcastAction
+                    ? "Send School Broadcast"
+                    : isExamAction
+                    ? "Schedule School Examination"
                     : quickActionModal.replace(/([A-Z])/g, " $1").trim()}
                 </h2>
 
@@ -1670,6 +1764,319 @@ export function SchoolAdminWorkspace({
                         </span>
                       </label>
                     </>
+                  ) : isBroadcastAction ? (
+                    <>
+                      <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                        <span>Broadcast Subject / Title <span style={{ color: "#D92D20" }}>*</span></span>
+                        <input
+                          required
+                          type="text"
+                          value={broadcastTitle}
+                          onChange={(e) => setBroadcastTitle(e.target.value)}
+                          placeholder="e.g. Annual Sports Meet Notice or Winter Vacation Announcement"
+                          style={{
+                            padding: "9px 12px",
+                            borderRadius: "8px",
+                            border: "1px solid #D0D5DD",
+                            fontSize: "13px",
+                            outline: "none",
+                            color: "#101828",
+                            background: "#FFFFFF",
+                            fontFamily: "inherit",
+                          }}
+                        />
+                      </label>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                          <span>Target Audience</span>
+                          <select
+                            value={broadcastAudience}
+                            onChange={(e) => setBroadcastAudience(e.target.value as any)}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: "8px",
+                              border: "1px solid #D0D5DD",
+                              fontSize: "13px",
+                              outline: "none",
+                              color: "#101828",
+                              background: "#FFFFFF",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="all">All Stakeholders (Whole School)</option>
+                            <option value="parents">Parents Only</option>
+                            <option value="teachers">Teachers & Staff Only</option>
+                            <option value="students">Students Only</option>
+                          </select>
+                        </label>
+
+                        <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                          <span>Urgency / Priority</span>
+                          <select
+                            value={broadcastPriority}
+                            onChange={(e) => setBroadcastPriority(e.target.value as any)}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: "8px",
+                              border: "1px solid #D0D5DD",
+                              fontSize: "13px",
+                              outline: "none",
+                              color: "#101828",
+                              background: "#FFFFFF",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="normal">Normal Announcement</option>
+                            <option value="high">High Priority</option>
+                            <option value="urgent">Urgent / Emergency Alert</option>
+                          </select>
+                        </label>
+                      </div>
+
+                      <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                        <span>Broadcast Message Body <span style={{ color: "#D92D20" }}>*</span></span>
+                        <textarea
+                          required
+                          rows={4}
+                          value={broadcastMessage}
+                          onChange={(e) => setBroadcastMessage(e.target.value)}
+                          placeholder="Type the message to be dispatched to recipients..."
+                          style={{
+                            padding: "9px 12px",
+                            borderRadius: "8px",
+                            border: "1px solid #D0D5DD",
+                            fontSize: "13px",
+                            outline: "none",
+                            color: "#101828",
+                            resize: "vertical",
+                            fontFamily: "inherit",
+                          }}
+                        />
+                      </label>
+
+                      <div style={{ display: "grid", gap: "6px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: 500, color: "#344054" }}>Delivery Channels</span>
+                        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "13px", color: "#344054" }}>
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={broadcastChannels.inApp}
+                              onChange={(e) => setBroadcastChannels({ ...broadcastChannels, inApp: e.target.checked })}
+                            />
+                            In-App Notification
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={broadcastChannels.whatsapp}
+                              onChange={(e) => setBroadcastChannels({ ...broadcastChannels, whatsapp: e.target.checked })}
+                            />
+                            WhatsApp Notification
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={broadcastChannels.sms}
+                              onChange={(e) => setBroadcastChannels({ ...broadcastChannels, sms: e.target.checked })}
+                            />
+                            SMS
+                          </label>
+                          <label style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
+                            <input
+                              type="checkbox"
+                              checked={broadcastChannels.email}
+                              onChange={(e) => setBroadcastChannels({ ...broadcastChannels, email: e.target.checked })}
+                            />
+                            Email Dispatch
+                          </label>
+                        </div>
+                      </div>
+                    </>
+                  ) : isExamAction ? (
+                    <>
+                      <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                        <span>Examination Name / Assessment Title <span style={{ color: "#D92D20" }}>*</span></span>
+                        <input
+                          required
+                          type="text"
+                          value={examName}
+                          onChange={(e) => setExamName(e.target.value)}
+                          placeholder="e.g. Mid-Term Mathematics Assessment or Unit Test 1"
+                          style={{
+                            padding: "9px 12px",
+                            borderRadius: "8px",
+                            border: "1px solid #D0D5DD",
+                            fontSize: "13px",
+                            outline: "none",
+                            color: "#101828",
+                            background: "#FFFFFF",
+                            fontFamily: "inherit",
+                          }}
+                        />
+                      </label>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                          <span>Academic Term</span>
+                          <select
+                            value={examTerm}
+                            onChange={(e) => setExamTerm(e.target.value)}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: "8px",
+                              border: "1px solid #D0D5DD",
+                              fontSize: "13px",
+                              outline: "none",
+                              color: "#101828",
+                              background: "#FFFFFF",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="Term 1">Term 1</option>
+                            <option value="Term 2">Term 2</option>
+                            <option value="Mid-Term">Mid-Term</option>
+                            <option value="Finals / Annual">Finals / Annual</option>
+                            <option value="Unit Assessment">Unit Assessment</option>
+                          </select>
+                        </label>
+
+                        <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                          <span>Target Class & Section <span style={{ color: "#D92D20" }}>*</span></span>
+                          <select
+                            required
+                            value={examSectionId}
+                            onChange={(e) => setExamSectionId(e.target.value)}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: "8px",
+                              border: "1px solid #D0D5DD",
+                              fontSize: "13px",
+                              outline: "none",
+                              color: "#101828",
+                              background: "#FFFFFF",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="">Select Class & Section...</option>
+                            {academicSections.map((sec) => (
+                              <option key={sec.id} value={sec.id}>
+                                {sec.programName ? `${sec.programName} - Section ${sec.name}` : `Section ${sec.name}`}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                        <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                          <span>Subject <span style={{ color: "#D92D20" }}>*</span></span>
+                          <select
+                            required
+                            value={examSubjectId}
+                            onChange={(e) => setExamSubjectId(e.target.value)}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: "8px",
+                              border: "1px solid #D0D5DD",
+                              fontSize: "13px",
+                              outline: "none",
+                              color: "#101828",
+                              background: "#FFFFFF",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            <option value="">Select Subject...</option>
+                            {availableSubjects.map((sub) => (
+                              <option key={sub.id} value={sub.id}>
+                                {sub.name} {sub.code ? `(${sub.code})` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                          <span>Exam Date <span style={{ color: "#D92D20" }}>*</span></span>
+                          <input
+                            required
+                            type="date"
+                            value={examDate}
+                            onChange={(e) => setExamDate(e.target.value)}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: "8px",
+                              border: "1px solid #D0D5DD",
+                              fontSize: "13px",
+                              outline: "none",
+                              color: "#101828",
+                              background: "#FFFFFF",
+                              fontFamily: "inherit",
+                            }}
+                          />
+                        </label>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                        <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                          <span>Start Time</span>
+                          <input
+                            type="time"
+                            value={examStartTime}
+                            onChange={(e) => setExamStartTime(e.target.value)}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: "8px",
+                              border: "1px solid #D0D5DD",
+                              fontSize: "13px",
+                              outline: "none",
+                              color: "#101828",
+                              background: "#FFFFFF",
+                              fontFamily: "inherit",
+                            }}
+                          />
+                        </label>
+
+                        <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                          <span>End Time</span>
+                          <input
+                            type="time"
+                            value={examEndTime}
+                            onChange={(e) => setExamEndTime(e.target.value)}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: "8px",
+                              border: "1px solid #D0D5DD",
+                              fontSize: "13px",
+                              outline: "none",
+                              color: "#101828",
+                              background: "#FFFFFF",
+                              fontFamily: "inherit",
+                            }}
+                          />
+                        </label>
+
+                        <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                          <span>Max Marks</span>
+                          <input
+                            type="number"
+                            min={10}
+                            max={500}
+                            value={examMaxMarks}
+                            onChange={(e) => setExamMaxMarks(Number(e.target.value))}
+                            style={{
+                              padding: "9px 12px",
+                              borderRadius: "8px",
+                              border: "1px solid #D0D5DD",
+                              fontSize: "13px",
+                              outline: "none",
+                              color: "#101828",
+                              background: "#FFFFFF",
+                              fontFamily: "inherit",
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </>
                   ) : (
                     <>
                       {[
@@ -1758,6 +2165,10 @@ export function SchoolAdminWorkspace({
                         ? (isCreatingNewClass ? "Create Class & Section" : "Create Section")
                         : isClassAction
                         ? "Create Class"
+                        : isExamAction
+                        ? "Schedule Examination"
+                        : isBroadcastAction
+                        ? "Send Broadcast Dispatch"
                         : "Confirm & Log"}
                     </button>
                   </div>

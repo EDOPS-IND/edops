@@ -115,7 +115,7 @@ export function AttendanceLeavePane({ organizationId }: { organizationId?: strin
         </button>
       </div>
 
-      {/* 1. ATTENDANCE REGISTER TAB (§33) */}
+      {/* 1. ATTENDANCE REGISTER TAB */}
       {subtab === "register" && (
         <div style={{ display: "grid", gap: "20px" }}>
           {/* Top KPI Summary */}
@@ -222,7 +222,7 @@ export function AttendanceLeavePane({ organizationId }: { organizationId?: strin
         </div>
       )}
 
-      {/* 2. LOW ATTENDANCE DEFAULTERS TAB (§33, §73: Actionable Loop) */}
+      {/* 2. LOW ATTENDANCE DEFAULTERS TAB (, : Actionable Loop) */}
       {subtab === "defaulters" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -270,7 +270,7 @@ export function AttendanceLeavePane({ organizationId }: { organizationId?: strin
         </div>
       )}
 
-      {/* 3. LEAVE APPROVAL DESK TAB (§34) */}
+      {/* 3. LEAVE APPROVAL DESK TAB */}
       {subtab === "leave" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Leave Approval Desk</h3>

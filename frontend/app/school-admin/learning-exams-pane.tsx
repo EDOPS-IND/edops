@@ -161,9 +161,9 @@ export function LearningExamsPane({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E2DDD5", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
           {[
-            { id: "assignments", label: "Assignment Completion Monitoring (§36)" },
-            { id: "exams", label: "Examinations & Schedules (§37)" },
-            { id: "results", label: "Result Publishing & Report Cards (§38)" },
+            { id: "assignments", label: "Assignment Completion Monitoring" },
+            { id: "exams", label: "Examinations & Schedules" },
+            { id: "results", label: "Result Publishing & Report Cards" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -192,7 +192,7 @@ export function LearningExamsPane({
         </button>
       </div>
 
-      {/* 1. ASSIGNMENTS MONITORING TAB (§36) */}
+      {/* 1. ASSIGNMENTS MONITORING TAB */}
       {subtab === "assignments" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -240,7 +240,7 @@ export function LearningExamsPane({
         </div>
       )}
 
-      {/* 2. EXAMINATIONS SCHEDULE TAB (§37) */}
+      {/* 2. EXAMINATIONS SCHEDULE TAB */}
       {subtab === "exams" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>School Examination Windows & Cycles</h3>

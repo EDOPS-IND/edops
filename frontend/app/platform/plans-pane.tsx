@@ -61,7 +61,7 @@ export function PlansPane({
         </div>
       </div>
 
-      {/* PLAN FEATURE MATRIX TABLE (§10) */}
+      {/* PLAN FEATURE MATRIX TABLE */}
       <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "20px" }}>
         <div style={{ marginBottom: "14px" }}>
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700 }}>Interactive Plan Feature Matrix</h3>

@@ -506,3 +506,186 @@ export class ScheduleExamDto {
   maxMarks!: number;
 }
 
+export class SchedulePtmDto {
+  @ApiProperty({ example: "Term 1 Parent Teacher Meeting" })
+  @IsString()
+  @IsNotEmpty()
+  title!: string;
+
+  @ApiProperty({ example: "2026-10-25" })
+  @IsDateString()
+  eventDate!: string;
+
+  @ApiProperty({ example: "09:00" })
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  startTime!: string;
+
+  @ApiProperty({ example: "13:00" })
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
+  endTime!: string;
+
+  @ApiPropertyOptional({ example: 15, default: 15 })
+  @IsOptional()
+  @IsInt()
+  @Min(5)
+  @Max(120)
+  slotDurationMinutes?: number;
+
+  @ApiPropertyOptional({ example: ["Grade 9", "Grade 10"] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  targetGrades?: string[];
+}
+
+export class CreateTransportVehicleDto {
+  @ApiProperty({ example: "BUS-01" })
+  @IsString()
+  @IsNotEmpty()
+  vehicleNumber!: string;
+
+  @ApiProperty({ example: "Route 1 - North Sector" })
+  @IsString()
+  @IsNotEmpty()
+  routeName!: string;
+
+  @ApiPropertyOptional({ example: 40 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  capacity?: number;
+
+  @ApiProperty({ example: "Rajesh Sharma" })
+  @IsString()
+  @IsNotEmpty()
+  driverName!: string;
+
+  @ApiProperty({ example: "+91 98765 43210" })
+  @IsString()
+  @IsNotEmpty()
+  driverPhone!: string;
+
+  @ApiPropertyOptional({ enum: ["on_route", "idle", "maintenance"] })
+  @IsOptional()
+  @IsEnum(["on_route", "idle", "maintenance"])
+  status?: "on_route" | "idle" | "maintenance";
+}
+
+export class CreateLibraryBookDto {
+  @ApiProperty({ example: "978-0132350884" })
+  @IsString()
+  @IsNotEmpty()
+  isbn!: string;
+
+  @ApiProperty({ example: "Clean Code" })
+  @IsString()
+  @IsNotEmpty()
+  title!: string;
+
+  @ApiProperty({ example: "Robert C. Martin" })
+  @IsString()
+  @IsNotEmpty()
+  author!: string;
+
+  @ApiPropertyOptional({ example: "Computer Science" })
+  @IsOptional()
+  @IsString()
+  category?: string;
+
+  @ApiPropertyOptional({ example: 5 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  totalCopies?: number;
+
+  @ApiPropertyOptional({ example: "Shelf B-3" })
+  @IsOptional()
+  @IsString()
+  shelfLocation?: string;
+}
+
+export class CreateSchoolAssetDto {
+  @ApiProperty({ example: "AST-2024-001" })
+  @IsString()
+  @IsNotEmpty()
+  assetCode!: string;
+
+  @ApiProperty({ example: "Interactive Smart Board 75\"" })
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
+
+  @ApiProperty({ example: "IT Equipment" })
+  @IsString()
+  @IsNotEmpty()
+  category!: string;
+
+  @ApiProperty({ example: "Room 101 - Smart Classroom" })
+  @IsString()
+  @IsNotEmpty()
+  location!: string;
+
+  @ApiPropertyOptional({ example: 55000 })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  purchaseCost?: number;
+
+  @ApiPropertyOptional({ enum: ["good", "needs_maintenance", "damaged"] })
+  @IsOptional()
+  @IsEnum(["good", "needs_maintenance", "damaged"])
+  condition?: "good" | "needs_maintenance" | "damaged";
+
+  @ApiPropertyOptional({ example: "IT Dept" })
+  @IsOptional()
+  @IsString()
+  custodianName?: string;
+}
+
+export class UpdateSchoolConfigDto {
+  @ApiPropertyOptional({ example: "Delhi Public Academy, Vasant Vihar" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  name?: string;
+
+  @ApiPropertyOptional({ example: "CBSE/AFF/2130842" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  affiliationNumber?: string;
+
+  @ApiPropertyOptional({ example: "CBSE" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  board?: string;
+
+  @ApiPropertyOptional({ example: "admin@dpa-edu.in" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  officialEmail?: string;
+
+  @ApiPropertyOptional({ example: "+91 9876543210" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  officialPhone?: string;
+
+  @ApiPropertyOptional({ example: 75 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  attendanceThreshold?: number;
+
+  @ApiPropertyOptional({ example: 30 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(80)
+  workloadThreshold?: number;
+}
+
+

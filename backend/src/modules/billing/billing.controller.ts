@@ -266,7 +266,7 @@ export class PlatformBillingController {
     return this.billing.statistics(org, req.user);
   }
 
-  // §6 & §7: Feature Catalog & Matrix
+  //  & : Feature Catalog & Matrix
   @Get("features")
   features(@Req() req: AuthenticatedRequest) {
     return this.billing.featureCatalog(req.user);
@@ -286,7 +286,7 @@ export class PlatformBillingController {
     return this.billing.updatePlanFeatures(req.user, id, body.features);
   }
 
-  // §8: School-Specific Detailed Overrides
+  // : School-Specific Detailed Overrides
   @Get("organizations/:organizationId/detailed-overrides")
   getDetailedOverrides(
     @Req() req: AuthenticatedRequest,
@@ -370,13 +370,13 @@ export class PlatformBillingController {
     return this.billing.removeDetailedOverride(req.user, org, featureKey, role);
   }
 
-  // §3, §4, §5, §6, §29: Full School Onboarding Wizard
+  // , , , , : Full School Onboarding Wizard
   @Post("organizations/onboard")
   onboard(@Req() req: AuthenticatedRequest, @Body() dto: any) {
     return this.billing.onboardSchool(req.user, dto);
   }
 
-  // §28: School Lifecycle Transitions
+  // : School Lifecycle Transitions
   @Patch("organizations/:organizationId/lifecycle")
   lifecycle(
     @Req() req: AuthenticatedRequest,
@@ -386,7 +386,7 @@ export class PlatformBillingController {
     return this.billing.schoolLifecycle(req.user, org, dto);
   }
 
-  // §23: Support Center Tickets
+  // : Support Center Tickets
   @Get("support/tickets")
   tickets(@Req() req: AuthenticatedRequest, @Query() q: AcademicListDto) {
     return this.billing.tickets(req.user, q);
@@ -406,13 +406,13 @@ export class PlatformBillingController {
     return this.billing.updateTicketStatus(req.user, id, dto);
   }
 
-  // §24: Audited Support Sessions (Impersonation)
+  // : Audited Support Sessions (Impersonation)
   @Post("support/sessions")
   startSupportSession(@Req() req: AuthenticatedRequest, @Body() dto: any) {
     return this.billing.startSupportSession(req.user, dto);
   }
 
-  // §25: Platform Announcements
+  // : Platform Announcements
   @Get("announcements")
   announcements(@Req() req: AuthenticatedRequest) {
     return this.billing.announcements(req.user);
@@ -423,7 +423,7 @@ export class PlatformBillingController {
     return this.billing.createAnnouncement(req.user, dto);
   }
 
-  // §12: Payments & Refunds
+  // : Payments & Refunds
   @Get("payments")
   payments(@Req() req: AuthenticatedRequest, @Query() q: AcademicListDto) {
     return this.billing.payments(req.user, q);
@@ -443,19 +443,19 @@ export class PlatformBillingController {
     return this.billing.refundPayment(req.user, id, dto);
   }
 
-  // §35: Global Search
+  // : Global Search
   @Get("search")
   search(@Req() req: AuthenticatedRequest, @Query("q") q: string) {
     return this.billing.globalSearch(req.user, q);
   }
 
-  // §34: Detailed Health
+  // : Detailed Health
   @Get("health-detailed")
   detailedHealth(@Req() req: AuthenticatedRequest) {
     return this.billing.detailedHealth(req.user);
   }
 
-  // §26 & §27: Platform Staff
+  //  & : Platform Staff
   @Get("staff")
   staff(@Req() req: AuthenticatedRequest) {
     return this.billing.staff(req.user);

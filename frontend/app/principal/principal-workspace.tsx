@@ -571,7 +571,7 @@ export function PrincipalWorkspace({
               }}
             >
               <HeartPulse size={14} />
-              <span>Academic Health: {healthScore !== null ? `${healthScore}/100` : "94/100"}</span>
+              <span>Academic Health: {healthScore !== null ? `${healthScore}/100` : "Awaiting data"}</span>
             </button>
 
             {/* Action Plans */}

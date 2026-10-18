@@ -91,7 +91,7 @@ export function OverviewPane({
 
       {/* NOTIFICATION CENTER & SYSTEM HEALTH SNAPSHOT */}
       <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px" }}>
-        {/* Real-time Notification Center (§33) */}
+        {/* Real-time Notification Center */}
         <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
             <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#111827" }}>Platform Notification Center</h3>
@@ -118,7 +118,7 @@ export function OverviewPane({
           </div>
         </div>
 
-        {/* Quick Health Status Card (§34) */}
+        {/* Quick Health Status Card */}
         <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
             <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#111827" }}>Platform Health</h3>

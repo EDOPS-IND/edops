@@ -303,7 +303,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
       >
         <div style={{ display: "flex", gap: "6px" }}>
           {[
-            { id: "dashboard", label: "Fee Collections Overview (§41)" },
+            { id: "dashboard", label: "Fee Collections Overview" },
             { id: "defaulters", label: `Fee Defaulters Desk (${defaulters.length})` },
             { id: "structure", label: `Class Fee Structures (${feeStructures.length})` },
           ].map((tab) => (
@@ -346,7 +346,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
         </button>
       </div>
 
-      {/* 1. FEE COLLECTIONS OVERVIEW (§41) */}
+      {/* 1. FEE COLLECTIONS OVERVIEW */}
       {subtab === "dashboard" && (
         <div style={{ display: "grid", gap: "20px" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
@@ -411,12 +411,12 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
         </div>
       )}
 
-      {/* 2. FEE DEFAULTERS ACTION DESK (§42) */}
+      {/* 2. FEE DEFAULTERS ACTION DESK */}
       {subtab === "defaulters" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Fee Defaulters Desk (§42)</h3>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Fee Defaulters Desk</h3>
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>
                 Direct actionable operational triggers: Send Reminder, Record Payment, or Apply Concession
               </p>
@@ -555,7 +555,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
         </div>
       )}
 
-      {/* 3. CLASS FEE STRUCTURES (§40) */}
+      {/* 3. CLASS FEE STRUCTURES */}
       {subtab === "structure" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>

@@ -34,12 +34,14 @@ export interface StudentRecord {
   attendancePct: number;
   feeStatus: "Paid" | "Pending" | "Overdue";
   academicStatus: "Good Standing" | "Needs Attention" | "Honor Roll";
-  status: "Active" | "Transferred" | "Graduated" | "Pending";
+  status: "Active" | "Transferred" | "Graduated" | "Pending" | "Pending Invite" | string;
   bloodGroup: string;
   dob: string;
   address: string;
   emergencyContact: string;
   gpa?: number;
+  inviteToken?: string | null;
+  inviteExpiresAt?: string | null;
   [key: string]: any;
 }
 
@@ -59,6 +61,8 @@ export interface TeacherRecord {
   weeklyPeriods: number;
   maxPeriods: number;
   status: "Active" | "On Leave" | "Inactive" | "Pending Invite" | string;
+  inviteToken?: string | null;
+  inviteExpiresAt?: string | null;
   [key: string]: any;
 }
 
@@ -72,7 +76,9 @@ export interface StaffRecord {
   designation: string;
   employmentType: "Full Time" | "Part Time" | "Contract" | "Temporary";
   joiningDate: string;
-  status: "Active" | "On Leave" | "Inactive";
+  status: "Active" | "On Leave" | "Inactive" | "Pending Invite" | string;
+  inviteToken?: string | null;
+  inviteExpiresAt?: string | null;
 }
 
 export interface ParentRecord {
@@ -86,6 +92,8 @@ export interface ParentRecord {
   emergencyContact: string;
   accountStatus: "Active" | "Invited" | "Inactive";
   invitationStatus: "Accepted" | "Pending" | "Expired" | "Revoked";
+  inviteToken?: string | null;
+  inviteExpiresAt?: string | null;
   children: { studentId: string; studentName: string; grade: string; section: string }[];
   permissions: {
     attendance: boolean;
@@ -274,17 +282,30 @@ export interface SchoolAsset {
   warrantyUntil: string;
 }
 
+export interface PtmSchedule {
+  id: string;
+  title: string;
+  eventDate: string;
+  startTime: string;
+  endTime: string;
+  slotDurationMinutes: number;
+  targetGrades: string[];
+  totalSlots: number;
+  bookedSlots: number;
+  status: "open" | "completed" | "draft" | string;
+}
+
 export interface DisciplineIncident {
   id: string;
   studentName: string;
   admissionNo: string;
   grade: string;
-  incidentType: "Misconduct" | "Attendance Breach" | "Academic Dishonesty" | "Bullying" | "Property Damage";
-  severity: "Low" | "Medium" | "High";
+  incidentType: string;
+  severity: "Low" | "Medium" | "High" | "minor" | "moderate" | "severe" | string;
   reportedBy: string;
   date: string;
   description: string;
-  status: "Logged" | "Counselling" | "Parent Contacted" | "Resolved";
+  status: string;
 }
 
 export interface AuditLogItem {
