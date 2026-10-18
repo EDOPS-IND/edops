@@ -48,7 +48,7 @@ import { GlobalSearchModal } from "./components/global-search-modal";
 import { TeacherProfileDrawer } from "./panes/teacher-profile-drawer";
 import { Student360Modal } from "./panes/student-360-modal";
 
-import { OrganizationSummary } from "../edops-api";
+import { OrganizationSummary, getStudentAvatarUrl } from "../edops-api";
 import { useDashboardNavigation } from "../dashboard-navigation";
 
 type PrincipalNavItem = { id: string; label: string; icon: ReactNode; paneId?: string; subItems?: { id: string; label: string; paneId?: string }[] };
@@ -327,17 +327,17 @@ export function PrincipalWorkspace({
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: "#F7F8FA",
+        background: "#f4f6f7",
         fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif',
       }}
     >
-      {/* SIDEBAR NAVIGATION (Desktop Admin Charcoal) */}
+      {/* SIDEBAR NAVIGATION (Executive Dark #0b0f19) */}
       <aside
         style={{
           width: "228px",
           flexShrink: 0,
-          background: "#111318",
-          borderRight: "1px solid #1E2128",
+          background: "#0b0f19",
+          borderRight: "1px solid rgba(255, 255, 255, 0.06)",
           display: "flex",
           flexDirection: "column",
           height: "100vh",
@@ -346,7 +346,7 @@ export function PrincipalWorkspace({
           overflowY: "auto",
           overflowX: "hidden",
           scrollbarWidth: "thin",
-          scrollbarColor: "#2A2D35 transparent",
+          scrollbarColor: "#1c2337 transparent",
           zIndex: 40,
         }}
       >
@@ -357,7 +357,7 @@ export function PrincipalWorkspace({
             display: "flex",
             alignItems: "center",
             padding: "0 16px",
-            borderBottom: "1px solid #1E2128",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
             gap: "10px",
             flexShrink: 0,
           }}
@@ -398,8 +398,14 @@ export function PrincipalWorkspace({
                     borderRadius: "7px",
                     cursor: "pointer",
                     position: "relative",
-                    background: isSelected && !hasSub ? "#1E2128" : isSelected && hasSub ? "#1E2128" : "transparent",
+                    background: isSelected ? "#1c2337" : "transparent",
                     transition: "background 0.12s",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) e.currentTarget.style.background = "transparent";
                   }}
                 >
                   {isSelected && (
@@ -417,14 +423,14 @@ export function PrincipalWorkspace({
                     />
                   )}
                   <div style={{ display: "flex", alignItems: "center", gap: "9px", overflow: "hidden" }}>
-                    <span style={{ color: isSelected ? "#FFFFFF" : "#8C909A", display: "flex", alignItems: "center" }}>
+                    <span style={{ color: isSelected ? "#FFFFFF" : "#8a92a6", display: "flex", alignItems: "center" }}>
                       {item.icon}
                     </span>
                     <span
                       style={{
                         fontSize: "13px",
                         fontWeight: isSelected ? 600 : 400,
-                        color: isSelected ? "#FFFFFF" : "#8C909A",
+                        color: isSelected ? "#FFFFFF" : "#8a92a6",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -437,7 +443,7 @@ export function PrincipalWorkspace({
                     <ChevronDown
                       size={13}
                       style={{
-                        color: "#8C909A",
+                        color: isSelected ? "#FFFFFF" : "#8a92a6",
                         transform: isExpanded ? "rotate(180deg)" : "none",
                         transition: "transform 0.15s ease",
                       }}
@@ -447,7 +453,7 @@ export function PrincipalWorkspace({
 
                 {/* Sub-items */}
                 {hasSub && isExpanded && (
-                  <div style={{ paddingLeft: "26px", display: "flex", flexDirection: "column", gap: "1px", borderLeft: "1px solid #1E2128", marginLeft: "18px", margin: "2px 0 4px 18px" }}>
+                  <div style={{ paddingLeft: "26px", display: "flex", flexDirection: "column", gap: "1px", borderLeft: "1px solid rgba(255, 255, 255, 0.08)", marginLeft: "18px", margin: "2px 0 4px 18px" }}>
                     {item.subItems!.map((sub) => {
                       const isSubActive = activePane === sub.paneId && activeSubTab === sub.id;
                       return (
@@ -457,14 +463,20 @@ export function PrincipalWorkspace({
                           style={{
                             all: "unset",
                             boxSizing: "border-box",
-                            padding: "5px 10px",
+                            padding: "6px 10px",
                             fontSize: "12px",
                             fontWeight: isSubActive ? 600 : 400,
                             borderRadius: "5px",
                             cursor: "pointer",
-                            background: isSubActive ? "#1E2128" : "transparent",
-                            color: isSubActive ? "#FFFFFF" : "#8C909A",
+                            background: isSubActive ? "#1c2337" : "transparent",
+                            color: isSubActive ? "#FFFFFF" : "#8a92a6",
                             transition: "background 0.12s, color 0.12s",
+                          }}
+                          onMouseEnter={(e) => {
+                            if (!isSubActive) e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
+                          }}
+                          onMouseLeave={(e) => {
+                            if (!isSubActive) e.currentTarget.style.background = "transparent";
                           }}
                         >
                           {sub.label}
@@ -478,13 +490,35 @@ export function PrincipalWorkspace({
           })}
         </nav>
 
-        {/* Identity & Sign out */}
-        <div style={{ borderTop: "1px solid #1E2128", padding: "12px 14px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
-            <span style={{ fontSize: "11px", fontWeight: 600, color: "#8C909A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              Principal Executive OS
-            </span>
+        {/* Identity & User Avatar Card */}
+        <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.06)", padding: "14px 14px", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "8px",
+                overflow: "hidden",
+                background: "#1c2337",
+                border: "1px solid rgba(255, 255, 255, 0.12)",
+                flexShrink: 0,
+              }}
+            >
+              <img
+                src={getStudentAvatarUrl("Principal", organization.id)}
+                alt="Principal"
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontSize: "12.5px", fontWeight: 650, color: "#ffffff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {organization.name || "Principal Office"}
+              </div>
+              <div style={{ fontSize: "10.5px", color: "#8a92a6", textTransform: "uppercase", letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: "5px" }}>
+                <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#22C55E" }} />
+                Executive OS
+              </div>
+            </div>
           </div>
 
           <button
@@ -497,16 +531,25 @@ export function PrincipalWorkspace({
               display: "flex",
               alignItems: "center",
               gap: "9px",
-              padding: "7px 12px",
-              borderRadius: "7px",
+              padding: "7px 10px",
+              borderRadius: "6px",
               cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 400,
-              color: "#8C909A",
+              fontSize: "12.5px",
+              fontWeight: 500,
+              color: "#8a92a6",
+              background: "rgba(255, 255, 255, 0.04)",
               transition: "background 0.12s, color 0.12s",
             }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
+              e.currentTarget.style.color = "#ffffff";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
+              e.currentTarget.style.color = "#8a92a6";
+            }}
           >
-            <LogOut size={14} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+            <LogOut size={13} strokeWidth={1.75} style={{ flexShrink: 0 }} />
             {signingOut ? "Signing out…" : "Sign out"}
           </button>
         </div>
@@ -631,19 +674,40 @@ export function PrincipalWorkspace({
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: "34px",
-                height: "34px",
+                width: "36px",
+                height: "36px",
                 background: "#F9FAFB",
-                border: "1px solid #D0D5DD",
+                border: "1px solid #ced8e5",
                 borderRadius: "8px",
                 cursor: "pointer",
                 position: "relative",
               }}
               title="Academic Alerts"
             >
-              <Bell size={14} style={{ color: "#475467" }} />
+              <Bell size={15} style={{ color: "#0c1e33" }} />
               <span style={{ position: "absolute", top: "7px", right: "7px", width: "6px", height: "6px", borderRadius: "50%", background: "#E84040" }} />
             </button>
+
+            {/* Principal Circular Avatar */}
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "50%",
+                overflow: "hidden",
+                border: "2px solid #0c1e33",
+                boxShadow: "0 2px 6px rgba(12, 30, 51, 0.15)",
+                background: "#F5F6F8",
+                flexShrink: 0,
+              }}
+              title="Principal Executive Profile"
+            >
+              <img
+                src={getStudentAvatarUrl("Principal", organization.id)}
+                alt="Principal"
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
+            </div>
           </div>
         </header>
 
@@ -664,7 +728,7 @@ export function PrincipalWorkspace({
           ) : !navigation.has(activeKey) ? (
             <p style={{ color: "#475467" }}>This feature is unavailable for this school or role.</p>
           ) : selectedSubItem && !activeView ? (
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "12px", padding: "24px" }}>
+            <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "12px", padding: "24px" }}>
               <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>{selectedSubItem.label}</h2>
               <p style={{ color: "#475467", marginTop: "8px" }}>This view is not available yet.</p>
             </div>

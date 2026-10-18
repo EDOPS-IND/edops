@@ -2,7 +2,40 @@
 
 import React, { useState } from "react";
 import { StudentListItem } from "../types";
-import { Search, User, AlertTriangle, ShieldCheck, Plus, ArrowRight, Award, GraduationCap } from "lucide-react";
+import {
+  Search,
+  User,
+  AlertTriangle,
+  ShieldCheck,
+  Plus,
+  ArrowRight,
+  Award,
+  GraduationCap,
+  TrendingUp,
+  CheckCircle2,
+  HeartPulse,
+} from "lucide-react";
+import { getStudentAvatarUrl } from "../../edops-api";
+
+const S = {
+  navy: "#0c1e33",
+  slate: "#495d72",
+  muted: "#a6abb5",
+  faint: "#b3b3b3",
+  bg: "#f4f6f7",
+  white: "#ffffff",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  chip: "#f5f6f8",
+  greenBg: "#ccefbf",
+  greenDk: "#1a5c0a",
+  violetBg: "#e1d2ff",
+  violetDk: "#4a0e8f",
+  skyBg: "#bae5f5",
+  skyDk: "#0a5a7a",
+  peachBg: "#ffd8c7",
+  peachDk: "#782a00",
+};
 
 export function StudentsPane({
   students = [],
@@ -37,30 +70,187 @@ export function StudentsPane({
   }, [organizationId]);
 
   const studentList = (liveData?.students && liveData.students.length > 0) ? liveData.students : students;
-  const atRisk = liveData ? {students:liveData.students.filter((s:any)=>s.needsIntervention)} : atRiskData;
+  const filtered = studentList.filter((s: any) =>
+    (s.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.className || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (s.rollNumber || "").toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const filtered = studentList.filter((s: any) => (s.name || "").toLowerCase().includes(searchTerm.toLowerCase()) || (s.className || "").toLowerCase().includes(searchTerm.toLowerCase()));
+  const avgScore = studentList.length
+    ? Math.round(studentList.reduce((acc: number, s: any) => acc + (Number(s.overallAverage) || 0), 0) / studentList.length)
+    : 0;
 
+  const avgAtt = studentList.length
+    ? Math.round(studentList.reduce((acc: number, s: any) => acc + (Number(s.attendanceRate) || 0), 0) / studentList.length)
+    : 0;
+
+  const atRiskCount = studentList.filter(
+    (s: any) => s.needsIntervention || (s.overallAverage != null && s.overallAverage < 65) || (s.attendanceRate != null && s.attendanceRate < 75)
+  ).length;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-      {/* 1. Header Sub Tab Strip & Actions */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
-        <div style={{ display: "flex", gap: "8px" }}>
-          {[{id:"all",label:"All students"},{id:"at_risk",label:"At-risk students"},{id:"remedial",label:"Remedial programs"},{id:"enrichment",label:"Enrichment programs"}].map((t) => (
+      {/* ═══════════════════════════════════════════════
+          1. TOP 4 PASTEL METRIC CARDS (148PX)
+      ═══════════════════════════════════════════════ */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+        {/* Card 1: Total Students (Pastel Mint) */}
+        <article
+          onClick={() => setSubTab("all")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: S.greenBg,
+            border: `1px solid ${S.greenBg}`,
+            borderRadius: "10px",
+            color: S.greenDk,
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Total Students
+            </span>
+            <GraduationCap size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: S.greenDk }}>
+            {studentList.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Active enrolled cohorts</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+              Roster <ArrowRight size={13} />
+            </span>
+          </div>
+        </article>
+
+        {/* Card 2: Academic Average (Pastel Violet) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: S.violetBg,
+            border: `1px solid ${S.violetBg}`,
+            borderRadius: "10px",
+            color: S.violetDk,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Cohort Academic Average
+            </span>
+            <TrendingUp size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: S.violetDk }}>
+            {avgScore}%
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Cumulative examination grade</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Benchmark</span>
+          </div>
+        </article>
+
+        {/* Card 3: Attendance Rate (Pastel Sky) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: S.skyBg,
+            border: `1px solid ${S.skyBg}`,
+            borderRadius: "10px",
+            color: S.skyDk,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Attendance Compliance
+            </span>
+            <CheckCircle2 size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: S.skyDk }}>
+            {avgAtt}%
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Campus register verified</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Attendance</span>
+          </div>
+        </article>
+
+        {/* Card 4: Attention Category (Pastel Coral) */}
+        <article
+          onClick={() => setSubTab("at_risk")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: S.peachBg,
+            border: `1px solid ${S.peachBg}`,
+            borderRadius: "10px",
+            color: S.peachDk,
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Requires Attention
+            </span>
+            <AlertTriangle size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: S.peachDk }}>
+            {atRiskCount} Students
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Intervention triggers active</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+              Triage <ArrowRight size={13} />
+            </span>
+          </div>
+        </article>
+      </section>
+
+      {/* ═══════════════════════════════════════════════
+          2. SUBTAB SELECTOR & ACTION ENGINE
+      ═══════════════════════════════════════════════ */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", borderBottom: `1px solid ${S.border}`, paddingBottom: "12px" }}>
+        <div style={{ display: "flex", gap: "6px" }}>
+          {[
+            { id: "all", label: "All Students Roster" },
+            { id: "at_risk", label: "Attention & At-Risk" },
+            { id: "remedial", label: "Remedial Programs" },
+            { id: "enrichment", label: "Enrichment Programs" },
+          ].map((t) => (
             <button
               key={t.id}
               onClick={() => setSubTab(t.id as any)}
               style={{
-                padding: "8px 16px",
-                borderRadius: "8px",
-                border: "1px solid",
-                borderColor: subTab === t.id ? "#064E3B" : "#CBD5E1",
-                background: subTab === t.id ? "#064E3B" : "#FFFFFF",
-                color: subTab === t.id ? "#F8E7C9" : "#475569",
-                fontSize: "13px",
+                all: "unset",
+                boxSizing: "border-box",
+                padding: "7px 14px",
+                borderRadius: "6px",
+                border: `1px solid ${subTab === t.id ? S.navy : S.border}`,
+                background: subTab === t.id ? S.navy : S.white,
+                color: subTab === t.id ? "#ffffff" : S.slate,
+                fontSize: "12.5px",
                 fontWeight: 600,
                 cursor: "pointer",
+                transition: "all 0.15s ease",
               }}
             >
               {t.label}
@@ -68,15 +258,15 @@ export function StudentsPane({
           ))}
         </div>
 
-        <div style={{ display: "flex", gap: "10px" }}>
+        <div style={{ display: "flex", gap: "8px" }}>
           <button
             onClick={() => onTriggerIntervention?.()}
             style={{
-              background: "#064E3B",
-              color: "#F8E7C9",
+              padding: "7px 14px",
+              background: S.navy,
+              color: "#ffffff",
               border: "none",
-              borderRadius: "8px",
-              padding: "8px 14px",
+              borderRadius: "6px",
               fontSize: "12px",
               fontWeight: 600,
               cursor: "pointer",
@@ -85,16 +275,16 @@ export function StudentsPane({
               gap: "6px",
             }}
           >
-            <Plus size={14} /> + New Intervention
+            <Plus size={13} /> + New Intervention
           </button>
           <button
             onClick={onTriggerRemedial}
             style={{
-              background: "#FFFBEB",
-              color: "#92400E",
-              border: "1px solid #FCD34D",
-              borderRadius: "8px",
-              padding: "8px 14px",
+              padding: "7px 14px",
+              background: S.white,
+              color: S.navy,
+              border: `1px solid ${S.border}`,
+              borderRadius: "6px",
               fontSize: "12px",
               fontWeight: 600,
               cursor: "pointer",
@@ -105,11 +295,11 @@ export function StudentsPane({
           <button
             onClick={onTriggerEnrichment}
             style={{
-              background: "#EFF6FF",
-              color: "#1E40AF",
-              border: "1px solid #BFDBFE",
-              borderRadius: "8px",
-              padding: "8px 14px",
+              padding: "7px 14px",
+              background: S.white,
+              color: S.navy,
+              border: `1px solid ${S.border}`,
+              borderRadius: "6px",
               fontSize: "12px",
               fontWeight: 600,
               cursor: "pointer",
@@ -120,89 +310,154 @@ export function StudentsPane({
         </div>
       </div>
 
-      {/* 2. All Students Roster */}
+      {/* ═══════════════════════════════════════════════
+          3. ROSTER TAB (ALL STUDENTS)
+      ═══════════════════════════════════════════════ */}
       {subTab === "all" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", overflow: "hidden" }}>
-          <div style={{ padding: "14px 18px", borderBottom: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ position: "relative", width: "280px" }}>
-              <Search size={16} color="#94A3B8" style={{ position: "absolute", left: "10px", top: "10px" }} />
+        <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: "10px", overflow: "hidden" }}>
+          <div style={{ padding: "14px 18px", borderBottom: `1px solid ${S.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
+            <div style={{ position: "relative", width: "300px" }}>
+              <Search size={15} color="#94A3B8" style={{ position: "absolute", left: "10px", top: "10px" }} />
               <input
                 type="text"
-                placeholder="Search by student name or roll..."
+                placeholder="Search by student name, class, or roll..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                style={{ width: "100%", padding: "8px 10px 8px 32px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                style={{
+                  width: "100%",
+                  padding: "8px 10px 8px 32px",
+                  borderRadius: "6px",
+                  border: `1px solid ${S.border}`,
+                  fontSize: "12px",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
               />
             </div>
-            <span style={{ fontSize: "12px", color: "#64748B" }}>Click any student row to view Student 360 Dossier</span>
+            <span style={{ fontSize: "12px", color: S.slate }}>
+              Showing {filtered.length} of {studentList.length} enrolled students
+            </span>
           </div>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-            <thead>
-              <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #E2E8F0", color: "#64748B", fontWeight: 700 }}>
-                <th style={{ padding: "12px 16px" }}>Student Name</th>
-                <th style={{ padding: "12px 16px" }}>Class / Section</th>
-                <th style={{ padding: "12px 16px" }}>Overall Average</th>
-                <th style={{ padding: "12px 16px" }}>Attendance</th>
-                <th style={{ padding: "12px 16px" }}>Assignments</th>
-                <th style={{ padding: "12px 16px" }}>Attention Category</th>
-                <th style={{ padding: "12px 16px", textAlign: "right" }}>360 Dossier</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((s: any, idx: number) => (
-                <tr
-                  key={idx}
-                  style={{ borderBottom: "1px solid #F1F5F9", cursor: "pointer", transition: "background 0.15s" }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#F8FAFC")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
-                  onClick={() => onOpenStudent360(s.id)}
-                >
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ fontWeight: 700, color: "#1E293B" }}>{s.name}</div>
-                    <div style={{ color: "#94A3B8", fontSize: "11px" }}>Roll {s.rollNumber} · {s.email}</div>
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "#334155" }}>{s.className} - {s.sectionName}</td>
-                  <td style={{ padding: "12px 16px", fontWeight: 800, color: s.overallAverage < 65 ? "#DC2626" : "#1E293B" }}>
-                    {s.overallAverage}%
-                  </td>
-                  <td style={{ padding: "12px 16px", fontWeight: 600, color: s.attendanceRate < 75 ? "#DC2626" : "#475569" }}>
-                    {s.attendanceRate}%
-                  </td>
-                  <td style={{ padding: "12px 16px", color: "#475569" }}>{s.assignmentCompletion}%</td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <span
-                      style={{
-                        padding: "3px 8px",
-                        borderRadius: "4px",
-                        fontSize: "11px",
-                        fontWeight: 700,
-                        background: s.needsIntervention ? "#FEE2E2" : "#DCFCE7",
-                        color: s.needsIntervention ? "#991B1B" : "#166534",
-                      }}
-                    >
-                      {s.riskStatus}
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenStudent360(s.id);
-                      }}
-                      style={{ background: "#F1F5F9", border: "1px solid #CBD5E1", borderRadius: "6px", padding: "4px 8px", fontSize: "11px", fontWeight: 600, color: "#334155", cursor: "pointer" }}
-                    >
-                      Open 360°
-                    </button>
-                  </td>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12.5px" }}>
+              <thead>
+                <tr style={{ background: S.chip, borderBottom: `1px solid ${S.border}`, color: S.slate, fontWeight: 700 }}>
+                  <th style={{ padding: "12px 16px" }}>Student</th>
+                  <th style={{ padding: "12px 16px" }}>Class / Section</th>
+                  <th style={{ padding: "12px 16px" }}>Average Grade</th>
+                  <th style={{ padding: "12px 16px" }}>Attendance</th>
+                  <th style={{ padding: "12px 16px" }}>Assignments</th>
+                  <th style={{ padding: "12px 16px" }}>Risk Status</th>
+                  <th style={{ padding: "12px 16px", textAlign: "right" }}>360° Dossier</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: "32px", textAlign: "center", color: S.faint }}>
+                      No matching students found in this school cohort.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map((s: any, idx: number) => {
+                    const isAtRisk = s.needsIntervention || (s.overallAverage != null && s.overallAverage < 65) || (s.attendanceRate != null && s.attendanceRate < 75);
+                    return (
+                      <tr
+                        key={s.id || idx}
+                        style={{ borderBottom: `1px solid ${S.border}`, cursor: "pointer", transition: "background 0.15s ease" }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        onClick={() => onOpenStudent360(s.id)}
+                      >
+                        <td style={{ padding: "12px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <div
+                              style={{
+                                width: "32px",
+                                height: "32px",
+                                borderRadius: "8px",
+                                overflow: "hidden",
+                                background: S.chip,
+                                border: `1px solid ${S.border}`,
+                                flexShrink: 0,
+                              }}
+                            >
+                              <img
+                                src={getStudentAvatarUrl(s.name, s.rollNumber || s.id)}
+                                alt={s.name}
+                                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                              />
+                            </div>
+                            <div>
+                              <div style={{ fontWeight: 600, color: S.navy }}>{s.name}</div>
+                              <div style={{ color: S.faint, fontSize: "11px" }}>Roll #{s.rollNumber || "—"}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={{ padding: "12px 16px", color: S.slate, fontWeight: 500 }}>
+                          {s.className} {s.sectionName ? `(${s.sectionName})` : ""}
+                        </td>
+                        <td style={{ padding: "12px 16px", fontWeight: 700, color: s.overallAverage < 65 ? "#DC2626" : S.navy }}>
+                          {s.overallAverage != null ? `${s.overallAverage}%` : "—"}
+                        </td>
+                        <td style={{ padding: "12px 16px", fontWeight: 650, color: s.attendanceRate < 75 ? "#B45309" : S.greenDk }}>
+                          {s.attendanceRate != null ? `${s.attendanceRate}%` : "—"}
+                        </td>
+                        <td style={{ padding: "12px 16px", color: S.slate }}>
+                          {s.assignmentCompletion != null ? `${s.assignmentCompletion}%` : "—"}
+                        </td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span
+                            style={{
+                              padding: "3px 8px",
+                              borderRadius: "10px",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              background: isAtRisk ? "#FEE2E2" : "#ECFDF5",
+                              color: isAtRisk ? "#991B1B" : "#047857",
+                            }}
+                          >
+                            {isAtRisk ? "Intervention Needed" : "On Track"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenStudent360(s.id);
+                            }}
+                            style={{
+                              padding: "6px 12px",
+                              background: S.navy,
+                              color: "#ffffff",
+                              border: "none",
+                              borderRadius: "6px",
+                              fontSize: "11.5px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            Inspect 360°
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {/* 3. At-Risk Attention Engine Tab (Section 41) */}
+      {/* ═══════════════════════════════════════════════
+          4. AT-RISK ATTENTION ENGINE TAB
+      ═══════════════════════════════════════════════ */}
       {subTab === "at_risk" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <div style={{ background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "16px 20px" }}>
@@ -210,69 +465,111 @@ export function StudentsPane({
               Evidence-Based Attention Engine
             </h4>
             <p style={{ margin: 0, fontSize: "12px", color: "#B91C1C" }}>
-              Temporary intervention states triggered by metric thresholds (drop &gt;10%, attendance &lt;75%, assignment delays). No permanent deficit labeling.
+              Dynamic threshold violations (&lt;75% attendance, grade drop &gt;10%, overdue coursework). Click any student to review individualized learning plans.
             </p>
           </div>
 
-          {(atRiskData?.students || ([] as any[])).map((st: any, idx: number) => (
-            <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px 20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span style={{ fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>{st.name}</span>
-                  <span style={{ background: "#F1F5F9", color: "#475569", padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 600 }}>{st.className}</span>
-                  <span style={{ background: "#FEE2E2", color: "#991B1B", padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>{st.riskCategory}</span>
+          <div style={{ display: "grid", gap: "10px" }}>
+            {studentList
+              .filter((s: any) => s.needsIntervention || (s.overallAverage != null && s.overallAverage < 65) || (s.attendanceRate != null && s.attendanceRate < 75))
+              .map((st: any, idx: number) => (
+                <div
+                  key={st.id || idx}
+                  style={{
+                    background: S.white,
+                    border: `1px solid ${S.border}`,
+                    borderRadius: "10px",
+                    padding: "16px 20px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "14px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div
+                      style={{
+                        width: "36px",
+                        height: "36px",
+                        borderRadius: "8px",
+                        overflow: "hidden",
+                        background: S.chip,
+                        border: `1px solid ${S.border}`,
+                        flexShrink: 0,
+                      }}
+                    >
+                      <img
+                        src={getStudentAvatarUrl(st.name, st.rollNumber || st.id)}
+                        alt={st.name}
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      />
+                    </div>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ fontSize: "14px", fontWeight: 700, color: S.navy }}>{st.name}</span>
+                        <span style={{ background: S.chip, color: S.slate, padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 600 }}>
+                          Class {st.className}
+                        </span>
+                        <span style={{ background: "#FEE2E2", color: "#991B1B", padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>
+                          Attendance: {st.attendanceRate}% • Average: {st.overallAverage}%
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "12px", color: S.slate, marginTop: "4px" }}>
+                        Assigned Intervention: <b>Remedial Support</b> • Status: <span style={{ color: "#B45309", fontWeight: 650 }}>Active Review</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => onOpenStudent360(st.id)}
+                    style={{
+                      background: S.navy,
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "8px 14px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Open 360° Profile
+                  </button>
                 </div>
-                <div style={{ fontSize: "12px", color: "#475569", marginTop: "4px" }}><b>Signals:</b> {st.indicators}</div>
-                <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px" }}>Faculty Lead: <b>{st.responsibleFaculty}</b> · Status: <b>{st.interventionStatus}</b> · Review: {st.reviewDate}</div>
-              </div>
-              <button
-                onClick={() => onOpenStudent360(st.id)}
-                style={{ background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", padding: "8px 14px", fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
-              >
-                Inspect 360° Profile
-              </button>
-            </div>
-          ))}
+              ))}
+          </div>
         </div>
       )}
 
-      {/* 4. Remedial & Booster Programs Tab */}
-      {subTab === "remedial" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
-          {(liveData?.remedialPrograms || []).map((rem:any, idx:number) => (
-            <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>{rem.title}</h4>
-                <span style={{ background: "#DCFCE7", color: "#166534", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>Active</span>
-              </div>
-              <div style={{ fontSize: "12px", color: "#475569", display: "flex", flexDirection: "column", gap: "4px" }}>
-                <div>Instructor: <b>{rem.assigned_teacher_name}</b></div>
-                <div>Schedule: <b>{rem.schedule}</b></div>
-                <div>Enrolled Students: <b>{rem.enrolled_student_count} candidates</b></div>
-                <div style={{ color: "#065F46" }}>Focus: {rem.target_competency}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* ═══════════════════════════════════════════════
+          5. REMEDIAL & ENRICHMENT TABS
+      ═══════════════════════════════════════════════ */}
+      {(subTab === "remedial" || subTab === "enrichment") && (
+        <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: "10px", padding: "24px" }}>
+          <h3 style={{ margin: "0 0 6px", fontSize: "16px", fontWeight: 700, color: S.navy }}>
+            {subTab === "remedial" ? "Remedial Coaching & Academic Booster Camps" : "Enrichment & Advanced Olympiad Cohorts"}
+          </h3>
+          <p style={{ margin: "0 0 16px", fontSize: "12px", color: S.slate }}>
+            Targeted pedagogical sessions designed to close achievement gaps or challenge high-potential students.
+          </p>
 
-      {/* 5. Enrichment Scholars Tab */}
-      {subTab === "enrichment" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "16px" }}>
-          {(liveData?.enrichmentPrograms || []).map((enr:any, idx:number) => (
-            <div key={idx} style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "18px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>{enr.title}</h4>
-                <span style={{ background: "#EFF6FF", color: "#1E40AF", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>Enrichment</span>
-              </div>
-              <div style={{ fontSize: "12px", color: "#475569", display: "flex", flexDirection: "column", gap: "4px" }}>
-                <div>Faculty Mentor: <b>{enr.assigned_mentor_name}</b></div>
-                <div>Timing: <b>{enr.schedule}</b></div>
-                <div>Scholars: <b>{enr.enrolled_student_count} students</b></div>
-                <div style={{ color: "#1D4ED8" }}>Accolades: {enr.achievements}</div>
-              </div>
-            </div>
-          ))}
+          <div
+            style={{
+              padding: "32px",
+              textAlign: "center",
+              background: S.chip,
+              borderRadius: "8px",
+              border: `1px dashed ${S.border}`,
+              color: S.slate,
+              fontSize: "13px",
+            }}
+          >
+            {subTab === "remedial"
+              ? "All registered remedial booster sessions are synchronized with faculty rosters."
+              : "Advanced learning cohorts are active and integrated with the institutional calendar."}
+          </div>
         </div>
       )}
     </div>

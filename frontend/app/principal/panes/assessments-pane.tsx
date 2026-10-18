@@ -203,8 +203,8 @@ export function AssessmentsPane({
           <button
             onClick={() => setCreateModalOpen(true)}
             style={{
-              background: "#064E3B",
-              color: "#F8E7C9",
+              background: "#0c1e33",
+              color: "#ffffff",
               border: "none",
               borderRadius: "8px",
               padding: "8px 16px",
@@ -257,7 +257,7 @@ export function AssessmentsPane({
                   <p style={{ margin: "0 0 14px", fontSize: "12px", color: "#94A3B8" }}>Teachers can submit question papers for review, or you can register a question paper blueprint directly.</p>
                   <button
                     onClick={() => setCreateModalOpen(true)}
-                    style={{ background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", padding: "7px 14px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                    style={{ background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", padding: "7px 14px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
                   >
                     + Register Question Paper Blueprint
                   </button>
@@ -341,7 +341,7 @@ export function AssessmentsPane({
                             <button
                               disabled={isBusy}
                               onClick={() => handleAction(paper.id, "Approved")}
-                              style={{ background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", padding: "8px 16px", fontSize: "12px", fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer" }}
+                              style={{ background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", padding: "8px 16px", fontSize: "12px", fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer" }}
                             >
                               {isBusy ? "Updating…" : "Approve Blueprint"}
                             </button>
@@ -632,7 +632,7 @@ export function AssessmentsPane({
                 <button
                   type="submit"
                   disabled={submittingPaper}
-                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#064E3B", color: "#F8E7C9", fontSize: "12px", fontWeight: 700, cursor: submittingPaper ? "not-allowed" : "pointer" }}
+                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#0c1e33", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: submittingPaper ? "not-allowed" : "pointer" }}
                 >
                   {submittingPaper ? "Registering…" : "Register Blueprint"}
                 </button>

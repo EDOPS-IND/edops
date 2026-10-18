@@ -47,6 +47,7 @@ export interface ParentQuery {
   queryText: string;
   status: 'open' | 'investigating' | 'resolved';
   submittedAt: string;
+  response?: string;
 }
 
 export interface FeeItem {

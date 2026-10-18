@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -18,22 +18,30 @@ import {
   Menu,
   X,
   Plus,
-} from 'lucide-react';
-import { loadRoleWorkspace, getParentChildDetails, createParentLeave, createParentQuery, OrganizationSummary } from '../edops-api';
-import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from './types';
+  ShieldCheck,
+} from "lucide-react";
+import {
+  loadRoleWorkspace,
+  getParentChildDetails,
+  createParentLeave,
+  createParentQuery,
+  OrganizationSummary,
+  getStudentAvatarUrl,
+} from "../edops-api";
+import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from "./types";
 
 // Panes
-import { OverviewPane } from './panes/overview-pane';
-import { AcademicsPane } from './panes/academics-pane';
-import { AttendancePane } from './panes/attendance-pane';
-import { FeesPane } from './panes/fees-pane';
-import { PtmPane } from './panes/ptm-pane';
-import { NoticesPane } from './panes/notices-pane';
+import { OverviewPane } from "./panes/overview-pane";
+import { AcademicsPane } from "./panes/academics-pane";
+import { AttendancePane } from "./panes/attendance-pane";
+import { FeesPane } from "./panes/fees-pane";
+import { PtmPane } from "./panes/ptm-pane";
+import { NoticesPane } from "./panes/notices-pane";
 
 // Modals
-import { ApplyLeaveModal } from './components/apply-leave-modal';
-import { ParentQueryModal } from './components/parent-query-modal';
-import { ReportCardModal } from './components/report-card-modal';
+import { ApplyLeaveModal } from "./components/apply-leave-modal";
+import { ParentQueryModal } from "./components/parent-query-modal";
+import { ReportCardModal } from "./components/report-card-modal";
 
 interface ParentWorkspaceProps {
   organization: OrganizationSummary;
@@ -50,128 +58,274 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
   organizations,
   initialWardId,
 }) => {
-  const [activeTab, setActiveTab] = useState<ParentTab>('overview');
+  const [activeTab, setActiveTab] = useState<ParentTab>("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const [wards,setWards] = useState<WardInfo[]>([]);
-  const [loading,setLoading] = useState(true);
-  const [error,setError] = useState('');
-  const [selectedWardId,setSelectedWardId] = useState(initialWardId || '');
-  const [details,setDetails] = useState<any>(null);
-  const [detailLoading,setDetailLoading] = useState(false);
-  const selected = wards.find(w=>w.studentUserId===selectedWardId) || wards[0];
+  const [wards, setWards] = useState<WardInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedWardId, setSelectedWardId] = useState(initialWardId || "");
+  const [details, setDetails] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const selected = wards.find((w) => w.studentUserId === selectedWardId) || wards[0];
+
   const refreshDetails = async () => {
     if (!selected) return;
-    const data=await getParentChildDetails(organization.id,selected.studentUserId);
-    setDetails(data);setLeavesList(data.leaves);setQueriesList(data.queries);
+    const data = await getParentChildDetails(organization.id, selected.studentUserId);
+    setDetails(data);
+    setLeavesList(data.leaves || []);
+    setQueriesList(data.queries || []);
   };
+
   const loadWards = async () => {
-    setLoading(true);setError('');
+    setLoading(true);
+    setError("");
     try {
-      const data=await loadRoleWorkspace(organization.id);
-      if (data.role!=='parent') throw new Error('Parent workspace required');
-      setWards(data.children as WardInfo[]);
-    } catch(e) { setError(e instanceof Error?e.message:'Unable to load children'); }
-    finally { setLoading(false); }
+      const data = await loadRoleWorkspace(organization.id);
+      if (data.role !== "parent") throw new Error("Parent workspace required");
+      const children = (data.children as WardInfo[]) || [];
+      setWards(children);
+      if (children.length > 0 && !selectedWardId) {
+        setSelectedWardId(children[0].studentUserId);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load children");
+    } finally {
+      setLoading(false);
+    }
   };
-  useEffect(()=>{ loadWards(); },[organization.id]);
-  useEffect(()=>{
-    let active=true;
-    setDetails(null);setLeavesList([]);setQueriesList([]);
+
+  useEffect(() => {
+    loadWards();
+  }, [organization.id]);
+
+  useEffect(() => {
+    let active = true;
+    setDetails(null);
+    setLeavesList([]);
+    setQueriesList([]);
     if (!selected) return;
-    setDetailLoading(true);setError('');
-    getParentChildDetails(organization.id,selected.studentUserId).then(data=>{
-      if(active) { setDetails(data);setLeavesList(data.leaves);setQueriesList(data.queries); }
-    }).catch(e=>{ if(active) setError(e.message); }).finally(()=>{ if(active)setDetailLoading(false); });
-  return ()=>{ active=false; };
-  },[organization.id,selected?.studentUserId]);
-  const selectedWard = selected ? { ...selected,data:details,organizationId:organization.id,refresh:refreshDetails } : undefined;
+    setDetailLoading(true);
+    setError("");
+    getParentChildDetails(organization.id, selected.studentUserId)
+      .then((data) => {
+        if (active) {
+          setDetails(data);
+          setLeavesList(data.leaves || []);
+          setQueriesList(data.queries || []);
+        }
+      })
+      .catch((e) => {
+        if (active) setError(e.message);
+      })
+      .finally(() => {
+        if (active) setDetailLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [organization.id, selected?.studentUserId]);
+
+  const selectedWard = selected
+    ? { ...selected, data: details, organizationId: organization.id, refresh: refreshDetails }
+    : undefined;
 
   // Modals state
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
 
-  const [leavesList,setLeavesList] = useState<LeaveApplication[]>([]);
-  const [queriesList,setQueriesList] = useState<ParentQuery[]>([]);
-  const handleApplyLeave = async (leave: Pick<LeaveApplication,'leaveType'|'startDate'|'endDate'|'reason'>) => {
-    if (!selectedWard) throw new Error('Select a linked child');
-    await createParentLeave(organization.id,selectedWard.studentUserId,leave);
+  const [leavesList, setLeavesList] = useState<LeaveApplication[]>([]);
+  const [queriesList, setQueriesList] = useState<ParentQuery[]>([]);
+
+  const handleApplyLeave = async (leave: Pick<LeaveApplication, "leaveType" | "startDate" | "endDate" | "reason">) => {
+    if (!selectedWard) throw new Error("Select a linked child");
+    await createParentLeave(organization.id, selectedWard.studentUserId, leave);
     await refreshDetails();
   };
-  const handlePostQuery = async (query: Pick<ParentQuery,'subject'|'queryText'>) => {
-    if (!selectedWard) throw new Error('Select a linked child');
-    await createParentQuery(organization.id,selectedWard.studentUserId,query);
+
+  const handlePostQuery = async (query: Pick<ParentQuery, "subject" | "queryText">) => {
+    if (!selectedWard) throw new Error("Select a linked child");
+    await createParentQuery(organization.id, selectedWard.studentUserId, query);
     await refreshDetails();
   };
 
   const navItems = [
-    { id: 'overview', label: 'Family Overview', icon: LayoutDashboard, tab: 'overview' as ParentTab },
-    { id: 'academics', label: 'Children & Academics', icon: BookOpen, tab: 'academics' as ParentTab },
-    { id: 'attendance', label: 'Attendance & Leaves', icon: CheckCircle2, tab: 'attendance' as ParentTab },
-    { id: 'fees', label: 'Fee Invoicing & Receipts', icon: CreditCard, tab: 'fees' as ParentTab },
-    { id: 'ptm', label: 'PTM Slot Scheduling', icon: CalendarDays, tab: 'ptm' as ParentTab },
-    { id: 'notices', label: 'School Notices & Grievance', icon: Bell, tab: 'notices' as ParentTab },
+    { id: "overview", label: "Family Overview", icon: LayoutDashboard, tab: "overview" as ParentTab },
+    { id: "academics", label: "Children & Academics", icon: BookOpen, tab: "academics" as ParentTab },
+    { id: "attendance", label: "Attendance & Leaves", icon: CheckCircle2, tab: "attendance" as ParentTab },
+    { id: "fees", label: "Fee Invoicing & Receipts", icon: CreditCard, tab: "fees" as ParentTab },
+    { id: "ptm", label: "PTM Slot Scheduling", icon: CalendarDays, tab: "ptm" as ParentTab },
+    { id: "notices", label: "School Notices & Grievance", icon: Bell, tab: "notices" as ParentTab },
   ];
 
-    if (loading) return <div className="p-8">Loading linked children…</div>;
-  if (!selectedWard) return <div className="p-8 space-y-4"><h1>Parent portal</h1><p>{error || 'No verified children are linked to your account.'}</p><button onClick={loadWards}>Retry</button><button onClick={onLogout}>Sign out</button></div>;
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f6f7", fontFamily: "sans-serif" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid #cbd5e1", borderTopColor: "#0c1e33", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
+          <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#1e293b", margin: 0 }}>Connecting to Guardian Portal…</h2>
+          <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>Verifying linked student relationships</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedWard) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f6f7", padding: "20px" }}>
+        <div style={{ background: "#ffffff", padding: "32px", borderRadius: "12px", border: "1px solid #e4e6e9", maxWidth: "440px", textAlign: "center" }}>
+          <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0c1e33", margin: "0 0 8px" }}>Parent Portal</h2>
+          <p style={{ fontSize: "13px", color: "#64748b", margin: "0 0 20px" }}>
+            {error || "No verified children are currently linked to your guardian account."}
+          </p>
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button
+              onClick={loadWards}
+              style={{ padding: "8px 16px", borderRadius: "6px", background: "#0c1e33", color: "#ffffff", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer" }}
+            >
+              Retry
+            </button>
+            <button
+              onClick={onLogout}
+              style={{ padding: "8px 16px", borderRadius: "6px", background: "#ffffff", border: "1px solid #e4e6e9", color: "#475569", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col antialiased text-slate-800">
-      {/* 1. TOP HEADER */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
+    <div style={{ minHeight: "100vh", background: "#f4f6f7", display: "flex", flexDirection: "column" }}>
+      {/* 1. TOP STICKY HEADER */}
+      <header
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 40,
+          background: "#ffffff",
+          borderBottom: "1px solid #e4e6e9",
+          padding: "10px 24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+            className="md:hidden"
+            style={{
+              padding: "6px",
+              borderRadius: "6px",
+              border: "1px solid #e4e6e9",
+              background: "#ffffff",
+              cursor: "pointer",
+            }}
           >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
           </button>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#090D16] text-white flex items-center justify-center font-bold text-base shadow-sm border border-[#1A243D]">
-              <Sparkles className="w-4 h-4 text-indigo-400" />
+
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <div
+              style={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "10px",
+                background: "#0b0f19",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                fontSize: "15px",
+                boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+              }}
+            >
+              <Sparkles size={18} color="#818cf8" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-bold text-slate-900 text-sm tracking-tight leading-none">
+              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ fontWeight: 800, fontSize: "15px", color: "#0c1e33", letterSpacing: "-0.3px" }}>
                   EdOps
-                </h1>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#090D16] font-semibold text-slate-200 border border-[#1A243D] uppercase tracking-wider">
-                  Parent Guardian Portal
+                </span>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    background: "#0c1e33",
+                    color: "#ffffff",
+                    letterSpacing: "0.5px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Parent Portal
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                {organization.name}
-              </p>
+              <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 500 }}>{organization.name}</div>
             </div>
           </div>
         </div>
 
         {/* Header Right: Ward Switcher & Quick Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           {/* Quick Ward Switcher in Header */}
-          <div className="hidden lg:flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl border border-slate-200">
-            <span className="text-[11px] font-semibold text-slate-500 px-2">Ward:</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "#f8fafc",
+              padding: "4px 8px",
+              borderRadius: "8px",
+              border: "1px solid #e4e6e9",
+            }}
+          >
+            <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", paddingLeft: "4px" }}>Ward:</span>
             {wards.map((w) => {
-              const isSelected = w.studentUserId === selectedWardId;
+              const isSelected = w.studentUserId === selectedWard.studentUserId;
               return (
                 <button
                   key={w.studentUserId}
                   onClick={() => setSelectedWardId(w.studentUserId)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-[#090D16] text-white shadow-xs'
-                      : 'text-slate-700 hover:bg-slate-200/70'
-                  }`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "4px 10px",
+                    borderRadius: "6px",
+                    fontSize: "11px",
+                    fontWeight: 700,
+                    border: "none",
+                    background: isSelected ? "#0c1e33" : "transparent",
+                    color: isSelected ? "#ffffff" : "#475569",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                  }}
                 >
+                  <img
+                    src={getStudentAvatarUrl(w.name, w.studentUserId)}
+                    alt=""
+                    style={{ width: "18px", height: "18px", borderRadius: "50%", background: "#eaedf2" }}
+                  />
                   <span>{w.name}</span>
                   <span
-                    className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-                    }`}
+                    style={{
+                      fontSize: "9px",
+                      padding: "1px 4px",
+                      borderRadius: "3px",
+                      background: isSelected ? "rgba(255,255,255,0.2)" : "#e2e8f0",
+                      color: isSelected ? "#ffffff" : "#475569",
+                    }}
                   >
-                    {w.sectionName}
+                    {w.sectionName || "Enrolled"}
                   </span>
                 </button>
               );
@@ -180,111 +334,135 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
 
           <button
             onClick={() => setLeaveModalOpen(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-2xs"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "7px 14px",
+              borderRadius: "8px",
+              background: "#ffffff",
+              border: "1px solid #e4e6e9",
+              color: "#0c1e33",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
           >
-            <Plus className="w-3.5 h-3.5 text-slate-600" />
-            <span>Apply Leave</span>
+            <Plus size={14} /> Apply Leave
           </button>
 
           <button
-            onClick={() => setActiveTab('ptm')}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#090D16] hover:bg-[#1E293B] text-white text-xs font-semibold rounded-lg transition-colors shadow-xs border border-[#2A3756]"
+            onClick={() => setActiveTab("ptm")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "7px 14px",
+              borderRadius: "8px",
+              background: "#0c1e33",
+              border: "none",
+              color: "#ffffff",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
           >
-            <CalendarDays className="w-3.5 h-3.5 text-indigo-300" />
-            <span className="text-slate-100">Book PTM</span>
+            <CalendarDays size={14} color="#818cf8" /> Book PTM
           </button>
 
           {/* Org Selector */}
           {organizations.length > 1 && (
-            <div className="relative hidden xl:block">
-              <select
-                value={organization.id}
-                onChange={(e) => onSwitchOrganization(e.target.value)}
-                className="text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
-              >
-                {organizations.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={organization.id}
+              onChange={(e) => onSwitchOrganization(e.target.value)}
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                background: "#f8fafc",
+                border: "1px solid #e4e6e9",
+                borderRadius: "8px",
+                padding: "6px 10px",
+                color: "#334155",
+              }}
+            >
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name}
+                </option>
+              ))}
+            </select>
           )}
 
           {/* Parent Profile Avatar & Logout */}
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-            <div
-              className="w-8 h-8 rounded-full bg-[#090D16] text-white flex items-center justify-center font-bold text-xs border border-[#1A243D]"
-              title="Parent account"
-            >
-              P
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", paddingLeft: "10px", borderLeft: "1px solid #e4e6e9" }}>
+            <img
+              src={getStudentAvatarUrl("Guardian", organization.id)}
+              alt="Parent Account"
+              style={{
+                width: "32px",
+                height: "32px",
+                borderRadius: "50%",
+                background: "#0b0f19",
+                border: "1px solid #e4e6e9",
+              }}
+              title="Verified Guardian"
+            />
             <button
               onClick={onLogout}
               title="Sign Out"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+              style={{
+                padding: "6px",
+                borderRadius: "6px",
+                border: "none",
+                background: "transparent",
+                color: "#64748b",
+                cursor: "pointer",
+              }}
             >
-              <LogOut className="w-4 h-4" />
+              <LogOut size={16} />
             </button>
           </div>
         </div>
       </header>
 
-      {/* 2. PERSISTENT WARD SWITCHER BAR (Mobile/Tablet & Quick Access) */}
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 lg:hidden">
-        <div className="flex items-center gap-2">
-          <Users size={16} className="text-slate-500" />
-          <span className="text-xs font-bold text-slate-700">Select Ward:</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {wards.map((w) => {
-            const isSelected = w.studentUserId === selectedWardId;
-            return (
-              <button
-                key={w.studentUserId}
-                onClick={() => setSelectedWardId(w.studentUserId)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                  isSelected
-                    ? 'bg-[#090D16] text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200/70'
-                }`}
-              >
-                <span>{w.name}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}
-                >
-                  {w.sectionName}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. WORKSPACE BODY */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Mobile menu backdrop overlay */}
+      {/* 2. MAIN WORKSPACE BODY (Sidebar + Main View) */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
+        {/* Mobile menu backdrop */}
         {mobileMenuOpen && (
           <div
             onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 z-10 bg-[#070A10]/60 backdrop-blur-xs md:hidden"
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 30,
+              background: "rgba(11, 15, 25, 0.6)",
+              backdropFilter: "blur(2px)",
+            }}
           />
         )}
 
-        {/* Universal Midnight Obsidian Sidebar */}
+        {/* Universal Midnight Obsidian Sidebar (#0b0f19) */}
         <aside
-          className={`fixed inset-y-0 left-0 z-20 w-64 bg-[#090D16] border-r border-[#1A243D] transform transition-transform duration-200 ease-in-out md:static md:translate-x-0 overflow-y-auto ${
-            mobileMenuOpen ? 'translate-x-0' : '-translate-x-0 max-md:-translate-x-full'
-          }`}
+          style={{
+            width: "256px",
+            background: "#0b0f19",
+            borderRight: "1px solid rgba(255, 255, 255, 0.06)",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            flexShrink: 0,
+            zIndex: 35,
+          }}
         >
-          {/* Ward Selector in Sidebar for direct mobile access */}
-          <div className="p-3 border-b border-[#1A243D]">
-            <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Active Ward</p>
-            <div className="space-y-1">
+          {/* Top of Sidebar: Ward Selector Card */}
+          <div style={{ padding: "16px 14px", borderBottom: "1px solid rgba(255, 255, 255, 0.06)" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: "#8a92a6", marginBottom: "8px", paddingLeft: "6px" }}>
+              Active Student Ward
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
               {wards.map((w) => {
-                const isSelected = w.studentUserId === selectedWardId;
+                const isSelected = w.studentUserId === selectedWard.studentUserId;
                 return (
                   <button
                     key={w.studentUserId}
@@ -292,17 +470,37 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                       setSelectedWardId(w.studentUserId);
                       setMobileMenuOpen(false);
                     }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                      isSelected
-                        ? 'bg-slate-700 text-white shadow-sm border border-slate-600/40'
-                        : 'text-slate-300 hover:bg-[#131C31]'
-                    }`}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: isSelected ? "1px solid rgba(255, 255, 255, 0.12)" : "1px solid transparent",
+                      background: isSelected ? "#1c2337" : "transparent",
+                      color: isSelected ? "#ffffff" : "#8a92a6",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "all 0.15s ease",
+                    }}
                   >
-                    <div className="text-left truncate">
-                      <div className="truncate">{w.name}</div>
-                      <div className="text-[10px] text-slate-400 font-normal">{w.sectionName}</div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <img
+                        src={getStudentAvatarUrl(w.name, w.studentUserId)}
+                        alt=""
+                        style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#1c2337" }}
+                      />
+                      <div>
+                        <div style={{ fontSize: "12px", fontWeight: 700, color: isSelected ? "#ffffff" : "#d1d5db" }}>
+                          {w.name}
+                        </div>
+                        <div style={{ fontSize: "10px", color: "#8a92a6" }}>{w.sectionName || "Enrolled"}</div>
+                      </div>
                     </div>
-                    {isSelected && <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block shrink-0" />}
+                    {isSelected && (
+                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#10b981" }} />
+                    )}
                   </button>
                 );
               })}
@@ -310,8 +508,11 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
           </div>
 
           {/* Navigation Links */}
-          <div className="p-3 space-y-1">
-            <p className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Navigation</p>
+          <div style={{ padding: "16px 12px", flex: 1, display: "flex", flexDirection: "column", gap: "4px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", color: "#8a92a6", marginBottom: "8px", paddingLeft: "8px" }}>
+              Navigation
+            </div>
+
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.tab;
@@ -322,39 +523,95 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                     setActiveTab(item.tab);
                     setMobileMenuOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
-                    isActive
-                      ? 'bg-slate-700 font-bold shadow-sm border border-slate-600/40'
-                      : 'hover:bg-[#131C31]'
-                  }`}
-                  style={{ color: isActive ? '#FFFFFF' : '#CBD5E1' }}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    border: "none",
+                    background: isActive ? "#1c2337" : "transparent",
+                    color: isActive ? "#ffffff" : "#8a92a6",
+                    fontSize: "12.5px",
+                    fontWeight: isActive ? 700 : 500,
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    textAlign: "left",
+                  }}
                 >
-                  <Icon
-                    className="w-4 h-4 shrink-0"
-                    style={{ color: isActive ? '#FFFFFF' : '#94A3B8' }}
-                  />
-                  <span className="truncate">{item.label}</span>
+                  <Icon size={16} color={isActive ? "#ffffff" : "#8a92a6"} />
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Guardian Account Badge */}
-          <div className="p-3 m-3 bg-[#0D1322] border border-[#1A243D] rounded-xl text-[11px] text-slate-400 space-y-1">
-            <div className="font-semibold text-slate-200 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-              <span>Verified Guardian Session</span>
+          {/* Sidebar Footer: Verified Session Badge */}
+          <div style={{ padding: "16px", borderTop: "1px solid rgba(255, 255, 255, 0.06)" }}>
+            <div
+              style={{
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(255, 255, 255, 0.06)",
+                borderRadius: "10px",
+                padding: "12px",
+                display: "flex",
+                alignItems: "center",
+                gap: "10px",
+              }}
+            >
+              <ShieldCheck size={20} color="#10b981" />
+              <div>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#ffffff" }}>Verified Guardian</div>
+                <div style={{ fontSize: "10px", color: "#8a92a6" }}>{wards.length} linked child profile(s)</div>
+              </div>
             </div>
-            <p className="text-slate-300">{wards.length} linked children</p>
           </div>
         </aside>
 
-        {/* 4. MAIN CONTENT CANVASES */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            {error && <div role="alert" className="p-4 mb-4 bg-red-50 text-red-800">{error} <button onClick={()=>refreshDetails().then(()=>setError('')).catch(e=>setError(e.message))}>Retry</button></div>}
-            {detailLoading && <p>Loading child records…</p>}
-            {activeTab === 'overview' && (
+        {/* 3. MAIN CONTENT VIEW CANVAS */}
+        <main style={{ flex: 1, overflowY: "auto", padding: "28px 36px", background: "#f4f6f7" }}>
+          <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
+            {error && (
+              <div
+                role="alert"
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: "8px",
+                  background: "#fef2f2",
+                  border: "1px solid #fee2e2",
+                  color: "#991b1b",
+                  fontSize: "13px",
+                  marginBottom: "20px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span>{error}</span>
+                <button
+                  onClick={() => refreshDetails().then(() => setError("")).catch((e) => setError(e.message))}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontWeight: 700,
+                    color: "#991b1b",
+                    cursor: "pointer",
+                    textDecoration: "underline",
+                  }}
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {detailLoading && (
+              <div style={{ padding: "10px 14px", background: "#e0e7ff", color: "#3730a3", borderRadius: "6px", fontSize: "12px", fontWeight: 600, marginBottom: "16px" }}>
+                Updating child records…
+              </div>
+            )}
+
+            {activeTab === "overview" && (
               <OverviewPane
                 selectedWard={selectedWard}
                 onNavigateTab={setActiveTab}
@@ -364,14 +621,14 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
               />
             )}
 
-            {activeTab === 'academics' && (
+            {activeTab === "academics" && (
               <AcademicsPane
                 selectedWard={selectedWard}
                 onOpenReportModal={() => setReportModalOpen(true)}
               />
             )}
 
-            {activeTab === 'attendance' && (
+            {activeTab === "attendance" && (
               <AttendancePane
                 selectedWard={selectedWard}
                 leavesList={leavesList}
@@ -379,15 +636,11 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
               />
             )}
 
-            {activeTab === 'fees' && (
-              <FeesPane selectedWard={selectedWard} />
-            )}
+            {activeTab === "fees" && <FeesPane selectedWard={selectedWard} />}
 
-            {activeTab === 'ptm' && (
-              <PtmPane selectedWard={selectedWard} />
-            )}
+            {activeTab === "ptm" && <PtmPane selectedWard={selectedWard} />}
 
-            {activeTab === 'notices' && (
+            {activeTab === "notices" && (
               <NoticesPane
                 selectedWard={selectedWard}
                 queriesList={queriesList}
@@ -398,7 +651,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
         </main>
       </div>
 
-      {/* 5. GLOBAL PARENT MODALS */}
+      {/* 4. GLOBAL PARENT MODALS */}
       <ApplyLeaveModal
         isOpen={leaveModalOpen}
         onClose={() => setLeaveModalOpen(false)}

@@ -61,12 +61,13 @@ export function CommunicationPane({
                 padding: "8px 16px",
                 borderRadius: "8px",
                 border: "1px solid",
-                borderColor: subTab === t.id ? "#064E3B" : "#CBD5E1",
-                background: subTab === t.id ? "#064E3B" : "#FFFFFF",
-                color: subTab === t.id ? "#F8E7C9" : "#475569",
-                fontSize: "13px",
+                borderColor: subTab === t.id ? "#0c1e33" : "#e4e6e9",
+                background: subTab === t.id ? "#0c1e33" : "#ffffff",
+                color: subTab === t.id ? "#ffffff" : "#475569",
+                fontSize: "12px",
                 fontWeight: 600,
                 cursor: "pointer",
+                transition: "all 0.15s ease",
               }}
             >
               {t.label}
@@ -77,12 +78,12 @@ export function CommunicationPane({
         <button
           onClick={onTriggerAnnouncement}
           style={{
-            background: "#064E3B",
-            color: "#F8E7C9",
+            background: "#0c1e33",
+            color: "#ffffff",
             border: "none",
             borderRadius: "8px",
             padding: "8px 16px",
-            fontSize: "13px",
+            fontSize: "12px",
             fontWeight: 600,
             cursor: "pointer",
             display: "inline-flex",
@@ -159,7 +160,7 @@ export function CommunicationPane({
                     <button
                       type="button"
                       onClick={() => handleResolve(pq.id, "resolved")}
-                      style={{ background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", padding: "6px 14px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                      style={{ background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", padding: "6px 14px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
                     >
                       Resolve & Close
                     </button>
