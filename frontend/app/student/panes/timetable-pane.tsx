@@ -1,8 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Clock, Calendar, CheckCircle2, Video } from 'lucide-react';
+import { Clock, Calendar, CheckCircle2, Video, User, MapPin } from 'lucide-react';
 import { getStudentTimetable } from '../../edops-api';
+
+const T = {
+  navy: '#0c1e33',
+  slate: '#495d72',
+  muted: '#a6abb5',
+  faint: '#b3b3b3',
+  pageBg: '#f4f6f7',
+  white: '#ffffff',
+  border: '#e4e6e9',
+  line: '#ced8e5',
+  chip: '#f5f6f8',
+  blue: '#17a1fa',
+  track: '#eceef3',
+  greenBg: '#d9eed1',
+  green: '#61a249',
+  greenDark: '#1a5c0a',
+};
 
 interface TimetablePaneProps {
   organizationId: string;
@@ -30,101 +47,326 @@ export const TimetablePane: React.FC<TimetablePaneProps> = ({ organizationId }) 
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading class timetable...</div>;
+    return (
+      <div style={{ padding: '48px 0', textAlign: 'center', color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 12px',
+          }}
+        />
+        <p style={{ fontSize: '13px', fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading class timetable...
+        </p>
+      </div>
+    );
   }
 
-  const weeklySchedule = data?.weeklySchedule || {  };
+  const weeklySchedule = data?.weeklySchedule || {};
   const previousClasses = data?.previousClasses || [];
   const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const daySchedule = weeklySchedule[selectedDay] || [];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-900">Academic Timetable & Class History</h2>
-        <p className="text-sm text-slate-500">6-day timetable schedule, classroom allocations, and past lecture records.</p>
-      </div>
-
-      {/* Day Selector Tabs */}
-      <div className="flex border-b border-slate-200 overflow-x-auto gap-2">
-        {days.map((day) => (
-          <button
-            key={day}
-            onClick={() => setSelectedDay(day)}
-            className={`pb-3 px-4 text-xs font-bold capitalize transition-colors border-b-2 whitespace-nowrap ${
-              selectedDay === day
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
           >
-            {day}
-          </button>
-        ))}
+            Daily Academic Schedule
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Academic Timetable & Class History
+          </h2>
+          <p style={{ margin: 0, fontSize: '13px', color: T.slate, lineHeight: 1.5 }}>
+            6-day timetable schedule, classroom allocations, and past lecture records.
+          </p>
+        </div>
+        <div
+          style={{
+            padding: '4px 10px',
+            borderRadius: '100px',
+            background: T.chip,
+            fontSize: '10px',
+            fontWeight: 600,
+            color: T.slate,
+          }}
+        >
+          {daySchedule.length} Periods Today
+        </div>
       </div>
 
-      {/* Selected Day Timetable Periods */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="font-bold text-slate-900 text-sm capitalize">{selectedDay} Schedule</h3>
-          <span className="text-xs text-slate-400">{daySchedule.length} Teaching Periods</span>
+      {/* 2. Day Selector Pills */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+        {days.map((day) => {
+          const active = selectedDay === day;
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => setSelectedDay(day)}
+              style={{
+                all: 'unset',
+                boxSizing: 'border-box',
+                padding: '6px 16px',
+                borderRadius: '100px',
+                fontSize: '12px',
+                fontWeight: active ? 600 : 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                textTransform: 'capitalize',
+                background: active ? T.navy : T.chip,
+                color: active ? '#ffffff' : T.slate,
+                border: active ? `1px solid ${T.navy}` : `1px solid ${T.border}`,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {day}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 3. Daily Periods Card */}
+      <div
+        style={{
+          background: T.white,
+          border: `1px solid ${T.border}`,
+          borderRadius: '10px',
+          overflow: 'hidden',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div
+          style={{
+            padding: '18px 24px',
+            borderBottom: `1px solid ${T.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '8px',
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: T.navy, textTransform: 'capitalize' }}>
+            {selectedDay} Schedule
+          </h3>
+          <span
+            style={{
+              padding: '4px 10px',
+              borderRadius: '100px',
+              background: T.chip,
+              fontSize: '10px',
+              fontWeight: 600,
+              color: T.slate,
+            }}
+          >
+            {daySchedule.length} Teaching Periods
+          </span>
         </div>
-        <div className="divide-y divide-slate-100">
-          {daySchedule.map((item: any, idx: number) => (
-            <div key={idx} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-bold text-xs shrink-0">
-                  P{item.period}
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {daySchedule.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', fontSize: '13px', color: T.slate }}>
+              No periods scheduled for {selectedDay}.
+            </div>
+          ) : (
+            daySchedule.map((item: any, idx: number) => (
+              <div
+                key={idx}
+                style={{
+                  padding: '16px 24px',
+                  borderBottom: idx === daySchedule.length - 1 ? 'none' : `1px solid ${T.border}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '16px',
+                  background: idx % 2 === 0 ? T.white : '#fcfdfe',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div
+                    style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '6px',
+                      background: T.pageBg,
+                      border: `1px solid ${T.border}`,
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      color: T.navy,
+                      display: 'grid',
+                      placeItems: 'center',
+                      flexShrink: 0,
+                    }}
+                  >
+                    P{item.period}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.navy }}>
+                      {item.subject}
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '12px', color: T.slate, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={13} color={T.slate} /> {item.time}
+                      </span>
+                      <span>•</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <MapPin size={13} color={T.slate} /> Room {item.room}
+                      </span>
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900">{item.subject}</h4>
-                  <p className="text-xs text-slate-500">
-                    {item.time} • Room {item.room}
+
+                <div style={{ textAlign: 'right' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600, color: T.navy, display: 'block' }}>
+                    {item.teacher}
+                  </span>
+                  <span style={{ fontSize: '11px', color: T.faint }}>
+                    Instructional Faculty
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* 4. Previous Classes Log Card */}
+      <div
+        style={{
+          background: T.white,
+          border: `1px solid ${T.border}`,
+          borderRadius: '10px',
+          overflow: 'hidden',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div
+          style={{
+            padding: '18px 24px',
+            borderBottom: `1px solid ${T.border}`,
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: T.navy }}>
+            Previous Classes Log
+          </h3>
+          <p style={{ margin: '4px 0 0', fontSize: '12px', color: T.slate, lineHeight: 1.5 }}>
+            Recent completed sessions with attendance records and homework assignments.
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {previousClasses.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', fontSize: '13px', color: T.slate }}>
+              No prior classes recorded.
+            </div>
+          ) : (
+            previousClasses.map((item: any, idx: number) => (
+              <div
+                key={idx}
+                style={{
+                  padding: '16px 24px',
+                  borderBottom: idx === previousClasses.length - 1 ? 'none' : `1px solid ${T.border}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '16px',
+                  background: idx % 2 === 0 ? T.white : '#fcfdfe',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: 600, color: T.navy }}>
+                      {item.subject}
+                    </span>
+                    <span
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '100px',
+                        background: T.greenBg,
+                        color: T.greenDark,
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {item.attendance}
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '12px', color: T.slate }}>
+                    {item.topic}
+                  </p>
+                  <p style={{ margin: 0, fontSize: '11px', color: T.faint }}>
+                    {item.date} • Period {item.period} • {item.teacher}
                   </p>
                 </div>
-              </div>
-              <div className="text-right">
-                <span className="text-xs font-semibold text-slate-700">{item.teacher}</span>
-                <span className="block text-[10px] text-slate-400">Regular Lecture</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Previous Classes Review */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100">
-          <h3 className="font-bold text-slate-900 text-sm">Previous Classes Log</h3>
-          <p className="text-xs text-slate-500">Recent completed sessions with attendance records and homework assignments.</p>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {previousClasses.map((item: any, idx: number) => (
-            <div key={idx} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition-colors">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-900">{item.subject}</span>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold">
-                    {item.attendance}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '6px',
+                      background: T.chip,
+                      border: `1px solid ${T.border}`,
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: T.navy,
+                    }}
+                  >
+                    HW: {item.homeworkStatus}
                   </span>
+                  {item.hasRecording && (
+                    <span
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        background: '#e1d2ff',
+                        color: '#4a0e8f',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <Video size={13} /> Recorded
+                    </span>
+                  )}
                 </div>
-                <p className="text-xs text-slate-600 mt-1">{item.topic}</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  {item.date} • Period {item.period} • {item.teacher}
-                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-medium">
-                  HW: {item.homeworkStatus}
-                </span>
-                {item.hasRecording && (
-                  <span className="text-xs px-2.5 py-1 rounded-lg bg-purple-50 text-purple-700 font-medium flex items-center gap-1">
-                    <Video className="w-3 h-3" /> Lecture Saved
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>

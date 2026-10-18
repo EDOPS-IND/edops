@@ -1,8 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { FileText, CheckCircle2, Clock, AlertCircle, Upload, MessageSquare } from 'lucide-react';
+import { FileText, CheckCircle2, Clock, AlertCircle, Upload, MessageSquare, ArrowRight, Award } from 'lucide-react';
 import { getStudentAssignments } from '../../edops-api';
+
+const T = {
+  navy: '#0c1e33',
+  slate: '#495d72',
+  muted: '#a6abb5',
+  faint: '#b3b3b3',
+  pageBg: '#f4f6f7',
+  white: '#ffffff',
+  border: '#e4e6e9',
+  line: '#ced8e5',
+  chip: '#f5f6f8',
+  blue: '#17a1fa',
+  track: '#eceef3',
+  greenBg: '#d9eed1',
+  green: '#61a249',
+  greenDark: '#1a5c0a',
+};
 
 interface AssignmentsPaneProps {
   organizationId: string;
@@ -34,11 +51,29 @@ export const AssignmentsPane: React.FC<AssignmentsPaneProps> = ({
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading homework assignments...</div>;
+    return (
+      <div style={{ padding: '48px 0', textAlign: 'center', color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 12px',
+          }}
+        />
+        <p style={{ fontSize: '13px', fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading homework assignments...
+        </p>
+      </div>
+    );
   }
 
   const assignments = data?.assignments || [];
   const summary = data?.summary || { totalAssigned: 0, submitted: 0, pending: 0, late: 0, completionPct: 0 };
+  const evaluatedCount = assignments.filter((a: any) => a.status === 'evaluated' || a.status === 'graded').length;
 
   const tabs = [
     { id: 'all', label: 'All Tasks' },
@@ -48,129 +83,385 @@ export const AssignmentsPane: React.FC<AssignmentsPaneProps> = ({
   ];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-900">Assignments & Coursework Hub</h2>
-        <p className="text-sm text-slate-500">Track homework, upload solutions before deadline, and inspect teacher evaluation rubrics.</p>
-      </div>
-
-      {/* Summary KPI Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500 uppercase">Completion Rate</span>
-          <div className="text-2xl font-extrabold text-slate-900 mt-1">{summary.completionPct}%</div>
-          <p className="text-xs text-slate-400 mt-1">{summary.submitted} of {summary.totalAssigned} submitted</p>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500 uppercase">Pending Review</span>
-          <div className="text-2xl font-extrabold text-amber-600 mt-1">{summary.pending} Tasks</div>
-          <p className="text-xs text-slate-400 mt-1">Due within 48 hours</p>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500 uppercase">Late / Overdue</span>
-          <div className="text-2xl font-extrabold text-slate-900 mt-1">{summary.late} Tasks</div>
-          <p className="text-xs text-slate-400 mt-1">Submitted past deadline</p>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500 uppercase">Graded Work</span>
-          <div className="text-2xl font-extrabold text-emerald-600 mt-1">{assignments.filter((a:any)=>a.status==='graded').length} Graded</div>
-          <p className="text-xs text-slate-400 mt-1">See saved grades below</p>
-        </div>
-      </div>
-
-      {/* Filter Tabs */}
-      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto">
-        {tabs.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setStatusFilter(t.id)}
-            className={`pb-3 px-3 text-xs font-bold transition-colors border-b-2 whitespace-nowrap ${
-              statusFilter === t.id
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header Row */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
           >
-            {t.label}
-          </button>
-        ))}
+            Coursework & Homework
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Assignments & Coursework Hub
+          </h2>
+          <p style={{ margin: 0, fontSize: '13px', color: T.slate, lineHeight: 1.5 }}>
+            Track homework, upload solutions before deadline, and inspect teacher evaluation rubrics.
+          </p>
+        </div>
+        <div
+          style={{
+            padding: '4px 10px',
+            borderRadius: '100px',
+            background: T.chip,
+            fontSize: '10px',
+            fontWeight: 600,
+            color: T.slate,
+          }}
+        >
+          {summary.totalAssigned} Total Assigned
+        </div>
       </div>
 
-      {/* Assignments List */}
-      <div className="space-y-4">
+      {/* 2. Top Metric Cards (Section 2.1) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '12px',
+        }}
+      >
+        {/* Completion Rate (Pastel Mint) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            height: '148px',
+            padding: '20px',
+            background: '#ccefbf',
+            border: '1px solid #ccefbf',
+            borderRadius: '10px',
+            color: '#1a5c0a',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Completion Rate
+            </span>
+            <CheckCircle2 size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: '36px', fontWeight: 700, lineHeight: 1, color: '#1a5c0a' }}>
+            {summary.completionPct}%
+          </p>
+          <p style={{ margin: 0, fontSize: '11px', color: '#1a5c0a' }}>
+            {summary.submitted} of {summary.totalAssigned} submitted
+          </p>
+        </div>
+
+        {/* Pending Review (Pastel Warm Amber) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            height: '148px',
+            padding: '20px',
+            background: '#fde1ac',
+            border: '1px solid #fde1ac',
+            borderRadius: '10px',
+            color: '#7a4a00',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Pending Tasks
+            </span>
+            <Clock size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: '36px', fontWeight: 700, lineHeight: 1, color: '#7a4a00' }}>
+            {summary.pending}
+          </p>
+          <p style={{ margin: 0, fontSize: '11px', color: '#7a4a00' }}>
+            Action needed before due date
+          </p>
+        </div>
+
+        {/* Late / Overdue (Pastel Rose) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            height: '148px',
+            padding: '20px',
+            background: '#ffd6d6',
+            border: '1px solid #ffd6d6',
+            borderRadius: '10px',
+            color: '#7a1a1a',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Overdue Tasks
+            </span>
+            <AlertCircle size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: '36px', fontWeight: 700, lineHeight: 1, color: '#7a1a1a' }}>
+            {summary.late}
+          </p>
+          <p style={{ margin: 0, fontSize: '11px', color: '#7a1a1a' }}>
+            Past deadline submissions
+          </p>
+        </div>
+
+        {/* Graded Work (Academic Navy) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            height: '148px',
+            padding: '20px',
+            background: T.navy,
+            border: `1px solid ${T.navy}`,
+            borderRadius: '10px',
+            color: T.muted,
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Graded Work
+            </span>
+            <Award size={18} color={T.muted} />
+          </div>
+          <p style={{ margin: 0, fontSize: '36px', fontWeight: 700, lineHeight: 1, color: '#ffffff' }}>
+            {evaluatedCount}
+          </p>
+          <p style={{ margin: 0, fontSize: '11px', color: T.muted }}>
+            Teacher marks & rubrics saved
+          </p>
+        </div>
+      </div>
+
+      {/* 3. Filter Navigation Pills */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+        {tabs.map((t) => {
+          const active = statusFilter === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => setStatusFilter(t.id)}
+              style={{
+                all: 'unset',
+                boxSizing: 'border-box',
+                padding: '6px 14px',
+                borderRadius: '100px',
+                fontSize: '12px',
+                fontWeight: active ? 600 : 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                background: active ? T.navy : T.chip,
+                color: active ? '#ffffff' : T.slate,
+                border: active ? `1px solid ${T.navy}` : `1px solid ${T.border}`,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 4. Assignments List */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         {assignments.length === 0 ? (
-          <div className="p-12 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-xs">
-            You&apos;re all caught up! No pending assignments in this view. 🎉
+          <div
+            style={{
+              padding: '40px 24px',
+              textAlign: 'center',
+              background: T.white,
+              border: `1px solid ${T.border}`,
+              borderRadius: '10px',
+              color: T.slate,
+              fontSize: '13px',
+            }}
+          >
+            No assignments found in this view.
           </div>
         ) : (
-          assignments.map((item: any) => (
-            <div
-              key={item.id}
-              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3 hover:border-slate-300 transition-colors"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                    {item.subject}
-                  </span>
-                  <h3 className="font-bold text-slate-900 text-sm">{item.title}</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-full ${
-                      item.status === 'evaluated'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : item.status === 'submitted'
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'bg-amber-50 text-amber-700'
-                    }`}
-                  >
-                    {item.status}
-                  </span>
-                  <span className="text-xs font-semibold text-slate-500">Max: {item.maxMarks} marks</span>
-                </div>
-              </div>
-
-              <p className="text-xs text-slate-600">{item.description}</p>
-
-              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-500 space-y-1">
-                <div className="flex items-center justify-between text-[11px]">
-                  <span>Faculty: <span className="font-semibold text-slate-700">{item.teacher}</span></span>
-                  <span className="text-amber-700 font-semibold">Due: {item.dueDate}</span>
-                </div>
-                <div className="text-[11px] text-slate-400">
-                  <span className="font-semibold text-slate-600">Learning Outcome:</span> {item.learningOutcome}
-                </div>
-              </div>
-
-              {/* Feedback if evaluated */}
-              {item.status === 'evaluated' && (
-                <div className="p-3 rounded-xl bg-emerald-50/60 border border-emerald-100 text-xs text-emerald-950 space-y-1">
-                  <div className="flex items-center justify-between font-bold text-emerald-900">
-                    <span>Teacher Score: {item.score} / {item.maxMarks}</span>
-                    <span>Evaluation Complete</span>
+          assignments.map((item: any) => {
+            const isEvaluated = item.status === 'evaluated' || item.status === 'graded';
+            const isSubmitted = item.status === 'submitted';
+            return (
+              <div
+                key={item.id}
+                style={{
+                  background: T.white,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: '10px',
+                  padding: '20px 24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  boxSizing: 'border-box',
+                }}
+              >
+                {/* Row 1: Subject, Title & Status */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <span
+                      style={{
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(12, 30, 51, 0.05)',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        color: T.navy,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                      }}
+                    >
+                      {item.subject}
+                    </span>
+                    <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: T.navy }}>
+                      {item.title}
+                    </h3>
                   </div>
-                  <p className="text-emerald-800 text-[11px] italic">&quot;{item.feedback}&quot;</p>
-                </div>
-              )}
 
-              {/* Action buttons */}
-              <div className="pt-1 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400">
-                  {item.submittedAt ? `Submitted: ${item.submittedAt}` : 'Submission Window Open'}
-                </span>
-                {item.status === 'pending' && (
-                  <button
-                    onClick={() => onSubmitAssignment(item)}
-                    className="px-4 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>Submit Work</span>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <span
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: '100px',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
+                        background: isEvaluated ? T.greenBg : isSubmitted ? '#bae5f5' : '#fde1ac',
+                        color: isEvaluated ? T.greenDark : isSubmitted ? '#0a5a7a' : '#7a4a00',
+                      }}
+                    >
+                      {item.status}
+                    </span>
+                    <span style={{ fontSize: '12px', fontWeight: 600, color: T.slate }}>
+                      Max: {item.maxMarks} marks
+                    </span>
+                  </div>
+                </div>
+
+                {/* Description */}
+                {item.description && (
+                  <p style={{ margin: 0, fontSize: '13px', color: T.slate, lineHeight: 1.5 }}>
+                    {item.description}
+                  </p>
                 )}
+
+                {/* Meta Strip */}
+                <div
+                  style={{
+                    background: T.pageBg,
+                    padding: '12px 16px',
+                    borderRadius: '6px',
+                    border: `1px solid ${T.border}`,
+                    fontSize: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                    <span>
+                      Faculty: <strong style={{ color: T.navy, fontWeight: 600 }}>{item.teacher || 'Assigned Instructor'}</strong>
+                    </span>
+                    <span style={{ color: '#7a1a1a', fontWeight: 600 }}>
+                      Due Date: {item.dueDate || 'Today'}
+                    </span>
+                  </div>
+                  {item.learningOutcome && (
+                    <div style={{ fontSize: '11px', color: T.slate, lineHeight: 1.5 }}>
+                      <strong style={{ color: T.navy }}>Learning Outcome:</strong> {item.learningOutcome}
+                    </div>
+                  )}
+                </div>
+
+                {/* Feedback Box if Evaluated */}
+                {isEvaluated && (
+                  <div
+                    style={{
+                      background: T.greenBg,
+                      padding: '12px 16px',
+                      borderRadius: '6px',
+                      color: T.greenDark,
+                      fontSize: '12px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 600 }}>
+                      <span>Teacher Score: {item.score} / {item.maxMarks}</span>
+                      <span>Graded & Verified</span>
+                    </div>
+                    {item.feedback && (
+                      <p style={{ margin: 0, fontStyle: 'italic', fontSize: '11px', color: T.greenDark }}>
+                        &ldquo;{item.feedback}&rdquo;
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {/* Action Row */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '4px' }}>
+                  <span style={{ fontSize: '11px', color: T.faint }}>
+                    {item.submittedAt ? `Submitted: ${item.submittedAt}` : 'Submission Window Open'}
+                  </span>
+                  {item.status === 'pending' && (
+                    <button
+                      type="button"
+                      onClick={() => onSubmitAssignment(item)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 16px',
+                        border: `1px solid ${T.navy}`,
+                        borderRadius: '6px',
+                        background: T.navy,
+                        fontSize: '13px',
+                        fontWeight: 600,
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        fontFamily: "'Poppins', sans-serif",
+                        transition: 'background 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#132840')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = T.navy)}
+                    >
+                      <Upload size={15} />
+                      <span>Submit Homework</span>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
     </div>

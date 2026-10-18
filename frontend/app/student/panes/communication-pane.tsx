@@ -1,8 +1,25 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, CheckCircle2, User, Plus, Search, ArrowLeft } from 'lucide-react';
+import { MessageSquare, Send, CheckCircle2, User, Plus, Search, HelpCircle } from 'lucide-react';
 import { getStudentMessages, sendStudentMessage } from '../../edops-api';
+
+const T = {
+  navy: '#0c1e33',
+  slate: '#495d72',
+  muted: '#a6abb5',
+  faint: '#b3b3b3',
+  pageBg: '#f4f6f7',
+  white: '#ffffff',
+  border: '#e4e6e9',
+  line: '#ced8e5',
+  chip: '#f5f6f8',
+  blue: '#17a1fa',
+  track: '#eceef3',
+  greenBg: '#d9eed1',
+  green: '#61a249',
+  greenDark: '#1a5c0a',
+};
 
 interface CommunicationPaneProps {
   organizationId: string;
@@ -11,6 +28,7 @@ interface CommunicationPaneProps {
 
 export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
   organizationId,
+  onOpenSupportModal,
 }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +51,6 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
       const msgs = res?.messages || [];
       const teachers = res?.teachersList || [];
 
-      // Auto-select active chat
       if (preserveActiveId) {
         setActiveContactId(preserveActiveId);
       } else if (!activeContactId) {
@@ -53,7 +70,6 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
   const rawMessages: any[] = data?.messages || [];
   const teachersList: any[] = data?.teachersList || [];
 
-  // Group messages by contact (conversation thread)
   const threadsMap: Record<
     string,
     {
@@ -66,290 +82,424 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
     }
   > = {};
 
-  // First seed known teachers so they appear in chat list
   for (const t of teachersList) {
     threadsMap[t.id] = {
       contactId: t.id,
       contactName: t.name,
-      contactRole: t.subject || 'Faculty',
+      contactRole: t.subject ? `${t.subject} Faculty` : 'Instructor',
       messages: [],
       lastMessage: null,
       unreadCount: 0,
     };
   }
 
-  // Then add all real message history
   for (const m of rawMessages) {
-    const key = m.otherPartyId || m.recipientId;
-    if (!key) continue;
-
-    if (!threadsMap[key]) {
-      threadsMap[key] = {
-        contactId: key,
-        contactName: m.otherPartyName || m.senderName || 'Teacher',
-        contactRole: 'Faculty',
+    const contactId = m.otherPartyId || (m.senderRole === 'student' ? m.recipientId : m.senderId);
+    if (!contactId) continue;
+    if (!threadsMap[contactId]) {
+      threadsMap[contactId] = {
+        contactId,
+        contactName: m.otherPartyName || 'Teacher',
+        contactRole: 'Subject Faculty',
         messages: [],
         lastMessage: null,
         unreadCount: 0,
       };
     }
-
-    threadsMap[key].messages.push(m);
-    // Keep most recent message for preview
-    if (
-      !threadsMap[key].lastMessage ||
-      new Date(m.createdAt || m.date) > new Date(threadsMap[key].lastMessage.createdAt || threadsMap[key].lastMessage.date)
-    ) {
-      threadsMap[key].lastMessage = m;
-    }
-    if (!m.isRead && !m.isOutgoing) {
-      threadsMap[key].unreadCount += 1;
+    threadsMap[contactId].messages.push(m);
+    threadsMap[contactId].lastMessage = m;
+    if (!m.isRead && m.senderRole !== 'student') {
+      threadsMap[contactId].unreadCount++;
     }
   }
 
-  // Sort threads: threads with messages first (newest first), then empty teacher contacts
-  const threads = Object.values(threadsMap).sort((a, b) => {
-    if (a.lastMessage && b.lastMessage) {
-      return (
-        new Date(b.lastMessage.createdAt || b.lastMessage.date).getTime() -
-        new Date(a.lastMessage.createdAt || a.lastMessage.date).getTime()
-      );
-    }
-    if (a.lastMessage) return -1;
-    if (b.lastMessage) return 1;
-    return a.contactName.localeCompare(b.contactName);
-  });
+  const allThreads = Object.values(threadsMap);
+  const filteredThreads = allThreads.filter((t) =>
+    t.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    t.contactRole.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-  const activeThread = threadsMap[activeContactId] || threads[0];
+  const activeThread = activeContactId ? threadsMap[activeContactId] : null;
 
-  // Auto-scroll chat to bottom when activeThread messages change
   useEffect(() => {
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
-  }, [activeContactId, activeThread?.messages?.length]);
+  }, [activeThread?.messages.length]);
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || !activeThread || sending) return;
+    if (!chatInput.trim() || !activeContactId) return;
 
-    const messageText = chatInput.trim();
-    setChatInput('');
     setSending(true);
-
     try {
       await sendStudentMessage(organizationId, {
-        recipientId: activeThread.contactId,
-        subjectLine: activeThread.messages.length > 0 ? `Re: ${activeThread.messages[0].subjectLine}` : 'Academic Query',
-        body: messageText,
-        priority: 'normal',
+        recipientId: activeContactId,
+        content: chatInput.trim(),
       });
-
-      await loadMessages(activeThread.contactId);
+      setChatInput('');
+      await loadMessages(activeContactId);
     } catch (err) {
       console.error(err);
-      setChatInput(messageText);
     } finally {
       setSending(false);
     }
   };
 
-  const filteredThreads = threads.filter((t) =>
-    t.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.contactRole.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   if (loading) {
-    return <div className="p-8 text-center text-slate-500 animate-pulse text-xs">Loading academic chat desk...</div>;
+    return (
+      <div style={{ padding: '48px 0', textAlign: 'center', color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 12px',
+          }}
+        />
+        <p style={{ fontSize: '13px', fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading communication inbox...
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <MessageSquare className="w-5 h-5 text-indigo-600" />
-            Academic Chat & Teacher Messages
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Direct Faculty Communication
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Academic Inbox & Direct Messaging
           </h2>
-          <p className="text-xs text-slate-500">
-            Real-time conversational message thread with your teachers and academic mentors
+          <p style={{ margin: 0, fontSize: '13px', color: T.slate, lineHeight: 1.5 }}>
+            Communicate with subject teachers, review doubt clarifications, and track notices.
           </p>
         </div>
+
+        {onOpenSupportModal && (
+          <button
+            type="button"
+            onClick={onOpenSupportModal}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 18px',
+              border: `1px solid ${T.navy}`,
+              borderRadius: '6px',
+              background: T.navy,
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#ffffff',
+              cursor: 'pointer',
+              fontFamily: "'Poppins', sans-serif",
+              transition: 'background 0.15s ease',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = '#132840')}
+            onMouseLeave={(e) => (e.currentTarget.style.background = T.navy)}
+          >
+            <HelpCircle size={15} />
+            <span>Ask for Guidance & Doubts</span>
+          </button>
+        )}
       </div>
 
-      {/* WhatsApp-Style Split Chat Container */}
-      <div className="grid grid-cols-1 md:grid-cols-3 bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden h-[620px] max-h-[620px]">
-        {/* Left Column: Conversations List */}
-        <div className="border-r border-slate-100 flex flex-col h-full min-h-0 bg-slate-50/50 overflow-hidden">
-          {/* Search Bar */}
-          <div className="p-3 border-b border-slate-100 bg-white space-y-2 shrink-0">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+      {/* 2. Chat Layout Card - 10px radius, 1px border, zero shadows */}
+      <div
+        style={{
+          background: T.white,
+          border: `1px solid ${T.border}`,
+          borderRadius: '10px',
+          overflow: 'hidden',
+          display: 'grid',
+          gridTemplateColumns: 'minmax(260px, 320px) 1fr',
+          height: '620px',
+          boxSizing: 'border-box',
+        }}
+      >
+        {/* Left Side: Thread Directory */}
+        <div
+          style={{
+            borderRight: `1px solid ${T.border}`,
+            display: 'flex',
+            flexDirection: 'column',
+            background: T.white,
+          }}
+        >
+          {/* Thread Search Box */}
+          <div style={{ padding: '16px', borderBottom: `1px solid ${T.border}` }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '6px 14px',
+                background: T.chip,
+                border: '1px solid #ebedf2',
+                borderRadius: '6px',
+              }}
+            >
+              <Search size={14} color={T.slate} />
               <input
                 type="text"
                 placeholder="Search teachers..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                style={{
+                  width: '100%',
+                  border: 'none',
+                  background: 'transparent',
+                  outline: 'none',
+                  fontSize: '12px',
+                  color: T.navy,
+                  fontFamily: "'Poppins', sans-serif",
+                }}
               />
             </div>
           </div>
 
           {/* Threads List */}
-          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-slate-100">
-            {filteredThreads.length === 0 ? (
-              <div className="p-6 text-center text-slate-400 text-xs">
-                No teachers found.
-              </div>
-            ) : (
-              filteredThreads.map((thread) => {
-                const isSelected = activeThread?.contactId === thread.contactId;
-                const hasMsgs = thread.messages.length > 0;
-                return (
-                  <div
-                    key={thread.contactId}
-                    onClick={() => setActiveContactId(thread.contactId)}
-                    className={`p-3.5 cursor-pointer transition-colors flex items-start gap-3 ${
-                      isSelected
-                        ? 'bg-indigo-50/80 border-l-4 border-indigo-600'
-                        : 'hover:bg-slate-100/60'
-                    }`}
-                  >
-                    <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                      {(thread.contactName || 'T').charAt(0).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0 space-y-0.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-900 truncate">
-                          {thread.contactName}
-                        </span>
-                        {thread.lastMessage && (
-                          <span className="text-[10px] text-slate-400 shrink-0">
-                            {thread.lastMessage.timestamp || thread.lastMessage.date}
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-[11px] text-indigo-600 font-medium truncate">
-                        {thread.contactRole}
-                      </div>
-                      <p className="text-[11px] text-slate-500 truncate">
-                        {thread.lastMessage ? thread.lastMessage.body : 'Click to start conversation...'}
-                      </p>
-                    </div>
-                    {thread.unreadCount > 0 && (
-                      <span className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0 self-center">
-                        {thread.unreadCount}
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+            {filteredThreads.map((t) => {
+              const active = t.contactId === activeContactId;
+              return (
+                <div
+                  key={t.contactId}
+                  onClick={() => setActiveContactId(t.contactId)}
+                  style={{
+                    padding: '14px 16px',
+                    borderBottom: `1px solid ${T.border}`,
+                    cursor: 'pointer',
+                    background: active ? '#f0f4f8' : T.white,
+                    borderLeft: active ? `3px solid ${T.navy}` : '3px solid transparent',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px',
+                    transition: 'background 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) e.currentTarget.style.background = '#FAF8F5';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) e.currentTarget.style.background = T.white;
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', fontWeight: active ? 700 : 600, color: T.navy }}>
+                      {t.contactName}
+                    </span>
+                    {t.unreadCount > 0 && (
+                      <span
+                        style={{
+                          padding: '2px 6px',
+                          borderRadius: '100px',
+                          background: T.navy,
+                          color: '#ffffff',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {t.unreadCount}
                       </span>
                     )}
                   </div>
-                );
-              })
-            )}
+                  <span style={{ fontSize: '11px', color: T.slate }}>
+                    {t.contactRole}
+                  </span>
+                  {t.lastMessage && (
+                    <p style={{ margin: 0, fontSize: '11px', color: T.faint, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {t.lastMessage.content}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        {/* Right Column: Chat Conversation Stream & Input */}
-        <div className="md:col-span-2 flex flex-col h-full min-h-0 bg-slate-50/30 overflow-hidden">
+        {/* Right Side: Message Thread Area */}
+        <div style={{ display: 'flex', flexDirection: 'column', background: T.white }}>
           {activeThread ? (
             <>
-              {/* Chat Thread Header */}
-              <div className="p-3.5 border-b border-slate-100 bg-white flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
-                    {(activeThread.contactName || 'T').charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-slate-900">
-                      {activeThread.contactName}
-                    </h3>
-                    <p className="text-[10px] text-slate-400">
-                      {activeThread.contactRole} · Active Academic Session
-                    </p>
-                  </div>
+              {/* Chat Header */}
+              <div
+                style={{
+                  padding: '16px 24px',
+                  borderBottom: `1px solid ${T.border}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: T.pageBg,
+                }}
+              >
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.navy }}>
+                    {activeThread.contactName}
+                  </h4>
+                  <span style={{ fontSize: '12px', color: T.slate }}>
+                    {activeThread.contactRole}
+                  </span>
                 </div>
+                <span
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '100px',
+                    background: T.greenBg,
+                    color: T.greenDark,
+                    fontSize: '10px',
+                    fontWeight: 600,
+                  }}
+                >
+                  Active Conversation
+                </span>
               </div>
 
-              {/* Chat Messages Stream (Oldest to Newest) */}
-              <div ref={chatContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
+              {/* Message Stream */}
+              <div
+                ref={chatContainerRef}
+                style={{
+                  flex: 1,
+                  padding: '20px 24px',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  background: T.white,
+                }}
+              >
                 {activeThread.messages.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-8 text-slate-400 space-y-2">
-                    <MessageSquare className="w-8 h-8 text-slate-300" />
-                    <p className="text-xs">
-                      No messages with {activeThread.contactName} yet.
-                    </p>
-                    <p className="text-[11px] text-slate-400">
-                      Type your message below to start this conversation!
-                    </p>
+                  <div style={{ margin: 'auto', textAlign: 'center', color: T.slate, fontSize: '13px' }}>
+                    No messages yet with {activeThread.contactName}. Type below to send an academic question.
                   </div>
                 ) : (
-                  activeThread.messages
-                    .slice()
-                    .sort(
-                      (a: any, b: any) =>
-                        new Date(a.createdAt || a.date).getTime() -
-                        new Date(b.createdAt || b.date).getTime()
-                    )
-                    .map((msg: any) => {
-                      const isMe = msg.isOutgoing;
-                      return (
+                  activeThread.messages.map((m: any, idx: number) => {
+                    const isSelf = m.senderRole === 'student';
+                    return (
+                      <div
+                        key={idx}
+                        style={{
+                          alignSelf: isSelf ? 'flex-end' : 'flex-start',
+                          maxWidth: '75%',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px',
+                        }}
+                      >
                         <div
-                          key={msg.id}
-                          className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
+                          style={{
+                            padding: '10px 14px',
+                            borderRadius: '6px',
+                            background: isSelf ? T.navy : T.pageBg,
+                            color: isSelf ? '#ffffff' : T.navy,
+                            border: isSelf ? `1px solid ${T.navy}` : `1px solid ${T.border}`,
+                            fontSize: '13px',
+                            lineHeight: 1.5,
+                            wordBreak: 'break-word',
+                          }}
                         >
-                          <div
-                            className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed shadow-xs ${
-                              isMe
-                                ? 'bg-indigo-600 text-white rounded-tr-xs'
-                                : 'bg-white text-slate-800 border border-slate-200/80 rounded-tl-xs'
-                            }`}
-                          >
-                            {msg.subjectLine && !msg.subjectLine.startsWith('Re:') && (
-                              <div
-                                className={`text-[10px] font-bold mb-1 pb-1 border-b ${
-                                  isMe
-                                    ? 'border-indigo-500/60 text-indigo-100'
-                                    : 'border-slate-100 text-indigo-600'
-                                }`}
-                              >
-                                {msg.subjectLine}
-                              </div>
-                            )}
-                            <p className="whitespace-pre-wrap">{msg.body}</p>
-                          </div>
-                          <span className="text-[9px] text-slate-400 mt-1 px-1">
-                            {msg.timestamp || msg.date}
-                          </span>
+                          {m.content}
                         </div>
-                      );
-                    })
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            color: T.faint,
+                            alignSelf: isSelf ? 'flex-end' : 'flex-start',
+                          }}
+                        >
+                          {m.timestamp || m.sentAt || 'Just now'}
+                        </span>
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
-              {/* Chat Message Input Bar (WhatsApp-style) */}
-              <div className="p-3 bg-white border-t border-slate-100 shrink-0">
-                <form onSubmit={handleSendMessage} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder={`Message ${activeThread.contactName}... (Press Enter to send)`}
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    className="flex-1 px-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={sending || !chatInput.trim()}
-                    className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs disabled:opacity-40 transition shrink-0"
-                    title="Send Message"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                </form>
-              </div>
+              {/* Chat Input Bar */}
+              <form
+                onSubmit={handleSendMessage}
+                style={{
+                  padding: '16px 24px',
+                  borderTop: `1px solid ${T.border}`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  background: T.pageBg,
+                }}
+              >
+                <input
+                  type="text"
+                  placeholder={`Write your message to ${activeThread.contactName}...`}
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    borderRadius: '6px',
+                    border: `1px solid ${T.line}`,
+                    background: T.white,
+                    fontSize: '13px',
+                    color: T.navy,
+                    outline: 'none',
+                    fontFamily: "'Poppins', sans-serif",
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={sending || !chatInput.trim()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '10px 18px',
+                    border: `1px solid ${T.navy}`,
+                    borderRadius: '6px',
+                    background: T.navy,
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#ffffff',
+                    cursor: sending || !chatInput.trim() ? 'not-allowed' : 'pointer',
+                    opacity: sending || !chatInput.trim() ? 0.6 : 1,
+                    fontFamily: "'Poppins', sans-serif",
+                  }}
+                >
+                  <Send size={14} />
+                  <span>Send</span>
+                </button>
+              </form>
             </>
           ) : (
-            <div className="h-full flex items-center justify-center text-slate-400 text-xs">
-              Select a teacher conversation to start chatting
+            <div style={{ margin: 'auto', textAlign: 'center', color: T.slate, fontSize: '13px' }}>
+              Select a teacher from the left directory to view the conversation.
             </div>
           )}
         </div>

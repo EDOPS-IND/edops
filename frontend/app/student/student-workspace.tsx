@@ -3,27 +3,27 @@
 import React, { useState } from 'react';
 import {
   LayoutDashboard,
-  Users,
+  Calendar,
+  ClipboardList,
   BookOpen,
-  Clock,
-  FileText,
   Trophy,
   Award,
-  Calendar,
-  CheckCircle2,
-  TrendingUp,
-  Compass,
+  Settings,
+  LogOut,
+  Users,
+  Clock,
   Video,
   CalendarDays,
   MessageSquare,
   Target,
-  User,
-  LogOut,
-  Upload,
-  Play,
-  HelpCircle,
+  ChevronDown,
+  ChevronUp,
   Search,
+  Bell,
   RefreshCw,
+  Layers,
+  LayoutGrid,
+  BarChart3,
 } from 'lucide-react';
 
 import { OrganizationSummary } from '../edops-api';
@@ -55,117 +55,26 @@ import { LecturePlayerModal } from './components/lecture-player-modal';
 import { SupportRequestModal } from './components/support-request-modal';
 import { StudentGoalModal } from './components/student-goal-modal';
 
-// ─── Design Tokens (Identical to School Admin) ────────────────────────────
+// Design tokens strictly matching user image (dark charcoal navy + sleek #1c2337 active pill)
 const S = {
-  // sidebar
-  bg: "#111318",
-  border: "#1E2128",
-  itemText: "#8C909A",
-  itemHover: "#1A1D24",
-  itemActive: "#1E2128",
-  activeBar: "#FFFFFF",
-  activeTxt: "#FFFFFF",
-  groupLabel: "#444750",
+  sidebarBg: "#0b0f19",
+  sidebarBorder: "rgba(255, 255, 255, 0.06)",
+  itemActiveBg: "#1c2337",
+  itemActiveText: "#ffffff",
+  itemInactiveText: "#8a92a6",
+  itemHoverBg: "rgba(255, 255, 255, 0.05)",
+  groupLabel: "rgba(255, 255, 255, 0.38)",
 
-  // header
-  headerBg: "#FFFFFF",
-  headerBorder: "#EAECF0",
-  headerInk: "#101828",
-  headerMuted: "#667085",
-  inputBg: "#F9FAFB",
-  inputBorder: "#D0D5DD",
-
-  // content
-  canvasBg: "#F7F8FA",
-  avatarBg: "#1A1D24",
-  avatarText: "#FFFFFF",
+  // Main canvas tokens
+  navy: "#0c1e33",
+  slate: "#495d72",
+  bg: "#f4f6f7",
+  white: "#ffffff",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  chip: "#f5f6f8",
+  faint: "#b3b3b3",
 };
-
-function NavItem({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: React.ElementType;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        all: "unset",
-        boxSizing: "border-box",
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        gap: "9px",
-        padding: "7px 12px 7px 14px",
-        borderRadius: "7px",
-        cursor: "pointer",
-        position: "relative",
-        background: active ? S.itemActive : hover ? S.itemHover : "transparent",
-        transition: "background 0.12s",
-      }}
-    >
-      {active && (
-        <span
-          style={{
-            position: "absolute",
-            left: 0,
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: "2px",
-            height: "16px",
-            borderRadius: "0 2px 2px 0",
-            background: S.activeBar,
-          }}
-        />
-      )}
-      <Icon
-        size={14}
-        strokeWidth={active ? 2 : 1.75}
-        style={{ color: active ? S.activeTxt : S.itemText, flexShrink: 0 }}
-      />
-      <span
-        style={{
-          fontSize: "13px",
-          fontWeight: active ? 600 : 400,
-          color: active ? S.activeTxt : S.itemText,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          flex: 1,
-        }}
-      >
-        {label}
-      </span>
-    </button>
-  );
-}
-
-function NavGroup({ label }: { label: string }) {
-  return (
-    <div
-      style={{
-        padding: "18px 14px 5px",
-        fontSize: "10px",
-        fontWeight: 600,
-        color: S.groupLabel,
-        letterSpacing: "0.07em",
-        textTransform: "uppercase",
-        userSelect: "none",
-      }}
-    >
-      {label}
-    </div>
-  );
-}
 
 interface StudentWorkspaceProps {
   organization: OrganizationSummary;
@@ -184,7 +93,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const [refreshKey, setRefreshKey] = useState(0);
   const navigation = useDashboardNavigation(organization.id, 'student');
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
+  const [showMoreAcademics, setShowMoreAcademics] = useState(false);
 
   // Modals state
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
@@ -197,18 +106,6 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const [goalModalOpen, setGoalModalOpen] = useState(false);
 
   const navigateTo = (tab: StudentTab) => {
-    if (
-      navigation.sections.length &&
-      !navigation.sections.some(section =>
-        section.items.some(
-          item =>
-            item.key === tab ||
-            item.key.endsWith(`.${tab}`) ||
-            item.key.endsWith(tab)
-        )
-      )
-    )
-      return;
     setActiveTab(tab);
   };
 
@@ -230,419 +127,630 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
     setLectureModalOpen(true);
   };
 
-  const baseNavItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, tab: 'dashboard' as StudentTab },
-    { id: 'class', label: 'My Class', icon: Users, tab: 'class' as StudentTab },
-    { id: 'subjects', label: 'Prescribed Subjects', icon: BookOpen, tab: 'subjects' as StudentTab },
-    { id: 'timetable', label: 'Timetable & Schedule', icon: Clock, tab: 'timetable' as StudentTab },
-    { id: 'assignments', label: 'Assignments & Homework', icon: FileText, tab: 'assignments' as StudentTab },
-    { id: 'arena', label: 'Arena Practice Bank', icon: Trophy, tab: 'arena' as StudentTab },
-    { id: 'assessments', label: 'Formative Tests', icon: Award, tab: 'assessments' as StudentTab },
-    { id: 'exams', label: 'Term Exams & Scorecards', icon: Calendar, tab: 'exams' as StudentTab },
-    { id: 'attendance', label: 'Attendance Monitoring', icon: CheckCircle2, tab: 'attendance' as StudentTab },
-    { id: 'performance', label: 'Academic Performance', icon: TrendingUp, tab: 'performance' as StudentTab },
-    { id: 'curriculum', label: 'Curriculum Progress', icon: Compass, tab: 'curriculum' as StudentTab },
-    { id: 'resources', label: 'Notes & Lectures', icon: Video, tab: 'resources' as StudentTab },
-    { id: 'calendar', label: 'Academic Calendar', icon: CalendarDays, tab: 'calendar' as StudentTab },
-    { id: 'communication', label: 'Academic Inbox', icon: MessageSquare, tab: 'communication' as StudentTab },
-    { id: 'progress', label: 'Personal Growth & Goals', icon: Target, tab: 'progress' as StudentTab },
-    { id: 'profile', label: 'Student Profile & Vault', icon: User, tab: 'profile' as StudentTab },
-  ];
-
-  const navSections = navigation.sections.map(section => ({
-    ...section,
-    entries: section.items.flatMap(item => {
-      const source = baseNavItems.find(
-        candidate =>
-          item.key === candidate.id ||
-          item.key.endsWith(`.${candidate.id}`) ||
-          item.key.endsWith(candidate.id)
-      );
-      return source ? [{ ...source, label: item.label }] : [];
-    }),
-  })).filter(section => section.entries.length);
-
-  const availableTabs = new Set(navSections.flatMap(section => section.entries.map(item => item.tab)));
-
-  const pageTitles: Partial<Record<StudentTab, string>> = {
-    dashboard: "Student Command Center",
-    class: "My Class & Peers",
-    subjects: "Prescribed Subjects",
-    timetable: "Class Timetable & Schedule",
-    assignments: "Assignments & Submissions",
-    arena: "Arena Practice Bank",
-    assessments: "Formative Tests & Evaluations",
-    exams: "Official Exams & Report Cards",
-    attendance: "Attendance Register & Trends",
-    performance: "Academic Performance Analytics",
-    curriculum: "Curriculum Pacing & Learning Outcomes",
-    resources: "Notes & Recorded Lectures",
-    calendar: "Academic Calendar",
-    communication: "Academic Directives & Messages",
-    progress: "Personal Growth & Goals",
-    profile: "Student Profile & Vault",
+  const pageTitles: Record<StudentTab, string> = {
+    dashboard: "Dashboard",
+    attendance: "Attendance",
+    assignments: "Homework",
+    curriculum: "Curriculum",
+    arena: "Arena Practice",
+    assessments: "Assessments",
+    class: "My Class",
+    subjects: "Subjects",
+    timetable: "Timetable & Schedule",
+    exams: "Term Exams",
+    performance: "Performance",
+    resources: "Notes & Lectures",
+    calendar: "Calendar",
+    communication: "Academic Inbox",
+    progress: "Personal Growth",
+    profile: "Account Settings",
   };
 
-  const studentInitials = (organization.name || "ST")
-    .split(" ")
-    .slice(0, 2)
-    .map(w => w[0])
-    .join("")
-    .toUpperCase();
+  // Primary navigation items
+  const primaryAcademicItems = [
+    { id: 'attendance', label: 'Attendance', tab: 'attendance' as StudentTab, icon: Calendar },
+    { id: 'assignments', label: 'Homework', tab: 'assignments' as StudentTab, icon: ClipboardList },
+    { id: 'curriculum', label: 'Curriculum', tab: 'curriculum' as StudentTab, icon: BookOpen },
+    { id: 'arena', label: 'Arena Practice', tab: 'arena' as StudentTab, icon: Trophy },
+    { id: 'assessments', label: 'Assessments', tab: 'assessments' as StudentTab, icon: Award },
+  ];
+
+  // Secondary academic modules
+  const extraAcademicItems = [
+    { id: 'timetable', label: 'Timetable & Schedule', tab: 'timetable' as StudentTab, icon: Clock },
+    { id: 'class', label: 'My Class', tab: 'class' as StudentTab, icon: Users },
+    { id: 'subjects', label: 'Prescribed Subjects', tab: 'subjects' as StudentTab, icon: BookOpen },
+    { id: 'exams', label: 'Term Exams', tab: 'exams' as StudentTab, icon: CalendarDays },
+    { id: 'performance', label: 'Academic Performance', tab: 'performance' as StudentTab, icon: BarChart3 },
+    { id: 'resources', label: 'Notes & Lectures', tab: 'resources' as StudentTab, icon: Video },
+    { id: 'calendar', label: 'Academic Calendar', tab: 'calendar' as StudentTab, icon: CalendarDays },
+    { id: 'communication', label: 'Academic Inbox', tab: 'communication' as StudentTab, icon: MessageSquare },
+    { id: 'progress', label: 'Personal Growth & Goals', tab: 'progress' as StudentTab, icon: Target },
+  ];
+
+  const isExtraTabActive = extraAcademicItems.some(i => i.tab === activeTab);
+
+  // Automatically keep More Modules open when an extra tab is active
+  React.useEffect(() => {
+    if (isExtraTabActive) {
+      setShowMoreAcademics(true);
+    }
+  }, [isExtraTabActive]);
+
+  // Exact selector matching the user's uploaded image (sleek #1c2337 active pill, white text & icon)
+  const renderNavItem = (
+    item: { id: string; label: string; tab: StudentTab; icon: React.ElementType }
+  ) => {
+    const Icon = item.icon;
+    const active = activeTab === item.tab;
+    return (
+      <button
+        key={item.id}
+        id={`nav-${item.id}`}
+        onClick={() => navigateTo(item.tab)}
+        style={{
+          all: "unset",
+          boxSizing: "border-box",
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: "11px",
+          height: "40px",
+          padding: "0 12px",
+          borderRadius: "10px",
+          fontSize: "13.5px",
+          cursor: "pointer",
+          transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+          background: active ? S.itemActiveBg : "transparent",
+          color: active ? S.itemActiveText : S.itemInactiveText,
+          fontWeight: active ? 600 : 450,
+          whiteSpace: "nowrap",
+        }}
+        onMouseEnter={(e) => {
+          if (!active) {
+            e.currentTarget.style.color = "#ffffff";
+            e.currentTarget.style.background = S.itemHoverBg;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!active) {
+            e.currentTarget.style.color = S.itemInactiveText;
+            e.currentTarget.style.background = "transparent";
+          }
+        }}
+      >
+        <Icon
+          size={18}
+          strokeWidth={active ? 2 : 1.75}
+          style={{
+            flexShrink: 0,
+            color: active ? "#ffffff" : S.itemInactiveText,
+            transition: "color 0.15s ease",
+          }}
+        />
+        <span
+          style={{
+            flex: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {item.label}
+        </span>
+      </button>
+    );
+  };
 
   return (
     <div
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: S.canvasBg,
-        fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif',
+        background: S.bg,
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        color: S.navy,
       }}
     >
       {/* ═══════════════════════════════════════════════
-          S I D E B A R (Clean Dark Charcoal Admin Sidebar)
+          S I D E B A R (Strictly matching provided selector)
       ═══════════════════════════════════════════════ */}
       <aside
+        id="sidebar"
+        aria-label="Primary navigation"
         style={{
-          width: "228px",
+          width: "240px",
           flexShrink: 0,
-          background: S.bg,
-          borderRight: `1px solid ${S.border}`,
+          background: S.sidebarBg,
+          color: "#fff",
           display: "flex",
           flexDirection: "column",
           height: "100vh",
           position: "sticky",
           top: 0,
-          overflowY: "auto",
-          overflowX: "hidden",
-          scrollbarWidth: "thin",
-          scrollbarColor: "#2A2D35 transparent",
+          padding: 0,
+          boxSizing: "border-box",
           zIndex: 40,
+          borderRight: `1px solid ${S.sidebarBorder}`,
         }}
       >
-        {/* Brand / Logo */}
+        {/* Brand / Logo - Exactly 68px height matching Student Command Center header */}
         <div
           style={{
-            height: "58px",
+            height: "68px",
             display: "flex",
             alignItems: "center",
-            padding: "0 16px",
-            borderBottom: `1px solid ${S.border}`,
-            gap: "10px",
+            padding: "0 20px",
+            cursor: "pointer",
             flexShrink: 0,
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            boxSizing: "border-box",
           }}
+          onClick={() => navigateTo('dashboard')}
+          title="EDOPS Student Command Center"
         >
-          <div style={{ height: "28px", display: "flex", alignItems: "center" }}>
-            <img src="/logo.svg" alt="EDOPS" style={{ height: "100%", width: "auto", display: "block" }} />
-          </div>
+          <img
+            src="/logo.svg"
+            alt="edops"
+            style={{
+              height: "32px",
+              width: "auto",
+              display: "block",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.3))",
+              transition: "transform 0.15s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+          />
         </div>
 
-        {/* Navigation Groups */}
-        <nav style={{ flex: 1, padding: "2px 8px 12px", display: "flex", flexDirection: "column" }}>
-          {navigation.error && (
-            <p role="alert" style={{ color: "#FCA5A5", padding: "12px", fontSize: "12px" }}>
-              {navigation.error}
-            </p>
-          )}
-
-          {navSections.map(section => (
-            <React.Fragment key={section.key}>
-              <NavGroup label={section.label} />
-              {section.entries.map(item => (
-                <NavItem
-                  key={item.id}
-                  icon={item.icon}
-                  label={item.label}
-                  active={activeTab === item.tab}
-                  onClick={() => navigateTo(item.tab)}
-                />
-              ))}
-            </React.Fragment>
-          ))}
-        </nav>
-
-        {/* Identity & Sign Out */}
-        <div style={{ borderTop: `1px solid ${S.border}`, padding: "12px 14px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
-            <span style={{ fontSize: "11px", fontWeight: 600, color: "#8C909A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              Student account
-            </span>
-          </div>
-
-          <button
-            onClick={() => onLogout ? onLogout() : window.location.reload()}
+        {/* Scrollable Navigation Body */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            padding: "12px 12px 14px",
+            overflowY: "auto",
+            overflowX: "hidden",
+            scrollbarWidth: "none",
+          }}
+        >
+          {/* Navigation Section Items */}
+          <nav
             style={{
-              all: "unset",
-              boxSizing: "border-box",
-              width: "100%",
               display: "flex",
-              alignItems: "center",
-              gap: "9px",
-              padding: "7px 12px",
-              borderRadius: "7px",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 400,
-              color: S.itemText,
-              transition: "background 0.12s, color 0.12s",
+              flexDirection: "column",
+              gap: "3px",
+              flex: 1,
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = S.itemHover; e.currentTarget.style.color = "#C0C4CC"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = S.itemText; }}
+            aria-label="Sidebar navigation"
           >
-            <LogOut size={14} strokeWidth={1.75} style={{ flexShrink: 0 }} />
-            Sign out
-          </button>
+            {/* Section 1: STUDENT WORKSPACE */}
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: S.groupLabel,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                padding: "8px 12px 4px",
+                userSelect: "none",
+              }}
+            >
+              STUDENT WORKSPACE
+            </div>
+
+            {/* Dashboard Item */}
+            {renderNavItem({
+              id: 'dashboard',
+              label: 'Dashboard',
+              tab: 'dashboard',
+              icon: LayoutDashboard,
+            })}
+
+            {/* Section 2: ACADEMICS */}
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: S.groupLabel,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                padding: "14px 12px 4px",
+                userSelect: "none",
+              }}
+            >
+              ACADEMICS
+            </div>
+
+            {/* Primary Academic Items */}
+            {primaryAcademicItems.map(item => renderNavItem(item))}
+
+            {/* Seamless More Modules Section (Guaranteed 1-Line & matching selector) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+              <button
+                id="nav-toggle-more-modules"
+                onClick={() => setShowMoreAcademics(!showMoreAcademics)}
+                style={{
+                  all: "unset",
+                  boxSizing: "border-box",
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  height: "40px",
+                  padding: "0 12px",
+                  borderRadius: "10px",
+                  fontSize: "13.5px",
+                  cursor: "pointer",
+                  transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+                  background: isExtraTabActive && !showMoreAcademics ? S.itemActiveBg : "transparent",
+                  color: (isExtraTabActive && !showMoreAcademics) || showMoreAcademics ? "#ffffff" : S.itemInactiveText,
+                  fontWeight: (isExtraTabActive && !showMoreAcademics) || showMoreAcademics ? 600 : 450,
+                  whiteSpace: "nowrap",
+                  flexWrap: "nowrap",
+                }}
+                onMouseEnter={(e) => {
+                  if (!(isExtraTabActive && !showMoreAcademics)) {
+                    e.currentTarget.style.color = "#ffffff";
+                    e.currentTarget.style.background = S.itemHoverBg;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!(isExtraTabActive && !showMoreAcademics)) {
+                    e.currentTarget.style.color = showMoreAcademics ? "#ffffff" : S.itemInactiveText;
+                    e.currentTarget.style.background = "transparent";
+                  }
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "11px", minWidth: 0, flex: 1, overflow: "hidden" }}>
+                  <LayoutGrid
+                    size={18}
+                    strokeWidth={(isExtraTabActive && !showMoreAcademics) || showMoreAcademics ? 2 : 1.75}
+                    style={{
+                      flexShrink: 0,
+                      color: (isExtraTabActive && !showMoreAcademics) || showMoreAcademics ? "#ffffff" : S.itemInactiveText,
+                    }}
+                  />
+                  <span
+                    style={{
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    More Modules
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                  <ChevronDown
+                    size={15}
+                    style={{
+                      color: (isExtraTabActive && !showMoreAcademics) || showMoreAcademics ? "#ffffff" : S.itemInactiveText,
+                      transform: showMoreAcademics ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                      flexShrink: 0,
+                    }}
+                  />
+                </div>
+              </button>
+
+              {/* Seamless Expanded Items with Exact Same Full-Width Pill Selector & Alignment */}
+              {showMoreAcademics && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "3px",
+                    padding: "4px",
+                    background: "rgba(255, 255, 255, 0.02)",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(255, 255, 255, 0.04)",
+                  }}
+                >
+                  {extraAcademicItems.map(item => renderNavItem(item))}
+                </div>
+              )}
+            </div>
+
+            {/* Section 3: SETTINGS */}
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: S.groupLabel,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                padding: "14px 12px 4px",
+                userSelect: "none",
+              }}
+            >
+              SETTINGS
+            </div>
+
+            {renderNavItem({
+              id: 'profile',
+              label: 'Account Settings',
+              tab: 'profile',
+              icon: Settings,
+            })}
+          </nav>
+
+          {/* Profile Footer */}
+          <div style={{ marginTop: "auto", paddingTop: "14px" }}>
+            <div
+              style={{
+                height: "1px",
+                background: "rgba(255, 255, 255, 0.06)",
+                marginBottom: "12px",
+              }}
+            />
+
+            <div
+              onClick={() => navigateTo('profile')}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                cursor: "pointer",
+                padding: "8px 10px",
+                borderRadius: "12px",
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(255, 255, 255, 0.05)",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.07)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.05)";
+              }}
+              title="Account Settings"
+            >
+              <div
+                style={{
+                  width: "38px",
+                  height: "38px",
+                  borderRadius: "10px",
+                  overflow: "hidden",
+                  flexShrink: 0,
+                  background: "rgba(255, 255, 255, 0.08)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                }}
+              >
+                <img
+                  src="https://api.dicebear.com/10.x/glyphs/svg?seed=Felix"
+                  alt="avatar"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px", whiteSpace: "nowrap", overflow: "hidden" }}>
+                <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#ffffff", textOverflow: "ellipsis", overflow: "hidden" }}>
+                  {organization.name || "Alex Rivera"}
+                </p>
+                <p style={{ margin: 0, fontSize: "11px", color: S.itemInactiveText }}>
+                  Class 10-A
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </aside>
 
       {/* ═══════════════════════════════════════════════
-          M A I N   A R E A
+          W O R K S P A C E   &   H E A D E R
       ═══════════════════════════════════════════════ */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
-        {/* Sticky Top Header Bar with Kept Action Buttons Strictly on Top */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+        {/* Header Bar */}
         <header
           style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 30,
-            height: "58px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 28px",
-            background: S.headerBg,
-            borderBottom: `1px solid ${S.headerBorder}`,
             gap: "16px",
+            height: "68px",
+            padding: "0 32px",
+            background: "#fff",
+            borderBottom: "1px solid rgba(206, 216, 229, 0.97)",
+            position: "sticky",
+            top: 0,
+            zIndex: 30,
             flexShrink: 0,
           }}
         >
-          {/* Left Title */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "16px",
-                fontWeight: 600,
-                color: S.headerInk,
-                letterSpacing: "-0.02em",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {pageTitles[activeTab] ?? "Student Command Center"}
-            </h1>
+          {/* Header Title & Crumb */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", whiteSpace: "nowrap" }}>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: S.navy }}>
+              Student Command Center
+            </p>
+            <span style={{ width: "1px", height: "16px", background: S.line }} />
+            <p style={{ margin: 0, fontSize: "13px", color: S.slate }}>
+              {pageTitles[activeTab] || "Dashboard"}
+            </p>
+
             {activeTab === "dashboard" && (
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => setRefreshKey(k => k + 1)}
                 title="Refresh Dashboard"
                 style={{
                   all: "unset",
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: "26px",
-                  height: "26px",
+                  width: "28px",
+                  height: "28px",
                   borderRadius: "6px",
                   cursor: "pointer",
-                  color: S.headerMuted,
-                  transition: "background 0.12s",
+                  color: S.slate,
+                  marginLeft: "4px",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#F2F4F7")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                <RefreshCw size={13} strokeWidth={2} />
+                <RefreshCw size={13} />
               </button>
             )}
           </div>
 
-          {/* Right: Quick Action Buttons strictly placed on top as requested */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
-            {/* Submit Homework */}
-            <button
-              onClick={() => handleOpenSubmit()}
-              style={{
-                all: "unset",
-                boxSizing: "border-box",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "6px 12px",
-                background: "#FFFFFF",
-                border: "1px solid #D0D5DD",
-                borderRadius: "8px",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                color: S.headerInk,
-                cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(16,24,40,0.05)",
-                transition: "all 0.12s ease",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#98A2B3"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#D0D5DD"; }}
-            >
-              <Upload size={13} style={{ color: "#475467" }} />
-              <span>Submit Homework</span>
-            </button>
-
-            {/* Start Arena */}
-            <button
-              onClick={() => handleOpenArena()}
-              style={{
-                all: "unset",
-                boxSizing: "border-box",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "6px 12px",
-                background: "#FFFFFF",
-                border: "1px solid #D0D5DD",
-                borderRadius: "8px",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                color: S.headerInk,
-                cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(16,24,40,0.05)",
-                transition: "all 0.12s ease",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#98A2B3"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#D0D5DD"; }}
-            >
-              <Play size={13} style={{ color: "#101828" }} />
-              <span>Start Arena</span>
-            </button>
-
-            {/* Ask Teacher */}
-            <button
-              onClick={() => setSupportModalOpen(true)}
-              style={{
-                all: "unset",
-                boxSizing: "border-box",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "6px 14px",
-                background: S.headerInk,
-                border: `1px solid ${S.headerInk}`,
-                borderRadius: "8px",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                color: "#FFFFFF",
-                cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(16,24,40,0.08)",
-                transition: "background 0.12s ease",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#1D2939")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = S.headerInk)}
-            >
-              <HelpCircle size={13} style={{ color: "#FFFFFF" }} />
-              <span>Ask Teacher</span>
-            </button>
-
-            {/* Search Input */}
+          {/* Header Actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+            {/* Search Box */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "7px",
-                height: "34px",
-                padding: "0 11px",
-                border: `1px solid ${searchFocused ? "#98A2B3" : S.inputBorder}`,
-                borderRadius: "8px",
-                background: S.inputBg,
-                transition: "border-color 0.15s",
+                gap: "8px",
+                width: "220px",
+                padding: "6px 14px",
+                background: S.chip,
+                border: "1px solid #ebedf2",
+                borderRadius: "6px",
+                color: S.slate,
               }}
             >
-              <Search size={13} strokeWidth={2} style={{ color: S.headerMuted, flexShrink: 0 }} />
+              <Search size={15} style={{ flexShrink: 0, color: S.slate }} />
               <input
                 type="text"
+                placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                placeholder="Search coursework…"
                 style={{
                   border: "none",
                   outline: "none",
                   background: "transparent",
                   fontSize: "13px",
-                  color: S.headerInk,
-                  width: "130px",
+                  color: S.navy,
+                  width: "100%",
                   fontFamily: "inherit",
                 }}
               />
+              <span style={{ fontSize: "11px", color: S.faint, whiteSpace: "nowrap", flexShrink: 0 }}>
+                ⌘ K
+              </span>
             </div>
 
-            {/* Multi-Org Switcher */}
-            {organizations.length > 1 && (
-              <select
-                value={organization.id}
-                onChange={(e) => onSwitchOrganization(e.target.value)}
+            {/* Action Icon Group */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              {/* Message / Chat button */}
+              <button
+                type="button"
+                onClick={() => setSupportModalOpen(true)}
+                title="Directives & Messages"
                 style={{
-                  height: "34px",
-                  padding: "0 10px",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  color: S.headerInk,
-                  background: S.inputBg,
-                  border: `1px solid ${S.inputBorder}`,
+                  all: "unset",
+                  display: "grid",
+                  placeItems: "center",
+                  width: "36px",
+                  height: "36px",
                   borderRadius: "8px",
-                  outline: "none",
+                  background: S.chip,
+                  color: S.navy,
                   cursor: "pointer",
                 }}
               >
-                {organizations.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name}
-                  </option>
-                ))}
-              </select>
-            )}
+                <MessageSquare size={18} />
+              </button>
 
-            {/* Student Avatar */}
-            <button
-              type="button"
-              onClick={() => navigateTo('profile')}
-              title="Student Profile"
-              style={{
-                all: "unset",
-                width: "32px",
-                height: "32px",
-                borderRadius: "50%",
-                background: S.avatarBg,
-                color: S.avatarText,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 700,
-                fontSize: "12px",
-                cursor: "pointer",
-                letterSpacing: "0.02em",
-                transition: "box-shadow 0.15s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "0 0 0 2px #98A2B3")}
-              onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "none")}
-            >
-              {studentInitials}
-            </button>
+              {/* Notification bell button */}
+              <button
+                type="button"
+                onClick={() => navigateTo('communication')}
+                title="Notifications"
+                style={{
+                  all: "unset",
+                  display: "grid",
+                  placeItems: "center",
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "8px",
+                  background: S.chip,
+                  color: S.navy,
+                  cursor: "pointer",
+                }}
+              >
+                <Bell size={18} />
+              </button>
+
+              {/* Multi-Org Switcher */}
+              {organizations.length > 1 && (
+                <select
+                  value={organization.id}
+                  onChange={(e) => onSwitchOrganization(e.target.value)}
+                  style={{
+                    height: "36px",
+                    padding: "0 10px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: S.navy,
+                    background: S.chip,
+                    border: "1px solid #ebedf2",
+                    borderRadius: "8px",
+                    outline: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* User Avatar with DiceBear Image */}
+              <div
+                onClick={() => navigateTo('profile')}
+                title="Account Settings"
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  border: `1px solid ${S.border}`,
+                  background: "#f0f4f8",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <img
+                  src="https://api.dicebear.com/10.x/glyphs/svg?seed=Felix"
+                  alt="avatar"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+              </div>
+            </div>
           </div>
         </header>
 
-        {/* Content Body Container */}
-        <div key={refreshKey} style={{ padding: "24px 28px", flex: 1 }}>
+        {/* ═══════════════════════════════════════════════
+            M A I N   C O N T E N T   B O D Y
+        ═══════════════════════════════════════════════ */}
+        <main
+          style={{
+            flex: 1,
+            padding: "28px 32px 32px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            gap: "24px",
+          }}
+        >
           {navigation.loading ? (
-            <div style={{ padding: "48px 0", textAlign: "center", color: S.headerMuted }}>
-              <p>Loading dashboard navigation…</p>
+            <div style={{ padding: "48px 0", textAlign: "center", color: S.slate }}>
+              <p>Loading student workspace...</p>
             </div>
-          ) : navigation.error ? (
-            <p role="alert" style={{ color: "#B42318" }}>{navigation.error}</p>
-          ) : !availableTabs.has(activeTab) ? (
-            <p style={{ color: S.headerMuted }}>This feature is unavailable for this school or role.</p>
           ) : (
             <>
               {activeTab === 'dashboard' && (
                 <DashboardPane
+                  key={refreshKey}
                   organizationId={organization.id}
                   onNavigateTab={navigateTo}
                   onSubmitAssignment={handleOpenSubmit}
@@ -725,12 +833,12 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               )}
 
               {activeTab === 'profile' && (
-                <ProfilePane organizationId={organization.id} />
+                <ProfilePane organizationId={organization.id} onLogout={onLogout} />
               )}
             </>
           )}
-        </div>
-      </main>
+        </main>
+      </div>
 
       {/* Global Modals */}
       <AssignmentSubmitModal

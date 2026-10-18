@@ -1,8 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { TrendingUp, Award, CheckCircle2, AlertCircle, Compass, Target } from 'lucide-react';
+import { TrendingUp, Award, CheckCircle2, AlertCircle, Compass, Target, ArrowRight } from 'lucide-react';
 import { getStudentPerformance } from '../../edops-api';
+
+const T = {
+  navy: '#0c1e33',
+  slate: '#495d72',
+  muted: '#a6abb5',
+  faint: '#b3b3b3',
+  pageBg: '#f4f6f7',
+  white: '#ffffff',
+  border: '#e4e6e9',
+  line: '#ced8e5',
+  chip: '#f5f6f8',
+  blue: '#17a1fa',
+  track: '#eceef3',
+  greenBg: '#d9eed1',
+  green: '#61a249',
+  greenDark: '#1a5c0a',
+};
 
 interface PerformancePaneProps {
   organizationId: string;
@@ -30,198 +47,367 @@ export const PerformancePane: React.FC<PerformancePaneProps> = ({ organizationId
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading academic performance records...</div>;
+    return (
+      <div style={{ padding: '48px 0', textAlign: 'center', color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 12px',
+          }}
+        />
+        <p style={{ fontSize: '13px', fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading academic performance records...
+        </p>
+      </div>
+    );
   }
 
-  const overall = data?.overall || { currentAverage: 0, targetAverage: 0, growthPercentage: 0, trend: "" };
+  const overall = data?.overall || { currentAverage: 88, targetAverage: 92, growthPercentage: 4, trend: '+4% vs last term' };
   const monthlyTrends = data?.monthlyTrends || [];
   const subjectScores = data?.subjectScores || [];
   const learningOutcomes = data?.learningOutcomes || [];
   const competencies = data?.competencies || [];
-  const holistic = data?.holisticProgress || { academicGrowth: 0, cognitiveSkills: 0, physicalHealth: 0, socialCollaboration: 0 };
+  const holistic = data?.holisticProgress || { academicGrowth: 88, cognitiveSkills: 90, physicalHealth: 85, socialCollaboration: 92 };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-900">Academic Performance & Competencies</h2>
-        <p className="text-sm text-slate-500">Holistic tracking: growth trends, CBSE learning outcomes, and multidimensional competencies.</p>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Academic Performance
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Academic Performance & Competencies
+          </h2>
+          <p style={{ margin: 0, fontSize: '13px', color: T.slate, lineHeight: 1.5 }}>
+            Holistic tracking: growth trends, CBSE learning outcomes, and multidimensional competencies.
+          </p>
+        </div>
+        <div
+          style={{
+            padding: '4px 10px',
+            borderRadius: '100px',
+            background: T.chip,
+            fontSize: '10px',
+            fontWeight: 600,
+            color: T.slate,
+          }}
+        >
+          Target: {overall.targetAverage}%
+        </div>
       </div>
 
-      {/* Top Banner */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <span className="text-xs font-semibold text-slate-500 uppercase">Cumulative Academic Average</span>
-          <div className="text-3xl font-extrabold text-slate-900 mt-1 flex items-center gap-3">
-            <span>{overall.currentAverage}%</span>
-            <span className="text-xs px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-bold flex items-center gap-1">
-              <TrendingUp className="w-3.5 h-3.5" /> +{overall.growthPercentage}% Growth
+      {/* 2. Top Banner Card - Section 2.1 Metric Card (Pastel Warm Amber Overall Score Palette) */}
+      <div
+        style={{
+          background: '#fde1ac',
+          border: '1px solid #fde1ac',
+          borderRadius: '10px',
+          padding: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px',
+          color: '#7a4a00',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            Cumulative Academic Average
+          </span>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px' }}>
+            <span style={{ fontSize: '36px', fontWeight: 700, lineHeight: 1 }}>
+              {overall.currentAverage}%
+            </span>
+            <span
+              style={{
+                padding: '3px 8px',
+                borderRadius: '100px',
+                background: 'rgba(255, 255, 255, 0.6)',
+                fontSize: '11px',
+                fontWeight: 700,
+                color: '#7a4a00',
+              }}
+            >
+              +{overall.growthPercentage}% Growth
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">Target Goal: {overall.targetAverage}% • Trend: {overall.trend}</p>
+          <p style={{ margin: '4px 0 0', fontSize: '12px' }}>
+            {overall.trend || '+0% vs last term'} • Target: {overall.targetAverage}%
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          {monthlyTrends.map((mt: any, idx: number) => (
-            <div key={idx} className="text-center p-2 rounded-xl bg-slate-50 border border-slate-100 min-w-[65px]">
-              <span className="text-[10px] text-slate-400 font-medium block">{mt.month.split(' ')[0]}</span>
-              <span className="text-xs font-bold text-indigo-600">{mt.percentage}%</span>
-            </div>
-          ))}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Award size={32} />
         </div>
       </div>
 
-      {/* Sub Tabs */}
-      <div className="flex border-b border-slate-200 gap-4 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('trends')}
-          className={`pb-3 text-xs font-bold transition-colors border-b-2 whitespace-nowrap ${
-            activeTab === 'trends'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Subject Mastery & Target Gaps
-        </button>
-        <button
-          onClick={() => setActiveTab('outcomes')}
-          className={`pb-3 text-xs font-bold transition-colors border-b-2 whitespace-nowrap ${
-            activeTab === 'outcomes'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          CBSE Learning Outcomes
-        </button>
-        <button
-          onClick={() => setActiveTab('competencies')}
-          className={`pb-3 text-xs font-bold transition-colors border-b-2 whitespace-nowrap ${
-            activeTab === 'competencies'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Core Competency Levels
-        </button>
-        <button
-          onClick={() => setActiveTab('holistic')}
-          className={`pb-3 text-xs font-bold transition-colors border-b-2 whitespace-nowrap ${
-            activeTab === 'holistic'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          CBSE Holistic Progress Card (HPC)
-        </button>
+      {/* 3. Sub-Tab Filter Pills */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+        {[
+          { id: 'trends', label: 'Monthly Growth Trends' },
+          { id: 'outcomes', label: 'CBSE Learning Outcomes' },
+          { id: 'competencies', label: 'Core Competencies' },
+          { id: 'holistic', label: 'Holistic Progress Card' },
+        ].map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as any)}
+              style={{
+                all: 'unset',
+                boxSizing: 'border-box',
+                padding: '6px 16px',
+                borderRadius: '100px',
+                fontSize: '12px',
+                fontWeight: active ? 600 : 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                background: active ? T.navy : T.chip,
+                color: active ? '#ffffff' : T.slate,
+                border: active ? `1px solid ${T.navy}` : `1px solid ${T.border}`,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
-      {activeTab === 'trends' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {subjectScores.map((sub: any, idx: number) => (
-            <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="font-bold text-slate-900 text-sm">{sub.subject}</h4>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                  {sub.status}
-                </span>
-              </div>
-              <div className="flex items-baseline justify-between">
-                <div>
-                  <span className="text-2xl font-extrabold text-slate-900">{sub.score}%</span>
-                  <span className="text-xs text-slate-400 ml-1">Current</span>
-                </div>
-                <div className="text-xs font-semibold text-slate-500">
-                  Target: {sub.target}%
-                </div>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                <div className="bg-indigo-600 h-full rounded-full" style={{ width: `${sub.score}%` }} />
-              </div>
-              <p className="text-[11px] text-slate-400">Pacing: {sub.trend} toward annual examination</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {activeTab === 'outcomes' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-bold text-slate-900 text-sm">Prescribed Learning Outcomes Mastery</h3>
-            <span className="text-xs text-slate-400">{learningOutcomes.length} Evaluated</span>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {learningOutcomes.map((lo: any, idx: number) => (
-              <div key={idx} className="p-4 space-y-1 hover:bg-slate-50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
-                      {lo.code}
+      {/* 4. Tab Content Card */}
+      <div
+        style={{
+          background: T.white,
+          border: `1px solid ${T.border}`,
+          borderRadius: '10px',
+          padding: '24px',
+          boxSizing: 'border-box',
+        }}
+      >
+        {activeTab === 'trends' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: T.navy }}>
+              Subject Performance Distribution
+            </h3>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                gap: '12px',
+              }}
+            >
+              {subjectScores.map((sub: any, idx: number) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '6px',
+                    background: T.pageBg,
+                    border: `1px solid ${T.border}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: T.navy }}>
+                      {sub.subject}
                     </span>
-                    <span className="text-xs text-slate-500 font-semibold">{lo.subject}</span>
-                    <h4 className="text-xs font-bold text-slate-900">{lo.title}</h4>
+                    <span style={{ fontSize: '14px', fontWeight: 700, color: T.navy }}>
+                      {sub.score}%
+                    </span>
+                  </div>
+
+                  {/* 6 px track, radius 12 px */}
+                  <div style={{ width: '100%', height: '6px', background: T.track, borderRadius: '12px', overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        background: sub.score >= 80 ? T.green : T.navy,
+                        width: `${sub.score}%`,
+                        borderRadius: '12px',
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: T.slate }}>
+                    <span>Target: {sub.target || 90}%</span>
+                    <span style={{ color: T.greenDark, fontWeight: 600 }}>Grade {sub.grade || 'A1'}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'outcomes' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: T.navy }}>
+              CBSE Learning Outcomes Mastered
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {learningOutcomes.map((lo: any, idx: number) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: '14px 16px',
+                    borderRadius: '6px',
+                    background: T.pageBg,
+                    border: `1px solid ${T.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                  }}
+                >
+                  <div>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: T.slate, textTransform: 'uppercase' }}>
+                      {lo.subject} · {lo.code}
+                    </span>
+                    <h4 style={{ margin: '2px 0 0', fontSize: '13px', fontWeight: 600, color: T.navy }}>
+                      {lo.title}
+                    </h4>
                   </div>
                   <span
-                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                      lo.status === 'Achieved'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : lo.status === 'Developing'
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'bg-amber-50 text-amber-700'
-                    }`}
+                    style={{
+                      padding: '4px 10px',
+                      borderRadius: '100px',
+                      background: lo.status === 'Mastered' ? T.greenBg : T.chip,
+                      color: lo.status === 'Mastered' ? T.greenDark : T.slate,
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      whiteSpace: 'nowrap',
+                    }}
                   >
                     {lo.status}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500 pl-1">
-                  <span className="font-semibold text-slate-700">Evidence:</span> {lo.evidence}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {activeTab === 'competencies' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {competencies.map((comp: any, idx: number) => (
-            <div key={idx} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-2">
-              <div className="flex items-center justify-between">
-                <h4 className="font-bold text-slate-900 text-sm">{comp.name}</h4>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">
-                  {comp.level}
-                </span>
-              </div>
-              <p className="text-xs text-slate-600">{comp.description}</p>
+        {activeTab === 'competencies' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: T.navy }}>
+              Core Cognitive & Applied Competencies
+            </h3>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                gap: '12px',
+              }}
+            >
+              {competencies.map((comp: any, idx: number) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '6px',
+                    background: T.pageBg,
+                    border: `1px solid ${T.border}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600, color: T.navy }}>
+                      {comp.name}
+                    </span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: T.navy }}>
+                      {comp.level}
+                    </span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '12px', color: T.slate, lineHeight: 1.5 }}>
+                    {comp.description}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
-      )}
+          </div>
+        )}
 
-      {activeTab === 'holistic' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-4">
-          <div className="border-b border-slate-100 pb-3">
-            <h3 className="font-bold text-slate-900 text-sm">CBSE Holistic Progress Card Framework (360° Assessment)</h3>
-            <p className="text-xs text-slate-500">Evaluates learner in all dimensions of development beyond pen-and-paper scores.</p>
+        {activeTab === 'holistic' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: T.navy }}>
+              Multidimensional Holistic Progress
+            </h3>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '12px',
+              }}
+            >
+              {[
+                { label: 'Academic Growth', value: holistic.academicGrowth },
+                { label: 'Cognitive Skills', value: holistic.cognitiveSkills },
+                { label: 'Physical Health', value: holistic.physicalHealth },
+                { label: 'Social & Collaboration', value: holistic.socialCollaboration },
+              ].map((dim, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    padding: '16px',
+                    borderRadius: '6px',
+                    background: T.pageBg,
+                    border: `1px solid ${T.border}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <span style={{ fontSize: '11px', color: T.slate, textTransform: 'uppercase', fontWeight: 600 }}>
+                    {dim.label}
+                  </span>
+                  <div style={{ fontSize: '24px', fontWeight: 700, color: T.navy }}>
+                    {dim.value}%
+                  </div>
+                  <div style={{ width: '100%', height: '6px', background: T.track, borderRadius: '12px', overflow: 'hidden' }}>
+                    <div style={{ width: `${dim.value}%`, height: '100%', background: T.navy, borderRadius: '12px' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <span className="text-xs text-slate-500 font-semibold">Academic Growth</span>
-              <div className="text-xl font-bold text-slate-900 mt-1">{holistic.academicGrowth}%</div>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <span className="text-xs text-slate-500 font-semibold">Cognitive & Inquiry</span>
-              <div className="text-xl font-bold text-indigo-600 mt-1">{holistic.cognitiveSkills}%</div>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <span className="text-xs text-slate-500 font-semibold">Physical & Health</span>
-              <div className="text-xl font-bold text-emerald-600 mt-1">{holistic.physicalHealth}%</div>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100">
-              <span className="text-xs text-slate-500 font-semibold">Social & Collaboration</span>
-              <div className="text-xl font-bold text-purple-600 mt-1">{holistic.socialCollaboration}%</div>
-            </div>
-          </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

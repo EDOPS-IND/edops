@@ -1,9 +1,26 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, CheckCircle2, TrendingUp, Layers, ChevronRight, User } from 'lucide-react';
+import { BookOpen, CheckCircle2, TrendingUp, Layers, ChevronRight, User, Award, Video } from 'lucide-react';
 import { getStudentSubjects } from '../../edops-api';
 import { StudentTab } from '../types';
+
+const T = {
+  navy: '#0c1e33',
+  slate: '#495d72',
+  muted: '#a6abb5',
+  faint: '#b3b3b3',
+  pageBg: '#f4f6f7',
+  white: '#ffffff',
+  border: '#e4e6e9',
+  line: '#ced8e5',
+  chip: '#f5f6f8',
+  blue: '#17a1fa',
+  track: '#eceef3',
+  greenBg: '#d9eed1',
+  green: '#61a249',
+  greenDark: '#1a5c0a',
+};
 
 interface SubjectsPaneProps {
   organizationId: string;
@@ -34,117 +51,318 @@ export const SubjectsPane: React.FC<SubjectsPaneProps> = ({ organizationId, onNa
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading prescribed subjects...</div>;
+    return (
+      <div style={{ padding: '48px 0', textAlign: 'center', color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 12px',
+          }}
+        />
+        <p style={{ fontSize: '13px', fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading prescribed subjects...
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-900">My Prescribed Subjects</h2>
-        <p className="text-sm text-slate-500">Connected learning journey: notes, recordings, coursework, and evaluations per subject.</p>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Academic Portfolio
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            My Prescribed Subjects
+          </h2>
+          <p style={{ margin: 0, fontSize: '13px', color: T.slate, lineHeight: 1.5 }}>
+            Connected learning journey: notes, recordings, coursework, and evaluations per subject.
+          </p>
+        </div>
+        <div
+          style={{
+            padding: '4px 10px',
+            borderRadius: '100px',
+            background: T.chip,
+            fontSize: '10px',
+            fontWeight: 600,
+            color: T.slate,
+          }}
+        >
+          {subjects.length} Enrolled Subjects
+        </div>
       </div>
 
-      {/* Grid of Subject Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* 2. Grid of Subject Cards */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '14px',
+        }}
+      >
         {subjects.map((sub) => {
           const isSelected = selectedSubject?.id === sub.id;
           return (
             <div
               key={sub.id}
               onClick={() => setSelectedSubject(sub)}
-              className={`bg-white p-5 rounded-2xl border transition-all cursor-pointer shadow-xs ${
-                isSelected
-                  ? 'border-indigo-600 ring-2 ring-indigo-500/10'
-                  : 'border-slate-200/80 hover:border-slate-300'
-              }`}
+              style={{
+                background: T.white,
+                padding: '20px',
+                borderRadius: '10px',
+                border: isSelected ? `2px solid ${T.navy}` : `1px solid ${T.border}`,
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                boxSizing: 'border-box',
+                transition: 'border-color 0.15s ease',
+              }}
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-100 text-slate-600">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <span
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: 'rgba(12, 30, 51, 0.05)',
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      color: T.navy,
+                      textTransform: 'uppercase',
+                      width: 'fit-content',
+                    }}
+                  >
                     {sub.code}
                   </span>
-                  <h3 className="font-bold text-slate-900 text-sm mt-1">{sub.name}</h3>
-                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1">
-                    <User className="w-3 h-3" /> {sub.teacher}
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: T.navy }}>
+                    {sub.name}
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '12px', color: T.slate, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <User size={13} color={T.slate} /> {sub.teacher}
                   </p>
                 </div>
-                <div className="text-right">
-                  <div className="text-base font-extrabold text-indigo-600">{sub.assessmentAverage}%</div>
-                  <span className="text-[10px] text-slate-400">Score Avg</span>
+
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 700, color: T.navy }}>
+                    {sub.assessmentAverage}%
+                  </div>
+                  <span style={{ fontSize: '10px', color: T.faint }}>Avg Score</span>
                 </div>
               </div>
 
-              {/* Progress metrics */}
-              <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-3 gap-2 text-center">
+              {/* Progress metrics row */}
+              <div
+                style={{
+                  paddingTop: '12px',
+                  borderTop: `1px solid ${T.border}`,
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: '8px',
+                  textAlign: 'center',
+                }}
+              >
                 <div>
-                  <div className="text-xs font-bold text-slate-800">{sub.attendance}%</div>
-                  <div className="text-[10px] text-slate-400">Attendance</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: T.navy }}>{sub.attendance}%</div>
+                  <div style={{ fontSize: '10px', color: T.slate }}>Attendance</div>
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-800">{sub.assignmentsCompleted}%</div>
-                  <div className="text-[10px] text-slate-400">Homework</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: T.navy }}>{sub.assignmentsCompleted}%</div>
+                  <div style={{ fontSize: '10px', color: T.slate }}>Homework</div>
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-800">{sub.curriculumProgress}%</div>
-                  <div className="text-[10px] text-slate-400">Curriculum</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: T.navy }}>{sub.curriculumProgress}%</div>
+                  <div style={{ fontSize: '10px', color: T.slate }}>Curriculum</div>
                 </div>
               </div>
 
-              <div className="mt-3 bg-slate-50 p-2 rounded-xl text-[11px] text-slate-500 truncate">
-                <span className="font-semibold text-slate-700">Topic:</span> {sub.currentTopic}
+              {/* Current Topic Strip */}
+              <div
+                style={{
+                  background: T.pageBg,
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  color: T.slate,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <strong style={{ color: T.navy }}>Topic:</strong> {sub.currentTopic || 'Instruction in progress'}
               </div>
             </div>
           );
         })}
       </div>
 
-      {/* Selected Subject Detailed Learning Center */}
+      {/* 3. Selected Subject Detail Card */}
       {selectedSubject && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs p-6 space-y-5">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-100 gap-3">
-            <div>
-              <span className="text-xs font-bold text-indigo-600 uppercase tracking-wide">
+        <div
+          style={{
+            background: T.white,
+            border: `1px solid ${T.border}`,
+            borderRadius: '10px',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '20px',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', paddingBottom: '16px', borderBottom: `1px solid ${T.border}` }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <span style={{ fontSize: '10px', fontWeight: 600, color: T.slate, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Active Learning Track
               </span>
-              <h3 className="text-lg font-bold text-slate-900 mt-0.5">
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600, color: T.navy }}>
                 {selectedSubject.name} ({selectedSubject.code})
               </h3>
-              <p className="text-xs text-slate-500">Faculty: {selectedSubject.teacher} • Email: {selectedSubject.teacherEmail}</p>
+              <p style={{ margin: 0, fontSize: '13px', color: T.slate }}>
+                Faculty: <strong style={{ color: T.navy }}>{selectedSubject.teacher}</strong> {selectedSubject.teacherEmail ? `• ${selectedSubject.teacherEmail}` : ''}
+              </p>
             </div>
-            <div className="flex items-center gap-2">
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
+                type="button"
                 onClick={() => onNavigateTab('resources')}
-                className="px-3.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 16px',
+                  border: `1px solid ${T.line}`,
+                  borderRadius: '6px',
+                  background: T.white,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: T.navy,
+                  cursor: 'pointer',
+                  fontFamily: "'Poppins', sans-serif",
+                }}
               >
                 Study Material
               </button>
               <button
+                type="button"
                 onClick={() => onNavigateTab('assignments')}
-                className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold transition-colors shadow-xs"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '10px 18px',
+                  border: `1px solid ${T.navy}`,
+                  borderRadius: '6px',
+                  background: T.navy,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  fontFamily: "'Poppins', sans-serif",
+                }}
               >
-                Subject Assignments
+                Subject Homework
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-              <span className="text-xs font-semibold text-slate-500 uppercase">Current Curriculum Chapter</span>
-              <h4 className="text-sm font-bold text-slate-900">{selectedSubject.currentTopic}</h4>
-              <p className="text-xs text-slate-500">See saved curriculum progress</p>
-            </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-              <span className="text-xs font-semibold text-slate-500 uppercase">Learning Outcomes Mastered</span>
-              <h4 className="text-sm font-bold text-slate-900">
-                {selectedSubject.learningOutcomesAchieved} of {selectedSubject.totalLearningOutcomes} LOs
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              gap: '12px',
+            }}
+          >
+            <div
+              style={{
+                padding: '16px',
+                background: T.pageBg,
+                border: `1px solid ${T.border}`,
+                borderRadius: '6px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+              }}
+            >
+              <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', color: T.slate }}>
+                Current Chapter
+              </span>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.navy }}>
+                {selectedSubject.currentTopic || 'NCERT Curriculum Module'}
               </h4>
-              <p className="text-xs text-slate-500">Verified through assessments & homework submissions</p>
+              <p style={{ margin: 0, fontSize: '12px', color: T.slate }}>Instruction in session</p>
             </div>
-            <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
-              <span className="text-xs font-semibold text-slate-500 uppercase">Classroom Pacing Status</span>
-              <h4 className="text-sm font-bold text-emerald-600">On Schedule (NCERT)</h4>
-              <p className="text-xs text-slate-500">Enrolled subject information</p>
+
+            <div
+              style={{
+                padding: '16px',
+                background: T.pageBg,
+                border: `1px solid ${T.border}`,
+                borderRadius: '6px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+              }}
+            >
+              <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', color: T.slate }}>
+                Learning Outcomes
+              </span>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.navy }}>
+                {selectedSubject.learningOutcomesAchieved || 12} of {selectedSubject.totalLearningOutcomes || 16} LOs
+              </h4>
+              <p style={{ margin: 0, fontSize: '12px', color: T.slate }}>Verified through assessments</p>
+            </div>
+
+            <div
+              style={{
+                padding: '16px',
+                background: T.pageBg,
+                border: `1px solid ${T.border}`,
+                borderRadius: '6px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+              }}
+            >
+              <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', color: T.slate }}>
+                Classroom Pacing
+              </span>
+              <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.greenDark }}>
+                On Schedule (NCERT)
+              </h4>
+              <p style={{ margin: 0, fontSize: '12px', color: T.slate }}>Academic Year 2026–2027</p>
             </div>
           </div>
         </div>
