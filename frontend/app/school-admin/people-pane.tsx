@@ -507,96 +507,106 @@ export function PeoplePane({
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
-                  <th style={{ padding: "10px" }}>Admission No</th>
-                  <th style={{ padding: "10px" }}>Student Name</th>
-                  <th style={{ padding: "10px" }}>Class / Roll</th>
-                  <th style={{ padding: "10px" }}>Parent / Contact</th>
-                  <th style={{ padding: "10px" }}>Attendance</th>
-                  <th style={{ padding: "10px" }}>Fee Status</th>
-                  <th style={{ padding: "10px" }}>Academic Status</th>
-                  <th style={{ padding: "10px", textAlign: "right" }}>360° Profile</th>
+                <tr style={{ borderBottom: "2px solid #e4e6e9", color: "#495d72", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <th style={{ padding: "12px 10px" }}>Admission No</th>
+                  <th style={{ padding: "12px 10px" }}>Student Name</th>
+                  <th style={{ padding: "12px 10px" }}>Class / Roll</th>
+                  <th style={{ padding: "12px 10px" }}>Parent / Contact</th>
+                  <th style={{ padding: "12px 10px" }}>Attendance</th>
+                  <th style={{ padding: "12px 10px" }}>Fee Status</th>
+                  <th style={{ padding: "12px 10px" }}>Academic Status</th>
+                  <th style={{ padding: "12px 10px", textAlign: "right" }}>360° Profile</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ padding: "32px 10px", textAlign: "center", color: "var(--muted)" }}>
+                    <td colSpan={8} style={{ padding: "32px 10px", textAlign: "center", color: "#64748b" }}>
                       {loading ? "Loading students..." : "No student records found."}
                     </td>
                   </tr>
                 ) : (
                   filteredStudents.map((s) => (
-                  <tr key={s.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
-                    <td style={{ padding: "12px 10px" }}>
-                      <b>{s.admissionNo}</b>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>House: {s.house}</div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", background: "#F5F6F8", border: "1px solid #E4E6E9", flexShrink: 0 }}>
-                          <img
-                            src={getStudentAvatarUrl(s.name, s.admissionNo || s.rollNo)}
-                            alt={s.name}
-                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                          />
+                    <tr
+                      key={s.id}
+                      style={{ borderBottom: "1px solid #e4e6e9", transition: "background 0.15s ease" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <td style={{ padding: "12px 10px" }}>
+                        <b style={{ color: "#0c1e33" }}>{s.admissionNo}</b>
+                        <div style={{ fontSize: "11px", color: "#64748b" }}>House: {s.house}</div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", background: "#F5F6F8", border: "1px solid #E4E6E9", flexShrink: 0 }}>
+                            <img
+                              src={getStudentAvatarUrl(s.name, s.admissionNo || s.rollNo)}
+                              alt={s.name}
+                              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            />
+                          </div>
+                          <div>
+                            <b style={{ color: "#0c1e33" }}>{s.name}</b>
+                            <div style={{ fontSize: "11px", color: "#64748b" }}>{s.gender} · Blood {s.bloodGroup}</div>
+                          </div>
                         </div>
-                        <div>
-                          <b>{s.name}</b>
-                          <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.gender} · Blood {s.bloodGroup}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <b>{s.section}</b>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>Roll #{s.rollNo}</div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <div>{s.parentName}</div>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.parentPhone}</div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <span style={{ fontWeight: 700, color: s.attendancePct < 75 ? "#B45309" : "#047857" }}>
-                        {s.attendancePct}%
-                      </span>
-                      {s.attendancePct < 75 && (
-                        <span style={{ display: "block", fontSize: "10px", color: "#B45309", fontWeight: 600 }}>Breach &lt;75%</span>
-                      )}
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <span style={{
-                        padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700,
-                        background: s.feeStatus === "Paid" ? "#ECFDF5" : s.feeStatus === "Pending" ? "#FEF3C7" : "#FEE2E2",
-                        color: s.feeStatus === "Paid" ? "#047857" : s.feeStatus === "Pending" ? "#92400E" : "#991B1B",
-                      }}>
-                        {s.feeStatus}
-                      </span>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 600, color: "#0c1e33" }}>{s.academicStatus}</span>
-                    </td>
-                    <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                      <button
-                        onClick={() => setSelectedStudent(s)}
-                        style={{
-                          padding: "6px 12px",
-                          background: "#0c1e33",
-                          color: "#ffffff",
-                          border: "none",
-                          borderRadius: "6px",
-                          fontSize: "11.5px",
-                          fontWeight: 600,
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}
-                      >
-                        <Eye size={13} /> Open 360°
-                      </button>
-                    </td>
-                  </tr>
-                )))}
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <b style={{ color: "#0c1e33" }}>{s.section}</b>
+                        <div style={{ fontSize: "11px", color: "#64748b" }}>Roll #{s.rollNo}</div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <div style={{ color: "#0c1e33", fontWeight: 500 }}>{s.parentName}</div>
+                        <div style={{ fontSize: "11px", color: "#64748b" }}>{s.parentPhone}</div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <span style={{ fontWeight: 700, color: s.attendancePct < 75 ? "#B45309" : "#047857" }}>
+                          {s.attendancePct}%
+                        </span>
+                        {s.attendancePct < 75 && (
+                          <span style={{ display: "block", fontSize: "10px", color: "#B45309", fontWeight: 600 }}>Breach &lt;75%</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <span style={{
+                          padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700,
+                          background: s.feeStatus === "Paid" ? "#ECFDF5" : s.feeStatus === "Pending" ? "#FEF3C7" : "#FEE2E2",
+                          color: s.feeStatus === "Paid" ? "#047857" : s.feeStatus === "Pending" ? "#92400E" : "#991B1B",
+                        }}>
+                          {s.feeStatus}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: 600, color: "#0c1e33" }}>{s.academicStatus}</span>
+                      </td>
+                      <td style={{ padding: "12px 10px", textAlign: "right" }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStudent(s)}
+                          style={{
+                            padding: "6px 12px",
+                            background: "#0c1e33",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "11.5px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            transition: "background 0.15s ease",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#1a365d")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "#0c1e33")}
+                        >
+                          <Eye size={13} /> Open 360°
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
