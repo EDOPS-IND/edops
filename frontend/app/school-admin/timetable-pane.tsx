@@ -203,6 +203,127 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
+      {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+        {/* 1. Total Slots (Pastel Violet) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#e1d2ff",
+            border: "1px solid #e1d2ff",
+            borderRadius: "10px",
+            color: "#4a0e8f",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Total Weekly Periods
+            </span>
+            <Calendar size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#4a0e8f" }}>
+            {slots.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Instructional &amp; lab slots</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Active</span>
+          </div>
+        </article>
+
+        {/* 2. Section Matrices (Pastel Mint) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ccefbf",
+            border: "1px solid #ccefbf",
+            borderRadius: "10px",
+            color: "#1a5c0a",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Sections Scheduled
+            </span>
+            <BookOpen size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
+            {sections.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Across registered class rosters</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Matrices</span>
+          </div>
+        </article>
+
+        {/* 3. Allocated Faculty (Pastel Sky) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#bae5f5",
+            border: "1px solid #bae5f5",
+            borderRadius: "10px",
+            color: "#0a5a7a",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Assigned Faculty
+            </span>
+            <User size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
+            {teachers.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Instructional load balanced</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Teachers</span>
+          </div>
+        </article>
+
+        {/* 4. Conflict Alarms (Pastel Coral) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: conflicts.length > 0 ? "#ffd6d6" : "#ffd8c7",
+            border: `1px solid ${conflicts.length > 0 ? "#ffd6d6" : "#ffd8c7"}`,
+            borderRadius: "10px",
+            color: conflicts.length > 0 ? "#7a1a1a" : "#782a00",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Conflict Alarms
+            </span>
+            <AlertTriangle size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: conflicts.length > 0 ? "#7a1a1a" : "#782a00" }}>
+            {conflicts.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>
+              {conflicts.length === 0 ? "Zero double-booking detected" : "Overlapping assignments detected"}
+            </span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Health</span>
+          </div>
+        </article>
+      </section>
+
       {/* Conflict Alert Banner */}
       {conflicts.length > 0 ? (
         <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -221,36 +342,36 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
         </div>
       ) : (
         <div style={{ background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: "10px", padding: "12px 18px", display: "flex", alignItems: "center", gap: "10px" }}>
-          <CheckCircle2 size={18} color="#064E3B" />
-          <span style={{ color: "#064E3B", fontSize: "13px", fontWeight: 700 }}>{loading ? "Loading timetable…" : slots.length ? "No recorded scheduling conflicts." : "No timetable entries saved."}</span>
+          <CheckCircle2 size={18} color="#047857" />
+          <span style={{ color: "#047857", fontSize: "13px", fontWeight: 700 }}>{loading ? "Loading timetable…" : slots.length ? "No recorded scheduling conflicts. All period allocations verified." : "No timetable entries saved."}</span>
         </div>
       )}
 
-      <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+      <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
         {/* Header and Controls */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
           <div>
-            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Master Timetable Schedule & Conflict Monitor</h3>
+            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Master Timetable Schedule & Conflict Monitor</h3>
             <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Detects teacher overlap, room double-booking, and period capacity</p>
           </div>
 
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <div style={{ display: "flex", background: "#FAF8F5", border: "1px solid #E2DDD5", borderRadius: "6px", padding: "2px" }}>
+            <div style={{ display: "flex", background: "#f8fafc", border: "1px solid #e4e6e9", borderRadius: "6px", padding: "2px" }}>
               <button
                 onClick={() => setViewMode("class")}
-                style={{ padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer", background: viewMode === "class" ? "#064E3B" : "transparent", color: viewMode === "class" ? "#F8E7C9" : "#064E3B" }}
+                style={{ padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer", background: viewMode === "class" ? "#0c1e33" : "transparent", color: viewMode === "class" ? "#ffffff" : "#4a5568" }}
               >
                 Class View
               </button>
               <button
                 onClick={() => setViewMode("teacher")}
-                style={{ padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer", background: viewMode === "teacher" ? "#064E3B" : "transparent", color: viewMode === "teacher" ? "#F8E7C9" : "#064E3B" }}
+                style={{ padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer", background: viewMode === "teacher" ? "#0c1e33" : "transparent", color: viewMode === "teacher" ? "#ffffff" : "#4a5568" }}
               >
                 Teacher View
               </button>
               <button
                 onClick={() => setViewMode("room")}
-                style={{ padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer", background: viewMode === "room" ? "#064E3B" : "transparent", color: viewMode === "room" ? "#F8E7C9" : "#064E3B" }}
+                style={{ padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer", background: viewMode === "room" ? "#0c1e33" : "transparent", color: viewMode === "room" ? "#ffffff" : "#4a5568" }}
               >
                 Room View
               </button>
@@ -260,7 +381,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
               <select
                 value={selectedSectionId}
                 onChange={(e) => setSelectedSectionId(e.target.value)}
-                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #E2DDD5", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
+                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
               >
                 {sections.length > 0 ? (
                   sections.map((s) => (
@@ -278,7 +399,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
               <select
                 value={selectedTeacherId}
                 onChange={(e) => setSelectedTeacherId(e.target.value)}
-                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #E2DDD5", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
+                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
               >
                 {teachers.length > 0 ? (
                   teachers.map((t) => {
@@ -299,7 +420,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
               <select
                 value={selectedRoom}
                 onChange={(e) => setSelectedRoom(e.target.value)}
-                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #E2DDD5", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
+                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
               >
                 {availableRooms.length > 0 ? (
                   availableRooms.map((r) => (
@@ -321,8 +442,8 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                 gap: "6px",
                 padding: "6px 14px",
                 borderRadius: "6px",
-                background: "#064E3B",
-                color: "#F8E7C9",
+                background: "#0c1e33",
+                color: "#ffffff",
                 border: "none",
                 fontSize: "12px",
                 fontWeight: 700,
@@ -339,7 +460,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px", textAlign: "center" }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #E2DDD5", background: "#FAF8F5" }}>
+              <tr style={{ borderBottom: "2px solid #e4e6e9", background: "#f8fafc" }}>
                 <th style={{ padding: "10px", width: "100px", textAlign: "left" }}>Day</th>
                 {periods.map((p, idx) => (
                   <th key={idx} style={{ padding: "8px 6px", minWidth: "130px" }}>
@@ -351,14 +472,14 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
             </thead>
             <tbody>
               {days.map((day) => (
-                <tr key={day} style={{ borderBottom: "1px solid #FAF8F5" }}>
-                  <td style={{ padding: "12px 10px", textAlign: "left", fontWeight: 700, color: "#064E3B", background: "#FAF8F5" }}>
+                <tr key={day} style={{ borderBottom: "1px solid #f4f6f7" }}>
+                  <td style={{ padding: "12px 10px", textAlign: "left", fontWeight: 700, color: "#0c1e33", background: "#f8fafc" }}>
                     {day}
                   </td>
                   {periods.map((p, pIdx) => {
                     if (p.isBreak) {
                       return (
-                        <td key={pIdx} style={{ background: "#FDF9F0", color: "var(--muted)", fontSize: "11px", fontStyle: "italic" }}>
+                        <td key={pIdx} style={{ background: "#f8fafc", color: "var(--muted)", fontSize: "11px", fontStyle: "italic" }}>
                           {p.period}
                         </td>
                       );
@@ -389,14 +510,14 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                         key={pIdx}
                         style={{
                           padding: "8px",
-                          background: slot.hasConflict ? "#FEE2E2" : "#FAF8F5",
-                          border: slot.hasConflict ? "1px solid #FCA5A5" : "1px solid #E2DDD5",
+                          background: slot.hasConflict ? "#FEE2E2" : "#f8fafc",
+                          border: slot.hasConflict ? "1px solid #FCA5A5" : "1px solid #e4e6e9",
                           borderRadius: "6px",
                           position: "relative",
                         }}
                       >
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "4px" }}>
-                          <b style={{ color: slot.hasConflict ? "#991B1B" : "#064E3B", fontSize: "12px", textAlign: "left" }}>
+                          <b style={{ color: slot.hasConflict ? "#991B1B" : "#0c1e33", fontSize: "12px", textAlign: "left" }}>
                             {slot.subject}
                           </b>
                           <div style={{ display: "flex", gap: "4px" }}>
@@ -428,7 +549,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
 
                         {viewMode === "teacher" && (
                           <>
-                            <div style={{ fontSize: "10.5px", color: "#064E3B", fontWeight: 700, textAlign: "left", marginTop: "2px" }}>
+                            <div style={{ fontSize: "10.5px", color: "#0c1e33", fontWeight: 700, textAlign: "left", marginTop: "2px" }}>
                               {slot.className || `Section ${slot.section}`}
                             </div>
                             <div style={{ fontSize: "10px", color: slot.hasConflict ? "#DC2626" : "var(--muted)", fontWeight: 600, textAlign: "left" }}>
@@ -439,7 +560,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
 
                         {viewMode === "room" && (
                           <>
-                            <div style={{ fontSize: "10.5px", color: "#064E3B", fontWeight: 700, textAlign: "left", marginTop: "2px" }}>
+                            <div style={{ fontSize: "10.5px", color: "#0c1e33", fontWeight: 700, textAlign: "left", marginTop: "2px" }}>
                               {slot.className || `Section ${slot.section}`}
                             </div>
                             <div style={{ fontSize: "10px", color: "var(--muted)", textAlign: "left" }}>
@@ -465,10 +586,10 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
 
       {/* Modal Dialog for Add / Edit Timetable Period */}
       {modalOpen && (
-        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px" }}>
-          <div style={{ background: "#FFFFFF", borderRadius: "12px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #E2DDD5", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAF8F5" }}>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#064E3B" }}>
+        <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(12, 30, 51, 0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px" }}>
+          <div style={{ background: "#FFFFFF", borderRadius: "14px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden" }}>
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0c1e33" }}>
                 {editingSlot ? "Edit Timetable Period" : "Add Timetable Period"}
               </h3>
               <button onClick={() => setModalOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", color: "#64748B" }}>
@@ -491,7 +612,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                     value={form.sectionId}
                     onChange={(e) => setForm({ ...form, sectionId: e.target.value })}
                     required
-                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px" }}
                   >
                     <option value="">Select section</option>
                     {sections.map((s) => (
@@ -506,7 +627,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                     value={form.dayOfWeek}
                     onChange={(e) => setForm({ ...form, dayOfWeek: Number(e.target.value) })}
                     required
-                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px" }}
                   >
                     <option value={1}>Monday</option>
                     <option value={2}>Tuesday</option>
@@ -525,7 +646,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                     value={form.periodNumber}
                     onChange={(e) => setForm({ ...form, periodNumber: Number(e.target.value) })}
                     required
-                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px" }}
                   >
                     {[1, 2, 3, 4, 5, 6, 7, 8].map((p) => (
                       <option key={p} value={p}>Period {p}</option>
@@ -539,7 +660,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                     value={form.subjectId}
                     onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
                     required
-                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px" }}
                   >
                     <option value="">Select subject</option>
                     {subjects.map((sub) => (
@@ -555,7 +676,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                   value={form.teacherUserId}
                   onChange={(e) => setForm({ ...form, teacherUserId: e.target.value })}
                   required
-                  style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                  style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px" }}
                 >
                   <option value="">Select teacher</option>
                   {teachers.map((t) => (
@@ -572,7 +693,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                     value={form.startTime}
                     onChange={(e) => setForm({ ...form, startTime: e.target.value })}
                     required
-                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px" }}
                   />
                 </div>
                 <div>
@@ -582,7 +703,7 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                     value={form.endTime}
                     onChange={(e) => setForm({ ...form, endTime: e.target.value })}
                     required
-                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px" }}
                   />
                 </div>
                 <div>
@@ -592,23 +713,23 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
                     value={form.roomNumber}
                     onChange={(e) => setForm({ ...form, roomNumber: e.target.value })}
                     placeholder="Room 101"
-                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                    style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px" }}
                   />
                 </div>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px", paddingTop: "12px", borderTop: "1px solid #E2DDD5" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px", paddingTop: "12px", borderTop: "1px solid #e4e6e9" }}>
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#475569", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                  style={{ padding: "8px 16px", borderRadius: "6px", border: "1px solid #e4e6e9", background: "#FFFFFF", color: "#475569", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#064E3B", color: "#F8E7C9", fontSize: "12px", fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer" }}
+                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#0c1e33", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: submitting ? "not-allowed" : "pointer" }}
                 >
                   {submitting ? "Saving..." : editingSlot ? "Update Period" : "Save Period"}
                 </button>

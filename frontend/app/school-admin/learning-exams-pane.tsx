@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { api, createSchoolAdminCoursework, scheduleSchoolAdminExam } from "../edops-api";
-import { RecordList } from "../parent/components/record-list";
 import { ExamRecord } from "./types";
 import {
   BookOpen,
@@ -13,6 +12,7 @@ import {
   Eye,
   Plus,
   X,
+  ArrowRight,
 } from "lucide-react";
 
 export function LearningExamsPane({
@@ -157,8 +157,155 @@ export function LearningExamsPane({
         </div>
       )}
 
+      {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+        {/* 1. Active Coursework (Pastel Violet) */}
+        <article
+          onClick={() => setSubtab("assignments")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#e1d2ff",
+            border: "1px solid #e1d2ff",
+            borderRadius: "10px",
+            color: "#4a0e8f",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Active Coursework
+            </span>
+            <BookOpen size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#4a0e8f" }}>
+            {assignments.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Assignments &amp; Practice Sets</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+              View <ArrowRight size={13} />
+            </span>
+          </div>
+        </article>
+
+        {/* 2. Submission Rate (Pastel Mint) */}
+        <article
+          onClick={() => setSubtab("assignments")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ccefbf",
+            border: "1px solid #ccefbf",
+            borderRadius: "10px",
+            color: "#1a5c0a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Turn-In Rate
+            </span>
+            <CheckCircle2 size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
+            {assignments.length ? Math.round(assignments.reduce((sum, a) => sum + (a.completionPct || 0), 0) / assignments.length) : 0}%
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Average completion pace</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+              Turn-In <ArrowRight size={13} />
+            </span>
+          </div>
+        </article>
+
+        {/* 3. Term Exams (Pastel Sky) */}
+        <article
+          onClick={() => setSubtab("exams")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#bae5f5",
+            border: "1px solid #bae5f5",
+            borderRadius: "10px",
+            color: "#0a5a7a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Exam Cycles
+            </span>
+            <Calendar size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
+            {exams.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Term assessment windows</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+              Exams <ArrowRight size={13} />
+            </span>
+          </div>
+        </article>
+
+        {/* 4. Results Published (Pastel Coral) */}
+        <article
+          onClick={() => setSubtab("results")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ffd8c7",
+            border: "1px solid #ffd8c7",
+            borderRadius: "10px",
+            color: "#782a00",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Published Results
+            </span>
+            <Award size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#782a00" }}>
+            {exams.filter((ex) => ex.isPublished).length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Available in student portals</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+              Results <ArrowRight size={13} />
+            </span>
+          </div>
+        </article>
+      </section>
+
       {/* Subtab Bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E2DDD5", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "assignments", label: "Assignment Completion Monitoring" },
@@ -169,14 +316,15 @@ export function LearningExamsPane({
               key={tab.id}
               onClick={() => { setSubtab(tab.id as any); setNotice(""); setError(""); }}
               style={{
-                padding: "8px 14px",
+                padding: "8px 16px",
                 borderRadius: "8px",
                 fontSize: "13px",
-                fontWeight: subtab === tab.id ? 750 : 600,
-                background: subtab === tab.id ? "#064E3B" : "transparent",
-                color: subtab === tab.id ? "#F8E7C9" : "#064E3B",
+                fontWeight: subtab === tab.id ? 700 : 500,
+                background: subtab === tab.id ? "#0c1e33" : "transparent",
+                color: subtab === tab.id ? "#ffffff" : "#4a5568",
                 border: "none",
                 cursor: "pointer",
+                transition: "all 0.15s ease",
               }}
             >
               {tab.label}
@@ -186,7 +334,7 @@ export function LearningExamsPane({
 
         <button
           onClick={subtab === "assignments" ? openCourseworkModal : openExamModal}
-          style={{ padding: "8px 16px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
+          style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
           <Plus size={15} /> {subtab === "assignments" ? "New Coursework" : "Schedule New Exam"}
         </button>
@@ -194,112 +342,173 @@ export function LearningExamsPane({
 
       {/* 1. ASSIGNMENTS MONITORING TAB */}
       {subtab === "assignments" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Active Coursework & Homework Completion</h3>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Active Coursework &amp; Homework Completion</h3>
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>School Admin oversight of teacher assignment releases and student turn-in rates</p>
             </div>
-            <span style={{ background: "#ECFDF5", color: "#064E3B", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: 700 }}>
-              Average Submission Rate: {assignments.length ? Math.round(assignments.reduce((sum,a)=>sum+a.completionPct,0)/assignments.length) : 0}%
+            <span style={{ background: "#ECFDF5", color: "#047857", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: 700 }}>
+              Average Submission Rate: {assignments.length ? Math.round(assignments.reduce((sum, a) => sum + (a.completionPct || 0), 0) / assignments.length) : 0}%
             </span>
           </div>
 
           <div style={{ display: "grid", gap: "10px" }}>
-            {assignments.map((asg) => (
-              <div key={asg.id} style={{ padding: "14px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E2DDD5" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div>
-                    <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)" }}>{asg.class} · {asg.subject}</span>
-                    <h4 style={{ margin: "2px 0", fontSize: "14.5px", fontWeight: 800, color: "#064E3B" }}>{asg.title}</h4>
-                    <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Faculty: <b>{asg.teacher}</b> · Due: <b>{asg.dueDate}</b></span>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <span style={{ fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
-                      {asg.submitted} / {asg.total} ({asg.completionPct}%)
-                    </span>
-                    <div style={{ fontSize: "11px", color: asg.status === "Graded" ? "#064E3B" : "#B45309", fontWeight: 700 }}>
-                      {asg.status}
+            {assignments.length === 0 ? (
+              <div style={{ padding: "32px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>
+                No active coursework records found. Click "+ New Coursework" to publish assignments across sections.
+              </div>
+            ) : (
+              assignments.map((asg) => (
+                <div key={asg.id} style={{ padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)" }}>{asg.class} · {asg.subject}</span>
+                      <h4 style={{ margin: "2px 0", fontSize: "14.5px", fontWeight: 800, color: "#0c1e33" }}>{asg.title}</h4>
+                      <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Faculty: <b>{asg.teacher}</b> · Due: <b>{asg.dueDate}</b></span>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <span style={{ fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>
+                        {asg.submitted} / {asg.total} ({asg.completionPct}%)
+                      </span>
+                      <div style={{ fontSize: "11px", color: asg.status === "Graded" ? "#047857" : "#B45309", fontWeight: 700 }}>
+                        {asg.status}
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                <div style={{ width: "100%", height: "6px", background: "#E2DDD5", borderRadius: "3px", margin: "10px 0 6px", overflow: "hidden" }}>
-                  <div style={{ width: `${asg.completionPct}%`, height: "100%", background: "#064E3B" }} />
-                </div>
+                  <div style={{ width: "100%", height: "6px", background: "#e4e6e9", borderRadius: "3px", margin: "10px 0 6px", overflow: "hidden" }}>
+                    <div style={{ width: `${asg.completionPct}%`, height: "100%", background: "#0c1e33" }} />
+                  </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11.5px", color: "var(--muted)" }}>
-                  <span>{asg.total - asg.submitted} students pending submission</span>
-                  <button style={{ background: "transparent", border: "none", color: "#064E3B", fontWeight: 700, cursor: "pointer" }}>
-                    View Student Drilldown ↗
-                  </button>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11.5px", color: "var(--muted)" }}>
+                    <span>{asg.total - asg.submitted} students pending submission</span>
+                    <button style={{ background: "transparent", border: "none", color: "#0c1e33", fontWeight: 700, cursor: "pointer" }}>
+                      View Student Drilldown ↗
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}
 
       {/* 2. EXAMINATIONS SCHEDULE TAB */}
       {subtab === "exams" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>School Examination Windows & Cycles</h3>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>School Examination Windows &amp; Cycles</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Unit Tests, Periodic Assessments, Half-Yearly and Annual CBSE Examination Cycles</p>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
-            <thead>
-              <tr style={{ borderBottom: "2px solid #E2DDD5", color: "var(--muted)" }}>
-                <th style={{ padding: "10px" }}>Exam Name</th>
-                <th style={{ padding: "10px" }}>Exam Type</th>
-                <th style={{ padding: "10px" }}>Applicable Grades</th>
-                <th style={{ padding: "10px" }}>Dates Window</th>
-                <th style={{ padding: "10px" }}>Passing Criteria</th>
-                <th style={{ padding: "10px" }}>Result Status</th>
-                <th style={{ padding: "10px", textAlign: "right" }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {exams.map((ex) => (
-                <tr key={ex.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
-                  <td style={{ padding: "12px 10px" }}>
-                    <b>{ex.name}</b>
-                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>Session: {ex.academicYear}</div>
-                  </td>
-                  <td style={{ padding: "12px 10px" }}>{ex.examType}</td>
-                  <td style={{ padding: "12px 10px" }}>{ex.grade}</td>
-                  <td style={{ padding: "12px 10px" }}>{ex.startDate} → {ex.endDate}</td>
-                  <td style={{ padding: "12px 10px" }}><b>{ex.passingMarks}</b> / {ex.totalMarks} (33%)</td>
-                  <td style={{ padding: "12px 10px" }}>
-                    <span style={{
-                      padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700,
-                      background: ex.isPublished ? "#ECFDF5" : "#FEF3C7",
-                      color: ex.isPublished ? "#064E3B" : "#92400E",
-                    }}>
-                      {ex.isPublished ? "Results Published" : "Marks In Progress"}
-                    </span>
-                  </td>
-                  <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                    <button style={{ padding: "4px 8px", background: "#FAF8F5", border: "1px solid #E2DDD5", color: "#064E3B", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}>
-                      Manage Subjects
-                    </button>
-                  </td>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
+                  <th style={{ padding: "10px" }}>Exam Name</th>
+                  <th style={{ padding: "10px" }}>Exam Type</th>
+                  <th style={{ padding: "10px" }}>Applicable Grades</th>
+                  <th style={{ padding: "10px" }}>Dates Window</th>
+                  <th style={{ padding: "10px" }}>Passing Criteria</th>
+                  <th style={{ padding: "10px" }}>Result Status</th>
+                  <th style={{ padding: "10px", textAlign: "right" }}>Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {exams.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ padding: "24px", textAlign: "center", color: "var(--muted)" }}>
+                      No examination cycles scheduled. Click "Schedule New Exam" above.
+                    </td>
+                  </tr>
+                ) : (
+                  exams.map((ex) => (
+                    <tr key={ex.id} style={{ borderBottom: "1px solid #f4f6f7" }}>
+                      <td style={{ padding: "12px 10px" }}>
+                        <b style={{ color: "#0c1e33" }}>{ex.name}</b>
+                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>Session: {ex.academicYear}</div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>{ex.examType}</td>
+                      <td style={{ padding: "12px 10px" }}>{ex.grade}</td>
+                      <td style={{ padding: "12px 10px" }}>{ex.startDate} → {ex.endDate}</td>
+                      <td style={{ padding: "12px 10px" }}><b>{ex.passingMarks}</b> / {ex.totalMarks} (33%)</td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <span style={{
+                          padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700,
+                          background: ex.isPublished ? "#ECFDF5" : "#FEF3C7",
+                          color: ex.isPublished ? "#047857" : "#92400E",
+                        }}>
+                          {ex.isPublished ? "Results Published" : "Marks In Progress"}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px 10px", textAlign: "right" }}>
+                        <button style={{ padding: "4px 8px", background: "#f8fafc", border: "1px solid #e4e6e9", color: "#0c1e33", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}>
+                          Manage Subjects
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
-      {subtab==='results'&&<RecordList title="Saved exam results" rows={data?.results || []} columns={[["exam","Exam"],["subject","Subject"],["student","Student"],["score","Marks"],["max","Maximum"],["status","Status"]]}/>}
+      {/* 3. SAVED EXAM RESULTS TAB */}
+      {subtab === "results" && (
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Saved Examination Results &amp; Report Cards</h3>
+          <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Verified student scores and academic performance archives</p>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+              <thead>
+                <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
+                  <th style={{ padding: "10px" }}>Exam</th>
+                  <th style={{ padding: "10px" }}>Subject</th>
+                  <th style={{ padding: "10px" }}>Student</th>
+                  <th style={{ padding: "10px" }}>Marks Obtained</th>
+                  <th style={{ padding: "10px" }}>Maximum Marks</th>
+                  <th style={{ padding: "10px" }}>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(!data?.results || data.results.length === 0) ? (
+                  <tr>
+                    <td colSpan={6} style={{ padding: "24px", textAlign: "center", color: "var(--muted)" }}>
+                      No examination scores currently published for this session.
+                    </td>
+                  </tr>
+                ) : (
+                  data.results.map((res: any, idx: number) => (
+                    <tr key={idx} style={{ borderBottom: "1px solid #f4f6f7" }}>
+                      <td style={{ padding: "12px 10px", fontWeight: 600, color: "#0c1e33" }}>{res.exam}</td>
+                      <td style={{ padding: "12px 10px", color: "#334155" }}>{res.subject}</td>
+                      <td style={{ padding: "12px 10px", fontWeight: 600, color: "#0c1e33" }}>{res.student}</td>
+                      <td style={{ padding: "12px 10px", fontWeight: 700, color: "#047857" }}>{res.score}</td>
+                      <td style={{ padding: "12px 10px", color: "var(--muted)" }}>{res.max}</td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, background: "#ECFDF5", color: "#047857" }}>
+                          {res.status || "Finalized"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* Coursework Modal */}
       {showCourseworkModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
-          <div style={{ background: "#FFFFFF", borderRadius: "12px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.2)", overflow: "hidden" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #E2DDD5", background: "#FAF8F5" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(12, 30, 51, 0.45)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+          <div style={{ background: "#FFFFFF", borderRadius: "14px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #e4e6e9", background: "#f8fafc" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <BookOpen size={18} color="#064E3B" />
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#064E3B" }}>Create New Coursework</h3>
+                <BookOpen size={18} color="#0c1e33" />
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0c1e33" }}>Create New Coursework</h3>
               </div>
               <button onClick={() => setShowCourseworkModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#667085" }}>
                 <X size={18} />
@@ -314,7 +523,7 @@ export function LearningExamsPane({
                     required
                     value={asgSectionId}
                     onChange={(e) => setAsgSectionId(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px", background: "#FFFFFF" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px", background: "#FFFFFF" }}
                   >
                     <option value="">Select section...</option>
                     {sections.map((s: any) => (
@@ -329,7 +538,7 @@ export function LearningExamsPane({
                     required
                     value={asgSubjectId}
                     onChange={(e) => setAsgSubjectId(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px", background: "#FFFFFF" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px", background: "#FFFFFF" }}
                   >
                     <option value="">Select subject...</option>
                     {subjects.map((sub: any) => (
@@ -347,7 +556,7 @@ export function LearningExamsPane({
                   value={asgTitle}
                   onChange={(e) => setAsgTitle(e.target.value)}
                   placeholder="e.g. Real Numbers Practice Set & Proofs"
-                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                 />
               </label>
 
@@ -358,7 +567,7 @@ export function LearningExamsPane({
                   value={asgDesc}
                   onChange={(e) => setAsgDesc(e.target.value)}
                   placeholder="Instructions for students..."
-                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px", resize: "vertical" }}
+                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px", resize: "vertical" }}
                 />
               </label>
 
@@ -370,7 +579,7 @@ export function LearningExamsPane({
                     required
                     value={asgDueAt}
                     onChange={(e) => setAsgDueAt(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
 
@@ -382,23 +591,23 @@ export function LearningExamsPane({
                     max="1000"
                     value={asgMaxScore}
                     onChange={(e) => setAsgMaxScore(Number(e.target.value))}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "8px", borderTop: "1px solid #EAECF0" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "8px", borderTop: "1px solid #e4e6e9" }}>
                 <button
                   type="button"
                   onClick={() => setShowCourseworkModal(false)}
-                  style={{ padding: "8px 14px", borderRadius: "6px", border: "1px solid #D0D5DD", background: "#FFFFFF", fontSize: "12.5px", fontWeight: 600, cursor: "pointer" }}
+                  style={{ padding: "8px 14px", borderRadius: "6px", border: "1px solid #e4e6e9", background: "#f8fafc", fontSize: "12.5px", fontWeight: 600, cursor: "pointer" }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={busy}
-                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#064E3B", color: "#F8E7C9", fontSize: "12.5px", fontWeight: 700, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1 }}
+                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#0c1e33", color: "#ffffff", fontSize: "12.5px", fontWeight: 700, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1 }}
                 >
                   {busy ? "Publishing..." : "Publish Coursework"}
                 </button>
@@ -410,12 +619,12 @@ export function LearningExamsPane({
 
       {/* Schedule Exam Modal */}
       {showExamModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
-          <div style={{ background: "#FFFFFF", borderRadius: "12px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.2)", overflow: "hidden" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #E2DDD5", background: "#FAF8F5" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(12, 30, 51, 0.45)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+          <div style={{ background: "#FFFFFF", borderRadius: "14px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #e4e6e9", background: "#f8fafc" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <Award size={18} color="#064E3B" />
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#064E3B" }}>Schedule School Examination</h3>
+                <Award size={18} color="#0c1e33" />
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0c1e33" }}>Schedule School Examination</h3>
               </div>
               <button onClick={() => setShowExamModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#667085" }}>
                 <X size={18} />
@@ -430,7 +639,7 @@ export function LearningExamsPane({
                     required
                     value={examSectionId}
                     onChange={(e) => setExamSectionId(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px", background: "#FFFFFF" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px", background: "#FFFFFF" }}
                   >
                     <option value="">Select section...</option>
                     {sections.map((s: any) => (
@@ -445,7 +654,7 @@ export function LearningExamsPane({
                     required
                     value={examSubjectId}
                     onChange={(e) => setExamSubjectId(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px", background: "#FFFFFF" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px", background: "#FFFFFF" }}
                   >
                     <option value="">Select subject...</option>
                     {subjects.map((sub: any) => (
@@ -464,7 +673,7 @@ export function LearningExamsPane({
                     value={examName}
                     onChange={(e) => setExamName(e.target.value)}
                     placeholder="e.g. Periodic Assessment 2"
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
 
@@ -476,7 +685,7 @@ export function LearningExamsPane({
                     value={examTerm}
                     onChange={(e) => setExamTerm(e.target.value)}
                     placeholder="e.g. Term 1"
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
               </div>
@@ -489,7 +698,7 @@ export function LearningExamsPane({
                     required
                     value={examDate}
                     onChange={(e) => setExamDate(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
 
@@ -500,7 +709,7 @@ export function LearningExamsPane({
                     required
                     value={examStartTime}
                     onChange={(e) => setExamStartTime(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
 
@@ -511,7 +720,7 @@ export function LearningExamsPane({
                     required
                     value={examEndTime}
                     onChange={(e) => setExamEndTime(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
               </div>
@@ -524,22 +733,22 @@ export function LearningExamsPane({
                   max="1000"
                   value={examMaxMarks}
                   onChange={(e) => setExamMaxMarks(Number(e.target.value))}
-                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                 />
               </label>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "8px", borderTop: "1px solid #EAECF0" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "8px", borderTop: "1px solid #e4e6e9" }}>
                 <button
                   type="button"
                   onClick={() => setShowExamModal(false)}
-                  style={{ padding: "8px 14px", borderRadius: "6px", border: "1px solid #D0D5DD", background: "#FFFFFF", fontSize: "12.5px", fontWeight: 600, cursor: "pointer" }}
+                  style={{ padding: "8px 14px", borderRadius: "6px", border: "1px solid #e4e6e9", background: "#f8fafc", fontSize: "12.5px", fontWeight: 600, cursor: "pointer" }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={busy}
-                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#064E3B", color: "#F8E7C9", fontSize: "12.5px", fontWeight: 700, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1 }}
+                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#0c1e33", color: "#ffffff", fontSize: "12.5px", fontWeight: 700, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1 }}
                 >
                   {busy ? "Scheduling..." : "Schedule Exam"}
                 </button>

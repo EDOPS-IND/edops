@@ -271,8 +271,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
             position: "fixed",
             bottom: "24px",
             right: "24px",
-            background: "#064E3B",
-            color: "#F8E7C9",
+            background: "#0c1e33",
+            color: "#ffffff",
             padding: "12px 20px",
             borderRadius: "8px",
             boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
@@ -295,7 +295,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          borderBottom: "1px solid #E2DDD5",
+          borderBottom: "1px solid #e4e6e9",
           paddingBottom: "12px",
           flexWrap: "wrap",
           gap: "10px",
@@ -311,14 +311,15 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
               key={tab.id}
               onClick={() => setSubtab(tab.id as any)}
               style={{
-                padding: "8px 14px",
+                padding: "8px 16px",
                 borderRadius: "8px",
                 fontSize: "13px",
-                fontWeight: subtab === tab.id ? 750 : 600,
-                background: subtab === tab.id ? "#064E3B" : "transparent",
-                color: subtab === tab.id ? "#F8E7C9" : "#064E3B",
+                fontWeight: subtab === tab.id ? 700 : 500,
+                background: subtab === tab.id ? "#0c1e33" : "transparent",
+                color: subtab === tab.id ? "#ffffff" : "#4a5568",
                 border: "none",
                 cursor: "pointer",
+                transition: "all 0.15s ease",
               }}
             >
               {tab.label}
@@ -330,8 +331,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
           onClick={() => openPaymentForDue()}
           style={{
             padding: "8px 16px",
-            background: "#064E3B",
-            color: "#F8E7C9",
+            background: "#0c1e33",
+            color: "#ffffff",
             border: "none",
             borderRadius: "8px",
             fontSize: "12.5px",
@@ -349,61 +350,160 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
       {/* 1. FEE COLLECTIONS OVERVIEW */}
       {subtab === "dashboard" && (
         <div style={{ display: "grid", gap: "20px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Q3 Expected Target</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+            {/* 1. Target Fee (Pastel Violet) */}
+            <article
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: "#e1d2ff",
+                border: "1px solid #e1d2ff",
+                borderRadius: "10px",
+                color: "#4a0e8f",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Expected Realization Target
+                </span>
+                <CreditCard size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "32px", fontWeight: 700, lineHeight: 1, color: "#4a0e8f" }}>
                 ₹{(financeData?.dues || []).reduce((sum: number, d: any) => sum + Number(d.total_due || 0), 0).toLocaleString("en-IN")}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "11px" }}>Total assessed tuition &amp; services</span>
+                <span style={{ fontSize: "11px", fontWeight: 600 }}>Assessed</span>
               </div>
-              <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Total Tuition & Transports</span>
-            </div>
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Total Collected</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>
+            </article>
+
+            {/* 2. Total Collected (Pastel Mint) */}
+            <article
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: "#ccefbf",
+                border: "1px solid #ccefbf",
+                borderRadius: "10px",
+                color: "#1a5c0a",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Realized Collections
+                </span>
+                <CheckCircle2 size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "32px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
                 ₹{(financeData?.dues || []).reduce((sum: number, d: any) => sum + Number(d.amount_paid || 0), 0).toLocaleString("en-IN")}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "11px" }}>Bank &amp; Bursar deposits cleared</span>
+                <span style={{ fontSize: "11px", fontWeight: 600 }}>Cleared</span>
               </div>
-              <span style={{ fontSize: "11.5px", color: "#064E3B", fontWeight: 700 }}>Saved collections</span>
-            </div>
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Pending / Overdue</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#B45309", margin: "4px 0" }}>
+            </article>
+
+            {/* 3. Overdue Balance (Pastel Coral) */}
+            <article
+              onClick={() => setSubtab("defaulters")}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: "#ffd6d6",
+                border: "1px solid #ffd6d6",
+                borderRadius: "10px",
+                color: "#7a1a1a",
+                cursor: "pointer",
+                transition: "transform 0.15s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Overdue Balance
+                </span>
+                <AlertTriangle size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "32px", fontWeight: 700, lineHeight: 1, color: "#7a1a1a" }}>
                 ₹{totalPending.toLocaleString("en-IN")}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "11px" }}>{defaulters.filter((d) => d.amountDue > 0).length} unpaid student accounts</span>
+                <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+                  Defaulters <ArrowRight size={13} />
+                </span>
               </div>
-              <span style={{ fontSize: "11.5px", color: "#B45309", fontWeight: 700 }}>
-                {defaulters.filter((d) => d.amountDue > 0).length} unpaid accounts
-              </span>
-            </div>
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
-              <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 650 }}>Active Fee Structures</span>
-              <div style={{ fontSize: "26px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>
+            </article>
+
+            {/* 4. Active Fee Structures (Pastel Sky) */}
+            <article
+              onClick={() => setSubtab("structure")}
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: "#bae5f5",
+                border: "1px solid #bae5f5",
+                borderRadius: "10px",
+                color: "#0a5a7a",
+                cursor: "pointer",
+                transition: "transform 0.15s ease",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Active Fee Structures
+                </span>
+                <CreditCard size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "32px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
                 {feeStructures.length}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "11px" }}>Configured across classes</span>
+                <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+                  Structures <ArrowRight size={13} />
+                </span>
               </div>
-              <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Configured across classes</span>
-            </div>
+            </article>
           </div>
 
-          <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
-            <h3 style={{ margin: "0 0 14px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
+          <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+            <h3 style={{ margin: "0 0 14px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>
               Collection Trends by Class
             </h3>
             {collectionTrends.length > 0 ? (
               <div style={{ display: "grid", gap: "10px" }}>
                 {collectionTrends.map((w, idx) => (
-                  <div key={idx} style={{ padding: "12px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E2DDD5" }}>
+                  <div key={idx} style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: "13px" }}>
-                      <b>{w.wing}</b>
-                      <span style={{ fontWeight: 700, color: "#064E3B" }}>
+                      <b style={{ color: "#0c1e33" }}>{w.wing}</b>
+                      <span style={{ fontWeight: 700, color: "#047857" }}>
                         {w.collected} / {w.total} ({w.pct}%)
                       </span>
                     </div>
-                    <div style={{ width: "100%", height: "6px", background: "#E2DDD5", borderRadius: "3px", marginTop: "8px", overflow: "hidden" }}>
-                      <div style={{ width: `${w.pct}%`, height: "100%", background: "#064E3B" }} />
+                    <div style={{ width: "100%", height: "6px", background: "#e4e6e9", borderRadius: "3px", marginTop: "8px", overflow: "hidden" }}>
+                      <div style={{ width: `${w.pct}%`, height: "100%", background: "#0c1e33" }} />
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div style={{ color: "var(--muted)", fontSize: "13px", padding: "20px", textAlign: "center", background: "#FAF8F5", borderRadius: "8px" }}>
+              <div style={{ color: "var(--muted)", fontSize: "13px", padding: "20px", textAlign: "center", background: "#f8fafc", borderRadius: "8px" }}>
                 No fee collection activity recorded yet.
               </div>
             )}
@@ -413,10 +513,10 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
 
       {/* 2. FEE DEFAULTERS ACTION DESK */}
       {subtab === "defaulters" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Fee Defaulters Desk</h3>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Fee Defaulters Desk</h3>
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>
                 Direct actionable operational triggers: Send Reminder, Record Payment, or Apply Concession
               </p>
@@ -426,8 +526,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
               disabled={batchSending}
               style={{
                 padding: "8px 16px",
-                background: batchSending ? "#9CA3AF" : "#064E3B",
-                color: "#F8E7C9",
+                background: batchSending ? "#9CA3AF" : "#0c1e33",
+                color: "#ffffff",
                 border: "none",
                 borderRadius: "8px",
                 fontSize: "12px",
@@ -445,7 +545,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
 
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #E2DDD5", color: "var(--muted)" }}>
+              <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                 <th style={{ padding: "10px" }}>Student & Admission</th>
                 <th style={{ padding: "10px" }}>Class / Section</th>
                 <th style={{ padding: "10px" }}>Parent / Contact</th>
@@ -464,9 +564,9 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                 </tr>
               ) : (
                 defaulters.map((d) => (
-                  <tr key={d.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
+                  <tr key={d.id} style={{ borderBottom: "1px solid #f4f6f7" }}>
                     <td style={{ padding: "12px 10px" }}>
-                      <b>{d.studentName}</b>
+                      <b style={{ color: "#0c1e33" }}>{d.studentName}</b>
                       <div style={{ fontSize: "11px", color: "var(--muted)" }}>{d.admissionNo}</div>
                     </td>
                     <td style={{ padding: "12px 10px" }}>
@@ -476,7 +576,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                       <div>{d.parentName}</div>
                       <div style={{ fontSize: "11px", color: "var(--muted)" }}>{d.parentPhone}</div>
                     </td>
-                    <td style={{ padding: "12px 10px", fontWeight: 800, color: d.amountDue > 0 ? "#B45309" : "#064E3B" }}>
+                    <td style={{ padding: "12px 10px", fontWeight: 800, color: d.amountDue > 0 ? "#B45309" : "#047857" }}>
                       ₹{d.amountDue.toLocaleString("en-IN")}
                     </td>
                     <td style={{ padding: "12px 10px" }}>
@@ -494,7 +594,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                           {d.daysOverdue} Days Late
                         </span>
                       ) : (
-                        <span style={{ color: "#064E3B", fontSize: "11.5px", fontWeight: 700 }}>Paid</span>
+                        <span style={{ color: "#047857", fontSize: "11.5px", fontWeight: 700 }}>Paid</span>
                       )}
                     </td>
                     <td style={{ padding: "12px 10px", color: "var(--muted)", fontSize: "12px" }}>{d.lastPaymentDate || "—"}</td>
@@ -504,8 +604,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                           onClick={() => openPaymentForDue(d)}
                           style={{
                             padding: "5px 10px",
-                            background: "#064E3B",
-                            color: "#F8E7C9",
+                            background: "#0c1e33",
+                            color: "#ffffff",
                             border: "none",
                             borderRadius: "6px",
                             fontSize: "11px",
@@ -519,9 +619,9 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                           onClick={() => handleSendReminder(d.id)}
                           style={{
                             padding: "5px 10px",
-                            background: "#FAF8F5",
-                            border: "1px solid #E2DDD5",
-                            color: "#064E3B",
+                            background: "#f8fafc",
+                            border: "1px solid #e4e6e9",
+                            color: "#0c1e33",
                             borderRadius: "6px",
                             fontSize: "11px",
                             fontWeight: 700,
@@ -534,9 +634,9 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                           onClick={() => openConcession(d)}
                           style={{
                             padding: "5px 10px",
-                            background: "#FAF8F5",
-                            border: "1px solid #E2DDD5",
-                            color: "#064E3B",
+                            background: "#f8fafc",
+                            border: "1px solid #e4e6e9",
+                            color: "#0c1e33",
                             borderRadius: "6px",
                             fontSize: "11px",
                             fontWeight: 700,
@@ -557,10 +657,10 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
 
       {/* 3. CLASS FEE STRUCTURES */}
       {subtab === "structure" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
             <div>
-              <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
+              <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>
                 Class-Wise Fee Structures & Head Allocations
               </h3>
               <p style={{ margin: 0, fontSize: "12px", color: "var(--muted)" }}>
@@ -571,8 +671,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
               onClick={() => setShowStructureModal(true)}
               style={{
                 padding: "8px 16px",
-                background: "#064E3B",
-                color: "#F8E7C9",
+                background: "#0c1e33",
+                color: "#ffffff",
                 border: "none",
                 borderRadius: "8px",
                 fontSize: "12.5px",
@@ -589,7 +689,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
 
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #E2DDD5", color: "var(--muted)" }}>
+              <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                 <th style={{ padding: "10px" }}>Class / Stream</th>
                 <th style={{ padding: "10px" }}>Tuition Fee</th>
                 <th style={{ padding: "10px" }}>Annual Fee</th>
@@ -608,13 +708,13 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                 </tr>
               ) : (
                 feeStructures.map((f) => (
-                  <tr key={f.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
-                    <td style={{ padding: "12px 10px", fontWeight: 700, color: "#064E3B" }}>{f.grade}</td>
+                  <tr key={f.id} style={{ borderBottom: "1px solid #f4f6f7" }}>
+                    <td style={{ padding: "12px 10px", fontWeight: 700, color: "#0c1e33" }}>{f.grade}</td>
                     <td style={{ padding: "12px 10px" }}>₹{f.tuitionFee.toLocaleString("en-IN")}</td>
                     <td style={{ padding: "12px 10px" }}>₹{f.annualFee.toLocaleString("en-IN")}</td>
                     <td style={{ padding: "12px 10px" }}>₹{f.transportFee.toLocaleString("en-IN")}</td>
                     <td style={{ padding: "12px 10px" }}>₹{f.examFee.toLocaleString("en-IN")}</td>
-                    <td style={{ padding: "12px 10px", fontWeight: 800, color: "#064E3B" }}>
+                    <td style={{ padding: "12px 10px", fontWeight: 800, color: "#0c1e33" }}>
                       ₹{f.totalFee.toLocaleString("en-IN")}
                     </td>
                     <td style={{ padding: "12px 10px" }}>{f.frequency}</td>
@@ -632,7 +732,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.5)",
+            background: "rgba(12, 30, 51, 0.45)",
+            backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -643,15 +744,15 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
           <div
             style={{
               background: "#FFFFFF",
-              borderRadius: "12px",
+              borderRadius: "14px",
               padding: "24px",
               maxWidth: "500px",
               width: "100%",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+              boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>
                 Record Offline Counter Payment
               </h3>
               <button
@@ -681,7 +782,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                     width: "100%",
                     padding: "8px 10px",
                     borderRadius: "6px",
-                    border: "1px solid #E2DDD5",
+                    border: "1px solid #e4e6e9",
                     fontSize: "13px",
                   }}
                 >
@@ -709,7 +810,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                     width: "100%",
                     padding: "8px 10px",
                     borderRadius: "6px",
-                    border: "1px solid #E2DDD5",
+                    border: "1px solid #e4e6e9",
                     fontSize: "13px",
                   }}
                 />
@@ -727,7 +828,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                       width: "100%",
                       padding: "8px 10px",
                       borderRadius: "6px",
-                      border: "1px solid #E2DDD5",
+                      border: "1px solid #e4e6e9",
                       fontSize: "13px",
                     }}
                   >
@@ -753,7 +854,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                       width: "100%",
                       padding: "8px 10px",
                       borderRadius: "6px",
-                      border: "1px solid #E2DDD5",
+                      border: "1px solid #e4e6e9",
                       fontSize: "13px",
                     }}
                   />
@@ -773,7 +874,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                     width: "100%",
                     padding: "8px 10px",
                     borderRadius: "6px",
-                    border: "1px solid #E2DDD5",
+                    border: "1px solid #e4e6e9",
                     fontSize: "13px",
                   }}
                 />
@@ -786,8 +887,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                   style={{
                     padding: "8px 14px",
                     borderRadius: "6px",
-                    border: "1px solid #E2DDD5",
-                    background: "#FAF8F5",
+                    border: "1px solid #e4e6e9",
+                    background: "#f8fafc",
                     fontSize: "13px",
                     cursor: "pointer",
                   }}
@@ -801,8 +902,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                     padding: "8px 16px",
                     borderRadius: "6px",
                     border: "none",
-                    background: "#064E3B",
-                    color: "#F8E7C9",
+                    background: "#0c1e33",
+                    color: "#ffffff",
                     fontSize: "13px",
                     fontWeight: 700,
                     cursor: submittingPayment ? "not-allowed" : "pointer",
@@ -822,7 +923,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.5)",
+            background: "rgba(12, 30, 51, 0.45)",
+            backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -833,15 +935,15 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
           <div
             style={{
               background: "#FFFFFF",
-              borderRadius: "12px",
+              borderRadius: "14px",
               padding: "24px",
               maxWidth: "460px",
               width: "100%",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+              boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>
                 Grant Fee Concession
               </h3>
               <button
@@ -854,8 +956,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
 
             <div
               style={{
-                background: "#FAF8F5",
-                border: "1px solid #E2DDD5",
+                background: "#f8fafc",
+                border: "1px solid #e4e6e9",
                 borderRadius: "8px",
                 padding: "12px",
                 marginBottom: "14px",
@@ -887,7 +989,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                     width: "100%",
                     padding: "8px 10px",
                     borderRadius: "6px",
-                    border: "1px solid #E2DDD5",
+                    border: "1px solid #e4e6e9",
                     fontSize: "13px",
                   }}
                 />
@@ -907,7 +1009,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                     width: "100%",
                     padding: "8px 10px",
                     borderRadius: "6px",
-                    border: "1px solid #E2DDD5",
+                    border: "1px solid #e4e6e9",
                     fontSize: "13px",
                   }}
                 />
@@ -920,8 +1022,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                   style={{
                     padding: "8px 14px",
                     borderRadius: "6px",
-                    border: "1px solid #E2DDD5",
-                    background: "#FAF8F5",
+                    border: "1px solid #e4e6e9",
+                    background: "#f8fafc",
                     fontSize: "13px",
                     cursor: "pointer",
                   }}
@@ -935,8 +1037,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                     padding: "8px 16px",
                     borderRadius: "6px",
                     border: "none",
-                    background: "#064E3B",
-                    color: "#F8E7C9",
+                    background: "#0c1e33",
+                    color: "#ffffff",
                     fontSize: "13px",
                     fontWeight: 700,
                     cursor: submittingConcession ? "not-allowed" : "pointer",
@@ -956,7 +1058,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.5)",
+            background: "rgba(12, 30, 51, 0.45)",
+            backdropFilter: "blur(4px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -967,15 +1070,15 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
           <div
             style={{
               background: "#FFFFFF",
-              borderRadius: "12px",
+              borderRadius: "14px",
               padding: "24px",
               maxWidth: "540px",
               width: "100%",
-              boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+              boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>
                 Add Class Fee Structure
               </h3>
               <button
@@ -1001,7 +1104,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                     width: "100%",
                     padding: "8px 10px",
                     borderRadius: "6px",
-                    border: "1px solid #E2DDD5",
+                    border: "1px solid #e4e6e9",
                     fontSize: "13px",
                   }}
                 />
@@ -1016,13 +1119,13 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                     <span
                       style={{
                         padding: "8px 10px",
-                        background: "#FAF8F5",
-                        border: "1px solid #E2DDD5",
+                        background: "#f8fafc",
+                        border: "1px solid #e4e6e9",
                         borderRight: "none",
                         borderRadius: "6px 0 0 6px",
                         fontSize: "13px",
                         fontWeight: 700,
-                        color: "#064E3B",
+                        color: "#0c1e33",
                       }}
                     >
                       Class
@@ -1039,7 +1142,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                         width: "100%",
                         padding: "8px 10px",
                         borderRadius: "0 6px 6px 0",
-                        border: "1px solid #E2DDD5",
+                        border: "1px solid #e4e6e9",
                         fontSize: "13px",
                       }}
                     />
@@ -1057,7 +1160,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                       width: "100%",
                       padding: "8px 10px",
                       borderRadius: "6px",
-                      border: "1px solid #E2DDD5",
+                      border: "1px solid #e4e6e9",
                       fontSize: "13px",
                     }}
                   >
@@ -1086,7 +1189,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                       width: "100%",
                       padding: "8px 10px",
                       borderRadius: "6px",
-                      border: "1px solid #E2DDD5",
+                      border: "1px solid #e4e6e9",
                       fontSize: "13px",
                     }}
                   />
@@ -1106,7 +1209,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                       width: "100%",
                       padding: "8px 10px",
                       borderRadius: "6px",
-                      border: "1px solid #E2DDD5",
+                      border: "1px solid #e4e6e9",
                       fontSize: "13px",
                     }}
                   />
@@ -1128,7 +1231,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                       width: "100%",
                       padding: "8px 10px",
                       borderRadius: "6px",
-                      border: "1px solid #E2DDD5",
+                      border: "1px solid #e4e6e9",
                       fontSize: "13px",
                     }}
                   />
@@ -1148,7 +1251,7 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                       width: "100%",
                       padding: "8px 10px",
                       borderRadius: "6px",
-                      border: "1px solid #E2DDD5",
+                      border: "1px solid #e4e6e9",
                       fontSize: "13px",
                     }}
                   />
@@ -1157,15 +1260,15 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
 
               <div
                 style={{
-                  background: "#FAF8F5",
-                  border: "1px solid #E2DDD5",
+                  background: "#f8fafc",
+                  border: "1px solid #e4e6e9",
                   borderRadius: "8px",
                   padding: "10px 14px",
                   display: "flex",
                   justifyContent: "space-between",
                   fontSize: "13px",
                   fontWeight: 750,
-                  color: "#064E3B",
+                  color: "#0c1e33",
                 }}
               >
                 <span>Calculated Annual Total:</span>
@@ -1187,8 +1290,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                   style={{
                     padding: "8px 14px",
                     borderRadius: "6px",
-                    border: "1px solid #E2DDD5",
-                    background: "#FAF8F5",
+                    border: "1px solid #e4e6e9",
+                    background: "#f8fafc",
                     fontSize: "13px",
                     cursor: "pointer",
                   }}
@@ -1202,8 +1305,8 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
                     padding: "8px 16px",
                     borderRadius: "6px",
                     border: "none",
-                    background: "#064E3B",
-                    color: "#F8E7C9",
+                    background: "#0c1e33",
+                    color: "#ffffff",
                     fontSize: "13px",
                     fontWeight: 700,
                     cursor: submittingStructure ? "not-allowed" : "pointer",

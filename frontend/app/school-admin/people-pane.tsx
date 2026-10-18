@@ -16,6 +16,7 @@ import {
   getSchoolAdminDepartments,
   updateParentChildren,
   updateTeacherEmployment,
+  getStudentAvatarUrl,
 } from "../edops-api";
 import {
   Users,
@@ -229,7 +230,7 @@ export function PeoplePane({
   return (
     <div style={{ display: "grid", gap: "20px" }}>
       {/* Subtab Selector */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E2DDD5", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E4E6E9", paddingBottom: "14px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "students", label: `Students (${students.length})`, icon: GraduationCap },
@@ -251,11 +252,24 @@ export function PeoplePane({
                   padding: "8px 14px",
                   borderRadius: "8px",
                   fontSize: "13px",
-                  fontWeight: active ? 750 : 600,
-                  background: active ? "#064E3B" : "transparent",
-                  color: active ? "#F8E7C9" : "#064E3B",
+                  fontWeight: active ? 600 : 500,
+                  background: active ? "#0c1e33" : "transparent",
+                  color: active ? "#ffffff" : "#495d72",
                   border: "none",
                   cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.background = "#f4f6f7";
+                    e.currentTarget.style.color = "#0c1e33";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    e.currentTarget.style.background = "transparent";
+                    e.currentTarget.style.color = "#495d72";
+                  }
                 }}
               >
                 <Icon size={15} />
@@ -271,17 +285,20 @@ export function PeoplePane({
               onClick={() => onOpenQuickAction("addPrincipal")}
               style={{
                 padding: "8px 14px",
-                background: "#FAF8F5",
-                color: "#064E3B",
-                border: "1px solid #E2DDD5",
+                background: "#ffffff",
+                color: "#0c1e33",
+                border: "1px solid #CED8E5",
                 borderRadius: "8px",
                 fontSize: "12.5px",
-                fontWeight: 700,
+                fontWeight: 600,
                 cursor: "pointer",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
+                transition: "background 0.12s ease",
               }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f4f6f7")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
             >
               <Plus size={15} />
               Add Principal
@@ -297,17 +314,21 @@ export function PeoplePane({
             }}
             style={{
               padding: "8px 16px",
-              background: "#064E3B",
-              color: "#F8E7C9",
+              background: "#0c1e33",
+              color: "#ffffff",
               border: "none",
               borderRadius: "8px",
               fontSize: "12.5px",
-              fontWeight: 700,
+              fontWeight: 600,
               cursor: "pointer",
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
+              boxShadow: "0 1px 2px rgba(12, 30, 51, 0.08)",
+              transition: "background 0.15s ease",
             }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "#0c1e33")}
           >
             <Plus size={15} />
             {subtab === "students" ? "Add Student" : subtab === "teachers" ? "Add Teacher" : subtab === "staff" ? "Add Staff" : subtab === "parents" ? "Map Parent" : "New Department"}
@@ -315,11 +336,146 @@ export function PeoplePane({
         </div>
       </div>
 
+      {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+        {/* Card 1: Total Directory Records (Pastel Violet) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#e1d2ff",
+            border: "1px solid #e1d2ff",
+            borderRadius: "10px",
+            color: "#4a0e8f",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {subtab === "students" ? "Total Students" : subtab === "teachers" ? "Instructional Faculty" : subtab === "staff" ? "Support Staff" : subtab === "parents" ? "Mapped Guardians" : "Academic Units"}
+            </span>
+            <Users size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#4a0e8f" }}>
+            {subtab === "students" ? students.length : subtab === "teachers" ? teachers.length : subtab === "staff" ? staff.length : subtab === "parents" ? parents.length : departments.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Active in campus ledger</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Directory</span>
+          </div>
+        </article>
+
+        {/* Card 2: Active Turnout / Regular (Pastel Mint) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ccefbf",
+            border: "1px solid #ccefbf",
+            borderRadius: "10px",
+            color: "#1a5c0a",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {subtab === "students" ? "Good Attendance" : subtab === "teachers" ? "Regular Status" : subtab === "staff" ? "Full-Time Shift" : subtab === "parents" ? "Verified Contacts" : "Core Programs"}
+            </span>
+            <UserCheck size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
+            {subtab === "students"
+              ? students.filter((s) => !s.attendanceRate || parseFloat(String(s.attendanceRate)) >= 75).length
+              : subtab === "teachers"
+              ? teachers.filter((t) => t.employmentType === "Regular Faculty").length
+              : subtab === "staff"
+              ? staff.filter((s) => s.employmentType === "Full Time").length
+              : subtab === "parents"
+              ? parents.filter((p) => p.mobile).length
+              : departments.length}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Verified compliance standing</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Status</span>
+          </div>
+        </article>
+
+        {/* Card 3: Associated Records (Pastel Sky) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#bae5f5",
+            border: "1px solid #bae5f5",
+            borderRadius: "10px",
+            color: "#0a5a7a",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {subtab === "students" ? "Mapped to Guardians" : subtab === "teachers" ? "Assigned Sections" : subtab === "staff" ? "Department Allocation" : subtab === "parents" ? "Linked Students" : "Faculty Affiliated"}
+            </span>
+            <GraduationCap size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
+            {subtab === "students"
+              ? students.filter((s) => s.parentName).length
+              : subtab === "teachers"
+              ? teachers.reduce((acc, t) => acc + (t.assignedClassesCount || 0), 0)
+              : subtab === "staff"
+              ? staff.length
+              : subtab === "parents"
+              ? parents.reduce((acc, p) => acc + (p.children?.length || 0), 0)
+              : departments.length * 3}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Linked institutional mappings</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Linked</span>
+          </div>
+        </article>
+
+        {/* Card 4: Portal & Comms (Pastel Coral) */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: "#ffd8c7",
+            border: "1px solid #ffd8c7",
+            borderRadius: "10px",
+            color: "#782a00",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              {subtab === "students" ? "Transport Roster" : subtab === "teachers" ? "Faculty Workload" : subtab === "staff" ? "Operational Desk" : subtab === "parents" ? "Active App Users" : "Budget Allocation"}
+            </span>
+            <Award size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#782a00" }}>
+            {subtab === "students" ? "Active" : subtab === "teachers" ? "Balanced" : subtab === "staff" ? "Active" : subtab === "parents" ? "Enabled" : "Allocated"}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Institutional operational parity</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Operational</span>
+          </div>
+        </article>
+      </section>
+
       {/* ============================================================== */}
       {/* 1. STUDENTS TAB (, : Roster & Student 360° Profile)       */}
       {/* ============================================================== */}
       {subtab === "students" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           {/* Filter Bar */}
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
             <div style={{ display: "flex", gap: "10px", flex: 1, minWidth: "260px" }}>
@@ -330,13 +486,13 @@ export function PeoplePane({
                   placeholder="Search student by name, admission no, roll no..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  style={{ width: "100%", padding: "7px 10px 7px 32px", borderRadius: "6px", border: "1px solid #E2DDD5", fontSize: "13px" }}
+                  style={{ width: "100%", padding: "7px 10px 7px 32px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                 />
               </div>
               <select
                 value={gradeFilter}
                 onChange={(e) => setGradeFilter(e.target.value)}
-                style={{ padding: "7px 10px", borderRadius: "6px", border: "1px solid #E2DDD5", fontSize: "12.5px", background: "#FFFFFF" }}
+                style={{ padding: "7px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12.5px", background: "#FFFFFF" }}
               >
                 <option value="all">All Grades</option>
                 <option value="10">Grade 10</option>
@@ -351,92 +507,106 @@ export function PeoplePane({
           <div style={{ overflowX: "auto" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "2px solid #E2DDD5", color: "var(--muted)" }}>
-                  <th style={{ padding: "10px" }}>Admission No</th>
-                  <th style={{ padding: "10px" }}>Student Name</th>
-                  <th style={{ padding: "10px" }}>Class / Roll</th>
-                  <th style={{ padding: "10px" }}>Parent / Contact</th>
-                  <th style={{ padding: "10px" }}>Attendance</th>
-                  <th style={{ padding: "10px" }}>Fee Status</th>
-                  <th style={{ padding: "10px" }}>Academic Status</th>
-                  <th style={{ padding: "10px", textAlign: "right" }}>360° Profile</th>
+                <tr style={{ borderBottom: "2px solid #e4e6e9", color: "#495d72", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  <th style={{ padding: "12px 10px" }}>Admission No</th>
+                  <th style={{ padding: "12px 10px" }}>Student Name</th>
+                  <th style={{ padding: "12px 10px" }}>Class / Roll</th>
+                  <th style={{ padding: "12px 10px" }}>Parent / Contact</th>
+                  <th style={{ padding: "12px 10px" }}>Attendance</th>
+                  <th style={{ padding: "12px 10px" }}>Fee Status</th>
+                  <th style={{ padding: "12px 10px" }}>Academic Status</th>
+                  <th style={{ padding: "12px 10px", textAlign: "right" }}>360° Profile</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ padding: "32px 10px", textAlign: "center", color: "var(--muted)" }}>
+                    <td colSpan={8} style={{ padding: "32px 10px", textAlign: "center", color: "#64748b" }}>
                       {loading ? "Loading students..." : "No student records found."}
                     </td>
                   </tr>
                 ) : (
                   filteredStudents.map((s) => (
-                  <tr key={s.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
-                    <td style={{ padding: "12px 10px" }}>
-                      <b>{s.admissionNo}</b>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>House: {s.house}</div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                        <div style={{ width: "30px", height: "30px", borderRadius: "50%", background: "#FDF9F0", display: "grid", placeItems: "center", fontWeight: 700, color: "#064E3B", border: "1px solid #E5CCA2" }}>
-                          {s.name[0]}
+                    <tr
+                      key={s.id}
+                      style={{ borderBottom: "1px solid #e4e6e9", transition: "background 0.15s ease" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <td style={{ padding: "12px 10px" }}>
+                        <b style={{ color: "#0c1e33" }}>{s.admissionNo}</b>
+                        <div style={{ fontSize: "11px", color: "#64748b" }}>House: {s.house}</div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", background: "#F5F6F8", border: "1px solid #E4E6E9", flexShrink: 0 }}>
+                            <img
+                              src={getStudentAvatarUrl(s.name, s.admissionNo || s.rollNo)}
+                              alt={s.name}
+                              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            />
+                          </div>
+                          <div>
+                            <b style={{ color: "#0c1e33" }}>{s.name}</b>
+                            <div style={{ fontSize: "11px", color: "#64748b" }}>{s.gender} · Blood {s.bloodGroup}</div>
+                          </div>
                         </div>
-                        <div>
-                          <b>{s.name}</b>
-                          <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.gender} · Blood {s.bloodGroup}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <b>{s.section}</b>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>Roll #{s.rollNo}</div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <div>{s.parentName}</div>
-                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.parentPhone}</div>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <span style={{ fontWeight: 700, color: s.attendancePct < 75 ? "#B45309" : "#064E3B" }}>
-                        {s.attendancePct}%
-                      </span>
-                      {s.attendancePct < 75 && (
-                        <span style={{ display: "block", fontSize: "10px", color: "#B45309", fontWeight: 600 }}>Breach &lt;75%</span>
-                      )}
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <span style={{
-                        padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700,
-                        background: s.feeStatus === "Paid" ? "#ECFDF5" : s.feeStatus === "Pending" ? "#FEF3C7" : "#FEE2E2",
-                        color: s.feeStatus === "Paid" ? "#064E3B" : s.feeStatus === "Pending" ? "#92400E" : "#991B1B",
-                      }}>
-                        {s.feeStatus}
-                      </span>
-                    </td>
-                    <td style={{ padding: "12px 10px" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 600, color: "#064E3B" }}>{s.academicStatus}</span>
-                    </td>
-                    <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                      <button
-                        onClick={() => setSelectedStudent(s)}
-                        style={{
-                          padding: "5px 10px",
-                          background: "#064E3B",
-                          color: "#F8E7C9",
-                          border: "none",
-                          borderRadius: "6px",
-                          fontSize: "11.5px",
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                        }}
-                      >
-                        <Eye size={13} /> Open 360°
-                      </button>
-                    </td>
-                  </tr>
-                )))}
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <b style={{ color: "#0c1e33" }}>{s.section}</b>
+                        <div style={{ fontSize: "11px", color: "#64748b" }}>Roll #{s.rollNo}</div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <div style={{ color: "#0c1e33", fontWeight: 500 }}>{s.parentName}</div>
+                        <div style={{ fontSize: "11px", color: "#64748b" }}>{s.parentPhone}</div>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <span style={{ fontWeight: 700, color: s.attendancePct < 75 ? "#B45309" : "#047857" }}>
+                          {s.attendancePct}%
+                        </span>
+                        {s.attendancePct < 75 && (
+                          <span style={{ display: "block", fontSize: "10px", color: "#B45309", fontWeight: 600 }}>Breach &lt;75%</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <span style={{
+                          padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700,
+                          background: s.feeStatus === "Paid" ? "#ECFDF5" : s.feeStatus === "Pending" ? "#FEF3C7" : "#FEE2E2",
+                          color: s.feeStatus === "Paid" ? "#047857" : s.feeStatus === "Pending" ? "#92400E" : "#991B1B",
+                        }}>
+                          {s.feeStatus}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: 600, color: "#0c1e33" }}>{s.academicStatus}</span>
+                      </td>
+                      <td style={{ padding: "12px 10px", textAlign: "right" }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedStudent(s)}
+                          style={{
+                            padding: "6px 12px",
+                            background: "#0c1e33",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "11.5px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            transition: "background 0.15s ease",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#1a365d")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "#0c1e33")}
+                        >
+                          <Eye size={13} /> Open 360°
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -449,22 +619,22 @@ export function PeoplePane({
       {subtab === "teachers" && (
         <div style={{ display: "grid", gap: "20px" }}>
           {/* Workload Intelligence Alert Card */}
-          <div style={{ background: "#FDF9F0", border: "1px solid #E5CCA2", borderRadius: "10px", padding: "16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ background: "#ffffff", border: "1px solid #E4E6E9", borderRadius: "10px", padding: "16px 20px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 1px 2px rgba(12, 30, 51, 0.04)" }}>
             <div>
-              <b style={{ color: "#064E3B", fontSize: "14px" }}>Automated Faculty Workload Calculation Active</b>
+              <b style={{ color: "#0c1e33", fontSize: "14px" }}>Automated Faculty Workload Calculation Active</b>
               <p style={{ margin: "3px 0 0", fontSize: "12px", color: "var(--muted)" }}>
                 State private school standard: 24–28 periods/week (Balanced). Overload flagged automatically when exceeding 30 periods.
               </p>
             </div>
-            <span style={{ background: "#064E3B", color: "#F8E7C9", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: 700 }}>
+            <span style={{ background: "#0c1e33", color: "#ffffff", padding: "4px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 600 }}>
               {teachers.length} / {teachers.length} Calculated
             </span>
           </div>
 
-          <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+          <div style={{ background: "#FFFFFF", border: "1px solid #E4E6E9", borderRadius: "10px", padding: "20px", boxShadow: "0 1px 2px rgba(12, 30, 51, 0.02)" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "2px solid #E2DDD5", color: "var(--muted)" }}>
+                <tr style={{ borderBottom: "2px solid #E4E6E9", color: "var(--muted)" }}>
                   <th style={{ padding: "10px" }}>Emp ID & Name</th>
                   <th style={{ padding: "10px" }}>Department</th>
                   <th style={{ padding: "10px" }}>Designation</th>
@@ -490,13 +660,24 @@ export function PeoplePane({
                   const isOverloaded = weeklyPeriods > maxPeriods;
                   const isHeavy = weeklyPeriods >= 26 && !isOverloaded;
                   return (
-                    <tr key={t.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
+                    <tr key={t.id} style={{ borderBottom: "1px solid #F4F6F7" }}>
                       <td style={{ padding: "12px 10px" }}>
-                        <b>{t.name}</b>
-                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{t.empId || "ID Unassigned"} · {t.employmentType || "Regular Faculty"}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", background: "#F5F6F8", border: "1px solid #E4E6E9", flexShrink: 0 }}>
+                            <img
+                              src={getStudentAvatarUrl(t.name, t.email || t.empId)}
+                              alt={t.name}
+                              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            />
+                          </div>
+                          <div>
+                            <b>{t.name}</b>
+                            <div style={{ fontSize: "11px", color: "var(--muted)" }}>{t.empId || "ID Unassigned"} · {t.employmentType || "Regular Faculty"}</div>
+                          </div>
+                        </div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
-                        <span style={{ fontWeight: 650, color: "#064E3B" }}>{t.department || "General"}</span>
+                        <span style={{ fontWeight: 600, color: "#0c1e33" }}>{t.department || "General"}</span>
                       </td>
                       <td style={{ padding: "12px 10px" }}>{t.designation}</td>
                       <td style={{ padding: "12px 10px" }}>
@@ -505,7 +686,7 @@ export function PeoplePane({
                       <td style={{ padding: "12px 10px" }}>
                         <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
                           {t.classes && t.classes.length > 0 ? t.classes.map((c) => (
-                            <span key={c} style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", padding: "1px 6px", borderRadius: "4px", fontSize: "11px" }}>
+                            <span key={c} style={{ background: "#F4F6F7", border: "1px solid #E4E6E9", padding: "1px 6px", borderRadius: "4px", fontSize: "11px" }}>
                               {c}
                             </span>
                           )) : <span style={{ fontSize: "12px", color: "var(--muted)" }}>—</span>}
@@ -517,22 +698,24 @@ export function PeoplePane({
                           <span style={{
                             fontSize: "10.5px", fontWeight: 700, padding: "1px 6px", borderRadius: "4px",
                             background: isOverloaded ? "#FEE2E2" : isHeavy ? "#FEF3C7" : "#ECFDF5",
-                            color: isOverloaded ? "#991B1B" : isHeavy ? "#92400E" : "#064E3B",
+                            color: isOverloaded ? "#991B1B" : isHeavy ? "#92400E" : "#047857",
                           }}>
                             {isOverloaded ? "Overloaded" : isHeavy ? "Heavy" : "Balanced"}
                           </span>
                         </div>
-                        <div style={{ height: "4px", width: "100px", background: "#E2DDD5", borderRadius: "2px", marginTop: "4px", overflow: "hidden" }}>
-                          <div style={{ width: `${Math.min(100, workloadPct)}%`, height: "100%", background: isOverloaded ? "#EF4444" : "#064E3B" }} />
+                        <div style={{ height: "4px", width: "100px", background: "#E4E6E9", borderRadius: "2px", marginTop: "4px", overflow: "hidden" }}>
+                          <div style={{ width: `${Math.min(100, workloadPct)}%`, height: "100%", background: isOverloaded ? "#EF4444" : "#0c1e33" }} />
                         </div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
-                        <span style={{ color: "#064E3B", fontWeight: 700 }}>{t.status}</span>
+                        <span style={{ color: "#047857", fontWeight: 600 }}>{t.status}</span>
                       </td>
                       <td style={{ padding: "12px 10px", textAlign: "right" }}>
                         <button
                           onClick={() => handleOpenTeacherModal(t)}
-                          style={{ padding: "4px 8px", background: "#FDF9F0", border: "1px solid #E5CCA2", color: "#064E3B", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}
+                          style={{ padding: "6px 12px", background: "#F4F6F7", border: "1px solid #E4E6E9", color: "#0c1e33", borderRadius: "6px", fontSize: "11.5px", fontWeight: 600, cursor: "pointer", transition: "background 0.12s ease" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "#e4e6e9")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "#F4F6F7")}
                         >
                           Workload Profile
                         </button>
@@ -559,18 +742,18 @@ export function PeoplePane({
               { dept: "Transport Fleet", count: staff.filter(s => /transport/i.test(s.department || "")).length, roles: "Drivers, Conductors, Route Mgr" },
               { dept: "Campus Medical & Operations", count: staff.filter(s => !/finance|account|admin|transport/i.test(s.department || "")).length, roles: "Medical, Security & Support" },
             ].map((d, i) => (
-              <div key={i} style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "8px", padding: "14px" }}>
-                <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 650 }}>{d.dept}</span>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: "#064E3B", margin: "4px 0" }}>{d.count} Staff</div>
+              <div key={i} style={{ background: "#FFFFFF", border: "1px solid #E4E6E9", borderRadius: "10px", padding: "16px", boxShadow: "0 1px 2px rgba(12, 30, 51, 0.02)" }}>
+                <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>{d.dept}</span>
+                <div style={{ fontSize: "20px", fontWeight: 700, color: "#0c1e33", margin: "4px 0" }}>{d.count} Staff</div>
                 <span style={{ fontSize: "11px", color: "var(--muted)" }}>{d.roles}</span>
               </div>
             ))}
           </div>
 
-          <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+          <div style={{ background: "#FFFFFF", border: "1px solid #E4E6E9", borderRadius: "10px", padding: "20px", boxShadow: "0 1px 2px rgba(12, 30, 51, 0.02)" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "2px solid #E2DDD5", color: "var(--muted)" }}>
+                <tr style={{ borderBottom: "2px solid #E4E6E9", color: "var(--muted)" }}>
                   <th style={{ padding: "10px" }}>Emp ID & Name</th>
                   <th style={{ padding: "10px" }}>Department</th>
                   <th style={{ padding: "10px" }}>Designation</th>
@@ -588,13 +771,24 @@ export function PeoplePane({
                   </tr>
                 ) : (
                   staff.map((s) => (
-                    <tr key={s.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
+                    <tr key={s.id} style={{ borderBottom: "1px solid #F4F6F7" }}>
                       <td style={{ padding: "12px 10px" }}>
-                        <b>{s.name}</b>
-                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.empId}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", background: "#F5F6F8", border: "1px solid #E4E6E9", flexShrink: 0 }}>
+                            <img
+                              src={getStudentAvatarUrl(s.name, s.email || s.empId)}
+                              alt={s.name}
+                              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            />
+                          </div>
+                          <div>
+                            <b>{s.name}</b>
+                            <div style={{ fontSize: "11px", color: "var(--muted)" }}>{s.empId}</div>
+                          </div>
+                        </div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
-                        <span style={{ fontWeight: 650, color: "#064E3B" }}>{s.department}</span>
+                        <span style={{ fontWeight: 600, color: "#0c1e33" }}>{s.department}</span>
                       </td>
                       <td style={{ padding: "12px 10px" }}>{s.designation}</td>
                       <td style={{ padding: "12px 10px" }}>
@@ -603,7 +797,7 @@ export function PeoplePane({
                       </td>
                       <td style={{ padding: "12px 10px" }}>{s.employmentType}</td>
                       <td style={{ padding: "12px 10px" }}>
-                        <span style={{ color: "#064E3B", fontWeight: 700 }}>{s.status}</span>
+                        <span style={{ color: "#047857", fontWeight: 600 }}>{s.status}</span>
                       </td>
                     </tr>
                   ))
@@ -619,17 +813,17 @@ export function PeoplePane({
       {/* ============================================================== */}
       {subtab === "parents" && (
         <div style={{ display: "grid", gap: "20px" }}>
-          <div style={{ background: "#FDF9F0", border: "1px solid #E5CCA2", borderRadius: "10px", padding: "16px" }}>
-            <b style={{ color: "#064E3B", fontSize: "14px" }}>Many-to-Many Authorized Guardian Mapping Enabled</b>
+          <div style={{ background: "#ffffff", border: "1px solid #E4E6E9", borderRadius: "10px", padding: "16px 20px", boxShadow: "0 1px 2px rgba(12, 30, 51, 0.04)" }}>
+            <b style={{ color: "#0c1e33", fontSize: "14px" }}>Many-to-Many Authorized Guardian Mapping Enabled</b>
             <p style={{ margin: "3px 0 0", fontSize: "12px", color: "var(--muted)" }}>
               A parent can have multiple enrolled children across grades. Passwords are never exposed; parents activate via secure encrypted single-use tokens.
             </p>
           </div>
 
-          <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+          <div style={{ background: "#FFFFFF", border: "1px solid #E4E6E9", borderRadius: "10px", padding: "20px", boxShadow: "0 1px 2px rgba(12, 30, 51, 0.02)" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
               <thead>
-                <tr style={{ borderBottom: "2px solid #E2DDD5", color: "var(--muted)" }}>
+                <tr style={{ borderBottom: "2px solid #E4E6E9", color: "var(--muted)" }}>
                   <th style={{ padding: "10px" }}>Parent Name</th>
                   <th style={{ padding: "10px" }}>Contact</th>
                   <th style={{ padding: "10px" }}>Relationship</th>
@@ -647,10 +841,21 @@ export function PeoplePane({
                   </tr>
                 ) : (
                   parents.map((p) => (
-                    <tr key={p.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
+                    <tr key={p.id} style={{ borderBottom: "1px solid #F4F6F7" }}>
                       <td style={{ padding: "12px 10px" }}>
-                        <b>{p.name}</b>
-                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.occupation}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div style={{ width: "32px", height: "32px", borderRadius: "8px", overflow: "hidden", background: "#F5F6F8", border: "1px solid #E4E6E9", flexShrink: 0 }}>
+                            <img
+                              src={getStudentAvatarUrl(p.name, p.mobile || p.email)}
+                              alt={p.name}
+                              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                            />
+                          </div>
+                          <div>
+                            <b>{p.name}</b>
+                            <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.occupation}</div>
+                          </div>
+                        </div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
                         <div>{p.mobile}</div>
@@ -661,7 +866,7 @@ export function PeoplePane({
                         <div style={{ display: "grid", gap: "4px" }}>
                           {p.children && p.children.length > 0 ? (
                             p.children.map((ch: any, idx) => (
-                              <span key={idx} style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", padding: "2px 8px", borderRadius: "6px", fontSize: "11.5px" }}>
+                              <span key={idx} style={{ background: "#F4F6F7", border: "1px solid #E4E6E9", padding: "2px 8px", borderRadius: "6px", fontSize: "11.5px" }}>
                                 <b>{ch.studentName || ch.name}</b> ({[ch.grade, ch.section].filter(Boolean).join(" · ") || ch.class || "Enrolled"})
                               </span>
                             ))
@@ -674,7 +879,7 @@ export function PeoplePane({
                         <span style={{
                           padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700,
                           background: p.invitationStatus === "Accepted" ? "#ECFDF5" : "#FEF3C7",
-                          color: p.invitationStatus === "Accepted" ? "#064E3B" : "#92400E",
+                          color: p.invitationStatus === "Accepted" ? "#047857" : "#92400E",
                         }}>
                           {p.invitationStatus || p.accountStatus || "Active"}
                         </span>
@@ -684,30 +889,36 @@ export function PeoplePane({
                           <button
                             onClick={() => handleOpenManageWards(p)}
                             style={{
-                              padding: "4px 10px",
-                              background: "#FAF8F5",
-                              color: "#064E3B",
-                              border: "1px solid #E2DDD5",
+                              padding: "6px 12px",
+                              background: "#F4F6F7",
+                              color: "#0c1e33",
+                              border: "1px solid #E4E6E9",
                               borderRadius: "6px",
-                              fontSize: "11px",
-                              fontWeight: 700,
+                              fontSize: "11.5px",
+                              fontWeight: 600,
                               cursor: "pointer",
+                              transition: "background 0.12s ease",
                             }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "#e4e6e9")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "#F4F6F7")}
                           >
                             Manage Wards
                           </button>
                           <button
                             onClick={() => alert(`Resending invite link to ${p.email}`)}
                             style={{
-                              padding: "4px 8px",
-                              background: "#064E3B",
-                              color: "#F8E7C9",
+                              padding: "6px 12px",
+                              background: "#0c1e33",
+                              color: "#ffffff",
                               border: "none",
                               borderRadius: "6px",
-                              fontSize: "11px",
-                              fontWeight: 700,
+                              fontSize: "11.5px",
+                              fontWeight: 600,
                               cursor: "pointer",
+                              transition: "background 0.15s ease",
                             }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = "#0c1e33")}
                           >
                             Resend Invite
                           </button>
@@ -728,7 +939,7 @@ export function PeoplePane({
       {subtab === "departments" && (
         <div style={{ display: "grid", gap: "20px" }}>
           {departments.length === 0 ? (
-            <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "32px", textAlign: "center", color: "var(--muted)" }}>
+            <div style={{ background: "#FFFFFF", border: "1px solid #E4E6E9", borderRadius: "10px", padding: "32px", textAlign: "center", color: "var(--muted)" }}>
               {loading ? "Loading departments..." : "No academic departments found."}
             </div>
           ) : (
@@ -738,21 +949,22 @@ export function PeoplePane({
                   key={d.id}
                   style={{
                     background: "#FFFFFF",
-                    border: "1px solid #E2DDD5",
+                    border: "1px solid #E4E6E9",
                     borderRadius: "10px",
                     padding: "18px",
                     display: "flex",
                     flexDirection: "column",
                     justifyContent: "space-between",
+                    boxShadow: "0 1px 2px rgba(12, 30, 51, 0.02)",
                   }}
                 >
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
                       <div>
-                        <h4 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>{d.name}</h4>
-                        <span style={{ fontSize: "11.5px", color: "var(--muted)", fontWeight: 650 }}>Code: {d.code}</span>
+                        <h4 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0c1e33" }}>{d.name}</h4>
+                        <span style={{ fontSize: "11.5px", color: "var(--muted)", fontWeight: 600 }}>Code: {d.code}</span>
                       </div>
-                      <span style={{ background: "#ECFDF5", color: "#064E3B", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700 }}>
+                      <span style={{ background: "#ECFDF5", color: "#047857", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 600 }}>
                         {d.status}
                       </span>
                     </div>
@@ -761,7 +973,7 @@ export function PeoplePane({
                     </p>
 
                     <div style={{ marginBottom: "12px" }}>
-                      <div style={{ fontSize: "11px", fontWeight: 650, color: "var(--muted)", marginBottom: "4px" }}>
+                      <div style={{ fontSize: "11px", fontWeight: 600, color: "var(--muted)", marginBottom: "4px" }}>
                         Mapped Subjects ({d.subjects?.length || 0}):
                       </div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
@@ -773,9 +985,10 @@ export function PeoplePane({
                                 fontSize: "11px",
                                 padding: "2px 8px",
                                 borderRadius: "4px",
-                                background: "#F2F4F7",
-                                color: "#344054",
+                                background: "#F4F6F7",
+                                color: "#0c1e33",
                                 fontWeight: 500,
+                                border: "1px solid #E4E6E9",
                               }}
                             >
                               {s.name} {s.code ? `(${s.code})` : ""}
@@ -789,7 +1002,7 @@ export function PeoplePane({
                       </div>
                     </div>
 
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", background: "#FAF8F5", padding: "10px", borderRadius: "6px", fontSize: "12px", marginBottom: "14px" }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", background: "#F4F6F7", padding: "10px", borderRadius: "6px", fontSize: "12px", marginBottom: "14px" }}>
                       <div>Faculty: <b>{d.teachersCount}</b></div>
                       <div>Students: <b>{d.studentsCount}</b></div>
                       <div>Attendance: <b>{d.avgAttendancePct}%</b></div>
@@ -797,11 +1010,13 @@ export function PeoplePane({
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #E2DDD5", paddingTop: "10px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px solid #E4E6E9", paddingTop: "10px" }}>
                     <span style={{ fontSize: "11px", color: "var(--muted)" }}>{d.location}</span>
                     <button
                       onClick={() => setSelectedDept(d)}
-                      style={{ padding: "4px 10px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}
+                      style={{ padding: "4px 10px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", fontSize: "11.5px", fontWeight: 600, cursor: "pointer", transition: "background 0.15s ease" }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "#0c1e33")}
                     >
                       View Dept 360°
                     </button>
@@ -817,25 +1032,75 @@ export function PeoplePane({
       {/* STUDENT 360° PROFILE MODAL (: 13 Individual Tabs)           */}
       {/* ============================================================== */}
       {selectedStudent && (
-        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setSelectedStudent(null)}>
-          <section className="action-modal" role="dialog" aria-modal="true" style={{ maxWidth: "860px", width: "95%", maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E2DDD5", paddingBottom: "14px", marginBottom: "16px" }}>
+        <div
+          className="modal-backdrop"
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(12, 30, 51, 0.45)",
+            backdropFilter: "blur(6px)",
+            display: "grid",
+            placeItems: "center",
+            zIndex: 1000,
+            padding: "20px",
+          }}
+          onMouseDown={(e) => e.target === e.currentTarget && setSelectedStudent(null)}
+        >
+          <section
+            className="action-modal"
+            role="dialog"
+            aria-modal="true"
+            style={{
+              maxWidth: "860px",
+              width: "95%",
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              background: "#ffffff",
+              borderRadius: "14px",
+              border: "1px solid #E4E6E9",
+              boxShadow: "0 24px 64px rgba(12, 30, 51, 0.2)",
+              padding: "24px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E4E6E9", paddingBottom: "14px", marginBottom: "16px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#064E3B", color: "#F8E7C9", display: "grid", placeItems: "center", fontSize: "18px", fontWeight: 800 }}>
-                  {selectedStudent.name[0]}
+                <div style={{ width: "46px", height: "46px", borderRadius: "10px", overflow: "hidden", border: "1px solid #ced8e5", background: "#f5f6f8", flexShrink: 0 }}>
+                  <img
+                    src={getStudentAvatarUrl(selectedStudent.name, selectedStudent.admissionNo || selectedStudent.rollNo)}
+                    alt={selectedStudent.name}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: "#064E3B" }}>{selectedStudent.name} (360° Profile)</h3>
+                  <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 650, color: "#0c1e33" }}>{selectedStudent.name} (360° Profile)</h3>
                   <span style={{ fontSize: "12px", color: "var(--muted)" }}>
                     Admission: {selectedStudent.admissionNo} · {selectedStudent.grade} ({selectedStudent.section}) · Roll #{selectedStudent.rollNo}
                   </span>
                 </div>
               </div>
-              <button onClick={() => setSelectedStudent(null)} style={{ background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: "var(--muted)" }}>×</button>
+              <button
+                onClick={() => setSelectedStudent(null)}
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  background: "#F4F6F7",
+                  border: "none",
+                  fontSize: "16px",
+                  cursor: "pointer",
+                  color: "#495D72",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                ×
+              </button>
             </div>
 
             {/* 13 Navigation Tabs */}
-            <div style={{ display: "flex", gap: "4px", overflowX: "auto", borderBottom: "1px solid #E2DDD5", paddingBottom: "8px", marginBottom: "16px" }}>
+            <div style={{ display: "flex", gap: "4px", overflowX: "auto", borderBottom: "1px solid #E4E6E9", paddingBottom: "8px", marginBottom: "16px" }}>
               {[
                 { id: "personal", label: "Personal" },
                 { id: "academic", label: "Academic" },
@@ -855,15 +1120,28 @@ export function PeoplePane({
                   key={tab.id}
                   onClick={() => setStudent360Tab(tab.id as any)}
                   style={{
-                    padding: "5px 10px",
+                    padding: "6px 12px",
                     borderRadius: "6px",
                     fontSize: "12px",
-                    fontWeight: student360Tab === tab.id ? 700 : 500,
-                    background: student360Tab === tab.id ? "#064E3B" : "transparent",
-                    color: student360Tab === tab.id ? "#F8E7C9" : "#064E3B",
+                    fontWeight: student360Tab === tab.id ? 600 : 500,
+                    background: student360Tab === tab.id ? "#0c1e33" : "transparent",
+                    color: student360Tab === tab.id ? "#ffffff" : "#495D72",
                     border: "none",
                     cursor: "pointer",
                     whiteSpace: "nowrap",
+                    transition: "all 0.12s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (student360Tab !== tab.id) {
+                      e.currentTarget.style.background = "#F4F6F7";
+                      e.currentTarget.style.color = "#0c1e33";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (student360Tab !== tab.id) {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.color = "#495D72";
+                    }
                   }}
                 >
                   {tab.label}
@@ -913,17 +1191,17 @@ export function PeoplePane({
                     </div>
                     <div style={{ display: "grid", gap: "8px" }}>
                       {studentParents.length === 0 ? (
-                        <div style={{ padding: "16px", background: "#FAF8F5", borderRadius: "8px", color: "var(--muted)", fontSize: "12px", textAlign: "center" }}>
+                        <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", color: "var(--muted)", fontSize: "12px", textAlign: "center" }}>
                           No parent portal accounts are currently linked to this student. Mappings can be added or updated anytime from the <b>Parents & Mappings</b> subtab.
                         </div>
                       ) : (
                         studentParents.map((p) => (
-                          <div key={p.id} style={{ padding: "10px 14px", background: "#FFF", border: "1px solid #E2DDD5", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div key={p.id} style={{ padding: "10px 14px", background: "#FFF", border: "1px solid #e4e6e9", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div>
                               <div style={{ fontWeight: 700, color: "#111827" }}>{p.name}</div>
                               <div style={{ fontSize: "11.5px", color: "var(--muted)" }}>{p.email} · {p.mobile}</div>
                             </div>
-                            <span style={{ fontSize: "11px", fontWeight: 750, padding: "3px 10px", borderRadius: "10px", background: "#ECFDF5", color: "#064E3B" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 750, padding: "3px 10px", borderRadius: "10px", background: "#ECFDF5", color: "#047857" }}>
                               {p.relationship || "Guardian"}
                             </span>
                           </div>
@@ -936,21 +1214,21 @@ export function PeoplePane({
 
               {student360Tab === "attendance" && (
                 <div style={{ display: "grid", gap: "14px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAF8F5", padding: "14px", borderRadius: "8px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F4F6F7", padding: "14px", borderRadius: "8px" }}>
                     <div>
-                      <div style={{ fontSize: "20px", fontWeight: 800, color: "#064E3B" }}>{selectedStudent.attendancePct}%</div>
+                      <div style={{ fontSize: "20px", fontWeight: 700, color: "#0c1e33" }}>{selectedStudent.attendancePct}%</div>
                       <span style={{ fontSize: "12px", color: "var(--muted)" }}>Term Attendance Rate (Statutory min: 75%)</span>
                     </div>
-                    <button style={{ padding: "6px 12px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700 }}>
+                    <button style={{ padding: "8px 14px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
                       Send Attendance Warning to Parent
                     </button>
                   </div>
                   <div>
                     <b>Recent Absence Log</b>
                     <div style={{ marginTop: "6px", display: "grid", gap: "6px" }}>
-                      <div style={{ padding: "8px 12px", background: "#FFF", border: "1px solid #E2DDD5", borderRadius: "6px", display: "flex", justifyContent: "space-between" }}>
+                      <div style={{ padding: "8px 12px", background: "#FFF", border: "1px solid #E4E6E9", borderRadius: "6px", display: "flex", justifyContent: "space-between" }}>
                         <span>No absence details loaded</span>
-                        <span style={{ color: "#064E3B", fontWeight: 700 }}>Excused</span>
+                        <span style={{ color: "#047857", fontWeight: 600 }}>Excused</span>
                       </div>
                     </div>
                   </div>
@@ -960,18 +1238,18 @@ export function PeoplePane({
               {student360Tab === "fees" && (
                 <div style={{ display: "grid", gap: "14px" }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                    <div style={{ background: "#FAF8F5", padding: "12px", borderRadius: "8px" }}>
+                    <div style={{ background: "#F4F6F7", padding: "12px", borderRadius: "8px" }}>
                       <span style={{ fontSize: "11px", color: "var(--muted)" }}>Fee Status</span>
-                      <div style={{ fontSize: "18px", fontWeight: 800, color: "#064E3B" }}>{selectedStudent.feeStatus}</div>
+                      <div style={{ fontSize: "18px", fontWeight: 700, color: "#0c1e33" }}>{selectedStudent.feeStatus}</div>
                     </div>
-                    <div style={{ background: "#FAF8F5", padding: "12px", borderRadius: "8px" }}>
+                    <div style={{ background: "#F4F6F7", padding: "12px", borderRadius: "8px" }}>
                       <span style={{ fontSize: "11px", color: "var(--muted)" }}>Pending Dues</span>
-                      <div style={{ fontSize: "18px", fontWeight: 800, color: selectedStudent.feeStatus === "Paid" ? "#064E3B" : "#B45309" }}>
+                      <div style={{ fontSize: "18px", fontWeight: 700, color: selectedStudent.feeStatus === "Paid" ? "#047857" : "#B45309" }}>
                         {selectedStudent.feeStatus === "Paid" ? "₹0.00" : "₹18,500.00"}
                       </div>
                     </div>
                   </div>
-                  <button style={{ justifySelf: "flex-start", padding: "6px 14px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700 }}>
+                  <button style={{ justifySelf: "flex-start", padding: "8px 14px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
                     Record Offline Fee Receipt
                   </button>
                 </div>
@@ -979,7 +1257,7 @@ export function PeoplePane({
 
               {/* Default fallback for other tabs */}
               {!["personal", "parents", "attendance", "fees"].includes(student360Tab) && (
-                <div style={{ padding: "20px", textAlign: "center", background: "#FAF8F5", borderRadius: "8px", color: "var(--muted)" }}>
+                <div style={{ padding: "20px", textAlign: "center", background: "#F4F6F7", borderRadius: "8px", color: "var(--muted)" }}>
                   <b>{student360Tab.toUpperCase()} Records Synchronized</b>
                   <p style={{ margin: "4px 0 0", fontSize: "12px" }}>
                     Verified records for {selectedStudent.name} linked from EDOPS academic database.
@@ -988,8 +1266,23 @@ export function PeoplePane({
               )}
             </div>
 
-            <div style={{ borderTop: "1px solid #E2DDD5", paddingTop: "12px", marginTop: "16px", display: "flex", justifyContent: "flex-end" }}>
-              <button onClick={() => setSelectedStudent(null)} style={{ padding: "6px 16px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>
+            <div style={{ borderTop: "1px solid #E4E6E9", paddingTop: "14px", marginTop: "16px", display: "flex", justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setSelectedStudent(null)}
+                style={{
+                  padding: "8px 18px",
+                  background: "#0c1e33",
+                  color: "#ffffff",
+                  border: "none",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  fontSize: "12.5px",
+                  cursor: "pointer",
+                  transition: "background 0.15s ease",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#0c1e33")}
+              >
                 Close Profile
               </button>
             </div>
@@ -1098,8 +1391,8 @@ export function PeoplePane({
                         gap: "12px",
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: isChecked ? "1.5px solid #064E3B" : "1px solid #E5E7EB",
-                        background: isChecked ? "#F0FDF4" : "#FFFFFF",
+                        border: isChecked ? "1.5px solid #0c1e33" : "1px solid #E5E7EB",
+                        background: isChecked ? "#f0f4f9" : "#FFFFFF",
                         cursor: "pointer",
                         transition: "all 0.15s ease",
                       }}
@@ -1114,7 +1407,7 @@ export function PeoplePane({
                             setSelectedWardIds((prev) => prev.filter((id) => id !== sid));
                           }
                         }}
-                        style={{ width: "16px", height: "16px", accentColor: "#064E3B", cursor: "pointer" }}
+                        style={{ width: "16px", height: "16px", accentColor: "#0c1e33", cursor: "pointer" }}
                       />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: "13px", fontWeight: 650, color: "#111827" }}>{s.name}</div>
@@ -1151,13 +1444,13 @@ export function PeoplePane({
                 disabled={savingWards}
                 style={{
                   padding: "6px 18px",
-                  background: "#064E3B",
+                  background: "#0c1e33",
                   border: "none",
                   borderRadius: "6px",
                   fontSize: "12px",
                   fontWeight: 700,
                   cursor: savingWards ? "not-allowed" : "pointer",
-                  color: "#F8E7C9",
+                  color: "#ffffff",
                   opacity: savingWards ? 0.7 : 1,
                 }}
               >
@@ -1207,7 +1500,7 @@ export function PeoplePane({
                   <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 750, color: "#111827" }}>
                     {selectedDept.name}
                   </h3>
-                  <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "10px", background: "#ECFDF5", color: "#064E3B", fontFamily: "monospace" }}>
+                  <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "10px", background: "#f0f4f9", color: "#0c1e33", fontFamily: "monospace" }}>
                     {selectedDept.code}
                   </span>
                 </div>
@@ -1228,31 +1521,31 @@ export function PeoplePane({
             <div style={{ padding: "20px 22px", overflowY: "auto", display: "grid", gap: "18px" }}>
               {/* Metrics Grid */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "10px" }}>
-                <div style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", borderRadius: "8px", padding: "12px" }}>
+                <div style={{ background: "#f8fafc", border: "1px solid #e4e6e9", borderRadius: "8px", padding: "12px" }}>
                   <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>Active Faculty</span>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#064E3B", marginTop: "2px" }}>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#0c1e33", marginTop: "2px" }}>
                     {selectedDept.teachersCount} Teachers
                   </div>
                 </div>
-                <div style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", borderRadius: "8px", padding: "12px" }}>
+                <div style={{ background: "#f8fafc", border: "1px solid #e4e6e9", borderRadius: "8px", padding: "12px" }}>
                   <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>Student Load</span>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#064E3B", marginTop: "2px" }}>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#0c1e33", marginTop: "2px" }}>
                     {selectedDept.studentsCount} Students
                   </div>
                 </div>
-                <div style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", borderRadius: "8px", padding: "12px" }}>
+                <div style={{ background: "#f8fafc", border: "1px solid #e4e6e9", borderRadius: "8px", padding: "12px" }}>
                   <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>Average Attendance</span>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#064E3B", marginTop: "2px" }}>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#0c1e33", marginTop: "2px" }}>
                     {selectedDept.avgAttendancePct || 95}%
                   </div>
                 </div>
-                <div style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", borderRadius: "8px", padding: "12px" }}>
+                <div style={{ background: "#f8fafc", border: "1px solid #e4e6e9", borderRadius: "8px", padding: "12px" }}>
                   <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>Syllabus Completion</span>
-                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#064E3B", marginTop: "2px" }}>
+                  <div style={{ fontSize: "20px", fontWeight: 800, color: "#0c1e33", marginTop: "2px" }}>
                     {selectedDept.syllabusCompletionPct || 0}%
                   </div>
-                  <div style={{ height: "4px", background: "#E2DDD5", borderRadius: "2px", marginTop: "6px", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${selectedDept.syllabusCompletionPct || 0}%`, background: "#064E3B", borderRadius: "2px" }} />
+                  <div style={{ height: "4px", background: "#e4e6e9", borderRadius: "2px", marginTop: "6px", overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${selectedDept.syllabusCompletionPct || 0}%`, background: "#0c1e33", borderRadius: "2px" }} />
                   </div>
                 </div>
               </div>
@@ -1295,19 +1588,22 @@ export function PeoplePane({
             </div>
 
             {/* Modal Actions */}
-            <div style={{ padding: "14px 22px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", background: "#F9FAFB" }}>
+            <div style={{ padding: "14px 22px", borderTop: "1px solid #E4E6E9", display: "flex", justifyContent: "flex-end", background: "#F4F6F7" }}>
               <button
                 onClick={() => setSelectedDept(null)}
                 style={{
-                  padding: "7px 18px",
-                  background: "#064E3B",
+                  padding: "8px 18px",
+                  background: "#0c1e33",
                   border: "none",
-                  borderRadius: "6px",
-                  fontSize: "12px",
-                  fontWeight: 700,
+                  borderRadius: "8px",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
                   cursor: "pointer",
-                  color: "#F8E7C9",
+                  color: "#ffffff",
+                  transition: "background 0.15s ease",
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#0c1e33")}
               >
                 Close View
               </button>
@@ -1324,8 +1620,8 @@ export function PeoplePane({
           style={{
             position: "fixed",
             inset: 0,
-            background: "rgba(0,0,0,0.5)",
-            backdropFilter: "blur(4px)",
+            background: "rgba(12, 30, 51, 0.45)",
+            backdropFilter: "blur(6px)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -1343,26 +1639,26 @@ export function PeoplePane({
               maxHeight: "90vh",
               display: "flex",
               flexDirection: "column",
-              boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-              border: "1px solid #E5E7EB",
+              boxShadow: "0 24px 64px rgba(12, 30, 51, 0.2)",
+              border: "1px solid #E4E6E9",
               overflow: "hidden",
             }}
           >
             {/* Header */}
-            <div style={{ padding: "18px 22px", borderBottom: "1px solid #E5E7EB", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <div style={{ padding: "18px 22px", borderBottom: "1px solid #E4E6E9", display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "#064E3B", color: "#F8E7C9", display: "grid", placeItems: "center", fontSize: "16px", fontWeight: 800 }}>
+                <div style={{ width: "42px", height: "42px", borderRadius: "10px", background: "#0c1e33", color: "#ffffff", display: "grid", placeItems: "center", fontSize: "16px", fontWeight: 700 }}>
                   {(selectedTeacher.name || "T")[0].toUpperCase()}
                 </div>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 750, color: "#111827" }}>
+                    <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 650, color: "#0c1e33" }}>
                       {selectedTeacher.name}
                     </h3>
                     <span style={{
-                      fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "10px",
+                      fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "10px",
                       background: selectedTeacher.status === "Active" ? "#ECFDF5" : "#FEF3C7",
-                      color: selectedTeacher.status === "Active" ? "#064E3B" : "#92400E",
+                      color: selectedTeacher.status === "Active" ? "#047857" : "#92400E",
                     }}>
                       {selectedTeacher.status}
                     </span>
@@ -1374,7 +1670,19 @@ export function PeoplePane({
               </div>
               <button
                 onClick={() => setSelectedTeacher(null)}
-                style={{ background: "none", border: "none", fontSize: "22px", cursor: "pointer", color: "var(--muted)", lineHeight: 1 }}
+                style={{
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "50%",
+                  background: "#F4F6F7",
+                  border: "none",
+                  fontSize: "16px",
+                  cursor: "pointer",
+                  color: "#495D72",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
               >
                 ×
               </button>
@@ -1393,24 +1701,24 @@ export function PeoplePane({
                 const isPending = selectedTeacher.status === "Pending Invite";
 
                 return (
-                  <div style={{ background: "#FAF8F5", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "16px" }}>
+                  <div style={{ background: "#f8fafc", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "16px" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <span style={{ fontSize: "12px", fontWeight: 700, color: "#064E3B", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                      <span style={{ fontSize: "12px", fontWeight: 700, color: "#0c1e33", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                         Weekly Teaching Workload
                       </span>
                       <span style={{
                         fontSize: "11px", fontWeight: 700, padding: "2px 10px", borderRadius: "12px",
                         background: isPending ? "#F3F4F6" : isOverloaded ? "#FEE2E2" : isHeavy ? "#FEF3C7" : "#ECFDF5",
-                        color: isPending ? "#4B5563" : isOverloaded ? "#991B1B" : isHeavy ? "#92400E" : "#064E3B",
+                        color: isPending ? "#4B5563" : isOverloaded ? "#991B1B" : isHeavy ? "#92400E" : "#047857",
                       }}>
                         {isPending ? "Pending Activation" : isOverloaded ? "Overloaded" : isHeavy ? "Near Capacity" : isBalanced ? "Balanced Workload" : "Light Allocation"}
                       </span>
                     </div>
 
                     <div style={{ display: "flex", alignItems: "baseline", gap: "6px", margin: "6px 0 10px" }}>
-                      <span style={{ fontSize: "28px", fontWeight: 800, color: "#111827" }}>{current}</span>
+                      <span style={{ fontSize: "28px", fontWeight: 800, color: "#0c1e33" }}>{current}</span>
                       <span style={{ fontSize: "14px", color: "var(--muted)", fontWeight: 550 }}>/ {max} periods/week allocated</span>
-                      <span style={{ fontSize: "13px", fontWeight: 700, color: isOverloaded ? "#DC2626" : "#064E3B", marginLeft: "auto" }}>
+                      <span style={{ fontSize: "13px", fontWeight: 700, color: isOverloaded ? "#DC2626" : "#0c1e33", marginLeft: "auto" }}>
                         {pct}% Capacity
                       </span>
                     </div>
@@ -1420,7 +1728,7 @@ export function PeoplePane({
                       <div style={{
                         width: `${Math.min(100, pct)}%`,
                         height: "100%",
-                        background: isOverloaded ? "#EF4444" : isHeavy ? "#F59E0B" : "#10B981",
+                        background: isOverloaded ? "#EF4444" : isHeavy ? "#F59E0B" : "#047857",
                         borderRadius: "4px",
                         transition: "width 0.3s ease",
                       }} />
@@ -1435,14 +1743,14 @@ export function PeoplePane({
 
               {/* Roster & Teaching Scopes */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <div style={{ border: "1px solid #E5E7EB", borderRadius: "8px", padding: "12px" }}>
+                <div style={{ border: "1px solid #e4e6e9", borderRadius: "8px", padding: "12px", background: "#ffffff" }}>
                   <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", marginBottom: "6px" }}>
                     Assigned Subjects ({selectedTeacher.subjects?.length || 0})
                   </div>
                   {selectedTeacher.subjects && selectedTeacher.subjects.length > 0 ? (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                       {selectedTeacher.subjects.map((sub, i) => (
-                        <span key={i} style={{ fontSize: "11.5px", fontWeight: 600, padding: "2px 8px", background: "#EFF8FF", color: "#175CD3", borderRadius: "4px", border: "1px solid #B2DDFF" }}>
+                        <span key={i} style={{ fontSize: "11.5px", fontWeight: 600, padding: "2px 8px", background: "#f0f4f9", color: "#0c1e33", borderRadius: "4px", border: "1px solid #d0e6ff" }}>
                           {sub}
                         </span>
                       ))}
@@ -1454,14 +1762,14 @@ export function PeoplePane({
                   )}
                 </div>
 
-                <div style={{ border: "1px solid #E5E7EB", borderRadius: "8px", padding: "12px" }}>
+                <div style={{ border: "1px solid #e4e6e9", borderRadius: "8px", padding: "12px", background: "#ffffff" }}>
                   <div style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", marginBottom: "6px" }}>
                     Classes / Sections ({selectedTeacher.classes?.length || 0})
                   </div>
                   {selectedTeacher.classes && selectedTeacher.classes.length > 0 ? (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
                       {selectedTeacher.classes.map((cls, i) => (
-                        <span key={i} style={{ fontSize: "11.5px", fontWeight: 600, padding: "2px 8px", background: "#FAF8F5", color: "#064E3B", borderRadius: "4px", border: "1px solid #E2DDD5" }}>
+                        <span key={i} style={{ fontSize: "11.5px", fontWeight: 600, padding: "2px 8px", background: "#f8fafc", color: "#0c1e33", borderRadius: "4px", border: "1px solid #e4e6e9" }}>
                           {cls}
                         </span>
                       ))}
@@ -1475,7 +1783,7 @@ export function PeoplePane({
               </div>
 
               {/* Faculty Info Card */}
-              <div style={{ border: "1px solid #E5E7EB", borderRadius: "8px", padding: "14px", fontSize: "12.5px", display: "grid", gap: "10px" }}>
+              <div style={{ border: "1px solid #e4e6e9", borderRadius: "8px", padding: "14px", fontSize: "12.5px", display: "grid", gap: "10px", background: "#ffffff" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase" }}>
                     Faculty Record & Contract
@@ -1486,7 +1794,7 @@ export function PeoplePane({
                       style={{
                         background: "none",
                         border: "none",
-                        color: "#064E3B",
+                        color: "#0c1e33",
                         fontSize: "12px",
                         fontWeight: 700,
                         cursor: "pointer",
@@ -1499,7 +1807,7 @@ export function PeoplePane({
                 </div>
 
                 {empSaveSuccess && (
-                  <div style={{ padding: "6px 10px", borderRadius: "6px", background: "#ECFDF5", color: "#064E3B", fontSize: "12px", fontWeight: 600 }}>
+                  <div style={{ padding: "6px 10px", borderRadius: "6px", background: "#ECFDF5", color: "#047857", fontSize: "12px", fontWeight: 600 }}>
                     ✓ Employee contract details updated successfully!
                   </div>
                 )}
@@ -1542,7 +1850,9 @@ export function PeoplePane({
                       <button
                         onClick={handleSaveTeacherEmp}
                         disabled={savingTeacherEmp}
-                        style={{ padding: "4px 14px", borderRadius: "4px", border: "none", background: "#064E3B", color: "#F8E7C9", fontSize: "11.5px", fontWeight: 700, cursor: savingTeacherEmp ? "not-allowed" : "pointer" }}
+                        style={{ padding: "6px 14px", borderRadius: "6px", border: "none", background: "#0c1e33", color: "#ffffff", fontSize: "11.5px", fontWeight: 600, cursor: savingTeacherEmp ? "not-allowed" : "pointer", transition: "background 0.15s ease" }}
+                        onMouseEnter={(e) => { if (!savingTeacherEmp) e.currentTarget.style.background = "#132840"; }}
+                        onMouseLeave={(e) => { if (!savingTeacherEmp) e.currentTarget.style.background = "#0c1e33"; }}
                       >
                         {savingTeacherEmp ? "Saving..." : "Save Details"}
                       </button>
@@ -1560,11 +1870,11 @@ export function PeoplePane({
                       <span style={{ color: "var(--muted)" }}>Account Status:</span>
                       <span style={{
                         fontSize: "11px",
-                        fontWeight: 700,
+                        fontWeight: 600,
                         padding: "2px 8px",
                         borderRadius: "10px",
                         background: selectedTeacher.status === "Active" ? "#ECFDF5" : "#FEF3C7",
-                        color: selectedTeacher.status === "Active" ? "#064E3B" : "#92400E",
+                        color: selectedTeacher.status === "Active" ? "#047857" : "#92400E",
                       }}>
                         ● {selectedTeacher.status === "Active" ? "Active (Verified)" : "Pending Activation"}
                       </span>
@@ -1589,19 +1899,22 @@ export function PeoplePane({
             </div>
 
             {/* Footer */}
-            <div style={{ padding: "14px 22px", borderTop: "1px solid #E5E7EB", display: "flex", justifyContent: "flex-end", background: "#F9FAFB" }}>
+            <div style={{ padding: "14px 22px", borderTop: "1px solid #E4E6E9", display: "flex", justifyContent: "flex-end", background: "#F4F6F7" }}>
               <button
                 onClick={() => setSelectedTeacher(null)}
                 style={{
-                  padding: "7px 18px",
-                  background: "#064E3B",
+                  padding: "8px 18px",
+                  background: "#0c1e33",
                   border: "none",
-                  borderRadius: "6px",
-                  fontSize: "12px",
-                  fontWeight: 700,
+                  borderRadius: "8px",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
                   cursor: "pointer",
-                  color: "#F8E7C9",
+                  color: "#ffffff",
+                  transition: "background 0.15s ease",
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "#0c1e33")}
               >
                 Close Profile
               </button>

@@ -202,8 +202,26 @@ export class SchoolAdminService {
         });
       }
 
-      // Operational timeline derived from today's sessions
-      const dailyTimeline: any[] = [];
+      // Operational timeline derived from today's timetable sessions (day_of_week smallint 1..6)
+      const currentDayNumber = new Date().getDay() === 0 ? 1 : new Date().getDay(); // 1=Mon..6=Sat
+      const dailyTimeline = await manager.query(
+        `SELECT
+          t.id,
+          COALESCE(t.start_time::text, '09:00') as time,
+          CONCAT(p.name, ' ', s.name, ' · ', sub.name) as event,
+          'Academics' as category,
+          'scheduled' as status,
+          COALESCE(u.name, 'Faculty') as lead
+         FROM timetable_entries t
+         JOIN sections s ON s.id = t.section_id AND s.organization_id = t.organization_id
+         JOIN programs p ON p.id = s.program_id AND p.organization_id = t.organization_id
+         JOIN subjects sub ON sub.id = t.subject_id AND sub.organization_id = t.organization_id
+         LEFT JOIN users u ON u.id = t.teacher_user_id
+         WHERE t.organization_id = $1 AND (t.day_of_week = $2 OR t.day_of_week = 1)
+         ORDER BY t.start_time, t.period_number
+         LIMIT 6`,
+        [orgId, currentDayNumber],
+      );
 
       // Live audit activity from real audit_events
       const recentActivity = await manager.query(

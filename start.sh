@@ -77,10 +77,6 @@ echo -e "Running database migrations..."
 (cd "$BACKEND_DIR" && npm run db:migrate)
 echo -e "${GREEN}✔ Database migrations applied.${RESET}"
 
-echo -e "Ensuring demo accounts and school data are seeded..."
-(cd "$BACKEND_DIR" && npm run seed)
-echo -e "${GREEN}✔ Demo users and school data ready.${RESET}"
-
 # ------------------------------------------------------------------------------
 # 5. Process Management & Cleanup Handlers
 # ------------------------------------------------------------------------------

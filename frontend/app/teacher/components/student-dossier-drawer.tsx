@@ -16,7 +16,7 @@ import {
   Phone,
   BookOpen,
 } from "lucide-react";
-import { getTeacherStudent360 } from "../../edops-api";
+import { getTeacherStudent360, getStudentAvatarUrl } from "../../edops-api";
 
 const T = {
   navy: "#0c1e33",
@@ -181,43 +181,52 @@ export function StudentDossierDrawer({
             background: T.white,
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  padding: "3px 10px",
-                  borderRadius: "6px",
-                  background: T.chip,
-                  border: `1px solid ${T.border}`,
-                  color: T.navy,
-                }}
-              >
-                Roll #{rollNumber}
-              </span>
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  padding: "3px 10px",
-                  borderRadius: "6px",
-                  background: T.greenBg,
-                  color: T.greenDark,
-                }}
-              >
-                {data?.subjectScope?.status || "Active Student"}
-              </span>
-              <span style={{ fontSize: "12px", color: T.slate, fontWeight: 500 }}>
-                {classSection} • {subjectName}
-              </span>
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div style={{ width: "48px", height: "48px", borderRadius: "10px", overflow: "hidden", border: `1px solid ${T.line}`, background: "#f5f6f8", flexShrink: 0 }}>
+              <img
+                src={getStudentAvatarUrl(studentName, rollNumber)}
+                alt={studentName}
+                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+              />
             </div>
-            <h2 style={{ margin: "2px 0 0 0", fontSize: "20px", fontWeight: 600, color: T.navy, letterSpacing: "-0.01em" }}>
-              {studentName}
-            </h2>
-            <p style={{ margin: 0, fontSize: "12px", color: T.slate }}>
-              Guardian: {guardianName} {guardianPhone ? `(${guardianPhone})` : ""} • Scope: {subjectName}
-            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    padding: "3px 10px",
+                    borderRadius: "6px",
+                    background: T.chip,
+                    border: `1px solid ${T.border}`,
+                    color: T.navy,
+                  }}
+                >
+                  Roll #{rollNumber}
+                </span>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    padding: "3px 10px",
+                    borderRadius: "6px",
+                    background: T.greenBg,
+                    color: T.greenDark,
+                  }}
+                >
+                  {data?.subjectScope?.status || "Active Student"}
+                </span>
+                <span style={{ fontSize: "12px", color: T.slate, fontWeight: 500 }}>
+                  {classSection} • {subjectName}
+                </span>
+              </div>
+              <h2 style={{ margin: "2px 0 0 0", fontSize: "18px", fontWeight: 600, color: T.navy, letterSpacing: "-0.01em" }}>
+                {studentName}
+              </h2>
+              <p style={{ margin: 0, fontSize: "12px", color: T.slate }}>
+                Guardian: {guardianName} {guardianPhone ? `(${guardianPhone})` : ""} • Scope: {subjectName}
+              </p>
+            </div>
           </div>
           <button
             type="button"

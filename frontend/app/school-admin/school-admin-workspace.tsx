@@ -24,41 +24,44 @@ import {
   createSchoolAdminDiscipline, createSchoolAdminDepartment,
   createSchoolInvitation, getSchoolAdminAcademics, getSchoolAdminStudents,
   getSchoolAdminTeachers, createAcademicSection, createAcademicProgram,
+  getStudentAvatarUrl,
   createSchoolAdminExam,
 } from "../edops-api";
 
-// ─── Colour palette (NO purple / blue gradients) ────────────────────────────
-// Inspired by the attached screenshot: dark sidebar, white content, clean type
+// ─── Design Tokens (Strictly matching Student & Teacher Dashboard specification) ──
 const S = {
-  // sidebar
-  bg:         "#111318",   // very dark charcoal
-  border:     "#1E2128",   // subtle divider
-  itemText:   "#8C909A",   // default nav text
-  itemHover:  "#1A1D24",   // hover bg
-  itemActive: "#1E2128",   // active bg
-  activeBar:  "#FFFFFF",   // left accent bar – white keeps it neutral
-  activeTxt:  "#FFFFFF",   // active label
-  groupLabel: "#444750",   // section header
-  // badges
-  badge:      "#E84040",   // notification red
-  warnBadge:  "#D97706",   // amber warning
-  // online dot
-  online:     "#22C55E",
-  // header
-  headerBg:   "#FFFFFF",
-  headerBorder:"#EAECF0",
-  headerInk:  "#101828",
-  headerMuted:"#667085",
-  inputBg:    "#F9FAFB",
-  inputBorder:"#D0D5DD",
-  // content
-  canvasBg:   "#F7F8FA",
-  // avatar – monochrome initials
-  avatarBg:   "#1A1D24",
+  // Sidebar tokens
+  sidebarBg: "#0b0f19",
+  sidebarBorder: "rgba(255, 255, 255, 0.06)",
+  itemActiveBg: "#1c2337",
+  itemActiveText: "#ffffff",
+  itemInactiveText: "#8a92a6",
+  itemHoverBg: "rgba(255, 255, 255, 0.05)",
+  groupLabel: "rgba(255, 255, 255, 0.38)",
+  // Badges
+  badge: "#E84040",
+  warnBadge: "#D97706",
+  online: "#22C55E",
+  // Header tokens
+  headerBg: "#FFFFFF",
+  headerBorder: "rgba(206, 216, 229, 0.97)",
+  headerInk: "#0c1e33",
+  headerMuted: "#495d72",
+  inputBg: "#F9FAFB",
+  inputBorder: "#D0D5DD",
+  // Canvas tokens
+  canvasBg: "#f4f6f7",
+  navy: "#0c1e33",
+  slate: "#495d72",
+  line: "#ced8e5",
+  border: "#e4e6e9",
+  chip: "#f5f6f8",
+  faint: "#b3b3b3",
+  avatarBg: "#1A1D24",
   avatarText: "#FFFFFF",
 };
 
-// ─── Nav item ────────────────────────────────────────────────────────────────
+// ─── Nav item (Matching Student & Teacher Command Center) ──────────────────────
 function NavItem({
   icon: Icon, label, active, badge, badgeVariant = "red", onClick,
 }: {
@@ -66,7 +69,6 @@ function NavItem({
   badge?: number; badgeVariant?: "red" | "amber"; onClick: () => void;
 }) {
   const [hover, setHover] = useState(false);
-  const showHighlight = active || hover;
   return (
     <button
       onClick={onClick}
@@ -78,44 +80,33 @@ function NavItem({
         width: "100%",
         display: "flex",
         alignItems: "center",
-        gap: "9px",
-        padding: "7px 12px 7px 14px",
-        borderRadius: "7px",
+        gap: "11px",
+        height: "40px",
+        padding: "0 12px",
+        borderRadius: "10px",
         cursor: "pointer",
         position: "relative",
-        background: active ? S.itemActive : hover ? S.itemHover : "transparent",
-        transition: "background 0.12s",
+        background: active ? S.itemActiveBg : hover ? S.itemHoverBg : "transparent",
+        color: active ? S.itemActiveText : hover ? "#ffffff" : S.itemInactiveText,
+        fontWeight: active ? 600 : 450,
+        fontSize: "13.5px",
+        transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
       }}
     >
-      {/* left accent bar – only when active */}
-      {active && (
-        <span style={{
-          position: "absolute",
-          left: 0,
-          top: "50%",
-          transform: "translateY(-50%)",
-          width: "2px",
-          height: "16px",
-          borderRadius: "0 2px 2px 0",
-          background: S.activeBar,
-        }} />
-      )}
-
       <Icon
-        size={15}
+        size={18}
         strokeWidth={active ? 2 : 1.75}
-        style={{ color: active ? S.activeTxt : hover ? "#C0C4CC" : S.itemText, flexShrink: 0 }}
+        style={{
+          color: active ? "#ffffff" : hover ? "#ffffff" : S.itemInactiveText,
+          flexShrink: 0,
+          transition: "color 0.15s ease",
+        }}
       />
-
       <span style={{
         flex: 1,
-        fontSize: "13px",
-        fontWeight: active ? 500 : 400,
-        color: active ? S.activeTxt : hover ? "#C0C4CC" : S.itemText,
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
-        letterSpacing: "0.005em",
       }}>
         {label}
       </span>
@@ -125,15 +116,14 @@ function NavItem({
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          minWidth: "17px",
-          height: "17px",
-          padding: "0 4px",
+          minWidth: "18px",
+          height: "18px",
+          padding: "0 5px",
           borderRadius: "999px",
-          fontSize: "10px",
-          fontWeight: 600,
+          fontSize: "10.5px",
+          fontWeight: 700,
           background: badgeVariant === "amber" ? S.warnBadge : S.badge,
           color: "#fff",
-          letterSpacing: "0",
           flexShrink: 0,
         }}>
           {badge}
@@ -147,12 +137,12 @@ function NavItem({
 function NavGroup({ label }: { label: string }) {
   return (
     <div style={{
-      padding: "18px 14px 5px",
       fontSize: "10px",
-      fontWeight: 600,
+      fontWeight: 700,
       color: S.groupLabel,
-      letterSpacing: "0.07em",
+      letterSpacing: "0.08em",
       textTransform: "uppercase",
+      padding: "14px 12px 4px",
       userSelect: "none",
     }}>
       {label}
@@ -541,152 +531,268 @@ export function SchoolAdminWorkspace({
     .join("")
     .toUpperCase();
 
+  const adminAvatarUrl = getStudentAvatarUrl(schoolName, "admin@edops.internal");
+
   return (
     <div style={{
       display: "flex",
       minHeight: "100vh",
       background: S.canvasBg,
-      fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif',
+      fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      color: S.navy,
     }}>
       {/* ═══════════════════════════════════════════════
-          S I D E B A R
+          S I D E B A R (Matching Student & Teacher Command Center)
       ═══════════════════════════════════════════════ */}
-      <aside style={{
-        width: "228px",
-        flexShrink: 0,
-        background: S.bg,
-        borderRight: `1px solid ${S.border}`,
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        position: "sticky",
-        top: 0,
-        overflowY: "auto",
-        overflowX: "hidden",
-        // thin custom scrollbar
-        scrollbarWidth: "thin",
-        scrollbarColor: "#2A2D35 transparent",
-      }}>
-
-        {/* ── Logo / Brand ────────────────────────────── */}
-        <div style={{
-          height: "58px",
+      <aside
+        id="sidebar"
+        aria-label="School Admin primary navigation"
+        style={{
+          width: "240px",
+          flexShrink: 0,
+          background: S.sidebarBg,
+          color: "#fff",
           display: "flex",
-          alignItems: "center",
-          padding: "0 16px",
-          borderBottom: `1px solid ${S.border}`,
-          gap: "10px",
-          flexShrink: 0,
-        }}>
-          {/* Proper EDOPS Logo */}
-          <div style={{
-            height: "28px",
-            display: "flex",
-            alignItems: "center",
-          }}>
-            <img src="/logo.svg" alt="EDOPS School OS" style={{ height: "100%", width: "auto", display: "block" }} />
-          </div>
-        </div>
-
-
-
-        {/* ── Navigation ──────────────────────────────── */}
-        <nav style={{ flex: 1, padding: "2px 8px 12px", display: "flex", flexDirection: "column" }}>
-          {navigation.error && <p role="alert" style={{ color: "#FCA5A5", padding: "12px", fontSize: "12px" }}>{navigation.error}</p>}
-          {navigation.sections.map(section => (
-            <React.Fragment key={section.key}>
-              <NavGroup label={section.label} />
-              {section.items.map(item => {
-                const tab = item.key.split(".").at(-1) as SchoolAdminTab;
-                return <NavItem key={item.key} icon={navIcons[tab]} label={item.label} active={currentTab === tab} onClick={() => go(tab)} />;
-              })}
-            </React.Fragment>
-          ))}
-        </nav>
-
-        {/* ── Sign out ────────────────────────────────── */}
-        <div style={{
-          borderTop: `1px solid ${S.border}`,
-          padding: "10px 8px",
-          flexShrink: 0,
-        }}>
-          <button
-            onClick={() => onLogout ? onLogout() : window.location.reload()}
-            style={{
-              all: "unset",
-              boxSizing: "border-box",
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: "9px",
-              padding: "7px 12px",
-              borderRadius: "7px",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 400,
-              color: S.itemText,
-              transition: "background 0.12s, color 0.12s",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = S.itemHover; e.currentTarget.style.color = "#C0C4CC"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = S.itemText; }}
-          >
-            <LogOut size={14} strokeWidth={1.75} style={{ flexShrink: 0 }} />
-            Sign out
-          </button>
-        </div>
-      </aside>
-
-      {/* ═══════════════════════════════════════════════
-          M A I N
-      ═══════════════════════════════════════════════ */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
-
-        {/* ── Top bar ─────────────────────────────────── */}
-        <header style={{
+          flexDirection: "column",
+          height: "100vh",
           position: "sticky",
           top: 0,
-          zIndex: 20,
-          height: "58px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 28px",
-          background: S.headerBg,
-          borderBottom: `1px solid ${S.headerBorder}`,
-          gap: "16px",
-          flexShrink: 0,
-        }}>
-          {/* Left – page title */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-            <h1 style={{
-              margin: 0,
-              fontSize: "16px",
-              fontWeight: 600,
-              color: S.headerInk,
-              letterSpacing: "-0.02em",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}>
-              {pageTitle[currentTab] ?? currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}
-            </h1>
-            {currentTab === "dashboard" && (
+          padding: 0,
+          boxSizing: "border-box",
+          zIndex: 40,
+          borderRight: `1px solid ${S.sidebarBorder}`,
+        }}
+      >
+        {/* Brand / Logo - Exactly 68px height matching Student & Teacher Command Center */}
+        <div
+          style={{
+            height: "68px",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 20px",
+            cursor: "pointer",
+            flexShrink: 0,
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            boxSizing: "border-box",
+          }}
+          onClick={() => go("dashboard")}
+          title="EDOPS School Admin Command Center"
+        >
+          <img
+            src="/logo.svg"
+            alt="EDOPS School OS"
+            style={{
+              height: "32px",
+              width: "auto",
+              display: "block",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.3))",
+              transition: "transform 0.15s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+          />
+        </div>
+
+        {/* Scrollable Navigation Body */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            padding: "12px 12px 14px",
+            overflowY: "auto",
+            overflowX: "hidden",
+            scrollbarWidth: "none",
+          }}
+        >
+          <nav
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "3px",
+              flex: 1,
+            }}
+            aria-label="Sidebar navigation"
+          >
+            {navigation.error && (
+              <p role="alert" style={{ color: "#FCA5A5", padding: "12px", fontSize: "12px" }}>
+                {navigation.error}
+              </p>
+            )}
+            {navigation.sections.map((section, idx) => (
+              <React.Fragment key={section.key}>
+                <div
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    color: S.groupLabel,
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    padding: idx === 0 ? "8px 12px 4px" : "14px 12px 4px",
+                    userSelect: "none",
+                  }}
+                >
+                  {section.label}
+                </div>
+                {section.items.map((item) => {
+                  const tab = item.key.split(".").at(-1) as SchoolAdminTab;
+                  return (
+                    <NavItem
+                      key={item.key}
+                      icon={navIcons[tab] || LayoutDashboard}
+                      label={item.label}
+                      active={currentTab === tab}
+                      onClick={() => go(tab)}
+                    />
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </nav>
+
+          {/* Profile Footer - Matching Unified Command Center Spec */}
+          <div style={{ marginTop: "auto", paddingTop: "14px" }}>
+            <div
+              style={{
+                height: "1px",
+                background: "rgba(255, 255, 255, 0.06)",
+                marginBottom: "12px",
+              }}
+            />
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "10px",
+                padding: "8px 10px",
+                borderRadius: "12px",
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(255, 255, 255, 0.05)",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.07)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.05)";
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "10px",
+                    overflow: "hidden",
+                    flexShrink: 0,
+                    background: "rgba(255, 255, 255, 0.08)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "1px solid rgba(255, 255, 255, 0.12)",
+                  }}
+                >
+                  <img
+                    src={adminAvatarUrl}
+                    alt={schoolName}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "2px", whiteSpace: "nowrap", overflow: "hidden", minWidth: 0 }}>
+                  <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#ffffff", textOverflow: "ellipsis", overflow: "hidden" }}>
+                    {schoolName}
+                  </p>
+                  <p style={{ margin: 0, fontSize: "11px", color: S.itemInactiveText, textOverflow: "ellipsis", overflow: "hidden" }}>
+                    School Administrator
+                  </p>
+                </div>
+              </div>
+
               <button
-                onClick={() => window.location.reload()}
-                title="Refresh"
+                type="button"
+                onClick={() => (onLogout ? onLogout() : window.location.reload())}
+                title="Sign out of school administrator console"
                 style={{
                   all: "unset",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: "26px",
-                  height: "26px",
+                  width: "28px",
+                  height: "28px",
                   borderRadius: "6px",
                   cursor: "pointer",
-                  color: S.headerMuted,
+                  color: "rgba(255, 255, 255, 0.45)",
+                  flexShrink: 0,
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.color = "#f43f5e";
+                  e.currentTarget.style.background = "rgba(244, 63, 94, 0.15)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.45)";
+                  e.currentTarget.style.background = "transparent";
+                }}
+              >
+                <LogOut size={14} strokeWidth={1.75} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* ═══════════════════════════════════════════════
+          M A I N   C O N T E N T   &   H E A D E R
+      ═══════════════════════════════════════════════ */}
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
+        {/* Top bar - Exactly 68px height matching Command Center Spec */}
+        <header
+          style={{
+            position: "sticky",
+            top: 0,
+            zIndex: 30,
+            height: "68px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 32px",
+            background: "#ffffff",
+            borderBottom: `1px solid ${S.headerBorder}`,
+            gap: "16px",
+            flexShrink: 0,
+          }}
+        >
+          {/* Left: Page Title & Breadcrumb */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", whiteSpace: "nowrap", minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: S.navy }}>
+              School Admin Command Center
+            </p>
+            <span style={{ width: "1px", height: "16px", background: S.line }} />
+            <p style={{ margin: 0, fontSize: "13px", color: S.slate }}>
+              {pageTitle[currentTab] ?? currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}
+            </p>
+
+            {currentTab === "dashboard" && (
+              <button
+                onClick={() => setRefreshKey((k) => k + 1)}
+                title="Refresh Dashboard"
+                style={{
+                  all: "unset",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "28px",
+                  height: "28px",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  color: S.slate,
+                  marginLeft: "4px",
                   transition: "background 0.12s",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#F2F4F7")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f2f5")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
                 <RefreshCw size={13} strokeWidth={2} />
@@ -694,41 +800,69 @@ export function SchoolAdminWorkspace({
             )}
           </div>
 
-          {/* Right – actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-            {/* Search */}
-            <div style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "7px",
-              height: "34px",
-              padding: "0 11px",
-              border: `1px solid ${searchFocused ? "#98A2B3" : S.inputBorder}`,
-              borderRadius: "8px",
-              background: S.inputBg,
-              transition: "border-color 0.15s",
-            }}>
-              <Search size={13} strokeWidth={2} style={{ color: S.headerMuted, flexShrink: 0 }} />
+          {/* Right: Actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
+            {/* Quick Action Primary Button */}
+            <button
+              type="button"
+              onClick={() => triggerAction("addTeacher")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "7px",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                background: S.navy,
+                color: "#ffffff",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                border: "none",
+                boxShadow: "0 1px 2px rgba(12, 30, 51, 0.08)",
+                transition: "background 0.15s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
+            >
+              <Users size={14} />
+              <span>+ Invite Member</span>
+            </button>
+
+            {/* Search Input */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                height: "38px",
+                padding: "0 12px",
+                border: `1px solid ${searchFocused ? S.navy : S.line}`,
+                borderRadius: "8px",
+                background: S.inputBg,
+                transition: "border-color 0.15s ease",
+              }}
+            >
+              <Search size={14} strokeWidth={2} style={{ color: S.slate, flexShrink: 0 }} />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
-                placeholder="Search…"
+                placeholder="Search portal..."
                 style={{
                   border: "none",
                   outline: "none",
                   background: "transparent",
                   fontSize: "13px",
-                  color: S.headerInk,
-                  width: "148px",
+                  color: S.navy,
+                  width: "160px",
                   fontFamily: "inherit",
                 }}
               />
             </div>
 
-            {/* Bell */}
+            {/* Notification Bell */}
             <button
               onClick={() => go("alerts")}
               aria-label="Alerts"
@@ -738,89 +872,132 @@ export function SchoolAdminWorkspace({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: "34px",
-                height: "34px",
+                width: "38px",
+                height: "38px",
                 borderRadius: "8px",
-                border: `1px solid ${S.inputBorder}`,
-                background: "#FFFFFF",
+                border: `1px solid ${S.line}`,
+                background: "#ffffff",
                 cursor: "pointer",
-                color: S.headerInk,
-                transition: "background 0.12s",
+                color: S.navy,
+                transition: "all 0.12s ease",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#F9FAFB")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f4f6f7")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
             >
-              <Bell size={14} strokeWidth={1.75} />
-              {/* notification dot */}
-              <span style={{
-                position: "absolute",
-                top: "7px",
-                right: "7px",
-                width: "6px",
-                height: "6px",
-                borderRadius: "50%",
-                background: S.badge,
-                border: "1.5px solid #FFFFFF",
-              }} />
+              <Bell size={15} strokeWidth={1.75} />
+              <span
+                style={{
+                  position: "absolute",
+                  top: "8px",
+                  right: "8px",
+                  width: "7px",
+                  height: "7px",
+                  borderRadius: "50%",
+                  background: S.badge,
+                  border: "1.5px solid #ffffff",
+                }}
+              />
             </button>
 
-            {/* Avatar – monochrome, no gradient */}
+            {/* Avatar Dropdown - Exactly matching Student Dashboard Profile Avatar */}
             <div style={{ position: "relative" }}>
-              <div 
+              <div
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                title="School Admin Profile & Settings"
                 style={{
-                  width: "34px",
-                  height: "34px",
+                  width: "36px",
+                  height: "36px",
                   borderRadius: "50%",
-                  background: S.avatarBg,
-                  border: `1px solid ${S.border}`,
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  border: profileMenuOpen ? "2px solid #0c1e33" : `1px solid ${S.border}`,
+                  background: "#f0f4f8",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontSize: "12px",
-                  fontWeight: 600,
-                  color: S.avatarText,
-                  letterSpacing: "0.02em",
-                  userSelect: "none",
-                  cursor: "pointer",
-                }}>
-                SA
+                  boxShadow: profileMenuOpen ? "0 0 0 3px rgba(12, 30, 51, 0.1)" : "none",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <img
+                  src={adminAvatarUrl}
+                  alt={schoolName}
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
               </div>
-              
+
               {profileMenuOpen && (
                 <>
-                  {/* Invisible backdrop to catch outside clicks */}
-                  <div 
-                    style={{ position: "fixed", inset: 0, zIndex: 90 }} 
-                    onClick={() => setProfileMenuOpen(false)} 
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 90 }}
+                    onClick={() => setProfileMenuOpen(false)}
                   />
-                  <div style={{
-                    position: "absolute",
-                    top: "calc(100% + 8px)",
-                    right: 0,
-                    width: "220px",
-                    background: "#FFFFFF",
-                    border: `1px solid ${S.headerBorder}`,
-                    borderRadius: "10px",
-                    boxShadow: "0 12px 32px rgba(16, 24, 40, 0.1)",
-                    padding: "6px",
-                    zIndex: 100,
-                  }}>
-                    <div style={{ padding: "10px 12px", borderBottom: `1px solid ${S.headerBorder}`, marginBottom: "6px" }}>
-                      <div style={{ fontSize: "14px", fontWeight: 600, color: S.headerInk, letterSpacing: "-0.01em" }}>School Administrator</div>
-                      <div style={{ fontSize: "12px", color: S.headerMuted, marginTop: "2px" }}>admin@schoolos.com</div>
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 8px)",
+                      right: 0,
+                      width: "240px",
+                      background: "#FFFFFF",
+                      border: `1px solid ${S.border}`,
+                      borderRadius: "10px",
+                      boxShadow: "0 12px 32px rgba(12, 30, 51, 0.12)",
+                      padding: "6px",
+                      zIndex: 100,
+                    }}
+                  >
+                    <div style={{ padding: "10px 12px", borderBottom: `1px solid ${S.border}`, marginBottom: "6px", display: "flex", alignItems: "center", gap: "10px" }}>
+                      <div
+                        style={{
+                          width: "34px",
+                          height: "34px",
+                          borderRadius: "50%",
+                          overflow: "hidden",
+                          flexShrink: 0,
+                          border: `1px solid ${S.border}`,
+                          background: "#f0f4f8",
+                        }}
+                      >
+                        <img
+                          src={adminAvatarUrl}
+                          alt={schoolName}
+                          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                        />
+                      </div>
+                      <div style={{ minWidth: 0, overflow: "hidden" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: S.navy, letterSpacing: "-0.01em", textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                          {schoolName}
+                        </div>
+                        <div style={{ fontSize: "11px", color: S.slate }}>
+                          School Administrator
+                        </div>
+                      </div>
                     </div>
-                    <button 
-                      onClick={() => { setProfileMenuOpen(false); if (onLogout) onLogout(); else window.location.reload(); }}
-                      style={{
-                        all: "unset", width: "100%", display: "flex", alignItems: "center", gap: "10px",
-                        padding: "8px 12px", fontSize: "13px", fontWeight: 500, color: S.headerInk, cursor: "pointer",
-                        borderRadius: "6px", boxSizing: "border-box"
+                    <button
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        if (onLogout) onLogout();
+                        else window.location.reload();
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "#F9FAFB")}
+                      style={{
+                        all: "unset",
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "8px 12px",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: S.navy,
+                        cursor: "pointer",
+                        borderRadius: "6px",
+                        boxSizing: "border-box",
+                        transition: "background 0.12s ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f4f6f7")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
                     >
-                      <LogOut size={15} strokeWidth={1.75} style={{ color: S.headerMuted }} /> 
+                      <LogOut size={15} strokeWidth={1.75} style={{ color: S.slate }} />
                       Sign out
                     </button>
                   </div>
@@ -830,28 +1007,32 @@ export function SchoolAdminWorkspace({
           </div>
         </header>
 
-        {/* ── Page content ────────────────────────────── */}
-        <div style={{ flex: 1, padding: "28px 28px 56px" }}>
-          {!available(currentTab) ? <p role="status">{navigation.loading ? "Loading dashboard navigation…" : "This dashboard feature is unavailable for this school."}</p> : <>
-          {currentTab === "dashboard" && (
-            <DashboardPane key={`dashboard-${refreshKey}`} organizationId={organizationId} onNavigate={go} onOpenQuickAction={triggerAction} />
+        {/* ── Page content Canvas ────────────────────────── */}
+        <div style={{ flex: 1, padding: "32px 32px 64px", background: S.canvasBg }}>
+          {!available(currentTab) ? (
+            <p role="status">{navigation.loading ? "Loading dashboard navigation…" : "This dashboard feature is unavailable for this school."}</p>
+          ) : (
+            <>
+              {currentTab === "dashboard" && (
+                <DashboardPane key={`dashboard-${refreshKey}`} organizationId={organizationId} onNavigate={go} onOpenQuickAction={triggerAction} />
+              )}
+              {["students", "teachers", "staff", "parents", "departments"].includes(currentTab) && (
+                <PeoplePane key={`people-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} onOpenQuickAction={triggerAction} />
+              )}
+              {currentTab === "academics" && <AcademicsPane organizationId={organizationId} onOpenQuickAction={triggerAction} />}
+              {currentTab === "timetable" && <TimetablePane organizationId={organizationId} />}
+              {currentTab === "attendance" && <AttendanceLeavePane organizationId={organizationId} />}
+              {["learning", "examinations"].includes(currentTab) && (
+                <LearningExamsPane key={`learning-${refreshKey}`} organizationId={organizationId} activeTab={currentTab === "examinations" ? "exams" : "assignments"} />
+              )}
+              {currentTab === "finance" && <FinancePane organizationId={organizationId} />}
+              {currentTab === "communication" && <CommunicationPane organizationId={organizationId} />}
+              {currentTab === "operations" && <OperationsPane organizationId={organizationId} />}
+              {["discipline", "documents", "reports", "alerts", "settings", "audit"].includes(currentTab) && (
+                <GovernancePane key={`governance-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} />
+              )}
+            </>
           )}
-          {["students","teachers","staff","parents","departments"].includes(currentTab) && (
-            <PeoplePane key={`people-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} onOpenQuickAction={triggerAction} />
-          )}
-          {currentTab === "academics" && <AcademicsPane organizationId={organizationId} onOpenQuickAction={triggerAction} />}
-          {currentTab === "timetable" && <TimetablePane organizationId={organizationId} />}
-          {currentTab === "attendance" && <AttendanceLeavePane organizationId={organizationId} />}
-          {["learning", "examinations"].includes(currentTab) && (
-            <LearningExamsPane key={`learning-${refreshKey}`} organizationId={organizationId} activeTab={currentTab === "examinations" ? "exams" : "assignments"} />
-          )}
-          {currentTab === "finance" && <FinancePane organizationId={organizationId} />}
-          {currentTab === "communication" && <CommunicationPane organizationId={organizationId} />}
-          {currentTab === "operations" && <OperationsPane organizationId={organizationId} />}
-          {["discipline","documents","reports","alerts","settings","audit"].includes(currentTab) && (
-            <GovernancePane key={`governance-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} />
-          )}
-          </>}
         </div>
       </main>
 
@@ -861,9 +1042,13 @@ export function SchoolAdminWorkspace({
       {quickActionModal && (
         <div
           style={{
-            position: "fixed", inset: 0, zIndex: 200,
-            display: "grid", placeItems: "center", padding: "20px",
-            background: "rgba(16,24,40,0.45)",
+            position: "fixed",
+            inset: 0,
+            zIndex: 200,
+            display: "grid",
+            placeItems: "center",
+            padding: "20px",
+            background: "rgba(12, 30, 51, 0.45)",
             backdropFilter: "blur(6px)",
           }}
           onMouseDown={(e) => {
@@ -873,17 +1058,22 @@ export function SchoolAdminWorkspace({
             }
           }}
         >
-          <section style={{
-            position: "relative",
-            width: "min(480px, 95vw)",
-            maxHeight: "90vh",
-            overflow: "auto",
-            padding: "28px",
-            borderRadius: "14px",
-            background: "#FFFFFF",
-            boxShadow: "0 20px 60px rgba(16,24,40,0.18)",
-            fontFamily: "inherit",
-          }} role="dialog" aria-modal="true">
+          <section
+            style={{
+              position: "relative",
+              width: "min(500px, 95vw)",
+              maxHeight: "90vh",
+              overflow: "auto",
+              padding: "28px",
+              borderRadius: "14px",
+              background: "#FFFFFF",
+              border: `1px solid ${S.border}`,
+              boxShadow: "0 24px 64px rgba(12, 30, 51, 0.2)",
+              fontFamily: "inherit",
+            }}
+            role="dialog"
+            aria-modal="true"
+          >
             {/* close */}
             <button
               onClick={() => {
@@ -991,10 +1181,13 @@ export function SchoolAdminWorkspace({
                       borderRadius: "8px",
                       fontSize: "13px",
                       fontWeight: 600,
-                      background: "#101828",
+                      background: S.navy,
                       color: "#FFFFFF",
                       cursor: "pointer",
+                      transition: "background 0.15s ease",
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
                   >
                     Done
                   </button>
@@ -2133,12 +2326,15 @@ export function SchoolAdminWorkspace({
                       style={{
                         all: "unset", boxSizing: "border-box",
                         padding: "8px 16px",
-                        border: "1px solid #D0D5DD",
+                        border: `1px solid ${S.line}`,
                         borderRadius: "8px",
                         fontSize: "13px", fontWeight: 500,
-                        color: "#344054", cursor: "pointer",
+                        color: S.slate, cursor: "pointer",
                         background: "#FFFFFF",
+                        transition: "background 0.12s ease",
                       }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f4f6f7")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
                     >
                       Cancel
                     </button>
@@ -2150,10 +2346,13 @@ export function SchoolAdminWorkspace({
                         padding: "8px 18px",
                         borderRadius: "8px",
                         fontSize: "13px", fontWeight: 600,
-                        background: "#101828", color: "#FFFFFF",
+                        background: S.navy, color: "#FFFFFF",
                         cursor: actionBusy ? "wait" : "pointer",
                         opacity: actionBusy ? 0.6 : 1,
+                        transition: "background 0.15s ease",
                       }}
+                      onMouseEnter={(e) => { if (!actionBusy) e.currentTarget.style.background = "#132840"; }}
+                      onMouseLeave={(e) => { if (!actionBusy) e.currentTarget.style.background = S.navy; }}
                     >
                       {actionBusy
                         ? "Processing…"
