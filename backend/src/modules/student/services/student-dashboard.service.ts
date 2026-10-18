@@ -120,7 +120,7 @@ export class StudentDashboardService {
       address: rawStudent?.address || 'Civil Lines, Institutional Enclave, New Delhi',
       guardianName: rawStudent?.guardianName || 'Parent / Guardian',
       guardianPhone: rawStudent?.guardianPhone || '+91 98765 43210',
-      guardianEmail: rawStudent?.guardianEmail || 'parent@edops.com',
+      guardianEmail: rawStudent?.guardianEmail || '',
       medicalNotes: rawStudent?.medicalNotes || 'Fit for physical education & sports activities.',
       category: rawStudent?.category || 'General (CBSE Secondary)',
       previousSchool: rawStudent?.previousSchool || 'Delhi Public School (Junior Wing)',

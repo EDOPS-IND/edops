@@ -4,16 +4,7 @@ import { ApiProperty } from "@nestjs/swagger";
 
 export const normalizeEmail = ({ value }: { value: unknown }) => {
   if (typeof value !== "string") return value;
-  const trimmed = value.trim().toLowerCase();
-  const simpleMap: Record<string, string> = {
-    student: "student@edops.com",
-    parent: "parent@edops.com",
-    teacher: "teacher@edops.com",
-    principal: "principal@edops.com",
-    admin: "admin@edops.com",
-    platform: "platform@edops.com",
-  };
-  return simpleMap[trimmed] || trimmed;
+  return value.trim().toLowerCase();
 };
 
 export class LoginDto {

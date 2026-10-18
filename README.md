@@ -1,9 +1,9 @@
 # EDOPS — Enterprise B2B Multi-Tenant School Operations Platform & LMS
 
-[![Backend](https://img.shields.io/badge/Backend-NestJS%2011%20%7C%20TypeORM%20%7C%20Drizzle-E0234E?style=flat-square&logo=nestjs)](file:///Users/rajaryan/Desktop/EDOPS/EDOPS/backend)
-[![Frontend](https://img.shields.io/badge/Frontend-Next.js%20%7C%20Vinext%20%7C%20React%2019-000000?style=flat-square&logo=nextdotjs)](file:///Users/rajaryan/Desktop/EDOPS/EDOPS/frontend)
-[![Database](https://img.shields.io/badge/Database-PostgreSQL%2016%20%28RLS%29-336791?style=flat-square&logo=postgresql)](file:///Users/rajaryan/Desktop/EDOPS/EDOPS/backend/compose.yaml)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript)](file:///Users/rajaryan/Desktop/EDOPS/EDOPS/tsconfig.json)
+[![Backend](https://img.shields.io/badge/Backend-NestJS%2011%20%7C%20TypeORM%20%7C%20Drizzle-E0234E?style=flat-square&logo=nestjs)](./backend)
+[![Frontend](https://img.shields.io/badge/Frontend-Next.js%20%7C%20Vinext%20%7C%20React%2019-000000?style=flat-square&logo=nextdotjs)](./frontend)
+[![Database](https://img.shields.io/badge/Database-PostgreSQL%2016%20%28RLS%29-336791?style=flat-square&logo=postgresql)](./backend/compose.yaml)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript)](./tsconfig.json)
 [![API Docs](https://img.shields.io/badge/Swagger-OpenAPI%203.0-85EA2D?style=flat-square&logo=swagger)](http://127.0.0.1:3001/api/docs)
 
 **EDOPS** is an enterprise-grade, institutional B2B multi-tenant Learning Management System (LMS) and comprehensive School Operations Platform. Engineered specifically for K-12 schools, higher education institutions, and educational networks, EDOPS unifies academic planning, student rosters, assignment lifecycles, attendance tracking, lecture recordings, objective practice arenas, fee ledgers, and multi-persona portals into an isolated, secure, and resilient platform.
@@ -15,24 +15,23 @@
 1. [Executive Overview & Tenancy Architecture](#1-executive-overview--tenancy-architecture)
 2. [System Requirements & Prerequisites](#2-system-requirements--prerequisites)
 3. [Quick Start (One-Command Launch)](#3-quick-start-one-command-launch)
-4. [Pre-Seeded Demo Accounts & Credentials](#4-pre-seeded-demo-accounts--credentials)
-5. [Role Hierarchy & Access Boundaries](#5-role-hierarchy--access-boundaries)
-6. [Milestone Capabilities Breakdown (M1 – M6+)](#6-milestone-capabilities-breakdown-m1--m6)
-7. [Comprehensive File & Directory Guide ("Which File is for What")](#7-comprehensive-file--directory-guide-which-file-is-for-what)
-   - [Root Directory](#71-root-directory)
-   - [Backend Architecture (`backend/`)](#72-backend-architecture-backend)
-   - [Frontend Architecture (`frontend/`)](#73-frontend-architecture-frontend)
-   - [Domain Modules Breakdown](#74-domain-modules-breakdown)
-   - [Frontend Role Workspaces & Panes](#75-frontend-role-workspaces--panes)
-8. [Source of Truth & System Impact Matrix ("Where Everything is Defined & What It Affects")](#8-source-of-truth--system-impact-matrix-where-everything-is-defined--what-it-affects)
-   - [Master Data Flow & Cascade Lifecycle](#81-master-data-flow--cascade-lifecycle)
-   - [Domain-by-Domain Source of Truth & Downstream Impact Matrix](#82-domain-by-domain-source-of-truth--downstream-impact-matrix)
-   - [Deep-Dive Ripple Effects per Key Entity & Mutation](#83-deep-dive-ripple-effects-per-key-entity--mutation)
-   - [Developer Ripple Effect Rulebook ("If You Modify X, You Must Update Y")](#84-developer-ripple-effect-rulebook-if-you-modify-x-you-must-update-y)
-9. [Environment Variables & Configuration](#9-environment-variables--configuration)
-10. [API Architecture & Swagger Documentation](#10-api-architecture--swagger-documentation)
-11. [Security, Isolation & Regulatory Standards](#11-security-isolation--regulatory-standards)
-12. [Troubleshooting & Maintenance Workflows](#12-troubleshooting--maintenance-workflows)
+4. [Role Hierarchy & Access Boundaries](#4-role-hierarchy--access-boundaries)
+5. [Milestone Capabilities Breakdown (M1 – M6+)](#5-milestone-capabilities-breakdown-m1--m6)
+6. [Comprehensive File & Directory Guide ("Which File is for What")](#6-comprehensive-file--directory-guide-which-file-is-for-what)
+   - [Root Directory](#61-root-directory)
+   - [Backend Architecture (`backend/`)](#62-backend-architecture-backend)
+   - [Frontend Architecture (`frontend/`)](#63-frontend-architecture-frontend)
+   - [Domain Modules Breakdown](#64-domain-modules-breakdown)
+   - [Frontend Role Workspaces & Panes](#65-frontend-role-workspaces--panes)
+7. [Source of Truth & System Impact Matrix ("Where Everything is Defined & What It Affects")](#7-source-of-truth--system-impact-matrix-where-everything-is-defined--what-it-affects)
+   - [Master Data Flow & Cascade Lifecycle](#71-master-data-flow--cascade-lifecycle)
+   - [Domain-by-Domain Source of Truth & Downstream Impact Matrix](#72-domain-by-domain-source-of-truth--downstream-impact-matrix)
+   - [Deep-Dive Ripple Effects per Key Entity & Mutation](#73-deep-dive-ripple-effects-per-key-entity--mutation)
+   - [Developer Ripple Effect Rulebook ("If You Modify X, You Must Update Y")](#74-developer-ripple-effect-rulebook-if-you-modify-x-you-must-update-y)
+8. [Environment Variables & Configuration](#8-environment-variables--configuration)
+9. [API Architecture & Swagger Documentation](#9-api-architecture--swagger-documentation)
+10. [Security, Isolation & Regulatory Standards](#10-security-isolation--regulatory-standards)
+11. [Troubleshooting & Maintenance Workflows](#11-troubleshooting--maintenance-workflows)
 
 ---
 
@@ -101,27 +100,19 @@ bash start.sh
 8. **Browser Launch**: Automatically opens the web application at `http://localhost:3000`.
 9. **Clean Teardown**: Intercepts `Ctrl+C` (SIGINT/SIGTERM) to gracefully stop all child processes and free ports.
 
----
+### 3.3 Bootstrapping the Platform Administrator
+The root platform super administrator is initialized securely through the backend CLI without hardcoded credentials:
 
-## 4. Pre-Seeded Demo Accounts & Credentials
+```bash
+cd backend
+npm run bootstrap:admin -- admin@your-school.org
+```
 
-The database contains pre-configured test accounts across all roles. Detailed account guides can also be viewed in [ACCOUNTS.md](ACCOUNTS.md).
-
-> **Universal Password Rule:** For all demo accounts, the password is the **same as the email address** (e.g., password for `student@edops.com` is `student@edops.com`). In automated tests, `password123` is accepted.
-
-| Role Persona | Email Address | Password | Accessible Workspace & Capabilities |
-| :--- | :--- | :--- | :--- |
-| **Super Admin** | `superadmin@edops.com` | `superadmin@edops.com` | **Platform Control Center**: Cross-tenant management, create schools, subscription plans, manual billing invoices, platform telemetry. |
-| **School Administrator** | `school@edops.com` | `school@edops.com` | **School Admin Hub**: Full institutional control, academic structure, teacher/student rosters, department configuration, fee schedules. |
-| **Admin (Alternative)** | `admin@edops.com` | `admin@edops.com` | Alternative school admin account for testing multi-admin operations and delegation. |
-| **Principal** | `principal@edops.com` | `principal@edops.com` | **Principal Suite**: Annual academic plans, teacher workload and classroom observations, timetable substitutions, exam locks, Student 360 profiles. |
-| **Teacher** | `teacher@edops.com` | `teacher@edops.com` | **Teacher Workspace**: Assigned classes, assignment publishing & grading, daily attendance registers, lecture video vault, practice Arena question authoring. |
-| **Student** | `student@edops.com` | `student@edops.com` | **Student Portal**: Timetable radar, assignment submissions, instant auto-graded Arena practice, attendance calendar heatmap, lesson recordings. |
-| **Parent** | `parent@edops.com` | `parent@edops.com` | **Parent Portal**: Multi-ward switcher, academic progress tracking, digital leave applications, school notices, fee breakdown, PTM slot booking. |
+You will be prompted to enter a hidden password (12-128 characters). See [ACCOUNTS.md](ACCOUNTS.md) for institutional account onboarding details.
 
 ---
 
-## 5. Role Hierarchy & Access Boundaries
+## 4. Role Hierarchy & Access Boundaries
 
 ```mermaid
 flowchart TD
@@ -157,7 +148,7 @@ flowchart TD
 
 ---
 
-## 6. Milestone Capabilities Breakdown (M1 – M6+)
+## 5. Milestone Capabilities Breakdown (M1 – M6+)
 
 The platform architecture is structured into robust, auditable functional milestones:
 
@@ -205,16 +196,16 @@ The platform architecture is structured into robust, auditable functional milest
 
 ---
 
-## 7. Comprehensive File & Directory Guide ("Which File is for What")
+## 6. Comprehensive File & Directory Guide ("Which File is for What")
 
 This section provides an exhaustive guide detailing the exact responsibilities of every major file and directory across the entire repository.
 
-### 7.1 Root Directory
+### 6.1 Root Directory
 
 ```text
 EDOPS/
 ├── README.md                                   # Master project guide, architecture, and documentation (this file)
-├── ACCOUNTS.md                                 # Pre-seeded test account credentials & role guide
+├── ACCOUNTS.md                                 # User provisioning, institutional hierarchy & account onboarding guide
 ├── start.sh                                    # Unified multi-service startup script (Docker, NestJS, Next.js)
 ├── package.json                                # Root package orchestrating unified start and seed scripts
 ├── requirement.md                              # Formal Product Requirements Document (PRD) & Low-Level Design (LLD)
@@ -231,7 +222,7 @@ EDOPS/
 
 ---
 
-### 7.2 Backend Architecture (`backend/`)
+### 6.2 Backend Architecture (`backend/`)
 
 ```text
 backend/
@@ -285,14 +276,14 @@ backend/
 │   │       ├── 1790294400000-DashboardNavigation.ts    # Customizable dynamic dashboard navigation items
 │   │       ├── 1790380800000-DatabaseBackedPortals.ts  # Parent-student relationships, PTM bookings, HPC reflections
 │   │       └── 1790467200000-SchoolPolicySettings.ts   # School-level governance and policy settings
-│   └── modules/          # 17 Business domain modules (detailed in Section 7.4)
+│   └── modules/          # 17 Business domain modules (detailed in Section 6.4)
 ├── test/                 # Integration test suites verifying database rules and security harnesses
 └── docs/                 # Detailed milestone documentation (MILESTONE-1.md through MILESTONE-6.md, API.md)
 ```
 
 ---
 
-### 7.3 Frontend Architecture (`frontend/`)
+### 6.3 Frontend Architecture (`frontend/`)
 
 ```text
 frontend/
@@ -324,18 +315,18 @@ frontend/
 │   │       ├── Metric.tsx      # Stat and KPI indicator tile
 │   │       ├── Modal.tsx       # Accessible dialog and modal overlay
 │   │       └── index.ts        # UI component barrel export
-│   ├── platform/         # Platform Super Admin Workspace & Panes (Section 7.5)
-│   ├── school-admin/     # School Administrator Hub & Panes (Section 7.5)
-│   ├── principal/        # Principal Academic Suite & Panes (Section 7.5)
-│   ├── teacher/          # Teacher Classroom Workspace & Panes (Section 7.5)
-│   ├── student/          # Student Learning Portal & Panes (Section 7.5)
-│   └── parent/           # Parent Guardian Portal & Panes (Section 7.5)
+│   ├── platform/         # Platform Super Admin Workspace & Panes (Section 6.5)
+│   ├── school-admin/     # School Administrator Hub & Panes (Section 6.5)
+│   ├── principal/        # Principal Academic Suite & Panes (Section 6.5)
+│   ├── teacher/          # Teacher Classroom Workspace & Panes (Section 6.5)
+│   ├── student/          # Student Learning Portal & Panes (Section 6.5)
+│   └── parent/           # Parent Guardian Portal & Panes (Section 6.5)
 └── tests/                # Automated frontend integration tests
 ```
 
 ---
 
-### 7.4 Domain Modules Breakdown (`backend/src/modules/`)
+### 6.4 Domain Modules Breakdown (`backend/src/modules/`)
 
 | Module Path | Primary Responsibilities & Key Files |
 | :--- | :--- |
@@ -358,7 +349,7 @@ frontend/
 
 ---
 
-### 7.5 Frontend Role Workspaces & Panes
+### 6.5 Frontend Role Workspaces & Panes
 
 Each user role has a dedicated workspace in the frontend containing modular, focused panes:
 
@@ -428,11 +419,11 @@ Each user role has a dedicated workspace in the frontend containing modular, foc
 
 ---
 
-## 8. Source of Truth & System Impact Matrix ("Where Everything is Defined & What It Affects")
+## 7. Source of Truth & System Impact Matrix ("Where Everything is Defined & What It Affects")
 
 This section maps **where every entity and business rule is defined** (Source of Truth), **which UI workspaces consume it**, and **where and what it affects downstream** (cascades, foreign keys, outbox events, materialized scorecards, and authorization).
 
-### 8.1 Master Data Flow & Cascade Lifecycle
+### 7.1 Master Data Flow & Cascade Lifecycle
 
 ```mermaid
 flowchart TD
@@ -456,7 +447,7 @@ flowchart TD
 
 ---
 
-### 8.2 Domain-by-Domain Source of Truth & Downstream Impact Matrix
+### 7.2 Domain-by-Domain Source of Truth & Downstream Impact Matrix
 
 | Domain / Subsystem | Source of Truth (Database Tables & Backend Source Files) | Consumed By (Frontend Workspaces & API Endpoints) | Where & What It Affects (Downstream Tables, RLS, Services & Cascades) |
 | :--- | :--- | :--- | :--- |
@@ -487,7 +478,7 @@ flowchart TD
 
 ---
 
-### 8.3 Deep-Dive Ripple Effects per Key Entity & Mutation
+### 7.3 Deep-Dive Ripple Effects per Key Entity & Mutation
 
 Understanding cause-and-effect in EDOPS is vital when debugging or developing new features. Below is the exact chain reaction for key state changes:
 
@@ -572,7 +563,7 @@ Understanding cause-and-effect in EDOPS is vital when debugging or developing ne
 
 ---
 
-### 8.4 Developer Ripple Effect Rulebook ("If You Modify X, You Must Update Y")
+### 7.4 Developer Ripple Effect Rulebook ("If You Modify X, You Must Update Y")
 
 When making changes to the codebase, follow these mandatory dependency rules:
 
@@ -606,7 +597,7 @@ When making changes to the codebase, follow these mandatory dependency rules:
 
 ---
 
-## 9. Environment Variables & Configuration
+## 8. Environment Variables & Configuration
 
 The backend reads its configuration from `backend/.env`. A complete template is provided in [backend/.env.example](backend/.env.example).
 
@@ -635,16 +626,16 @@ The backend reads its configuration from `backend/.env`. A complete template is 
 
 ---
 
-## 10. API Architecture & Swagger Documentation
+## 9. API Architecture & Swagger Documentation
 
 The backend exposes an interactive **Swagger UI** in non-production environments and an OpenAPI 3.0 specification file.
 
-### 10.1 Accessing Interactive Documentation
+### 9.1 Accessing Interactive Documentation
 - **Interactive Swagger UI**: [http://127.0.0.1:3001/api/docs](http://127.0.0.1:3001/api/docs)
 - **Raw OpenAPI JSON Spec**: [http://127.0.0.1:3001/api/docs-json](http://127.0.0.1:3001/api/docs-json)
 - **Exported Schema File**: [backend/edops-openapi.json](backend/edops-openapi.json)
 
-### 10.2 Canonical Route Structure
+### 9.2 Canonical Route Structure
 All API routes follow the standard `/api/v1` namespace (with legacy `/api` aliases maintained for backwards compatibility):
 
 ```text
@@ -677,11 +668,11 @@ All API routes follow the standard `/api/v1` namespace (with legacy `/api` alias
 
 ---
 
-## 11. Security, Isolation & Regulatory Standards
+## 10. Security, Isolation & Regulatory Standards
 
 EDOPS is designed to meet stringent global and regional compliance mandates for educational institutions:
 
-### 11.1 Security Architecture
+### 10.1 Security Architecture
 1. **Zero Trust Session Security**:
    - `SameSite=Lax`, `HttpOnly`, `Secure` cookies with 8-hour absolute timeouts.
    - Synchronized CSRF tokens required on every mutative request.
@@ -694,16 +685,16 @@ EDOPS is designed to meet stringent global and regional compliance mandates for 
    - Strict CORS origin whitelisting (HTTPS enforced in production).
    - Multi-tiered rate limiting via NestJS Throttler.
 
-### 11.2 Educational & Privacy Standards
+### 10.2 Educational & Privacy Standards
 - **CBSE SARAS & Affiliation Byelaws**: Built-in support for mandatory school governance registers, curriculum pacing, and attendance compliance thresholds.
 - **NEP 2020 Holistic Progress Card (HPC)**: Multi-dimensional assessment engine integrating academic scores, self-reflections, peer assessments, and socio-emotional observations.
 - **India DPDP Act 2023 & FERPA**: Strict parental consent workflows for minor students, role-scoped data visibility, and verified audit trails for all record modifications.
 
 ---
 
-## 12. Troubleshooting & Maintenance Workflows
+## 11. Troubleshooting & Maintenance Workflows
 
-### 12.1 Frequently Encountered Scenarios
+### 11.1 Frequently Encountered Scenarios
 
 #### 🔴 "Docker daemon is not running"
 - **Cause**: Docker Desktop is not started on your machine.
@@ -730,7 +721,7 @@ EDOPS is designed to meet stringent global and regional compliance mandates for 
 
 ---
 
-### 12.2 Useful CLI Commands Reference
+### 11.2 Useful CLI Commands Reference
 
 ```bash
 # === Root Commands ===
