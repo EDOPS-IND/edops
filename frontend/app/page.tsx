@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-static";
+
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { AcademicYear, api, createResource, getInvitationInfo, InvitationInfo, loadRoleWorkspace, loadSchool, login, logout, Member, Organization, OrganizationSummary, Profile, Program, profile as getProfile, RoleWorkspaceData, SchoolData, updateResource, forgotPassword, verifyResetToken, resetPassword } from "./edops-api";
 import { LearningWorkspace, SchoolBilling } from "./learning-workspace";
