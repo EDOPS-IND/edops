@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { api, logout } from '../../edops-api';
+import { api, logout, getStudentAvatarUrl } from '../../edops-api';
 import { ShieldCheck, FileText, Download, Award, LogOut, Phone, Calendar, Key, AlertCircle, Laptop } from 'lucide-react';
 
 interface ProfilePaneProps {
@@ -44,15 +44,15 @@ export const ProfilePane: React.FC<ProfilePaneProps> = ({ organizationId, onLogo
   const studentName = student?.name || student?.email || 'Student';
   const avatarUrl =
     student?.avatarUrl ||
-    `https://api.dicebear.com/10.x/glyphs/svg?seed=${encodeURIComponent(studentName)}&backgroundColor=ebedf2`;
+    getStudentAvatarUrl(studentName, student?.email);
 
   const handleLogoutAction = async () => {
-    try {
-      await logout();
-    } catch {}
     if (onLogout) {
-      onLogout();
+      await onLogout();
     } else {
+      try {
+        await logout();
+      } catch {}
       window.location.href = '/';
     }
   };
@@ -60,75 +60,16 @@ export const ProfilePane: React.FC<ProfilePaneProps> = ({ organizationId, onLogo
   return (
     <div className="space-y-6" style={{ fontFamily: "'Poppins', sans-serif" }}>
       {/* Header Row */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#495d72] mb-1">
-            Student Identity &amp; Credential Vault
-          </div>
-          <h2 className="text-[18px] font-semibold text-[#0c1e33] tracking-tight">
-            Student Profile &amp; Account Settings
-          </h2>
-          <p className="text-[13px] text-[#495d72] mt-0.5" style={{ lineHeight: '1.5' }}>
-            Official CBSE student credentials, institutional enrolment, academic records, and security controls.
-          </p>
+      <div>
+        <div className="text-[10px] font-semibold uppercase tracking-[0.06em] text-[#495d72] mb-1">
+          Student Identity &amp; Credential Vault
         </div>
-
-        {/* Top Quick Logout Button */}
-        <div className="shrink-0">
-          {showLogoutConfirm ? (
-            <div className="flex items-center gap-2 bg-[#fff1f2] border border-[#fecdd3] p-1.5 rounded-[6px]">
-              <span className="text-[12px] font-medium text-[#9f1239] px-2">Log out of your account?</span>
-              <button
-                type="button"
-                onClick={handleLogoutAction}
-                className="h-[30px] px-3 rounded-[4px] bg-[#e11d48] text-white text-[12px] font-semibold hover:bg-[#be123c] transition-colors"
-              >
-                Yes, Log Out
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowLogoutConfirm(false)}
-                className="h-[30px] px-2.5 rounded-[4px] bg-white border border-[#ced8e5] text-[#0c1e33] text-[12px] font-semibold hover:bg-[#f5f6f8] transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowLogoutConfirm(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 18px',
-                borderRadius: '6px',
-                border: '1px solid #ced8e5',
-                background: '#ffffff',
-                color: '#0c1e33',
-                fontSize: '13px',
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                fontFamily: "'Poppins', sans-serif",
-                transition: 'background 0.15s ease, border-color 0.15s ease',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#fff1f2';
-                e.currentTarget.style.borderColor = '#fecdd3';
-                e.currentTarget.style.color = '#e11d48';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#ffffff';
-                e.currentTarget.style.borderColor = '#ced8e5';
-                e.currentTarget.style.color = '#0c1e33';
-              }}
-            >
-              <LogOut size={16} strokeWidth={1.75} className="text-[#e11d48]" />
-              <span>Log Out</span>
-            </button>
-          )}
-        </div>
+        <h2 className="text-[18px] font-semibold text-[#0c1e33] tracking-tight">
+          Student Profile &amp; Account Settings
+        </h2>
+        <p className="text-[13px] text-[#495d72] mt-0.5" style={{ lineHeight: '1.5' }}>
+          Official CBSE student credentials, institutional enrolment, academic records, and security controls.
+        </p>
       </div>
 
       {/* Hero Identity Card */}

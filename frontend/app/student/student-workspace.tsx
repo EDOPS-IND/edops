@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Calendar,
@@ -24,9 +24,10 @@ import {
   Layers,
   LayoutGrid,
   BarChart3,
+  ShieldCheck,
 } from 'lucide-react';
 
-import { OrganizationSummary } from '../edops-api';
+import { OrganizationSummary, api, getStudentAvatarUrl } from '../edops-api';
 import { useDashboardNavigation } from '../dashboard-navigation';
 import { StudentTab } from './types';
 
@@ -81,6 +82,7 @@ interface StudentWorkspaceProps {
   onLogout: () => void;
   onSwitchOrganization: (orgId: string) => void;
   organizations: OrganizationSummary[];
+  userProfile?: { id: string; email: string; name?: string; phone?: string | null; isPlatformAdmin?: boolean };
 }
 
 export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
@@ -88,12 +90,30 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   onLogout,
   onSwitchOrganization,
   organizations,
+  userProfile,
 }) => {
   const [activeTab, setActiveTab] = useState<StudentTab>('dashboard');
   const [refreshKey, setRefreshKey] = useState(0);
   const navigation = useDashboardNavigation(organization.id, 'student');
   const [searchQuery, setSearchQuery] = useState("");
   const [showMoreAcademics, setShowMoreAcademics] = useState(false);
+  const [studentProfile, setStudentProfile] = useState<any>(null);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    api<any>(`/organizations/${organization.id}/student/profile`)
+      .then((res) => {
+        if (active && res?.student) setStudentProfile(res.student);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, [organization.id]);
+
+  const studentName = studentProfile?.name || userProfile?.name || (userProfile?.email ? userProfile.email.split('@')[0] : "Student");
+  const studentEmail = studentProfile?.email || userProfile?.email || "";
+  const studentClass = studentProfile?.classSection ? `Class ${studentProfile.classSection}` : "Class 10-A";
+  const avatarUrl = studentProfile?.avatarUrl || getStudentAvatarUrl(studentName, studentEmail);
 
   // Modals state
   const [submitModalOpen, setSubmitModalOpen] = useState(false);
@@ -509,35 +529,78 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                 e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
                 e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.05)";
               }}
-              title="Account Settings"
+              title="Account Settings & Profile"
             >
               <div
                 style={{
-                  width: "38px",
-                  height: "38px",
-                  borderRadius: "10px",
-                  overflow: "hidden",
-                  flexShrink: 0,
-                  background: "rgba(255, 255, 255, 0.08)",
                   display: "flex",
                   alignItems: "center",
-                  justifyContent: "center",
-                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  justifyContent: "space-between",
+                  width: "100%",
+                  gap: "8px",
                 }}
               >
-                <img
-                  src="https://api.dicebear.com/10.x/glyphs/svg?seed=Felix"
-                  alt="avatar"
-                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                />
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: "2px", whiteSpace: "nowrap", overflow: "hidden" }}>
-                <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#ffffff", textOverflow: "ellipsis", overflow: "hidden" }}>
-                  {organization.name || "Alex Rivera"}
-                </p>
-                <p style={{ margin: 0, fontSize: "11px", color: S.itemInactiveText }}>
-                  Class 10-A
-                </p>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "10px",
+                      overflow: "hidden",
+                      flexShrink: 0,
+                      background: "rgba(255, 255, 255, 0.08)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: "1px solid rgba(255, 255, 255, 0.12)",
+                    }}
+                  >
+                    <img
+                      src={avatarUrl}
+                      alt={studentName}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px", whiteSpace: "nowrap", overflow: "hidden", minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#ffffff", textOverflow: "ellipsis", overflow: "hidden" }}>
+                      {studentName}
+                    </p>
+                    <p style={{ margin: 0, fontSize: "11px", color: S.itemInactiveText, textOverflow: "ellipsis", overflow: "hidden" }}>
+                      {studentClass}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onLogout();
+                  }}
+                  title="Log out of student account"
+                  style={{
+                    all: "unset",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    color: "rgba(255, 255, 255, 0.45)",
+                    flexShrink: 0,
+                    transition: "all 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "#f43f5e";
+                    e.currentTarget.style.background = "rgba(244, 63, 94, 0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "rgba(255, 255, 255, 0.45)";
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <LogOut size={14} strokeWidth={1.75} />
+                </button>
               </div>
             </div>
           </div>
@@ -702,28 +765,124 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                 </select>
               )}
 
-              {/* User Avatar with DiceBear Image */}
-              <div
-                onClick={() => navigateTo('profile')}
-                title="Account Settings"
-                style={{
-                  width: "36px",
-                  height: "36px",
-                  borderRadius: "50%",
-                  overflow: "hidden",
-                  cursor: "pointer",
-                  border: `1px solid ${S.border}`,
-                  background: "#f0f4f8",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}
-              >
-                <img
-                  src="https://api.dicebear.com/10.x/glyphs/svg?seed=Felix"
-                  alt="avatar"
-                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                />
+              {/* Consistent Student Avatar & Profile Dropdown */}
+              <div style={{ position: "relative" }}>
+                <div
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  title="Student Profile & Settings"
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    border: profileMenuOpen ? "2px solid #0c1e33" : `1px solid ${S.border}`,
+                    background: "#f0f4f8",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: profileMenuOpen ? "0 0 0 3px rgba(12, 30, 51, 0.1)" : "none",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <img
+                    src={avatarUrl}
+                    alt={studentName}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                </div>
+
+                {profileMenuOpen && (
+                  <>
+                    <div
+                      style={{ position: "fixed", inset: 0, zIndex: 90 }}
+                      onClick={() => setProfileMenuOpen(false)}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "calc(100% + 8px)",
+                        right: 0,
+                        width: "240px",
+                        background: "#FFFFFF",
+                        border: "1px solid #ced8e5",
+                        borderRadius: "10px",
+                        boxShadow: "0 12px 32px rgba(12, 30, 51, 0.12)",
+                        padding: "6px",
+                        zIndex: 100,
+                        fontFamily: "'Poppins', sans-serif",
+                      }}
+                    >
+                      <div style={{ padding: "10px 12px", borderBottom: "1px solid #e4e6e9", marginBottom: "6px" }}>
+                        <div style={{ fontSize: "13px", fontWeight: 600, color: "#0c1e33", letterSpacing: "-0.01em" }}>
+                          {studentName}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#495d72", marginTop: "2px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                          {studentEmail}
+                        </div>
+                        <div style={{ marginTop: "6px", display: "inline-flex", alignItems: "center", gap: "6px", padding: "2px 8px", borderRadius: "100px", background: "#d9eed1", color: "#1a5c0a", fontSize: "10px", fontWeight: 600 }}>
+                          <span>{studentClass}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          navigateTo('profile');
+                        }}
+                        style={{
+                          all: "unset",
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "8px 12px",
+                          fontSize: "12px",
+                          fontWeight: 500,
+                          color: "#0c1e33",
+                          cursor: "pointer",
+                          borderRadius: "6px",
+                          boxSizing: "border-box",
+                          transition: "background 0.12s ease",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#f5f6f8")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <ShieldCheck size={15} strokeWidth={1.75} style={{ color: "#495d72" }} />
+                        <span>My Profile &amp; Vault</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          onLogout();
+                        }}
+                        style={{
+                          all: "unset",
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "8px 12px",
+                          fontSize: "12px",
+                          fontWeight: 500,
+                          color: "#e11d48",
+                          cursor: "pointer",
+                          borderRadius: "6px",
+                          boxSizing: "border-box",
+                          transition: "background 0.12s ease",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#fff1f2")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <LogOut size={15} strokeWidth={1.75} style={{ color: "#e11d48" }} />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

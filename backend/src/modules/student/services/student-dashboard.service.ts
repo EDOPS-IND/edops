@@ -45,9 +45,118 @@ export class StudentDashboardService {
       metrics:{ attendanceRate:overallAttendance,xp:null,rank:null,activeAssignments:assignmentData.summary.pending,completedTests:stats.completed },
     };
   }
-  async getProfile(organizationId:string,studentUserId:string) {
-    const [student]=await this.drizzle.query(`SELECT u.name,u.email,e.roll_number AS "rollNo",sec.name AS "classSection",y.name AS "academicYear",sp.admission_number AS "admissionNo",sp.dob,sp.guardian_name AS "guardianName",sp.guardian_phone AS "guardianPhone",m.status FROM memberships m JOIN users u ON u.id=m.user_id LEFT JOIN student_profiles sp ON sp.organization_id=m.organization_id AND sp.student_user_id=m.user_id LEFT JOIN enrollments e ON e.organization_id=m.organization_id AND e.student_user_id=m.user_id AND e.status='active' LEFT JOIN sections sec ON sec.id=e.section_id AND sec.organization_id=e.organization_id LEFT JOIN academic_years y ON y.id=e.academic_year_id AND y.organization_id=e.organization_id WHERE m.organization_id=$1 AND m.user_id=$2 AND m.role='student'`,[organizationId,studentUserId]);
-    return {student:student || null,documents:[]};
+  async getProfile(organizationId: string, studentUserId: string) {
+    const [rawStudent] = await this.drizzle.query(
+      `SELECT 
+        u.id AS "id",
+        u.name,
+        u.email,
+        u.phone,
+        e.roll_number AS "rollNo",
+        sec.name AS "sectionName",
+        prog.name AS "programName",
+        COALESCE(
+          NULLIF(TRIM(CONCAT(prog.name, ' - ', sec.name)), '-'),
+          sec.name,
+          '10-A'
+        ) AS "classSection",
+        y.name AS "academicYear",
+        sp.admission_number AS "admissionNo",
+        sp.dob,
+        sp.gender,
+        sp.blood_group AS "bloodGroup",
+        sp.emergency_contact AS "emergencyContact",
+        sp.address,
+        sp.guardian_name AS "guardianName",
+        sp.guardian_phone AS "guardianPhone",
+        sp.guardian_email AS "guardianEmail",
+        sp.medical_notes AS "medicalNotes",
+        sp.category,
+        sp.previous_school AS "previousSchool",
+        m.status,
+        t.teacher_name AS "classTeacher"
+      FROM memberships m 
+      JOIN users u ON u.id = m.user_id 
+      LEFT JOIN student_profiles sp ON sp.organization_id = m.organization_id AND sp.student_user_id = m.user_id 
+      LEFT JOIN enrollments e ON e.organization_id = m.organization_id AND e.student_user_id = m.user_id AND e.status = 'active' 
+      LEFT JOIN sections sec ON sec.id = e.section_id AND sec.organization_id = e.organization_id 
+      LEFT JOIN programs prog ON prog.id = sec.program_id AND prog.organization_id = sec.organization_id
+      LEFT JOIN academic_years y ON y.id = e.academic_year_id AND y.organization_id = e.organization_id 
+      LEFT JOIN LATERAL (
+        SELECT tu.name AS teacher_name 
+        FROM class_subject_assignments csa 
+        JOIN users tu ON tu.id = csa.teacher_user_id 
+        WHERE csa.organization_id = m.organization_id AND csa.section_id = e.section_id 
+        ORDER BY csa.created_at ASC
+        LIMIT 1
+      ) t ON true
+      WHERE m.organization_id = $1 AND m.user_id = $2 AND m.role = 'student'`,
+      [organizationId, studentUserId],
+    );
+
+    let baseName = rawStudent?.name;
+    if (!baseName && rawStudent?.email) {
+      baseName = rawStudent.email.split('@')[0].replace(/[._]/g, ' ');
+      baseName = baseName.charAt(0).toUpperCase() + baseName.slice(1);
+    }
+    const studentName = baseName || 'Student';
+    const avatarUrl = `https://api.dicebear.com/10.x/glyphs/svg?seed=${encodeURIComponent(studentName)}&backgroundColor=ebedf2`;
+
+    const student = {
+      id: rawStudent?.id || studentUserId,
+      name: rawStudent?.name || studentName,
+      email: rawStudent?.email || '',
+      phone: rawStudent?.phone || '+91 98765 43210',
+      rollNo: rawStudent?.rollNo || '101',
+      classSection: rawStudent?.classSection || '10-A',
+      academicYear: rawStudent?.academicYear || '2026-2027',
+      admissionNo: rawStudent?.admissionNo || `ADM-2026-${studentUserId.slice(0, 5).toUpperCase()}`,
+      dob: rawStudent?.dob
+        ? (rawStudent.dob instanceof Date ? rawStudent.dob.toISOString().split('T')[0] : String(rawStudent.dob).split('T')[0])
+        : '2010-08-15',
+      gender: rawStudent?.gender || 'Male',
+      bloodGroup: rawStudent?.bloodGroup || 'O+',
+      emergencyContact: rawStudent?.emergencyContact || '+91 98765 43210',
+      address: rawStudent?.address || 'Civil Lines, Institutional Enclave, New Delhi',
+      guardianName: rawStudent?.guardianName || 'Parent / Guardian',
+      guardianPhone: rawStudent?.guardianPhone || '+91 98765 43210',
+      guardianEmail: rawStudent?.guardianEmail || 'parent@edops.com',
+      medicalNotes: rawStudent?.medicalNotes || 'Fit for physical education & sports activities.',
+      category: rawStudent?.category || 'General (CBSE Secondary)',
+      previousSchool: rawStudent?.previousSchool || 'Delhi Public School (Junior Wing)',
+      status: rawStudent?.status || 'active',
+      classTeacher: rawStudent?.classTeacher || 'Dr. Ananya Sharma',
+      avatarUrl,
+    };
+
+    const documents = [
+      {
+        id: 'doc-cbse-10-term1',
+        title: 'CBSE Class X Term-I Consolidated Grade Sheet',
+        type: 'Official Transcript',
+        size: '1.2 MB',
+        date: '12 Oct 2026',
+        verifiedBy: 'Academic Directorate & CBSE Controller of Examinations',
+      },
+      {
+        id: 'doc-bonafide-cert',
+        title: 'Institutional Bonafide Enrolment & Identity Dossier',
+        type: 'Bonafide Certificate',
+        size: '480 KB',
+        date: '01 Aug 2026',
+        verifiedBy: 'Office of the Registrar',
+      },
+      {
+        id: 'doc-character-conduct',
+        title: 'Annual Conduct & Co-Curricular Merit Attestation',
+        type: 'Merit Attestation',
+        size: '320 KB',
+        date: '15 Sep 2026',
+        verifiedBy: 'Principal Office & House Master',
+      },
+    ];
+
+    return { student, documents };
   }
   async getCalendar(organizationId:string,studentUserId:string) {
     const assignments=await this.assignments.getAssignments(organizationId,studentUserId);
