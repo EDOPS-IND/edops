@@ -77,7 +77,7 @@ export function GovernancePane({
   return (
     <div style={{ display: "grid", gap: "20px" }}>
       {/* Subtab Selector */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E2DDD5", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "alerts", label: "Alert Center (§54)" },
@@ -91,14 +91,15 @@ export function GovernancePane({
               key={tab.id}
               onClick={() => setSubtab(tab.id as any)}
               style={{
-                padding: "8px 14px",
+                padding: "8px 16px",
                 borderRadius: "8px",
                 fontSize: "13px",
-                fontWeight: subtab === tab.id ? 750 : 600,
-                background: subtab === tab.id ? "#064E3B" : "transparent",
-                color: subtab === tab.id ? "#F8E7C9" : "#064E3B",
+                fontWeight: subtab === tab.id ? 700 : 500,
+                background: subtab === tab.id ? "#0c1e33" : "transparent",
+                color: subtab === tab.id ? "#ffffff" : "#4a5568",
                 border: "none",
                 cursor: "pointer",
+                transition: "all 0.15s ease",
               }}
             >
               {tab.label}
@@ -109,10 +110,10 @@ export function GovernancePane({
 
       {/* 1. ALERT CENTER (§54: The Operational Loop - ALERT → ACTION → RESULT) */}
       {subtab === "alerts" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Active School Operational Breaches & Alerts</h3>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Active School Operational Breaches & Alerts</h3>
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Investigate threshold violations and execute 1-click remediation</p>
             </div>
             <span style={{ background: "#FEF3C7", color: "#92400E", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: 700 }}>
@@ -122,16 +123,16 @@ export function GovernancePane({
 
           <div style={{ display: "grid", gap: "12px" }}>
             {([] as any[]).map((al, idx) => (
-              <div key={idx} style={{ padding: "14px", background: "#FDF9F0", borderRadius: "8px", border: "1px solid #E5CCA2", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={idx} style={{ padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "3px" }}>
                     <AlertTriangle size={15} color="#D97706" />
-                    <b style={{ color: "#064E3B", fontSize: "14px" }}>{al.type}</b>
+                    <b style={{ color: "#0c1e33", fontSize: "14px" }}>{al.type}</b>
                     <span style={{ fontSize: "11px", color: "var(--muted)" }}>· Source: {al.source}</span>
                   </div>
                   <p style={{ margin: 0, fontSize: "12.5px", color: "#334155" }}>{al.desc}</p>
                 </div>
-                <button style={{ padding: "6px 14px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
+                <button style={{ padding: "6px 14px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>
                   {al.action} ↗
                 </button>
               </div>
@@ -142,20 +143,20 @@ export function GovernancePane({
 
       {/* 2. DISCIPLINE REGISTER (§48) */}
       {subtab === "discipline" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Confidential Student Incident & Counselling Register (§48)</h3>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Confidential Student Incident & Counselling Register (§48)</h3>
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Access-restricted log of behavioural notices, warnings, and counsellor follow-ups</p>
             </div>
-            <button style={{ padding: "8px 14px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700 }}>
+            <button style={{ padding: "8px 14px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700 }}>
               + Log Incident
             </button>
           </div>
 
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #E2DDD5", color: "var(--muted)" }}>
+              <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                 <th style={{ padding: "10px" }}>Student & Class</th>
                 <th style={{ padding: "10px" }}>Incident Type</th>
                 <th style={{ padding: "10px" }}>Reported By</th>
@@ -166,9 +167,9 @@ export function GovernancePane({
             </thead>
             <tbody>
               {incidents.map((inc) => (
-                <tr key={inc.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
+                <tr key={inc.id} style={{ borderBottom: "1px solid #f4f6f7" }}>
                   <td style={{ padding: "12px 10px" }}>
-                    <b>{inc.studentName}</b>
+                    <b style={{ color: "#0c1e33" }}>{inc.studentName}</b>
                     <div style={{ fontSize: "11px", color: "var(--muted)" }}>{inc.admissionNo} · Class {inc.grade}</div>
                   </td>
                   <td style={{ padding: "12px 10px" }}>
@@ -180,7 +181,7 @@ export function GovernancePane({
                   <td style={{ padding: "12px 10px" }}>{inc.date}</td>
                   <td style={{ padding: "12px 10px", fontSize: "12px", color: "#334155" }}>{inc.description}</td>
                   <td style={{ padding: "12px 10px" }}>
-                    <span style={{ color: "#064E3B", fontWeight: 700 }}>{inc.status}</span>
+                    <span style={{ color: "#047857", fontWeight: 700 }}>{inc.status}</span>
                   </td>
                 </tr>
               ))}
@@ -191,20 +192,20 @@ export function GovernancePane({
 
       {/* 3. AUDIT & ACTIVITY TRAIL (§59) */}
       {subtab === "audit" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Immutable School Audit Log (§59)</h3>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Immutable School Audit Log (§59)</h3>
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Tamper-evident system activity ledger recording actor, timestamp, IP, and state diff</p>
             </div>
-            <button style={{ padding: "6px 12px", background: "#FAF8F5", border: "1px solid #E2DDD5", color: "#064E3B", borderRadius: "6px", fontSize: "12px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "6px" }}>
+            <button style={{ padding: "6px 12px", background: "#f8fafc", border: "1px solid #e4e6e9", color: "#0c1e33", borderRadius: "6px", fontSize: "12px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "6px" }}>
               <Download size={13} /> Export Audit Log
             </button>
           </div>
 
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px", textAlign: "left" }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #E2DDD5", color: "var(--muted)" }}>
+              <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                 <th style={{ padding: "10px" }}>Timestamp & IP</th>
                 <th style={{ padding: "10px" }}>Actor & Role</th>
                 <th style={{ padding: "10px" }}>Action Event</th>
@@ -214,17 +215,17 @@ export function GovernancePane({
             </thead>
             <tbody>
               {auditLogs.map((log) => (
-                <tr key={log.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
+                <tr key={log.id} style={{ borderBottom: "1px solid #f4f6f7" }}>
                   <td style={{ padding: "12px 10px" }}>
-                    <b>{log.timestamp}</b>
+                    <b style={{ color: "#0c1e33" }}>{log.timestamp}</b>
                     <div style={{ fontSize: "11px", color: "var(--muted)" }}>IP: {log.ip}</div>
                   </td>
                   <td style={{ padding: "12px 10px" }}>
-                    <b>{log.actor}</b>
+                    <b style={{ color: "#0c1e33" }}>{log.actor}</b>
                     <div style={{ fontSize: "11px", color: "var(--muted)" }}>{log.role}</div>
                   </td>
                   <td style={{ padding: "12px 10px" }}>
-                    <code style={{ background: "#FAF8F5", padding: "2px 6px", borderRadius: "4px", fontSize: "11.5px", color: "#064E3B" }}>
+                    <code style={{ background: "#f0f4f9", padding: "2px 6px", borderRadius: "4px", fontSize: "11.5px", color: "#0c1e33" }}>
                       {log.action}
                     </code>
                   </td>
@@ -243,28 +244,28 @@ export function GovernancePane({
 
       {/* 4. SCHOOL SETTINGS (§60) */}
       {subtab === "settings" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px", maxWidth: "700px" }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>School Identity & Policy Configuration (§60)</h3>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px", maxWidth: "700px" }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>School Identity & Policy Configuration (§60)</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Board affiliations, statutory attendance rules, and automated portal alerts</p>
 
           <div style={{ display: "grid", gap: "14px" }}>
             <div>
-              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#064E3B" }}>School Full Name</label>
-              <input type="text" defaultValue="Delhi Public Academy, Vasant Vihar" style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2DDD5", marginTop: "4px", fontSize: "13px" }} />
+              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33" }}>School Full Name</label>
+              <input type="text" defaultValue="Delhi Public Academy, Vasant Vihar" style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", marginTop: "4px", fontSize: "13px" }} />
             </div>
             <div>
-              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#064E3B" }}>CBSE Affiliation Number</label>
-              <input type="text" defaultValue="CBSE/AFF/2130842" style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2DDD5", marginTop: "4px", fontSize: "13px" }} />
+              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33" }}>CBSE Affiliation Number</label>
+              <input type="text" defaultValue="CBSE/AFF/2130842" style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", marginTop: "4px", fontSize: "13px" }} />
             </div>
             <div>
-              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#064E3B" }}>Statutory Minimum Attendance Threshold (%)</label>
-              <input type="number" defaultValue={75} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2DDD5", marginTop: "4px", fontSize: "13px" }} />
+              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33" }}>Statutory Minimum Attendance Threshold (%)</label>
+              <input type="number" defaultValue={75} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", marginTop: "4px", fontSize: "13px" }} />
             </div>
             <div>
-              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#064E3B" }}>Max Period Workload Warning Threshold (Periods/Week)</label>
-              <input type="number" defaultValue={30} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2DDD5", marginTop: "4px", fontSize: "13px" }} />
+              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33" }}>Max Period Workload Warning Threshold (Periods/Week)</label>
+              <input type="number" defaultValue={30} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", marginTop: "4px", fontSize: "13px" }} />
             </div>
-            <button style={{ justifySelf: "flex-start", padding: "10px 20px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer", marginTop: "8px" }}>
+            <button style={{ justifySelf: "flex-start", padding: "10px 20px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer", marginTop: "8px" }}>
               Save School Configuration
             </button>
           </div>
@@ -273,10 +274,10 @@ export function GovernancePane({
 
       {/* 5. DOCUMENTS & REPORTS FALLBACK */}
       {["documents", "reports"].includes(subtab) && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>{subtab.toUpperCase()} Center</h3>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>{subtab.toUpperCase()} Center</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Centralized document storage, student transcripts, and administrative compliance exports</p>
-          <div style={{ padding: "24px", background: "#FAF8F5", borderRadius: "8px", textAlign: "center", color: "var(--muted)" }}>
+          <div style={{ padding: "24px", background: "#f8fafc", borderRadius: "8px", textAlign: "center", color: "var(--muted)" }}>
             <b>All School Records Live</b>
             <p style={{ margin: "4px 0 0", fontSize: "12px" }}>Synchronized with EDOPS Tenant Database.</p>
           </div>

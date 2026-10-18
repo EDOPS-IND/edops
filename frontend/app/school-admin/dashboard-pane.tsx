@@ -38,26 +38,26 @@ import { getSchoolAdminDashboard } from "../edops-api";
 // ─── Design Tokens (Enterprise Slate & Obsidian Minimalist Aesthetic) ────────
 const S = {
   // Dominant Neutrals
-  ink: "#0F172A", // Slate 900 - Headings & Primary metrics
-  body: "#334155", // Slate 700 - Body & Description text
-  muted: "#475569", // Slate 600 - Secondary text & Icon accents
-  faint: "#64748B", // Slate 500 - Micro labels, captions & metadata
-  subtleText: "#94A3B8", // Slate 400 - Timestamps & subtle hints
+  ink: "#0c1e33",
+  body: "#495d72",
+  muted: "#667085",
+  faint: "#8a92a6",
+  subtleText: "#a6abb5",
 
   // Surfaces & Borders
-  bg: "#FFFFFF", // Card surface
-  canvas: "#F8FAFC", // Page canvas
-  subtleBg: "#F8FAFC", // Secondary card/row fill
-  hoverBg: "#F1F5F9", // Interactive row hover
-  border: "#EAECF0", // Card and section dividers (uniform light border)
-  borderHover: "#CBD5E1", // Hover border accent
+  bg: "#FFFFFF",
+  canvas: "#F4F6F7",
+  subtleBg: "#F8FAFC",
+  hoverBg: "#F1F5F9",
+  border: "#E4E6E9",
+  borderHover: "#CBD5E1",
 
-  // Primary Action Accent (Matches dark executive sidebar)
-  primary: "#111318", // Dark Charcoal
-  primaryHover: "#1E222B",
+  // Primary Action Accent
+  primary: "#0c1e33",
+  primaryHover: "#132840",
   primaryText: "#FFFFFF",
 
-  // Controlled Semantic Status Indicators (strictly functional, not decorative)
+  // Controlled Semantic Status Indicators
   greenBg: "#ECFDF5",
   greenTxt: "#047857",
   greenBdr: "#A7F3D0",
@@ -83,36 +83,33 @@ function formatCurrency(amt?: number) {
   return `₹${amt.toLocaleString("en-IN")}`;
 }
 
-// ─── 1. Top Executive Metric Pillar Card ──────────────────────────────────────
+// ─── 1. Top Executive Metric Pillar Card (148px Signature Pastel) ─────────────
 function MetricPillarCard({
   title,
   metric,
   sublabel,
-  indicator,
-  indicatorType = "neutral",
-  progressPct,
+  variant = "violet",
   icon: Icon,
   onClick,
 }: {
   title: string;
   metric: string;
   sublabel: string;
-  indicator?: string;
-  indicatorType?: "success" | "warning" | "neutral";
-  progressPct?: number;
+  variant?: "violet" | "mint" | "sky" | "peach";
   icon: React.ElementType;
   onClick: () => void;
 }) {
   const [hover, setHover] = useState(false);
 
-  const indicatorStyle = {
-    success: { bg: S.greenBg, text: S.greenTxt, border: S.greenBdr },
-    warning: { bg: S.amberBg, text: S.amberTxt, border: S.amberBdr },
-    neutral: { bg: S.subtleBg, text: S.faint, border: S.border },
-  }[indicatorType];
+  const theme = {
+    violet: { bg: "#e1d2ff", border: "#e1d2ff", color: "#4a0e8f" },
+    mint:   { bg: "#ccefbf", border: "#ccefbf", color: "#1a5c0a" },
+    sky:    { bg: "#d0e6ff", border: "#d0e6ff", color: "#0a5a7a" },
+    peach:  { bg: "#ffd8c7", border: "#ffd8c7", color: "#782a00" },
+  }[variant];
 
   return (
-    <div
+    <article
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -120,144 +117,43 @@ function MetricPillarCard({
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
       style={{
-        background: S.bg,
-        border: `1px solid ${hover ? S.borderHover : S.border}`,
-        borderRadius: "12px",
-        padding: "18px 20px 16px",
-        cursor: "pointer",
         display: "flex",
         flexDirection: "column",
         justifyContent: "space-between",
-        minHeight: "136px",
-        transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
-        boxShadow: hover
-          ? "0 6px 16px -2px rgba(15, 23, 42, 0.05), 0 2px 4px -1px rgba(15, 23, 42, 0.02)"
-          : "0 1px 2px rgba(15, 23, 42, 0.02)",
-        transform: hover ? "translateY(-1.5px)" : "none",
-        position: "relative",
+        minWidth: 0,
+        height: "148px",
+        padding: "20px",
+        background: theme.bg,
+        border: `1px solid ${theme.border}`,
+        borderRadius: "10px",
+        color: theme.color,
+        cursor: "pointer",
+        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+        transform: hover ? "translateY(-2px)" : "translateY(0)",
+        boxShadow: hover ? "0 6px 16px rgba(12, 30, 51, 0.08)" : "none",
+        fontFamily: "'Poppins', sans-serif",
       }}
     >
-      <div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
-          <span
-            style={{
-              fontSize: "11px",
-              fontWeight: 650,
-              color: S.faint,
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-            }}
-          >
-            {title}
-          </span>
-          <div
-            style={{
-              width: "30px",
-              height: "30px",
-              borderRadius: "8px",
-              background: hover ? S.primary : S.subtleBg,
-              border: `1px solid ${hover ? S.primary : S.border}`,
-              display: "grid",
-              placeItems: "center",
-              flexShrink: 0,
-              transition: "all 0.15s ease",
-            }}
-          >
-            <Icon
-              size={15}
-              style={{
-                color: hover ? "#FFFFFF" : S.muted,
-                transition: "color 0.15s ease",
-              }}
-            />
-          </div>
-        </div>
-
-        <div style={{ marginTop: "10px", display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap" }}>
-          <span
-            style={{
-              fontSize: "26px",
-              fontWeight: 700,
-              color: S.ink,
-              letterSpacing: "-0.03em",
-              lineHeight: 1,
-              fontVariantNumeric: "tabular-nums",
-            }}
-          >
-            {metric}
-          </span>
-          {indicator && (
-            <span
-              style={{
-                fontSize: "10.5px",
-                fontWeight: 600,
-                color: indicatorStyle.text,
-                background: indicatorStyle.bg,
-                border: `1px solid ${indicatorStyle.border}`,
-                padding: "2px 6px",
-                borderRadius: "5px",
-                lineHeight: 1.2,
-              }}
-            >
-              {indicator}
-            </span>
-          )}
-        </div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+        <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em", color: theme.color }}>
+          {title}
+        </h3>
+        <Icon size={18} style={{ color: theme.color, flexShrink: 0 }} />
       </div>
 
-      <div style={{ marginTop: "14px" }}>
-        {typeof progressPct === "number" && (
-          <div
-            style={{
-              height: "4px",
-              background: S.hoverBg,
-              borderRadius: "2px",
-              overflow: "hidden",
-              marginBottom: "8px",
-            }}
-          >
-            <div
-              style={{
-                width: `${Math.min(Math.max(progressPct, 0), 100)}%`,
-                height: "100%",
-                background: S.primary,
-                borderRadius: "2px",
-                transition: "width 0.4s ease",
-              }}
-            />
-          </div>
-        )}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            fontSize: "11.5px",
-            color: S.faint,
-          }}
-        >
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sublabel}</span>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "2px",
-              color: hover ? S.ink : S.faint,
-              fontWeight: 550,
-              transition: "all 0.15s ease",
-            }}
-          >
-            <ChevronRight
-              size={13}
-              style={{
-                transform: hover ? "translateX(2px)" : "none",
-                transition: "transform 0.15s ease",
-              }}
-            />
-          </div>
-        </div>
+      <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: theme.color, letterSpacing: "-0.02em" }}>
+        {metric}
+      </p>
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+        <p style={{ margin: 0, fontSize: "11px", color: theme.color, opacity: 0.9, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {sublabel}
+        </p>
+        <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: theme.color, flexShrink: 0 }}>
+          View <ArrowRight size={14} />
+        </span>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -726,50 +622,42 @@ export function DashboardPane({
           gap: "14px",
         }}
       >
-        {/* Pillar 1: Students & Admissions */}
+        {/* Pillar 1: Students & Admissions (Pastel Violet) */}
         <MetricPillarCard
           title="Students & Enrollment"
           metric={totalStudents.toLocaleString()}
           sublabel={`${activeStudents.toLocaleString()} active · ${totalParents.toLocaleString()} linked parents`}
-          indicator={`${totalStudents > 0 ? ((activeStudents / totalStudents) * 100).toFixed(0) : "100"}% Active`}
-          indicatorType="success"
-          progressPct={totalStudents > 0 ? (activeStudents / totalStudents) * 100 : 100}
+          variant="violet"
           icon={GraduationCap}
           onClick={() => onNavigate("students")}
         />
 
-        {/* Pillar 2: Faculty & Academic Personnel */}
+        {/* Pillar 2: Faculty & Academic Personnel (Pastel Mint) */}
         <MetricPillarCard
           title="Faculty & Personnel"
           metric={totalTeachers.toString()}
           sublabel={`Ratio ${studentTeacherRatio} · ${totalStaff} non-teaching staff`}
-          indicator="Optimal Ratio"
-          indicatorType="neutral"
-          progressPct={78}
+          variant="mint"
           icon={Users}
           onClick={() => onNavigate("teachers")}
         />
 
-        {/* Pillar 3: Academic Sections & Classes */}
+        {/* Pillar 3: Academic Sections & Classes (Pastel Sky) */}
         <MetricPillarCard
           title="Sections & Capacity"
           metric={totalSections.toString()}
           sublabel={`Organized across ${totalClasses} grade program(s)`}
-          indicator={`${totalClasses} Grades`}
-          indicatorType="neutral"
-          progressPct={92}
+          variant="sky"
           icon={BookOpen}
           onClick={() => onNavigate("academics")}
         />
 
-        {/* Pillar 4: Financial Operations & Dues */}
+        {/* Pillar 4: Financial Operations & Dues (Pastel Peach) */}
         <MetricPillarCard
           title="Fee Realization"
           metric={formatCurrency(feeCollected)}
           sublabel={`${feeCollectionRate}% of assessed ${formatCurrency(feeAssessed)}`}
-          indicator={feeDefaulters > 0 ? `${feeDefaulters} Overdue` : "On Track"}
-          indicatorType={feeDefaulters > 0 ? "warning" : "success"}
-          progressPct={feeCollectionRate}
+          variant="peach"
           icon={CreditCard}
           onClick={() => onNavigate("finance")}
         />

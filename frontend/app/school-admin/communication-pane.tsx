@@ -89,7 +89,7 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
       {/* Subtab Selector */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E2DDD5", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "broadcast", label: "Broadcast Dispatches (§44)" },
@@ -100,14 +100,15 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
               key={tab.id}
               onClick={() => setSubtab(tab.id as any)}
               style={{
-                padding: "8px 14px",
+                padding: "8px 16px",
                 borderRadius: "8px",
                 fontSize: "13px",
-                fontWeight: subtab === tab.id ? 750 : 600,
-                background: subtab === tab.id ? "#064E3B" : "transparent",
-                color: subtab === tab.id ? "#F8E7C9" : "#064E3B",
+                fontWeight: subtab === tab.id ? 700 : 500,
+                background: subtab === tab.id ? "#0c1e33" : "transparent",
+                color: subtab === tab.id ? "#ffffff" : "#4a5568",
                 border: "none",
                 cursor: "pointer",
+                transition: "all 0.15s ease",
               }}
             >
               {tab.label}
@@ -118,15 +119,15 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
 
       {/* 1. BROADCAST DISPATCHES TAB (§44) */}
       {subtab === "broadcast" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Multi-Channel School Broadcast Center</h3>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Multi-Channel School Broadcast Center</h3>
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>In-App announcements, WhatsApp notifications, and SMS alerts dispatch ledger</p>
             </div>
             <button
               onClick={() => setSubtab("newBroadcast")}
-              style={{ padding: "8px 16px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
+              style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
             >
               <Send size={14} /> Compose Broadcast
             </button>
@@ -134,22 +135,22 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
 
           <div style={{ display: "grid", gap: "12px" }}>
             {broadcasts.map((b) => (
-              <div key={b.id} style={{ padding: "16px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E2DDD5" }}>
+              <div key={b.id} style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
                     <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "4px" }}>
-                      <span style={{ background: "#ECFDF5", color: "#064E3B", padding: "2px 8px", borderRadius: "4px", fontSize: "10.5px", fontWeight: 700 }}>
+                      <span style={{ background: "#f0f4f9", color: "#0c1e33", padding: "2px 8px", borderRadius: "4px", fontSize: "10.5px", fontWeight: 700 }}>
                         Target: {b.audience}
                       </span>
                       <div style={{ display: "flex", gap: "4px" }}>
                         {b.channels.map((ch, idx) => (
-                          <span key={idx} style={{ background: "#FDF9F0", border: "1px solid #E5CCA2", color: "#064E3B", padding: "1px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: 700 }}>
+                          <span key={idx} style={{ background: "#ffffff", border: "1px solid #e4e6e9", color: "#0c1e33", padding: "1px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: 700 }}>
                             {ch}
                           </span>
                         ))}
                       </div>
                     </div>
-                    <b style={{ color: "#064E3B", fontSize: "15px" }}>{b.title}</b>
+                    <b style={{ color: "#0c1e33", fontSize: "15px" }}>{b.title}</b>
                     <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#334155", lineHeight: 1.4 }}>{b.message}</p>
                   </div>
                   <div style={{ textAlign: "right" }}>
@@ -158,13 +159,13 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
                   </div>
                 </div>
 
-                <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #E2DDD5", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
+                <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
                   <div style={{ display: "flex", gap: "16px" }}>
                     <span>Sent: <b>{b.deliveryStats.sent}</b></span>
-                    <span style={{ color: "#064E3B" }}>Delivered: <b>{b.deliveryStats.delivered}</b></span>
+                    <span style={{ color: "#047857" }}>Delivered: <b>{b.deliveryStats.delivered}</b></span>
                     <span style={{ color: b.deliveryStats.failed > 0 ? "#DC2626" : "var(--muted)" }}>Failed: <b>{b.deliveryStats.failed}</b></span>
                   </div>
-                  <button style={{ background: "transparent", border: "none", color: "#064E3B", fontWeight: 700, fontSize: "11.5px", cursor: "pointer" }}>
+                  <button style={{ background: "transparent", border: "none", color: "#0c1e33", fontWeight: 700, fontSize: "11.5px", cursor: "pointer" }}>
                     Delivery Report ↗
                   </button>
                 </div>
@@ -176,35 +177,35 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
 
       {/* 2. UNIFIED INBOX & TICKET TRIAGE (§46) */}
       {subtab === "inbox" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Unified Inquiries & Escalation Inbox (§46)</h3>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Unified Inquiries & Escalation Inbox (§46)</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Parent queries, transport reports, teacher requests and administrative escalations</p>
 
           <div style={{ display: "grid", gap: "10px" }}>
             {tickets.map((t) => (
-              <div key={t.id} style={{ padding: "14px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E2DDD5", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div key={t.id} style={{ padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
                     <span style={{
                       padding: "2px 8px", borderRadius: "4px", fontSize: "10.5px", fontWeight: 700,
                       background: t.priority === "Urgent" ? "#FEE2E2" : t.priority === "High" ? "#FEF3C7" : "#ECFDF5",
-                      color: t.priority === "Urgent" ? "#991B1B" : t.priority === "High" ? "#92400E" : "#064E3B",
+                      color: t.priority === "Urgent" ? "#991B1B" : t.priority === "High" ? "#92400E" : "#047857",
                     }}>
                       {t.priority}
                     </span>
                     <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 650 }}>{t.senderRole}: <b>{t.senderName}</b></span>
                     <span style={{ fontSize: "11px", color: "var(--muted)" }}>· {t.timestamp}</span>
                   </div>
-                  <b style={{ fontSize: "14px", color: "#064E3B" }}>{t.subject}</b>
+                  <b style={{ fontSize: "14px", color: "#0c1e33" }}>{t.subject}</b>
                   <p style={{ margin: "3px 0 0", fontSize: "12.5px", color: "#334155" }}>{t.snippet}</p>
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <span style={{ display: "inline-block", background: t.status === "Open" ? "#FEF3C7" : "#ECFDF5", color: t.status === "Open" ? "#92400E" : "#064E3B", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, marginBottom: "6px" }}>
+                  <span style={{ display: "inline-block", background: t.status === "Open" ? "#FEF3C7" : "#ECFDF5", color: t.status === "Open" ? "#92400E" : "#047857", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, marginBottom: "6px" }}>
                     {t.status}
                   </span>
                   <div>
-                    <button style={{ padding: "4px 10px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}>
+                    <button style={{ padding: "4px 10px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}>
                       Reply & Triage
                     </button>
                   </div>
@@ -217,17 +218,17 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
 
       {/* 3. COMPOSE BROADCAST FORM (§44) */}
       {subtab === "newBroadcast" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "22px", maxWidth: "700px" }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Compose Multi-Channel School Broadcast</h3>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "22px", maxWidth: "700px" }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Compose Multi-Channel School Broadcast</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Send vital notifications across In-App Noticeboards, WhatsApp, SMS and Email</p>
 
           <form onSubmit={handleSendBroadcast} style={{ display: "grid", gap: "14px" }}>
             <div>
-              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#064E3B" }}>Target Audience</label>
+              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33" }}>Target Audience</label>
               <select
                 value={broadcastAudience}
                 onChange={(e) => setBroadcastAudience(e.target.value as any)}
-                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2DDD5", marginTop: "4px", fontSize: "13px" }}
+                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", marginTop: "4px", fontSize: "13px" }}
               >
                 <option value="Parents">All parents</option>
                 <option value="Students">All students</option>
@@ -238,31 +239,31 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
             </div>
 
             <div>
-              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#064E3B" }}>Broadcast Headline</label>
+              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33" }}>Broadcast Headline</label>
               <input
                 type="text"
                 required
                 placeholder="e.g. Annual Sports Meet 2026 - Schedule & Timing Circular"
                 value={broadcastTitle}
                 onChange={(e) => setBroadcastTitle(e.target.value)}
-                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2DDD5", marginTop: "4px", fontSize: "13px" }}
+                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", marginTop: "4px", fontSize: "13px" }}
               />
             </div>
 
             <div>
-              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#064E3B" }}>Announcement Details & Message</label>
+              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33" }}>Announcement Details & Message</label>
               <textarea
                 rows={4}
                 required
                 placeholder="Details of the announcement to be sent to parents and staff..."
                 value={broadcastBody}
                 onChange={(e) => setBroadcastBody(e.target.value)}
-                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #E2DDD5", marginTop: "4px", fontSize: "13px", resize: "vertical" }}
+                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", marginTop: "4px", fontSize: "13px", resize: "vertical" }}
               />
             </div>
 
             <div>
-              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#064E3B", display: "block", marginBottom: "6px" }}>Delivery Channels</label>
+              <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33", display: "block", marginBottom: "6px" }}>Delivery Channels</label>
               <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "13px" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                   <input type="checkbox" checked={channels.inApp} onChange={(e) => setChannels({ ...channels, inApp: e.target.checked })} />
@@ -286,14 +287,14 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
             <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
               <button
                 type="submit"
-                style={{ padding: "10px 20px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                style={{ padding: "10px 20px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
               >
                 <Send size={15} /> Dispatch Broadcast Now
               </button>
               <button
                 type="button"
                 onClick={() => setSubtab("broadcast")}
-                style={{ padding: "10px 16px", background: "#FAF8F5", border: "1px solid #E2DDD5", color: "#064E3B", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}
+                style={{ padding: "10px 16px", background: "#f8fafc", border: "1px solid #e4e6e9", color: "#0c1e33", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}
               >
                 Cancel
               </button>

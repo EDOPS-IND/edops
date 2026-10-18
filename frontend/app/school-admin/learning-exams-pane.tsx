@@ -158,7 +158,7 @@ export function LearningExamsPane({
       )}
 
       {/* Subtab Bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E2DDD5", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "assignments", label: "Assignment Completion Monitoring (§36)" },
@@ -169,14 +169,15 @@ export function LearningExamsPane({
               key={tab.id}
               onClick={() => { setSubtab(tab.id as any); setNotice(""); setError(""); }}
               style={{
-                padding: "8px 14px",
+                padding: "8px 16px",
                 borderRadius: "8px",
                 fontSize: "13px",
-                fontWeight: subtab === tab.id ? 750 : 600,
-                background: subtab === tab.id ? "#064E3B" : "transparent",
-                color: subtab === tab.id ? "#F8E7C9" : "#064E3B",
+                fontWeight: subtab === tab.id ? 700 : 500,
+                background: subtab === tab.id ? "#0c1e33" : "transparent",
+                color: subtab === tab.id ? "#ffffff" : "#4a5568",
                 border: "none",
                 cursor: "pointer",
+                transition: "all 0.15s ease",
               }}
             >
               {tab.label}
@@ -186,7 +187,7 @@ export function LearningExamsPane({
 
         <button
           onClick={subtab === "assignments" ? openCourseworkModal : openExamModal}
-          style={{ padding: "8px 16px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
+          style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
           <Plus size={15} /> {subtab === "assignments" ? "New Coursework" : "Schedule New Exam"}
         </button>
@@ -194,43 +195,43 @@ export function LearningExamsPane({
 
       {/* 1. ASSIGNMENTS MONITORING TAB (§36) */}
       {subtab === "assignments" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Active Coursework & Homework Completion</h3>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Active Coursework & Homework Completion</h3>
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>School Admin oversight of teacher assignment releases and student turn-in rates</p>
             </div>
-            <span style={{ background: "#ECFDF5", color: "#064E3B", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: 700 }}>
+            <span style={{ background: "#ECFDF5", color: "#047857", padding: "4px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: 700 }}>
               Average Submission Rate: {assignments.length ? Math.round(assignments.reduce((sum,a)=>sum+a.completionPct,0)/assignments.length) : 0}%
             </span>
           </div>
 
           <div style={{ display: "grid", gap: "10px" }}>
             {assignments.map((asg) => (
-              <div key={asg.id} style={{ padding: "14px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E2DDD5" }}>
+              <div key={asg.id} style={{ padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>
                     <span style={{ fontSize: "11px", fontWeight: 700, color: "var(--muted)" }}>{asg.class} · {asg.subject}</span>
-                    <h4 style={{ margin: "2px 0", fontSize: "14.5px", fontWeight: 800, color: "#064E3B" }}>{asg.title}</h4>
+                    <h4 style={{ margin: "2px 0", fontSize: "14.5px", fontWeight: 800, color: "#0c1e33" }}>{asg.title}</h4>
                     <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Faculty: <b>{asg.teacher}</b> · Due: <b>{asg.dueDate}</b></span>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <span style={{ fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>
+                    <span style={{ fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>
                       {asg.submitted} / {asg.total} ({asg.completionPct}%)
                     </span>
-                    <div style={{ fontSize: "11px", color: asg.status === "Graded" ? "#064E3B" : "#B45309", fontWeight: 700 }}>
+                    <div style={{ fontSize: "11px", color: asg.status === "Graded" ? "#047857" : "#B45309", fontWeight: 700 }}>
                       {asg.status}
                     </div>
                   </div>
                 </div>
 
-                <div style={{ width: "100%", height: "6px", background: "#E2DDD5", borderRadius: "3px", margin: "10px 0 6px", overflow: "hidden" }}>
-                  <div style={{ width: `${asg.completionPct}%`, height: "100%", background: "#064E3B" }} />
+                <div style={{ width: "100%", height: "6px", background: "#e4e6e9", borderRadius: "3px", margin: "10px 0 6px", overflow: "hidden" }}>
+                  <div style={{ width: `${asg.completionPct}%`, height: "100%", background: "#0c1e33" }} />
                 </div>
 
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11.5px", color: "var(--muted)" }}>
                   <span>{asg.total - asg.submitted} students pending submission</span>
-                  <button style={{ background: "transparent", border: "none", color: "#064E3B", fontWeight: 700, cursor: "pointer" }}>
+                  <button style={{ background: "transparent", border: "none", color: "#0c1e33", fontWeight: 700, cursor: "pointer" }}>
                     View Student Drilldown ↗
                   </button>
                 </div>
@@ -242,13 +243,13 @@ export function LearningExamsPane({
 
       {/* 2. EXAMINATIONS SCHEDULE TAB (§37) */}
       {subtab === "exams" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "20px" }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>School Examination Windows & Cycles</h3>
+        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>School Examination Windows & Cycles</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Unit Tests, Periodic Assessments, Half-Yearly and Annual CBSE Examination Cycles</p>
 
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
             <thead>
-              <tr style={{ borderBottom: "2px solid #E2DDD5", color: "var(--muted)" }}>
+              <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                 <th style={{ padding: "10px" }}>Exam Name</th>
                 <th style={{ padding: "10px" }}>Exam Type</th>
                 <th style={{ padding: "10px" }}>Applicable Grades</th>
@@ -260,9 +261,9 @@ export function LearningExamsPane({
             </thead>
             <tbody>
               {exams.map((ex) => (
-                <tr key={ex.id} style={{ borderBottom: "1px solid #FAF8F5" }}>
+                <tr key={ex.id} style={{ borderBottom: "1px solid #f4f6f7" }}>
                   <td style={{ padding: "12px 10px" }}>
-                    <b>{ex.name}</b>
+                    <b style={{ color: "#0c1e33" }}>{ex.name}</b>
                     <div style={{ fontSize: "11px", color: "var(--muted)" }}>Session: {ex.academicYear}</div>
                   </td>
                   <td style={{ padding: "12px 10px" }}>{ex.examType}</td>
@@ -273,13 +274,13 @@ export function LearningExamsPane({
                     <span style={{
                       padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700,
                       background: ex.isPublished ? "#ECFDF5" : "#FEF3C7",
-                      color: ex.isPublished ? "#064E3B" : "#92400E",
+                      color: ex.isPublished ? "#047857" : "#92400E",
                     }}>
                       {ex.isPublished ? "Results Published" : "Marks In Progress"}
                     </span>
                   </td>
                   <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                    <button style={{ padding: "4px 8px", background: "#FAF8F5", border: "1px solid #E2DDD5", color: "#064E3B", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}>
+                    <button style={{ padding: "4px 8px", background: "#f8fafc", border: "1px solid #e4e6e9", color: "#0c1e33", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}>
                       Manage Subjects
                     </button>
                   </td>
@@ -294,12 +295,12 @@ export function LearningExamsPane({
 
       {/* Coursework Modal */}
       {showCourseworkModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
-          <div style={{ background: "#FFFFFF", borderRadius: "12px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.2)", overflow: "hidden" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #E2DDD5", background: "#FAF8F5" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(12, 30, 51, 0.45)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+          <div style={{ background: "#FFFFFF", borderRadius: "14px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #e4e6e9", background: "#f8fafc" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <BookOpen size={18} color="#064E3B" />
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#064E3B" }}>Create New Coursework</h3>
+                <BookOpen size={18} color="#0c1e33" />
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0c1e33" }}>Create New Coursework</h3>
               </div>
               <button onClick={() => setShowCourseworkModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#667085" }}>
                 <X size={18} />
@@ -314,7 +315,7 @@ export function LearningExamsPane({
                     required
                     value={asgSectionId}
                     onChange={(e) => setAsgSectionId(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px", background: "#FFFFFF" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px", background: "#FFFFFF" }}
                   >
                     <option value="">Select section...</option>
                     {sections.map((s: any) => (
@@ -329,7 +330,7 @@ export function LearningExamsPane({
                     required
                     value={asgSubjectId}
                     onChange={(e) => setAsgSubjectId(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px", background: "#FFFFFF" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px", background: "#FFFFFF" }}
                   >
                     <option value="">Select subject...</option>
                     {subjects.map((sub: any) => (
@@ -347,7 +348,7 @@ export function LearningExamsPane({
                   value={asgTitle}
                   onChange={(e) => setAsgTitle(e.target.value)}
                   placeholder="e.g. Real Numbers Practice Set & Proofs"
-                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                 />
               </label>
 
@@ -358,7 +359,7 @@ export function LearningExamsPane({
                   value={asgDesc}
                   onChange={(e) => setAsgDesc(e.target.value)}
                   placeholder="Instructions for students..."
-                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px", resize: "vertical" }}
+                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px", resize: "vertical" }}
                 />
               </label>
 
@@ -370,7 +371,7 @@ export function LearningExamsPane({
                     required
                     value={asgDueAt}
                     onChange={(e) => setAsgDueAt(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
 
@@ -382,23 +383,23 @@ export function LearningExamsPane({
                     max="1000"
                     value={asgMaxScore}
                     onChange={(e) => setAsgMaxScore(Number(e.target.value))}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "8px", borderTop: "1px solid #EAECF0" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "8px", borderTop: "1px solid #e4e6e9" }}>
                 <button
                   type="button"
                   onClick={() => setShowCourseworkModal(false)}
-                  style={{ padding: "8px 14px", borderRadius: "6px", border: "1px solid #D0D5DD", background: "#FFFFFF", fontSize: "12.5px", fontWeight: 600, cursor: "pointer" }}
+                  style={{ padding: "8px 14px", borderRadius: "6px", border: "1px solid #e4e6e9", background: "#f8fafc", fontSize: "12.5px", fontWeight: 600, cursor: "pointer" }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={busy}
-                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#064E3B", color: "#F8E7C9", fontSize: "12.5px", fontWeight: 700, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1 }}
+                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#0c1e33", color: "#ffffff", fontSize: "12.5px", fontWeight: 700, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1 }}
                 >
                   {busy ? "Publishing..." : "Publish Coursework"}
                 </button>
@@ -410,12 +411,12 @@ export function LearningExamsPane({
 
       {/* Schedule Exam Modal */}
       {showExamModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
-          <div style={{ background: "#FFFFFF", borderRadius: "12px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.2)", overflow: "hidden" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #E2DDD5", background: "#FAF8F5" }}>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(12, 30, 51, 0.45)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
+          <div style={{ background: "#FFFFFF", borderRadius: "14px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #e4e6e9", background: "#f8fafc" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <Award size={18} color="#064E3B" />
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#064E3B" }}>Schedule School Examination</h3>
+                <Award size={18} color="#0c1e33" />
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0c1e33" }}>Schedule School Examination</h3>
               </div>
               <button onClick={() => setShowExamModal(false)} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#667085" }}>
                 <X size={18} />
@@ -430,7 +431,7 @@ export function LearningExamsPane({
                     required
                     value={examSectionId}
                     onChange={(e) => setExamSectionId(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px", background: "#FFFFFF" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px", background: "#FFFFFF" }}
                   >
                     <option value="">Select section...</option>
                     {sections.map((s: any) => (
@@ -445,7 +446,7 @@ export function LearningExamsPane({
                     required
                     value={examSubjectId}
                     onChange={(e) => setExamSubjectId(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px", background: "#FFFFFF" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px", background: "#FFFFFF" }}
                   >
                     <option value="">Select subject...</option>
                     {subjects.map((sub: any) => (
@@ -464,7 +465,7 @@ export function LearningExamsPane({
                     value={examName}
                     onChange={(e) => setExamName(e.target.value)}
                     placeholder="e.g. Periodic Assessment 2"
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
 
@@ -476,7 +477,7 @@ export function LearningExamsPane({
                     value={examTerm}
                     onChange={(e) => setExamTerm(e.target.value)}
                     placeholder="e.g. Term 1"
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
               </div>
@@ -489,7 +490,7 @@ export function LearningExamsPane({
                     required
                     value={examDate}
                     onChange={(e) => setExamDate(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
 
@@ -500,7 +501,7 @@ export function LearningExamsPane({
                     required
                     value={examStartTime}
                     onChange={(e) => setExamStartTime(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
 
@@ -511,7 +512,7 @@ export function LearningExamsPane({
                     required
                     value={examEndTime}
                     onChange={(e) => setExamEndTime(e.target.value)}
-                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                    style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                   />
                 </label>
               </div>
@@ -524,22 +525,22 @@ export function LearningExamsPane({
                   max="1000"
                   value={examMaxMarks}
                   onChange={(e) => setExamMaxMarks(Number(e.target.value))}
-                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D0D5DD", fontSize: "13px" }}
+                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
                 />
               </label>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "8px", borderTop: "1px solid #EAECF0" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "8px", borderTop: "1px solid #e4e6e9" }}>
                 <button
                   type="button"
                   onClick={() => setShowExamModal(false)}
-                  style={{ padding: "8px 14px", borderRadius: "6px", border: "1px solid #D0D5DD", background: "#FFFFFF", fontSize: "12.5px", fontWeight: 600, cursor: "pointer" }}
+                  style={{ padding: "8px 14px", borderRadius: "6px", border: "1px solid #e4e6e9", background: "#f8fafc", fontSize: "12.5px", fontWeight: 600, cursor: "pointer" }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={busy}
-                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#064E3B", color: "#F8E7C9", fontSize: "12.5px", fontWeight: 700, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1 }}
+                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#0c1e33", color: "#ffffff", fontSize: "12.5px", fontWeight: 700, cursor: busy ? "not-allowed" : "pointer", opacity: busy ? 0.6 : 1 }}
                 >
                   {busy ? "Scheduling..." : "Schedule Exam"}
                 </button>
