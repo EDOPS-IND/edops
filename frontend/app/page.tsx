@@ -148,6 +148,7 @@ export default function Home() {
         onLogout={signOut}
         onSwitchOrganization={switchWorkspace}
         organizations={profile.organizations}
+        userProfile={profile.user}
       />
     );
   }

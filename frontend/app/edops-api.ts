@@ -678,6 +678,32 @@ export async function getTeacherArenaAnalytics(orgId: string): Promise<any> {
   return api<any>(`/organizations/${orgId}/teacher/arena/analytics`);
 }
 
+// Aliases for teacher panes
+export const getTeacherQuestionBank = getTeacherArenaQuestions;
+export const createTeacherQuestion = createTeacherArenaQuestion;
+export const getTeacherEvaluationQueue = getTeacherSubmissionsQueue;
+export function evaluateTeacherSubmission(orgId: string, submissionId: string, scoreOrBody: any, maybeFeedback?: string) {
+  const body = typeof scoreOrBody === 'object' ? scoreOrBody : { score: scoreOrBody, feedback: maybeFeedback };
+  return gradeTeacherSubmission(orgId, submissionId, body);
+}
+export const getTeacherCommunicationInbox = getTeacherMessages;
+export async function getTeacherConversationThread(orgId: string, threadId: string): Promise<any> {
+  return api<any>(`/organizations/${orgId}/teacher/messages/${threadId}`);
+}
+export function sendTeacherChatMessage(orgId: string, threadIdOrBody: any, maybeContent?: string) {
+  const body = typeof threadIdOrBody === 'object' ? threadIdOrBody : { threadId: threadIdOrBody, content: maybeContent };
+  return sendTeacherMessage(orgId, body);
+}
+export const startTeacherConversation = sendTeacherMessage;
+export function updateTeacherCurriculumTopic(orgId: string, ...args: any[]) {
+  if (args.length >= 4) {
+    const chapterId = args[2];
+    const completionPct = args[3];
+    return updateTeacherCurriculumProgress(orgId, { chapterId, completionPct });
+  }
+  return updateTeacherCurriculumProgress(orgId, args[0], args[1]);
+}
+
 // Student Workspace APIs
 export async function getStudentDashboard(orgId: string) {
   return api<any>(`/organizations/${orgId}/student/dashboard`);

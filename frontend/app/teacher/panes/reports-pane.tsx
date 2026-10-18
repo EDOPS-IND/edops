@@ -2,6 +2,28 @@
 
 import React, { useState, useEffect } from 'react';
 import { getTeacherReports, getTeacherClasses } from '../../edops-api';
+import { Download, Printer, Users, Award, TrendingUp, AlertTriangle } from 'lucide-react';
+
+const T = {
+  navy: '#0c1e33',
+  slate: '#495d72',
+  muted: '#a6abb5',
+  faint: '#b3b3b3',
+  bg: '#f4f6f7',
+  white: '#ffffff',
+  border: '#e4e6e9',
+  line: '#ced8e5',
+  chip: '#f5f6f8',
+  blue: '#17a1fa',
+  greenBg: '#d9eed1',
+  green: '#61a249',
+  greenDk: '#1a5c0a',
+};
+
+const pastelViolet = { bg: '#e1d2ff', text: '#4a0e8f' };
+const pastelMint = { bg: '#ccefbf', text: '#1a5c0a' };
+const pastelBlue = { bg: '#d0e6ff', text: '#0a3a7a' };
+const pastelPeach = { bg: '#ffd8c7', text: '#782a00' };
 
 interface ReportsPaneProps {
   organizationId: string;
@@ -38,7 +60,7 @@ export const ReportsPane: React.FC<ReportsPaneProps> = ({ organizationId }) => {
     } catch {
       setClassesList([]);
       setSelectedClass('');
-        setLoading(false);
+      setLoading(false);
     }
   };
 
@@ -57,18 +79,34 @@ export const ReportsPane: React.FC<ReportsPaneProps> = ({ organizationId }) => {
 
   const handleExport = (format: 'pdf' | 'excel') => {
     if (format === 'pdf') { window.print(); return; }
-    const rows = [['Student','Class','Subject','Average'], ...(reportData?.students || []).map((s: any) => [s.name,s.className,s.subject,s.avg ?? ''])];
-    const csv = rows.map(row => row.map((v: any) => '"' + String(v ?? '').replaceAll('"','""') + '"').join(',')).join('\n');
-    const url = URL.createObjectURL(new Blob([csv], {type:'text/csv'}));
-    const link = document.createElement('a'); link.href=url; link.download='academic-report.csv'; link.click(); URL.revokeObjectURL(url);
+    const rows = [['Student', 'Class', 'Subject', 'Average'], ...(reportData?.students || []).map((s: any) => [s.name, s.className, s.subject, s.avg ?? ''])];
+    const csv = rows.map(row => row.map((v: any) => '"' + String(v ?? '').replaceAll('"', '""') + '"').join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+    const link = document.createElement('a'); link.href = url; link.download = 'academic-report.csv'; link.click(); URL.revokeObjectURL(url);
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500 animate-pulse">Generating competency reports & LO heatmaps...</div>;
+    return (
+      <div style={{ padding: "64px 0", textAlign: "center", color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: "32px",
+            height: "32px",
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 12px",
+          }}
+        />
+        <p style={{ fontSize: "13px", fontWeight: 600, color: T.slate, margin: 0 }}>
+          Generating competency audit &amp; LO heatmaps...
+        </p>
+      </div>
+    );
   }
 
   const outcomes: any[] = reportData?.outcomes || [];
-
   const students = reportData?.students || [];
 
   const strongCount = students.filter((s: any) => s.avg >= 80).length;
@@ -76,37 +114,38 @@ export const ReportsPane: React.FC<ReportsPaneProps> = ({ organizationId }) => {
   const needsSupportCount = students.filter((s: any) => s.avg >= 45 && s.avg < 60).length;
   const criticalCount = students.filter((s: any) => s.avg != null && s.avg < 45).length;
   const totalCount = students.length || 0;
-  const strongPct = students.length ? Math.round((strongCount / totalCount) * 100) : 0;
-  const onTrackPct = students.length ? Math.round((onTrackCount / totalCount) * 100) : 0;
-  const needsSupportPct = students.length ? Math.round((needsSupportCount / totalCount) * 100) : 0;
-  const criticalPct = students.length ? Math.round((criticalCount / totalCount) * 100) : 0;
-
-  const challengingOutcomes = outcomes.map((lo: any, idx: number) => {
-    const scores = students.map((s: any) => s.scores?.[idx] || 0);
-    const avg = scores.length ? Math.round(scores.reduce((a: number, b: number) => a + b, 0) / scores.length) : 0;
-    return { ...lo, avg };
-  }).filter((lo: any) => lo.avg > 0 && lo.avg < 60);
-
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-    if (score >= 60) return 'bg-blue-100 text-blue-800 border-blue-200';
-    if (score >= 45) return 'bg-amber-100 text-amber-800 border-amber-200';
-    return 'bg-rose-100 text-rose-800 border-rose-200';
-  };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Academic Mastery Reports & LO Heatmap</h2>
-          <p className="text-sm text-slate-500">Subject-level competency tracking, CBSE learning outcome heatmaps, and printable report registers.</p>
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px", fontFamily: "'Poppins', sans-serif" }}>
+      {/* 1. Header */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <span style={{ fontSize: "10px", fontWeight: 600, color: T.slate, letterSpacing: "0.06em", textTransform: "uppercase" }}>
+            COMPETENCY AUDIT &amp; HEATMAPS
+          </span>
+          <h1 style={{ margin: 0, fontSize: "18px", fontWeight: 600, color: T.navy, letterSpacing: "-0.01em" }}>
+            Academic Mastery Reports &amp; LO Heatmap
+          </h1>
+          <p style={{ margin: 0, fontSize: "13px", color: T.slate }}>
+            Subject-level competency tracking, learning outcome heatmaps, and printable report registers
+          </p>
         </div>
-        <div className="flex items-center gap-2">
+
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
           <select
             value={selectedClass}
             onChange={(e) => setSelectedClass(e.target.value)}
-            className="px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            style={{
+              padding: "9px 12px",
+              background: "#ffffff",
+              border: `1px solid ${T.line}`,
+              borderRadius: "6px",
+              fontSize: "12.5px",
+              fontWeight: 600,
+              color: T.navy,
+              outline: "none",
+              cursor: "pointer",
+            }}
           >
             {classesList.length > 0 ? (
               classesList.map((c) => (
@@ -120,131 +159,236 @@ export const ReportsPane: React.FC<ReportsPaneProps> = ({ organizationId }) => {
           </select>
           <button
             onClick={() => handleExport('pdf')}
-            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "9px 14px",
+              background: "#ffffff",
+              border: `1px solid ${T.border}`,
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: 600,
+              color: T.navy,
+              cursor: "pointer",
+            }}
           >
-            <span>PDF Export</span>
+            <Printer size={13} />
+            <span>PDF Print</span>
           </button>
           <button
             onClick={() => handleExport('excel')}
-            className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "9px 14px",
+              background: T.navy,
+              border: `1px solid ${T.navy}`,
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: 600,
+              color: "#ffffff",
+              cursor: "pointer",
+            }}
           >
+            <Download size={13} />
             <span>Excel Export</span>
           </button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 gap-6">
-        <button
-          onClick={() => setActiveTab('loHeatmap')}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === 'loHeatmap'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+      {/* 2. Top 4 Pastel Metric Cards (Exact 148px Student Style) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+        {/* Card 1: Enrolled Cohort */}
+        <div
+          style={{
+            height: '148px',
+            background: pastelViolet.bg,
+            borderRadius: '10px',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            boxSizing: 'border-box',
+          }}
         >
-          Learning Outcomes Heatmap
-        </button>
-        <button
-          onClick={() => setActiveTab('cohortSummary')}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === 'cohortSummary'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Cohort Performance Breakdown
-        </button>
-        <button
-          onClick={() => setActiveTab('cbseRegister')}
-          className={`pb-3 text-sm font-medium transition-colors border-b-2 ${
-            activeTab === 'cbseRegister'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          CBSE Formative Marks Register
-        </button>
-      </div>
-
-      {/* Active Tab View */}
-      {activeTab === 'loHeatmap' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-4">
-            <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">
-              Competency Mastery Grid (Class {selectedClass})
-            </span>
-            <div className="flex items-center gap-4 text-xs">
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-emerald-100 border border-emerald-300" />
-                <span>&ge; 80% Mastery</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-blue-100 border border-blue-300" />
-                <span>60-79% On Track</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-amber-100 border border-amber-300" />
-                <span>45-59% Needs Support</span>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-3 h-3 rounded bg-rose-100 border border-rose-300" />
-                <span>&lt; 45% Critical</span>
-              </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: pastelViolet.text }}>Enrolled Cohort</span>
+            <Users size={16} color={pastelViolet.text} />
+          </div>
+          <div>
+            <div style={{ fontSize: '36px', fontWeight: 700, color: pastelViolet.text, lineHeight: 1 }}>
+              {totalCount}
+            </div>
+            <div style={{ fontSize: '11px', color: pastelViolet.text, opacity: 0.85, marginTop: '4px' }}>
+              Students in selected section
             </div>
           </div>
+        </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600 text-xs font-semibold border-b border-slate-200">
-                <tr>
-                  <th className="py-3 px-4 w-12 text-center">Roll</th>
-                  <th className="py-3 px-4 min-w-[160px]">Student Name</th>
-                  {outcomes.map((lo, idx) => (
-                    <th key={idx} className="py-3 px-3 text-center min-w-[120px]">
-                      <div className="font-mono text-[11px] text-slate-700">{lo.code}</div>
-                      <div className="text-[10px] text-slate-400 font-normal truncate max-w-[110px]" title={lo.label}>
-                        {lo.label}
-                      </div>
+        {/* Card 2: High Mastery */}
+        <div
+          style={{
+            height: '148px',
+            background: pastelMint.bg,
+            borderRadius: '10px',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: pastelMint.text }}>Mastery (≥80%)</span>
+            <Award size={16} color={pastelMint.text} />
+          </div>
+          <div>
+            <div style={{ fontSize: '36px', fontWeight: 700, color: pastelMint.text, lineHeight: 1 }}>
+              {strongCount}
+            </div>
+            <div style={{ fontSize: '11px', color: pastelMint.text, opacity: 0.85, marginTop: '4px' }}>
+              {totalCount ? Math.round((strongCount / totalCount) * 100) : 0}% of cohort excelling
+            </div>
+          </div>
+        </div>
+
+        {/* Card 3: Proficient */}
+        <div
+          style={{
+            height: '148px',
+            background: pastelBlue.bg,
+            borderRadius: '10px',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: pastelBlue.text }}>On Track (60-79%)</span>
+            <TrendingUp size={16} color={pastelBlue.text} />
+          </div>
+          <div>
+            <div style={{ fontSize: '36px', fontWeight: 700, color: pastelBlue.text, lineHeight: 1 }}>
+              {onTrackCount}
+            </div>
+            <div style={{ fontSize: '11px', color: pastelBlue.text, opacity: 0.85, marginTop: '4px' }}>
+              {totalCount ? Math.round((onTrackCount / totalCount) * 100) : 0}% meeting benchmarks
+            </div>
+          </div>
+        </div>
+
+        {/* Card 4: Support Required */}
+        <div
+          style={{
+            height: '148px',
+            background: pastelPeach.bg,
+            borderRadius: '10px',
+            padding: '20px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: pastelPeach.text }}>Support / Remedial</span>
+            <AlertTriangle size={16} color={pastelPeach.text} />
+          </div>
+          <div>
+            <div style={{ fontSize: '36px', fontWeight: 700, color: pastelPeach.text, lineHeight: 1 }}>
+              {needsSupportCount + criticalCount}
+            </div>
+            <div style={{ fontSize: '11px', color: pastelPeach.text, opacity: 0.85, marginTop: '4px' }}>
+              {totalCount ? Math.round(((needsSupportCount + criticalCount) / totalCount) * 100) : 0}% need remedial focus
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Tabs */}
+      <div style={{ display: "flex", background: T.chip, padding: "4px", borderRadius: "10px", border: `1px solid ${T.border}`, gap: "4px", width: "fit-content" }}>
+        {[
+          { id: 'loHeatmap', label: 'LO Heatmap' },
+          { id: 'cohortSummary', label: 'Cohort Mastery Breakdown' },
+          { id: 'cbseRegister', label: 'Official Register' },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id as any)}
+            style={{
+              all: "unset",
+              padding: "6px 14px",
+              borderRadius: "8px",
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+              background: activeTab === t.id ? T.navy : "transparent",
+              color: activeTab === t.id ? "#ffffff" : T.slate,
+              transition: "all 0.15s ease",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* 4. Heatmap Matrix */}
+      {activeTab === 'loHeatmap' && (
+        <div style={{ background: "#ffffff", borderRadius: "10px", border: `1px solid ${T.border}`, padding: "24px", display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: T.navy }}>
+              Learning Outcomes Competency Grid
+            </h3>
+            <span style={{ fontSize: "11px", color: T.slate }}>
+              Score colors: Green (≥80%), Blue (60–79%), Amber (45–59%), Coral (&lt;45%)
+            </span>
+          </div>
+
+          <div style={{ overflowX: "auto", border: `1px solid ${T.border}`, borderRadius: "8px" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+              <thead>
+                <tr style={{ background: T.chip, borderBottom: `1px solid ${T.border}`, color: T.slate, fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  <th style={{ padding: "10px 14px" }}>Student</th>
+                  <th style={{ padding: "10px 14px" }}>Avg</th>
+                  {outcomes.map((lo: any, idx: number) => (
+                    <th key={idx} style={{ padding: "10px 12px", textAlign: "center", minWidth: "70px" }}>
+                      {lo.code || `LO-${idx + 1}`}
                     </th>
                   ))}
-                  <th className="py-3 px-4 text-center">Subject Avg</th>
-                  <th className="py-3 px-4 text-center">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-slate-700">
+              <tbody>
                 {students.length === 0 ? (
                   <tr>
-                    <td colSpan={outcomes.length + 4} className="py-12 text-center text-xs text-slate-400">
-                      No student scorecard records found for Class {selectedClass}.
+                    <td colSpan={2 + outcomes.length} style={{ padding: "32px", textAlign: "center", color: T.slate }}>
+                      No students found in this section.
                     </td>
                   </tr>
                 ) : (
-                  students.map((student: any) => (
-                    <tr key={student.rollNo} className="hover:bg-slate-50 transition-colors">
-                      <td className="py-3 px-4 text-center text-xs text-slate-400 font-mono">{student.rollNo}</td>
-                      <td className="py-3 px-4 font-medium text-slate-900">{student.name}</td>
-                      {student.scores?.map((score: number, idx: number) => (
-                        <td key={idx} className="py-3 px-3 text-center">
-                          <span className={`inline-block w-12 py-1 rounded text-xs font-semibold border ${getScoreColor(score)}`}>
-                            {score}%
-                          </span>
-                        </td>
-                      ))}
-                      <td className="py-3 px-4 text-center font-bold text-slate-900">{student.avg}%</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                          student.status === 'Strong'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : student.status === 'On Track'
-                            ? 'bg-blue-50 text-blue-700'
-                            : student.status === 'Needs Support'
-                            ? 'bg-amber-50 text-amber-700'
-                            : 'bg-rose-50 text-rose-700'
-                        }`}>
-                          {student.status}
-                        </span>
+                  students.map((s: any, idx: number) => (
+                    <tr key={idx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                      <td style={{ padding: "10px 14px", fontWeight: 600, color: T.navy }}>
+                        {s.name}
                       </td>
+                      <td style={{ padding: "10px 14px", fontWeight: 700, color: T.navy }}>
+                        {s.avg ?? 0}%
+                      </td>
+                      {outcomes.map((_: any, lIdx: number) => {
+                        const val = s.scores?.[lIdx] ?? 0;
+                        const bg = val >= 80 ? T.greenBg : val >= 60 ? "#d0e6ff" : val >= 45 ? "#fde1ac" : "#ffd6d6";
+                        const col = val >= 80 ? T.greenDk : val >= 60 ? "#0a3a7a" : val >= 45 ? "#614400" : "#7a1a1a";
+                        return (
+                          <td key={lIdx} style={{ padding: "6px", textAlign: "center" }}>
+                            <span style={{ display: "inline-block", padding: "4px 8px", borderRadius: "4px", background: bg, color: col, fontWeight: 700, fontSize: "11px", minWidth: "32px" }}>
+                              {val}%
+                            </span>
+                          </td>
+                        );
+                      })}
                     </tr>
                   ))
                 )}
@@ -254,91 +398,69 @@ export const ReportsPane: React.FC<ReportsPaneProps> = ({ organizationId }) => {
         </div>
       )}
 
+      {/* Cohort Summary */}
       {activeTab === 'cohortSummary' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-2">Cohort Grade Distribution</h3>
-            <p className="text-xs text-slate-500 mb-4">Overall performance classification in Mathematics for Class {selectedClass}.</p>
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-xs font-medium text-slate-700 mb-1">
-                  <span>Distinction / Strong (&ge; 80%)</span>
-                  <span>{strongPct}% ({strongCount} {strongCount === 1 ? 'student' : 'students'})</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2">
-                  <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${strongPct}%` }} />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs font-medium text-slate-700 mb-1">
-                  <span>On Track (60-79%)</span>
-                  <span>{onTrackPct}% ({onTrackCount} {onTrackCount === 1 ? 'student' : 'students'})</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2">
-                  <div className="bg-blue-500 h-2 rounded-full" style={{ width: `${onTrackPct}%` }} />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs font-medium text-slate-700 mb-1">
-                  <span>Needs Support (45-59%)</span>
-                  <span>{needsSupportPct}% ({needsSupportCount} {needsSupportCount === 1 ? 'student' : 'students'})</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2">
-                  <div className="bg-amber-500 h-2 rounded-full" style={{ width: `${needsSupportPct}%` }} />
-                </div>
-              </div>
-              <div>
-                <div className="flex justify-between text-xs font-medium text-slate-700 mb-1">
-                  <span>Intervention Recommended (&lt; 45%)</span>
-                  <span>{criticalPct}% ({criticalCount} {criticalCount === 1 ? 'student' : 'students'})</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2">
-                  <div className="bg-rose-500 h-2 rounded-full" style={{ width: `${criticalPct}%` }} />
-                </div>
-              </div>
-            </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
+          <div style={{ background: "#ffffff", padding: "20px", borderRadius: "10px", border: `1px solid ${T.border}` }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, color: T.greenDk, textTransform: "uppercase", letterSpacing: "0.06em" }}>Mastery (≥80%)</span>
+            <div style={{ fontSize: "28px", fontWeight: 700, color: T.greenDk, margin: "6px 0" }}>{strongCount} Students</div>
+            <span style={{ fontSize: "11.5px", color: T.slate }}>{totalCount ? Math.round((strongCount / totalCount) * 100) : 0}% of class</span>
           </div>
 
-          <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-            <h3 className="font-semibold text-slate-900 mb-2">Most Challenging Competencies</h3>
-            <p className="text-xs text-slate-500 mb-4">Learning outcomes where class average falls below 60%.</p>
-            <div className="space-y-3">
-              {challengingOutcomes.length === 0 ? (
-                <div className="p-4 bg-slate-50 border border-slate-100 rounded-lg text-xs text-slate-500 text-center">
-                  All competencies meet or exceed the 60% mastery threshold for Class {selectedClass}.
-                </div>
-              ) : (
-                challengingOutcomes.map((lo: any, idx: number) => (
-                  <div key={idx} className="p-3 bg-amber-50 border border-amber-100 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-xs text-amber-900">{lo.code}: {lo.label}</span>
-                      <span className="text-xs font-bold text-amber-700">{lo.avg}% Class Avg</span>
-                    </div>
-                    <p className="text-[11px] text-amber-800 mt-1">Recommended action: Assign remedial drill before Term Exam.</p>
-                  </div>
-                ))
-              )}
-            </div>
+          <div style={{ background: "#ffffff", padding: "20px", borderRadius: "10px", border: `1px solid ${T.border}` }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, color: "#0a3a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>On Track (60–79%)</span>
+            <div style={{ fontSize: "28px", fontWeight: 700, color: "#0a3a7a", margin: "6px 0" }}>{onTrackCount} Students</div>
+            <span style={{ fontSize: "11.5px", color: T.slate }}>{totalCount ? Math.round((onTrackCount / totalCount) * 100) : 0}% of class</span>
+          </div>
+
+          <div style={{ background: "#ffffff", padding: "20px", borderRadius: "10px", border: `1px solid ${T.border}` }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, color: "#614400", textTransform: "uppercase", letterSpacing: "0.06em" }}>Needs Support (45–59%)</span>
+            <div style={{ fontSize: "28px", fontWeight: 700, color: "#614400", margin: "6px 0" }}>{needsSupportCount} Students</div>
+            <span style={{ fontSize: "11.5px", color: "#614400", fontWeight: 600 }}>{totalCount ? Math.round((needsSupportCount / totalCount) * 100) : 0}% of class</span>
+          </div>
+
+          <div style={{ background: "#ffffff", padding: "20px", borderRadius: "10px", border: `1px solid ${T.border}` }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, color: "#7a1a1a", textTransform: "uppercase", letterSpacing: "0.06em" }}>Remedial Required (&lt;45%)</span>
+            <div style={{ fontSize: "28px", fontWeight: 700, color: "#7a1a1a", margin: "6px 0" }}>{criticalCount} Students</div>
+            <span style={{ fontSize: "11.5px", color: "#7a1a1a", fontWeight: 600 }}>{totalCount ? Math.round((criticalCount / totalCount) * 100) : 0}% of class</span>
           </div>
         </div>
       )}
 
+      {/* Official CBSE Register View */}
       {activeTab === 'cbseRegister' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 text-center">
-          <div className="max-w-md mx-auto space-y-3">
-            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto text-xl font-bold">
-              &para;
-            </div>
-            <h3 className="text-base font-semibold text-slate-900">CBSE Formative Assessment Mark Register Ready</h3>
-            <p className="text-xs text-slate-500">
-              Complies with CBSE Class 9-10 internal assessment format: Periodic Tests (5 Marks), Multiple Assessment (5 Marks), Portfolio (5 Marks), Subject Enrichment (5 Marks).
-            </p>
-            <button
-              onClick={() => handleExport('pdf')}
-              className="mt-2 px-4 py-2 bg-indigo-600 text-white text-xs font-semibold rounded-lg hover:bg-indigo-700 shadow-sm"
-            >
-              Generate Official CBSE Internal Mark Sheet (PDF)
-            </button>
+        <div style={{ background: "#ffffff", borderRadius: "10px", border: `1px solid ${T.border}`, padding: "24px" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12.5px" }}>
+              <thead>
+                <tr style={{ background: T.chip, borderBottom: `1px solid ${T.border}`, color: T.slate, fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  <th style={{ padding: "10px 14px" }}>Student</th>
+                  <th style={{ padding: "10px 14px" }}>Class</th>
+                  <th style={{ padding: "10px 14px" }}>Subject</th>
+                  <th style={{ padding: "10px 14px" }}>Average Marks</th>
+                  <th style={{ padding: "10px 14px" }}>Grade</th>
+                </tr>
+              </thead>
+              <tbody>
+                {students.map((s: any, idx: number) => {
+                  const avg = s.avg ?? 0;
+                  const grade = avg >= 90 ? 'A1' : avg >= 80 ? 'A2' : avg >= 70 ? 'B1' : avg >= 60 ? 'B2' : avg >= 50 ? 'C1' : avg >= 40 ? 'C2' : 'D';
+                  return (
+                    <tr key={idx} style={{ borderBottom: `1px solid ${T.border}` }}>
+                      <td style={{ padding: "10px 14px", fontWeight: 600, color: T.navy }}>{s.name}</td>
+                      <td style={{ padding: "10px 14px", color: T.slate }}>{s.className}</td>
+                      <td style={{ padding: "10px 14px", color: T.navy, fontWeight: 600 }}>{s.subject}</td>
+                      <td style={{ padding: "10px 14px", fontWeight: 700, color: T.navy }}>{avg}%</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        <span style={{ fontWeight: 600, padding: "2px 8px", borderRadius: "4px", background: T.chip, border: `1px solid ${T.border}`, color: T.navy, fontSize: "11px" }}>
+                          {grade}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

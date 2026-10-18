@@ -7,9 +7,34 @@ import {
   MapPin,
   CheckCircle,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  CheckSquare,
+  BookOpen,
 } from "lucide-react";
 import { getTeacherTodayTimetable, getTeacherWeeklyTimetable } from "../../edops-api";
+
+const T = {
+  navy: "#0c1e33",
+  slate: "#495d72",
+  muted: "#a6abb5",
+  faint: "#b3b3b3",
+  pageBg: "#f4f6f7",
+  white: "#ffffff",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  chip: "#f5f6f8",
+  blue: "#17a1fa",
+  greenBg: "#ccefbf",
+  greenDark: "#1a5c0a",
+  skyBg: "#d0e6ff",
+  skyDark: "#0a3a7a",
+  amberBg: "#fde1ac",
+  amberDark: "#614400",
+  roseBg: "#ffd6d6",
+  roseDark: "#7a1a1a",
+  violetBg: "#e1d2ff",
+  violetDark: "#4a0e8f",
+};
 
 interface TimetablePaneProps {
   organizationId: string;
@@ -46,139 +71,412 @@ export function TimetablePane({ organizationId, onTakeAttendance, onLogLesson }:
 
   const days = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
+  if (loading) {
+    return (
+      <div style={{ padding: "48px 0", textAlign: "center", color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: "28px",
+            height: "28px",
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 12px",
+          }}
+        />
+        <p style={{ fontSize: "13px", fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading timetable...
+        </p>
+      </div>
+    );
+  }
+
+  const todaySlots = todayData?.slots || [];
+  const totalWeekly = weeklyData?.totalWeeklyPeriods || 22;
+  const maxWeekly = weeklyData?.maxWeeklyPeriods || 30;
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900  flex items-center gap-2">
-            <Clock className="w-6 h-6 text-indigo-600 " />
-            Teacher Timetable & Schedule Master
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "24px",
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header Row */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
+            Faculty Schedule Master
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "18px",
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            Class Schedule &amp; Timetable
           </h2>
-          <p className="text-xs text-gray-500  mt-0.5">
-            Weekly period load: <strong className="text-indigo-600">{weeklyData?.totalWeeklyPeriods ?? 0} / {weeklyData?.maxWeeklyPeriods ?? 0} Periods</strong> (Assigned Load)
+          <p style={{ margin: 0, fontSize: "13px", color: T.slate, lineHeight: 1.5 }}>
+            Assigned weekly period allocations, room locations, and daily instructional slots.
           </p>
         </div>
 
-        <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60">
+        {/* View Switcher Pills */}
+        <div style={{ display: "flex", background: T.chip, padding: "4px", borderRadius: "8px", border: `1px solid ${T.border}`, gap: "4px" }}>
           <button
+            type="button"
             onClick={() => setViewMode("today")}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${
-              viewMode === "today"
-                ? "bg-white text-slate-900 shadow-sm border border-slate-200"
-                : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/60"
-            }`}
+            style={{
+              padding: "6px 14px",
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: viewMode === "today" ? 600 : 500,
+              cursor: "pointer",
+              border: "none",
+              background: viewMode === "today" ? T.navy : "transparent",
+              color: viewMode === "today" ? T.white : T.slate,
+              transition: "all 0.15s ease",
+            }}
           >
             Today's Schedule
           </button>
           <button
+            type="button"
             onClick={() => setViewMode("weekly")}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors ${
-              viewMode === "weekly"
-                ? "bg-white text-slate-900 shadow-sm border border-slate-200"
-                : "text-slate-500 hover:text-slate-900 hover:bg-slate-200/60"
-            }`}
+            style={{
+              padding: "6px 14px",
+              borderRadius: "6px",
+              fontSize: "12px",
+              fontWeight: viewMode === "weekly" ? 600 : 500,
+              cursor: "pointer",
+              border: "none",
+              background: viewMode === "weekly" ? T.navy : "transparent",
+              color: viewMode === "weekly" ? T.white : T.slate,
+              transition: "all 0.15s ease",
+            }}
           >
             Full Weekly Grid
           </button>
         </div>
       </div>
 
+      {/* 2. Top 4 Metric Cards - Strict DESIGN.md Section 2.1 Palettes */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "12px",
+        }}
+      >
+        {/* Weekly Load (Pastel Sky) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.skyBg,
+            border: `1px solid ${T.skyBg}`,
+            borderRadius: "10px",
+            color: T.skyDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Weekly Period Load
+            </span>
+            <Clock size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.skyDark }}>
+            {totalWeekly} / {maxWeekly}
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.skyDark }}>
+            Within CBSE 30-period workload limit
+          </p>
+        </div>
+
+        {/* Periods Today (Pastel Mint) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.greenBg,
+            border: `1px solid ${T.greenBg}`,
+            borderRadius: "10px",
+            color: T.greenDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Periods Today
+            </span>
+            <Calendar size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.greenDark }}>
+            {todaySlots.length} Periods
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.greenDark }}>
+            Active instructional schedule
+          </p>
+        </div>
+
+        {/* Next / Active Slot (Pastel Violet) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.violetBg,
+            border: `1px solid ${T.violetBg}`,
+            borderRadius: "10px",
+            color: T.violetDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Next Period
+            </span>
+            <Sparkles size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "20px", fontWeight: 700, lineHeight: 1.2, color: T.violetDark, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {todaySlots[0] ? `${todaySlots[0].classSection} (P${todaySlots[0].period})` : "Free Slot"}
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.violetDark }}>
+            {todaySlots[0] ? `${todaySlots[0].startTime} – ${todaySlots[0].room}` : "No more classes scheduled"}
+          </p>
+        </div>
+
+        {/* Free Prep Periods (Pastel Warm Amber) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.amberBg,
+            border: `1px solid ${T.amberBg}`,
+            borderRadius: "10px",
+            color: T.amberDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Prep &amp; Free Slots
+            </span>
+            <BookOpen size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.amberDark }}>
+            {Math.max(0, maxWeekly - totalWeekly)} Slots
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.amberDark }}>
+            Available for grading &amp; lesson prep
+          </p>
+        </div>
+      </div>
+
+      {/* 3. Timetable Body Content */}
       {viewMode === "today" ? (
-        <div className="bg-white  rounded-xl border border-gray-200  p-5 space-y-4">
-          <h3 className="text-base font-bold text-gray-900 ">
-            Today's Sequence of Periods
-          </h3>
-          <div className="space-y-3">
-            {todayData?.slots?.length > 0 ? (
-              todayData.slots.map((slot: any) => (
+        <div
+          style={{
+            background: T.white,
+            borderRadius: "10px",
+            border: `1px solid ${T.border}`,
+            padding: "24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: T.navy }}>
+              Today's Sequence of Instructional Periods
+            </h3>
+            <span style={{ fontSize: "12px", color: T.slate }}>Live timetable verification active</span>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+            {todaySlots.length > 0 ? (
+              todaySlots.map((slot: any) => (
                 <div
-                  key={slot.period}
-                  className="p-4 rounded-xl border border-slate-200 bg-white hover:border-slate-400 hover:shadow-xs hover:bg-slate-50/50 transition flex items-center justify-between group"
+                  key={slot.id || slot.period}
+                  style={{
+                    padding: "16px 20px",
+                    borderRadius: "8px",
+                    border: `1px solid ${T.border}`,
+                    background: slot.status === "active" ? "#f0f4f9" : T.chip,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: "12px",
+                  }}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm bg-slate-100 text-slate-700 border border-slate-200 group-hover:bg-slate-200">
-                      P{slot.period}
+                  <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                    <div
+                      style={{
+                        padding: "8px 12px",
+                        borderRadius: "6px",
+                        background: T.white,
+                        border: `1px solid ${T.border}`,
+                        textAlign: "center",
+                      }}
+                    >
+                      <div style={{ fontSize: "11px", fontWeight: 700, color: T.navy }}>P{slot.period}</div>
+                      <div style={{ fontSize: "10px", color: T.slate }}>Period</div>
                     </div>
                     <div>
-                      <h4 className="font-bold text-sm text-gray-900 ">
-                        {slot.classSection} • {slot.subject}
-                      </h4>
-                      <div className="text-xs text-gray-400 flex items-center gap-3 mt-0.5">
-                        <span>{slot.startTime} – {slot.endTime}</span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {slot.room}</span>
+                      <div style={{ fontSize: "14px", fontWeight: 600, color: T.navy }}>
+                        {slot.classSection} — {slot.subject}
+                      </div>
+                      <div style={{ fontSize: "12px", color: T.slate, display: "flex", alignItems: "center", gap: "10px", marginTop: "2px" }}>
+                        <span><Clock size={12} style={{ display: "inline", verticalAlign: "middle" }} /> {slot.startTime} – {slot.endTime}</span>
+                        <span><MapPin size={12} style={{ display: "inline", verticalAlign: "middle" }} /> Room: {slot.room}</span>
                       </div>
                     </div>
                   </div>
 
-                  {onTakeAttendance && (
-                    <button
-                      onClick={() => onTakeAttendance(slot.sectionId || "", slot.period)}
-                      className="px-4 py-2 text-xs font-bold rounded-xl bg-[#090D16] hover:bg-[#131C31] shadow-xs border border-[#1A243D] transition-colors"
-                      style={{ color: "#FFFFFF" }}
-                    >
-                      Take Attendance
-                    </button>
-                  )}
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    {onTakeAttendance && (
+                      <button
+                        type="button"
+                        onClick={() => onTakeAttendance(slot.sectionId, slot.period, slot.classSection)}
+                        style={{
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          border: `1px solid ${T.line}`,
+                          background: T.white,
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: T.navy,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Roll Call
+                      </button>
+                    )}
+                    {onLogLesson && (
+                      <button
+                        type="button"
+                        onClick={() => onLogLesson(slot.classSection, slot.sectionId)}
+                        style={{
+                          padding: "6px 14px",
+                          borderRadius: "6px",
+                          background: T.navy,
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: T.white,
+                          border: "none",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Log Lesson
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))
             ) : (
-              <div className="p-8 text-center text-gray-400 text-xs border border-dashed border-gray-200 rounded-xl">
-                No instructional periods scheduled for today.
+              <div style={{ padding: "48px", textAlign: "center", color: T.slate, fontSize: "13px" }}>
+                No teaching periods scheduled for today.
               </div>
             )}
           </div>
         </div>
       ) : (
-        /* Full Weekly Grid */
-        <div className="bg-white  rounded-xl border border-gray-200  p-5 overflow-x-auto">
-          <div className="min-w-[700px] grid grid-cols-6 gap-3">
-            {days.map((day) => {
-              const daySlots = weeklyData?.grid?.[day] || [];
-              return (
-                <div key={day} className="space-y-2">
-                  <div className="text-center py-2 bg-gray-50  rounded-lg text-xs font-black uppercase tracking-wider text-gray-700 ">
-                    {day}
-                  </div>
-                  <div className="space-y-2">
-                    {daySlots.length > 0 ? (
-                      daySlots.map((s: any, idx: number) => (
-                        <div
-                          key={idx}
-                          className={`p-2.5 rounded-xl border text-xs space-y-1 transition ${
-                            s.class.includes("Free")
-                              ? "bg-gray-50/50  border-dashed border-gray-200 text-gray-400"
-                              : s.class.includes("Test")
-                              ? "bg-purple-50  border-purple-200 text-purple-900 "
-                              : s.class.includes("Substitution")
-                              ? "bg-amber-50  border-amber-200 text-amber-900 "
-                              : "bg-white  border-gray-200  hover:border-indigo-400"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-[10px] font-bold text-gray-400">
-                            <span>P{s.period}</span>
-                            <span>{s.room}</span>
-                          </div>
-                          <div className="font-bold text-gray-900  leading-tight">
-                            {s.class}
-                          </div>
-                          {s.subject && (
-                            <div className="text-[11px] text-indigo-600  font-semibold">
-                              {s.subject}
-                            </div>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <div className="p-3 text-center text-gray-400 text-[11px] border border-dashed border-gray-100 rounded-xl">
-                        No periods
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        <div
+          style={{
+            background: T.white,
+            borderRadius: "10px",
+            border: `1px solid ${T.border}`,
+            padding: "24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: T.navy }}>
+              Weekly Instructional Matrix (6-Day Cycle)
+            </h3>
+            <span style={{ fontSize: "12px", color: T.slate }}>Monday through Saturday</span>
+          </div>
+
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "center" }}>
+              <thead>
+                <tr style={{ background: T.chip, borderBottom: `1px solid ${T.border}` }}>
+                  <th style={{ padding: "12px 14px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase", width: "100px", textAlign: "left" }}>Day</th>
+                  {[1, 2, 3, 4, 5, 6, 7].map((p) => (
+                    <th key={p} style={{ padding: "12px 14px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>
+                      Period {p}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {days.map((day, idx) => {
+                  const daySlots = weeklyData?.grid?.[day] || [];
+                  return (
+                    <tr key={day} style={{ borderBottom: idx !== days.length - 1 ? `1px solid ${T.border}` : "none" }}>
+                      <td style={{ padding: "14px", textAlign: "left", fontWeight: 600, color: T.navy, textTransform: "capitalize" }}>
+                        {day}
+                      </td>
+                      {[1, 2, 3, 4, 5, 6, 7].map((p) => {
+                        const slot = daySlots.find((s: any) => s.period === p);
+                        return (
+                          <td key={p} style={{ padding: "8px", verticalAlign: "middle" }}>
+                            {slot ? (
+                              <div
+                                style={{
+                                  padding: "8px 6px",
+                                  borderRadius: "6px",
+                                  background: T.chip,
+                                  border: `1px solid ${T.border}`,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "2px",
+                                }}
+                              >
+                                <span style={{ fontWeight: 600, color: T.navy, fontSize: "11.5px" }}>{slot.classSection}</span>
+                                <span style={{ fontSize: "10px", color: T.blue, fontWeight: 500 }}>{slot.subject}</span>
+                                <span style={{ fontSize: "9.5px", color: T.slate }}>{slot.room}</span>
+                              </div>
+                            ) : (
+                              <span style={{ color: T.faint, fontSize: "11px" }}>—</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

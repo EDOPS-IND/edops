@@ -9,12 +9,37 @@ import {
   GraduationCap,
   TrendingUp,
   Search,
-  Filter,
-  CheckCircle2,
+  CheckSquare,
   AlertTriangle,
-  ChevronRight
+  ChevronRight,
+  ArrowRight,
+  CheckCircle2,
+  Award,
 } from "lucide-react";
 import { getTeacherClasses, getTeacherClassDetails } from "../../edops-api";
+
+const T = {
+  navy: "#0c1e33",
+  slate: "#495d72",
+  muted: "#a6abb5",
+  faint: "#b3b3b3",
+  pageBg: "#f4f6f7",
+  white: "#ffffff",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  chip: "#f5f6f8",
+  blue: "#17a1fa",
+  greenBg: "#ccefbf",
+  greenDark: "#1a5c0a",
+  skyBg: "#d0e6ff",
+  skyDark: "#0a3a7a",
+  amberBg: "#fde1ac",
+  amberDark: "#614400",
+  roseBg: "#ffd6d6",
+  roseDark: "#7a1a1a",
+  violetBg: "#e1d2ff",
+  violetDark: "#4a0e8f",
+};
 
 interface ClassesPaneProps {
   organizationId: string;
@@ -79,236 +104,521 @@ export function ClassesPane({
 
   const filteredStudents = (classDetail?.students || []).filter((s: any) => {
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
-    if (searchQuery && !s.name.toLowerCase().includes(searchQuery.toLowerCase()) && !s.rollNumber.includes(searchQuery)) {
+    if (
+      searchQuery &&
+      !s.name?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      !s.rollNumber?.includes(searchQuery)
+    ) {
       return false;
     }
     return true;
   });
 
+  if (loading) {
+    return (
+      <div style={{ padding: "48px 0", textAlign: "center", color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: "28px",
+            height: "28px",
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 12px",
+          }}
+        />
+        <p style={{ fontSize: "13px", fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading classes &amp; rosters...
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900  flex items-center gap-2">
-            <BookOpen className="w-6 h-6 text-indigo-600 " />
-            My Teaching Classes & Subject Command
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "24px",
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header Row */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
+            Instructional Roster
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "18px",
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            My Teaching Classes &amp; Rosters
           </h2>
-          <p className="text-xs text-gray-500  mt-0.5">
-            Subject-scoped academic command center for classes assigned in the active academic year
+          <p style={{ margin: 0, fontSize: "13px", color: T.slate, lineHeight: 1.5 }}>
+            Assigned sections for the academic term: inspect student attendance, evaluate progress, and launch actions.
           </p>
         </div>
+
+        {selectedClass && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <button
+              type="button"
+              onClick={() => onTakeAttendance(selectedClass.sectionId, selectedClass.className)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                background: T.navy,
+                color: T.white,
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                border: "none",
+                boxShadow: "0 2px 6px rgba(12, 30, 51, 0.2)",
+              }}
+            >
+              <CheckSquare size={14} />
+              <span>Take Attendance</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onCreateAssignment(selectedClass.sectionId)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                background: T.white,
+                color: T.navy,
+                border: `1px solid ${T.line}`,
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <ClipboardList size={14} />
+              <span>+ Assignment</span>
+            </button>
+          </div>
+        )}
       </div>
 
-      {/* Classes Selector Strip */}
-      {classesData?.classes?.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {classesData.classes.map((c: any) => {
-            const isSelected = c.sectionId === selectedSectionId;
-            return (
-              <div
-                key={c.sectionId}
-                onClick={() => setSelectedSectionId(c.sectionId)}
-                className={`p-4 rounded-xl border cursor-pointer transition relative ${
-                  isSelected
-                    ? "bg-indigo-50/70  border-indigo-500 shadow-md ring-2 ring-indigo-500/20"
-                    : "bg-white  border-gray-200  hover:border-gray-300"
-                }`}
-              >
-                <div className="flex items-start justify-between">
+      {/* 2. Grid of Class Cards (Matching SubjectsPane card design in Student Dashboard) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "14px",
+        }}
+      >
+        {classesData?.classes?.map((c: any) => {
+          const isSelected = c.sectionId === selectedSectionId;
+          return (
+            <div
+              key={c.sectionId}
+              onClick={() => setSelectedSectionId(c.sectionId)}
+              style={{
+                padding: "20px",
+                background: T.white,
+                border: isSelected ? `2px solid ${T.navy}` : `1px solid ${T.border}`,
+                borderRadius: "10px",
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                gap: "16px",
+                boxShadow: isSelected ? "0 4px 12px rgba(12, 30, 51, 0.08)" : "none",
+                transition: "all 0.15s ease",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div
+                    style={{
+                      width: "42px",
+                      height: "42px",
+                      borderRadius: "8px",
+                      background: isSelected ? T.chip : T.chip,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: T.navy,
+                      border: `1px solid ${T.border}`,
+                    }}
+                  >
+                    <BookOpen size={20} />
+                  </div>
                   <div>
-                    <h3 className="text-base font-bold text-gray-900 ">
+                    <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: T.navy }}>
                       {c.className}
                     </h3>
-                    <p className="text-xs font-semibold text-indigo-600 ">
+                    <p style={{ margin: "2px 0 0", fontSize: "12px", color: T.blue, fontWeight: 600 }}>
                       {c.subjectName}
                     </p>
                   </div>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100  text-gray-600  font-semibold">
-                    {c.studentCount} Students
+                </div>
+                <span
+                  style={{
+                    padding: "3px 8px",
+                    borderRadius: "100px",
+                    background: T.chip,
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: T.slate,
+                    border: `1px solid ${T.border}`,
+                  }}
+                >
+                  {c.studentCount} Students
+                </span>
+              </div>
+
+              {/* Stats Ribbon */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "10px",
+                  padding: "10px 12px",
+                  background: T.chip,
+                  borderRadius: "8px",
+                  border: `1px solid ${T.border}`,
+                }}
+              >
+                <div>
+                  <span style={{ fontSize: "10px", color: T.slate, textTransform: "uppercase", fontWeight: 600 }}>
+                    Subject Average
                   </span>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 mt-4 text-[11px]">
-                  <div>
-                    <span className="text-gray-400 block">Average</span>
-                    <strong className="text-gray-900  text-sm">{c.subjectAverage}%</strong>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 block">Attendance</span>
-                    <strong className="text-emerald-600 text-sm">{c.attendanceRate}%</strong>
+                  <div style={{ fontSize: "16px", fontWeight: 700, color: T.navy, marginTop: "2px" }}>
+                    {c.subjectAverage}%
                   </div>
                 </div>
-
-                <div className="mt-3 pt-2.5 border-t border-gray-100  flex items-center justify-between text-[11px] text-gray-500">
-                  <span>{c.upcomingExam || "Active Session"}</span>
-                  <ChevronRight className="w-3.5 h-3.5 text-gray-400" />
+                <div>
+                  <span style={{ fontSize: "10px", color: T.slate, textTransform: "uppercase", fontWeight: 600 }}>
+                    Attendance
+                  </span>
+                  <div style={{ fontSize: "16px", fontWeight: 700, color: T.greenDark, marginTop: "2px" }}>
+                    {c.attendanceRate}%
+                  </div>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="p-8 text-center bg-white rounded-xl border border-dashed border-gray-200 text-gray-400 text-xs">
-          No classes assigned to this teacher in the active academic term.
-        </div>
-      )}
 
-      {/* SELECTED CLASS ACADEMIC DETAIL */}
-      {selectedClass && (
-        <div className="bg-white  rounded-xl border border-gray-200  p-6 space-y-6">
-          {/* Class Header Bar */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-4 border-b border-gray-200 ">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-indigo-600  bg-indigo-50  px-2 py-0.5 rounded">
-                  Active Subject View
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "12px", color: T.slate }}>
+                <span>{c.upcomingExam || "Term In Session"}</span>
+                <span style={{ fontWeight: 600, color: T.navy, display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                  {isSelected ? "Active View ✓" : "Select Section →"}
                 </span>
-                <h3 className="text-xl font-bold text-gray-900 ">
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* 3. Selected Class Academic Detail */}
+      {selectedClass && (
+        <div
+          style={{
+            background: T.white,
+            borderRadius: "10px",
+            border: `1px solid ${T.border}`,
+            padding: "24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+          }}
+        >
+          {/* Section Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${T.border}`, paddingBottom: "16px" }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "6px", background: T.chip, color: T.navy, border: `1px solid ${T.border}` }}>
+                  Active Section Ledger
+                </span>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: T.navy }}>
                   {selectedClass.className} — {selectedClass.subjectName}
                 </h3>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Displaying subject-scoped attendance, test mastery, coursework rates and student classifications
+              <p style={{ margin: "4px 0 0", fontSize: "12px", color: T.slate }}>
+                Live enrollment roster, continuous assessment averages, and student performance metrics
               </p>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onTakeAttendance(selectedClass.sectionId, selectedClass.className)}
-                className="px-4 py-2 text-xs font-bold rounded-xl bg-[#090D16] hover:bg-[#131C31] shadow-xs border border-[#1A243D] transition-colors"
-                style={{ color: "#FFFFFF" }}
-              >
-                Take Register
-              </button>
-              <button
-                onClick={() => onCreateAssignment(selectedClass.sectionId)}
-                className="px-4 py-2 text-xs font-bold rounded-xl border border-slate-200 bg-white hover:bg-slate-50 shadow-sm transition-colors"
-                style={{ color: "#0F172A" }}
-              >
-                + Assignment
-              </button>
             </div>
           </div>
 
-          {/* Section KPIs */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-            <div className="p-3.5 bg-gray-50  rounded-xl space-y-1">
-              <span className="text-gray-400 block font-medium">Class Subject Average</span>
-              <div className="text-2xl font-black text-indigo-600">{classDetail?.overview?.subjectAverage ?? 0}%</div>
-              <span className="text-gray-500">Highest: {classDetail?.overview?.highestScore ?? 0}% • Lowest: {classDetail?.overview?.lowestScore ?? 0}%</span>
+          {/* 4 Pastel Metric Cards for Section */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px" }}>
+            {/* Subject Average (Pastel Violet) */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: T.violetBg,
+                border: `1px solid ${T.violetBg}`,
+                borderRadius: "10px",
+                color: T.violetDark,
+                boxSizing: "border-box",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Class Average
+                </span>
+                <Award size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.violetDark }}>
+                {classDetail?.overview?.subjectAverage != null ? `${classDetail.overview.subjectAverage}%` : "—"}
+              </p>
+              <p style={{ margin: 0, fontSize: "11px", color: T.violetDark }}>
+                {classDetail?.overview?.highestScore != null ? `High: ${classDetail.overview.highestScore}% • Low: ${classDetail.overview.lowestScore ?? 0}%` : "No graded evaluations yet"}
+              </p>
             </div>
 
-            <div className="p-3.5 bg-gray-50  rounded-xl space-y-1">
-              <span className="text-gray-400 block font-medium">Pass Percentage</span>
-              <div className="text-2xl font-black text-emerald-600">{classDetail?.overview?.passRate ?? 0}%</div>
-              <span className="text-gray-500">Median Score: {classDetail?.overview?.medianScore ?? 0}%</span>
+            {/* Pass Rate (Pastel Mint) */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: T.greenBg,
+                border: `1px solid ${T.greenBg}`,
+                borderRadius: "10px",
+                color: T.greenDark,
+                boxSizing: "border-box",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Pass Percentage
+                </span>
+                <CheckCircle2 size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.greenDark }}>
+                {classDetail?.overview?.passRate != null ? `${classDetail.overview.passRate}%` : "—"}
+              </p>
+              <p style={{ margin: 0, fontSize: "11px", color: T.greenDark }}>
+                {classDetail?.overview?.passRate != null ? "Passing threshold ≥40%" : "Awaiting assessment marks"}
+              </p>
             </div>
 
-            <div className="p-3.5 bg-gray-50  rounded-xl space-y-1">
-              <span className="text-gray-400 block font-medium">Attendance Rate</span>
-              <div className="text-2xl font-black text-blue-600">{classDetail?.overview?.attendance ?? 0}%</div>
-              <span className="text-gray-500">Period attendance records</span>
+            {/* Attendance (Pastel Sky) */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: T.skyBg,
+                border: `1px solid ${T.skyBg}`,
+                borderRadius: "10px",
+                color: T.skyDark,
+                boxSizing: "border-box",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Section Attendance
+                </span>
+                <Calendar size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.skyDark }}>
+                {classDetail?.overview?.attendance != null ? `${classDetail.overview.attendance}%` : "—"}
+              </p>
+              <p style={{ margin: 0, fontSize: "11px", color: T.skyDark }}>
+                {classDetail?.overview?.attendance != null ? "Finalized registers average" : "Attendance register pending"}
+              </p>
             </div>
 
-            <div className="p-3.5 bg-gray-50  rounded-xl space-y-1">
-              <span className="text-gray-400 block font-medium">Curriculum Progress</span>
-              <div className="text-2xl font-black text-purple-600">{classDetail?.overview?.curriculumProgress ?? 0}%</div>
-              <span className="text-gray-500">{classDetail?.chapters?.length ?? 0} Chapters tracked</span>
+            {/* At-Risk (Pastel Rose) */}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "148px",
+                padding: "20px",
+                background: T.roseBg,
+                border: `1px solid ${T.roseBg}`,
+                borderRadius: "10px",
+                color: T.roseDark,
+                boxSizing: "border-box",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                  Attention Required
+                </span>
+                <AlertTriangle size={18} />
+              </div>
+              <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.roseDark }}>
+                {classDetail?.students ? classDetail.students.filter((s: any) => s.status === "needs_attention" || (s.attendance != null && s.attendance < 75)).length : 0}
+              </p>
+              <p style={{ margin: 0, fontSize: "11px", color: T.roseDark }}>
+                Students requiring academic follow-up
+              </p>
             </div>
           </div>
 
           {/* Search & Filter Bar */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <span className="text-xs font-semibold text-gray-500">Classification:</span>
-              {["all", "Strong", "On Track", "Needs Support", "Intervention Recommended"].map((st) => (
-                <button
-                  key={st}
-                  onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1.5 text-[11px] font-bold rounded-lg transition-colors ${
-                    statusFilter === st
-                      ? "bg-[#090D16] shadow-sm border border-[#1A243D]"
-                      : "bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200"
-                  }`}
-                  style={statusFilter === st ? { color: "#FFFFFF" } : undefined}
-                >
-                  {st === "all" ? "All" : st}
-                </button>
-              ))}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+            <div style={{ display: "flex", gap: "6px", background: T.chip, padding: "4px", borderRadius: "8px", border: `1px solid ${T.border}` }}>
+              {[
+                { id: "all", label: "All Students" },
+                { id: "on_track", label: "On Track" },
+                { id: "needs_attention", label: "Needs Attention" },
+              ].map((tab) => {
+                const active = statusFilter === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setStatusFilter(tab.id)}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: active ? 600 : 500,
+                      border: "none",
+                      background: active ? T.navy : "transparent",
+                      color: active ? T.white : T.slate,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
 
-            <div className="relative w-full sm:w-64">
-              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+            <div style={{ position: "relative", minWidth: "240px" }}>
+              <Search size={14} color={T.slate} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)" }} />
               <input
                 type="text"
-                placeholder="Search student by name or roll..."
+                placeholder="Search by student name or roll..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full text-xs pl-8 pr-3 py-1.5 bg-gray-50  border border-gray-300  rounded-lg text-gray-900 "
+                style={{
+                  width: "100%",
+                  padding: "7px 12px 7px 32px",
+                  border: `1px solid ${T.line}`,
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  color: T.navy,
+                  background: T.white,
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
               />
             </div>
           </div>
 
-          {/* Students Roster Table */}
-          <div className="overflow-x-auto border border-gray-200  rounded-xl">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50  text-gray-500  font-bold uppercase tracking-wider text-[10px] border-b border-gray-200 ">
-                <tr>
-                  <th className="py-3 px-4">Roll</th>
-                  <th className="py-3 px-4">Student</th>
-                  <th className="py-3 px-4">Attendance</th>
-                  <th className="py-3 px-4">Subject Avg</th>
-                  <th className="py-3 px-4">Coursework</th>
-                  <th className="py-3 px-4">Classification</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 ">
-                {detailLoading ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-gray-400">Loading roster...</td>
+          {/* Roster Table */}
+          <div style={{ border: `1px solid ${T.border}`, borderRadius: "10px", overflow: "hidden" }}>
+            {detailLoading ? (
+              <div style={{ padding: "36px", textAlign: "center", color: T.slate, fontSize: "12px" }}>
+                Loading roster entries...
+              </div>
+            ) : filteredStudents.length === 0 ? (
+              <div style={{ padding: "36px", textAlign: "center", color: T.slate, fontSize: "12px" }}>
+                No students found matching current filter.
+              </div>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
+                <thead>
+                  <tr style={{ background: T.chip, borderBottom: `1px solid ${T.border}` }}>
+                    <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>Roll</th>
+                    <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>Student Name</th>
+                    <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>Subject Avg</th>
+                    <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>Attendance</th>
+                    <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>Status</th>
+                    <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase", textAlign: "right" }}>Actions</th>
                   </tr>
-                ) : filteredStudents.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="py-8 text-center text-gray-400">No students match filter criteria.</td>
-                  </tr>
-                ) : (
-                  filteredStudents.map((s: any) => (
-                    <tr key={s.id} className="hover:bg-gray-50 :bg-gray-750/50 transition">
-                      <td className="py-3 px-4 font-mono font-bold text-gray-500">{s.rollNumber}</td>
-                      <td className="py-3 px-4 font-bold text-gray-900">
-                        {s.name || "Student"}
-                      </td>
-                      <td className="py-3 px-4 font-semibold text-emerald-600">{s.attendance}%</td>
-                      <td className="py-3 px-4 font-black text-indigo-600 text-sm">{s.subjectAverage}%</td>
-                      <td className="py-3 px-4 text-gray-600 ">{s.assignmentCompletion}%</td>
-                      <td className="py-3 px-4">
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          s.status === "Strong"
-                            ? "bg-emerald-100 text-emerald-800  "
-                            : s.status === "On Track"
-                            ? "bg-blue-100 text-blue-800  "
-                            : s.status === "Needs Support"
-                            ? "bg-amber-100 text-amber-800  "
-                            : "bg-red-100 text-red-800  "
-                        }`}>
-                          {s.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => onOpenStudentDossier(s.id)}
-                          className="px-2.5 py-1 text-xs font-semibold text-indigo-600  hover:bg-indigo-50 :bg-indigo-950/60 rounded-lg transition"
-                        >
-                          View 360 →
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {filteredStudents.map((st: any, idx: number) => {
+                    const avg = st.subjectAverage != null ? `${st.subjectAverage}%` : "—";
+                    const att = st.attendanceRate != null ? `${st.attendanceRate}%` : "100%";
+                    const needsAttention = st.status === "needs_attention" || (st.attendanceRate && st.attendanceRate < 75);
+
+                    return (
+                      <tr
+                        key={st.id || idx}
+                        style={{
+                          borderBottom: idx !== filteredStudents.length - 1 ? `1px solid ${T.border}` : "none",
+                          transition: "background 0.15s ease",
+                        }}
+                      >
+                        <td style={{ padding: "12px 16px", fontWeight: 600, color: T.slate, fontFamily: "monospace" }}>
+                          #{st.rollNumber || "101"}
+                        </td>
+                        <td style={{ padding: "12px 16px", fontWeight: 600, color: T.navy }}>
+                          {st.name}
+                        </td>
+                        <td style={{ padding: "12px 16px", fontWeight: 600, color: T.navy }}>
+                          {avg}
+                        </td>
+                        <td style={{ padding: "12px 16px", fontWeight: 600, color: needsAttention ? T.roseDark : T.navy }}>
+                          {att}
+                        </td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span
+                            style={{
+                              padding: "2px 8px",
+                              borderRadius: "6px",
+                              fontSize: "10.5px",
+                              fontWeight: 600,
+                              background: needsAttention ? T.roseBg : T.greenBg,
+                              color: needsAttention ? T.roseDark : T.greenDark,
+                            }}
+                          >
+                            {needsAttention ? "Needs Attention" : "On Track"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                          <button
+                            type="button"
+                            onClick={() => onOpenStudentDossier(st.id)}
+                            style={{
+                              padding: "4px 12px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              background: T.navy,
+                              color: T.white,
+                              borderRadius: "6px",
+                              border: "none",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Dossier 360 →
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       )}

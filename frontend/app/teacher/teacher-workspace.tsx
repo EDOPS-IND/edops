@@ -10,7 +10,6 @@ import {
   FileText,
   Layers,
   Award,
-  GraduationCap,
   Users,
   Compass,
   MessageSquare,
@@ -21,13 +20,16 @@ import {
   LogOut,
   Plus,
   Search,
+  Bell,
   RefreshCw,
   ChevronDown,
-  ChevronRight,
-  type LucideIcon,
+  LayoutGrid,
+  Settings,
+  ShieldCheck,
+  CheckCircle2,
 } from 'lucide-react';
 
-import { OrganizationSummary, getTeacherClasses } from '../edops-api';
+import { OrganizationSummary, getTeacherClasses, getStudentAvatarUrl } from '../edops-api';
 import { useDashboardNavigation } from '../dashboard-navigation';
 import { TeacherTab } from './types';
 
@@ -56,123 +58,33 @@ import { StudentDossierDrawer } from './components/student-dossier-drawer';
 import { LessonCompletionModal } from './components/lesson-completion-modal';
 import { CreateInterventionModal } from './components/create-intervention-modal';
 
-// ─── Design Tokens (Identical to School Admin) ────────────────────────────
+// Exact design tokens matching Student Dashboard specification
 const S = {
-  // sidebar
-  bg: "#111318",
-  border: "#1E2128",
-  itemText: "#8C909A",
-  itemHover: "#1A1D24",
-  itemActive: "#1E2128",
-  activeBar: "#FFFFFF",
-  activeTxt: "#FFFFFF",
-  groupLabel: "#444750",
+  sidebarBg: "#0b0f19",
+  sidebarBorder: "rgba(255, 255, 255, 0.06)",
+  itemActiveBg: "#1c2337",
+  itemActiveText: "#ffffff",
+  itemInactiveText: "#8a92a6",
+  itemHoverBg: "rgba(255, 255, 255, 0.05)",
+  groupLabel: "rgba(255, 255, 255, 0.38)",
 
-  // header
-  headerBg: "#FFFFFF",
-  headerBorder: "#EAECF0",
-  headerInk: "#101828",
-  headerMuted: "#667085",
-  inputBg: "#F9FAFB",
-  inputBorder: "#D0D5DD",
-
-  // content
-  canvasBg: "#F7F8FA",
-  avatarBg: "#1A1D24",
-  avatarText: "#FFFFFF",
+  // Main canvas tokens
+  navy: "#0c1e33",
+  slate: "#495d72",
+  bg: "#f4f6f7",
+  white: "#ffffff",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  chip: "#f5f6f8",
+  faint: "#b3b3b3",
 };
-
-function NavItem({
-  icon: Icon,
-  label,
-  active,
-  onClick,
-}: {
-  icon: React.ElementType;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
-  const [hover, setHover] = useState(false);
-  return (
-    <button
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{
-        all: "unset",
-        boxSizing: "border-box",
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        gap: "9px",
-        padding: "7px 12px 7px 14px",
-        borderRadius: "7px",
-        cursor: "pointer",
-        position: "relative",
-        background: active ? S.itemActive : hover ? S.itemHover : "transparent",
-        transition: "background 0.12s",
-      }}
-    >
-      {active && (
-        <span
-          style={{
-            position: "absolute",
-            left: 0,
-            top: "50%",
-            transform: "translateY(-50%)",
-            width: "2px",
-            height: "16px",
-            borderRadius: "0 2px 2px 0",
-            background: S.activeBar,
-          }}
-        />
-      )}
-      <Icon
-        size={14}
-        strokeWidth={active ? 2 : 1.75}
-        style={{ color: active ? S.activeTxt : S.itemText, flexShrink: 0 }}
-      />
-      <span
-        style={{
-          fontSize: "13px",
-          fontWeight: active ? 600 : 400,
-          color: active ? S.activeTxt : S.itemText,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
-          flex: 1,
-        }}
-      >
-        {label}
-      </span>
-    </button>
-  );
-}
-
-function NavGroup({ label }: { label: string }) {
-  return (
-    <div
-      style={{
-        padding: "18px 14px 5px",
-        fontSize: "10px",
-        fontWeight: 600,
-        color: S.groupLabel,
-        letterSpacing: "0.07em",
-        textTransform: "uppercase",
-        userSelect: "none",
-      }}
-    >
-      {label}
-    </div>
-  );
-}
 
 interface TeacherWorkspaceProps {
   organization: OrganizationSummary;
   onLogout: () => void;
   onSwitchOrganization: (orgId: string) => void;
   organizations: OrganizationSummary[];
+  userProfile?: { id: string; email: string; name?: string; phone?: string | null; isPlatformAdmin?: boolean };
 }
 
 export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
@@ -180,10 +92,12 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
   onLogout,
   onSwitchOrganization,
   organizations,
+  userProfile,
 }) => {
   const [activeTab, setActiveTab] = useState<TeacherTab>('dashboard');
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
+  const [showMoreModules, setShowMoreModules] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   // Global Modals State
   const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
@@ -221,6 +135,11 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
     initClassContext();
   }, [organization.id]);
 
+  const teacherName = userProfile?.name || (userProfile?.email ? userProfile.email.split('@')[0] : "Faculty Member");
+  const teacherEmail = userProfile?.email || "";
+  const teacherSubtitle = organization.name ? `${organization.name} · Senior Faculty` : "Senior Faculty";
+  const avatarUrl = getStudentAvatarUrl(teacherName, teacherEmail);
+
   const navigateTo = (tab: TeacherTab) => {
     setActiveTab(tab);
   };
@@ -248,384 +167,846 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
 
   const navigation = useDashboardNavigation(organization.id, 'teacher');
 
-  type TeacherNavItem = { id: string; label: string; icon: LucideIcon; tab?: TeacherTab; children?: { label: string; tab: TeacherTab }[] };
-  const baseNavItems: TeacherNavItem[] = [
-    { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard, tab: 'dashboard' as TeacherTab },
-    { id: 'classes', label: 'My Classes & Sections', icon: BookOpen, tab: 'classes' as TeacherTab },
-    { id: 'timetable', label: 'Timetable & Schedule', icon: Clock, tab: 'timetable' as TeacherTab },
-    { id: 'attendance', label: 'Attendance Registers', icon: CheckSquare, tab: 'attendance' as TeacherTab },
-    { id: 'learning', label: 'Lesson Plans & Content', icon: FileText, tab: 'learning' as TeacherTab },
-    { id: 'assignments', label: 'Assignments & Submissions', icon: FileText, tab: 'assignments' as TeacherTab },
-    { id: 'arena', label: 'Arena Practice Bank', icon: Layers, tab: 'arena' as TeacherTab },
-    { id: 'assessment', label: 'Assessments & Tests', icon: Award, tab: 'assessment' as TeacherTab },
-    { id: 'exams', label: 'Official Exam Schedules', icon: Calendar, tab: 'exams' as TeacherTab },
-    { id: 'students', label: 'Student Tracking', icon: Users, tab: 'students' as TeacherTab },
-    { id: 'curriculum', label: 'Curriculum Progress', icon: Compass, tab: 'curriculum' as TeacherTab },
-    { id: 'communication', label: 'Academic Inbox', icon: MessageSquare, tab: 'communication' as TeacherTab },
-    { id: 'workload', label: 'My Workload & Tasks', icon: BarChart2, tab: 'workload' as TeacherTab },
-    { id: 'calendar', label: 'Academic Calendar', icon: CalendarDays, tab: 'calendar' as TeacherTab },
-    { id: 'reports', label: 'Reports & LO Heatmap', icon: FileSpreadsheet, tab: 'reports' as TeacherTab },
-    { id: 'activity', label: 'Activity Audit Log', icon: Activity, tab: 'activity' as TeacherTab },
-  ];
-
-  const sourceItems = new Map<string, { tab: TeacherTab; icon: LucideIcon }>();
-  for (const item of baseNavItems) {
-    if (item.tab) {
-      sourceItems.set(item.id, { tab: item.tab, icon: item.icon });
-    }
-  }
-
-  const navSections = navigation.sections.map(section => ({
-    ...section,
-    entries: section.items.flatMap(item => {
-      const tabKey = item.key.split('.').at(-1) || item.key;
-      const found = baseNavItems.find(b => b.id === tabKey || b.tab === tabKey);
-      return found ? [{ ...found, label: item.label }] : [];
-    }),
-  })).filter(section => section.entries.length > 0);
-
-  const availableTabs = new Set(navSections.flatMap(section => section.entries.map(item => item.tab)));
-
-  const pageTitles: Partial<Record<TeacherTab, string>> = {
+  const pageTitles: Record<TeacherTab, string> = {
     dashboard: "Teacher Command Center",
     classes: "My Classes & Sections",
     timetable: "Class Schedule & Timetable",
-    attendance: "Period Attendance Registers",
+    attendance: "Attendance Registers",
     learning: "Lesson Plans & Delivery",
-    assignments: "Assignments & Submissions",
+    assignments: "Assignments & Grading",
     arena: "Arena Practice Bank",
     assessment: "Formative Tests & Evaluations",
     exams: "Official Exams & Grading",
-    students: "Student Tracking & At-Risk Roster",
+    students: "Student Tracking & Roster",
     curriculum: "Curriculum Progress & LOs",
-    communication: "Academic Directives & Messages",
+    communication: "Academic Inbox & Directives",
     workload: "My Workload & Instructional Tasks",
     calendar: "Academic Calendar",
     reports: "Reports & Heatmaps",
-    activity: "Teacher Activity Audit Log",
+    activity: "Faculty Audit Log",
   };
 
-  const teacherInitials = (organization.name || "TC")
-    .split(" ")
-    .slice(0, 2)
-    .map(w => w[0])
-    .join("")
-    .toUpperCase();
+  // Primary navigation items
+  const primaryInstructionItems = [
+    { id: 'classes', label: 'My Classes & Sections', tab: 'classes' as TeacherTab, icon: BookOpen },
+    { id: 'timetable', label: 'Class Timetable', tab: 'timetable' as TeacherTab, icon: Clock },
+    { id: 'attendance', label: 'Attendance Registers', tab: 'attendance' as TeacherTab, icon: CheckSquare },
+    { id: 'learning', label: 'Lesson Delivery', tab: 'learning' as TeacherTab, icon: FileText },
+    { id: 'assignments', label: 'Assignments & Grading', tab: 'assignments' as TeacherTab, icon: FileText },
+  ];
+
+  // Secondary modules (Inside More Modules)
+  const extraTeacherItems = [
+    { id: 'arena', label: 'Arena Practice Bank', tab: 'arena' as TeacherTab, icon: Layers },
+    { id: 'assessment', label: 'Formative Tests', tab: 'assessment' as TeacherTab, icon: Award },
+    { id: 'exams', label: 'Term Exams', tab: 'exams' as TeacherTab, icon: CalendarDays },
+    { id: 'students', label: 'Student Tracking & Dossiers', tab: 'students' as TeacherTab, icon: Users },
+    { id: 'curriculum', label: 'Curriculum Pacing', tab: 'curriculum' as TeacherTab, icon: Compass },
+    { id: 'communication', label: 'Academic Inbox', tab: 'communication' as TeacherTab, icon: MessageSquare },
+    { id: 'workload', label: 'My Workload & Tasks', tab: 'workload' as TeacherTab, icon: BarChart2 },
+    { id: 'calendar', label: 'Academic Calendar', tab: 'calendar' as TeacherTab, icon: CalendarDays },
+    { id: 'reports', label: 'Reports & LO Heatmaps', tab: 'reports' as TeacherTab, icon: FileSpreadsheet },
+    { id: 'activity', label: 'Activity Audit Log', tab: 'activity' as TeacherTab, icon: Activity },
+  ];
+
+  const isExtraTabActive = extraTeacherItems.some(i => i.tab === activeTab);
+
+  // Automatically keep More Modules open when an extra tab is active
+  React.useEffect(() => {
+    if (isExtraTabActive) {
+      setShowMoreModules(true);
+    }
+  }, [isExtraTabActive]);
+
+  // Exact selector matching Student Dashboard
+  const renderNavItem = (
+    item: { id: string; label: string; tab: TeacherTab; icon: React.ElementType }
+  ) => {
+    const Icon = item.icon;
+    const active = activeTab === item.tab;
+    return (
+      <button
+        key={item.id}
+        id={`nav-${item.id}`}
+        onClick={() => navigateTo(item.tab)}
+        style={{
+          all: "unset",
+          boxSizing: "border-box",
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          gap: "11px",
+          height: "40px",
+          padding: "0 12px",
+          borderRadius: "10px",
+          fontSize: "13.5px",
+          cursor: "pointer",
+          transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+          background: active ? S.itemActiveBg : "transparent",
+          color: active ? S.itemActiveText : S.itemInactiveText,
+          fontWeight: active ? 600 : 450,
+          whiteSpace: "nowrap",
+        }}
+        onMouseEnter={(e) => {
+          if (!active) {
+            e.currentTarget.style.color = "#ffffff";
+            e.currentTarget.style.background = S.itemHoverBg;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!active) {
+            e.currentTarget.style.color = S.itemInactiveText;
+            e.currentTarget.style.background = "transparent";
+          }
+        }}
+      >
+        <Icon
+          size={18}
+          strokeWidth={active ? 2 : 1.75}
+          style={{
+            flexShrink: 0,
+            color: active ? "#ffffff" : S.itemInactiveText,
+            transition: "color 0.15s ease",
+          }}
+        />
+        <span
+          style={{
+            flex: 1,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {item.label}
+        </span>
+      </button>
+    );
+  };
 
   return (
     <div
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: S.canvasBg,
-        fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif',
+        background: S.bg,
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        color: S.navy,
       }}
     >
       {/* ═══════════════════════════════════════════════
-          S I D E B A R (Clean Dark Charcoal Admin Sidebar)
+          S I D E B A R (Matching Student Command Center)
       ═══════════════════════════════════════════════ */}
       <aside
+        id="sidebar"
+        aria-label="Teacher primary navigation"
         style={{
-          width: "228px",
+          width: "240px",
           flexShrink: 0,
-          background: S.bg,
-          borderRight: `1px solid ${S.border}`,
+          background: S.sidebarBg,
+          color: "#fff",
           display: "flex",
           flexDirection: "column",
           height: "100vh",
           position: "sticky",
           top: 0,
-          overflowY: "auto",
-          overflowX: "hidden",
-          scrollbarWidth: "thin",
-          scrollbarColor: "#2A2D35 transparent",
+          padding: 0,
+          boxSizing: "border-box",
           zIndex: 40,
+          borderRight: `1px solid ${S.sidebarBorder}`,
         }}
       >
-        {/* Brand / Logo */}
+        {/* Brand / Logo - Exactly 68px height matching Student Command Center */}
         <div
           style={{
-            height: "58px",
+            height: "68px",
             display: "flex",
             alignItems: "center",
-            padding: "0 16px",
-            borderBottom: `1px solid ${S.border}`,
-            gap: "10px",
+            padding: "0 20px",
+            cursor: "pointer",
             flexShrink: 0,
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            boxSizing: "border-box",
           }}
+          onClick={() => navigateTo('dashboard')}
+          title="EDOPS Teacher Command Center"
         >
-          <div style={{ height: "28px", display: "flex", alignItems: "center" }}>
-            <img src="/logo.svg" alt="EDOPS" style={{ height: "100%", width: "auto", display: "block" }} />
-          </div>
+          <img
+            src="/logo.svg"
+            alt="edops"
+            style={{
+              height: "32px",
+              width: "auto",
+              display: "block",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.3))",
+              transition: "transform 0.15s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+          />
         </div>
 
-        {/* Navigation Groups */}
-        <nav style={{ flex: 1, padding: "2px 8px 12px", display: "flex", flexDirection: "column" }}>
-          {navigation.error && (
-            <p role="alert" style={{ color: "#FCA5A5", padding: "12px", fontSize: "12px" }}>
-              {navigation.error}
-            </p>
-          )}
-
-          {navSections.map(section => (
-            <React.Fragment key={section.key}>
-              <NavGroup label={section.label} />
-              {section.entries.map(item => (
-                <NavItem
-                  key={item.id}
-                  icon={item.icon}
-                  label={item.label}
-                  active={activeTab === item.tab}
-                  onClick={() => navigateTo(item.tab!)}
-                />
-              ))}
-            </React.Fragment>
-          ))}
-        </nav>
-
-        {/* Identity & Sign Out */}
-        <div style={{ borderTop: `1px solid ${S.border}`, padding: "12px 14px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
-            <span style={{ fontSize: "11px", fontWeight: 600, color: "#8C909A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              Active Faculty Session
-            </span>
-          </div>
-
-          <button
-            onClick={() => onLogout ? onLogout() : window.location.reload()}
+        {/* Scrollable Navigation Body */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            padding: "12px 12px 14px",
+            overflowY: "auto",
+            overflowX: "hidden",
+            scrollbarWidth: "none",
+          }}
+        >
+          <nav
             style={{
-              all: "unset",
-              boxSizing: "border-box",
-              width: "100%",
               display: "flex",
-              alignItems: "center",
-              gap: "9px",
-              padding: "7px 12px",
-              borderRadius: "7px",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 400,
-              color: S.itemText,
-              transition: "background 0.12s, color 0.12s",
+              flexDirection: "column",
+              gap: "3px",
+              flex: 1,
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = S.itemHover; e.currentTarget.style.color = "#C0C4CC"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = S.itemText; }}
+            aria-label="Sidebar navigation"
           >
-            <LogOut size={14} strokeWidth={1.75} style={{ flexShrink: 0 }} />
-            Sign out
-          </button>
+            {/* Section 1: TEACHER WORKSPACE */}
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: S.groupLabel,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                padding: "8px 12px 4px",
+                userSelect: "none",
+              }}
+            >
+              TEACHER WORKSPACE
+            </div>
+
+            {/* Dashboard Item */}
+            {renderNavItem({
+              id: 'dashboard',
+              label: 'Command Center',
+              tab: 'dashboard',
+              icon: LayoutDashboard,
+            })}
+
+            {/* Section 2: INSTRUCTION & CLASSES */}
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: S.groupLabel,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                padding: "14px 12px 4px",
+                userSelect: "none",
+              }}
+            >
+              INSTRUCTION & CLASSES
+            </div>
+
+            {/* Primary Instruction Items */}
+            {primaryInstructionItems.map(item => renderNavItem(item))}
+
+            {/* Seamless More Modules Section (Matching Student Sidebar) */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
+              <button
+                id="nav-toggle-more-modules"
+                onClick={() => setShowMoreModules(!showMoreModules)}
+                style={{
+                  all: "unset",
+                  boxSizing: "border-box",
+                  width: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "10px",
+                  height: "40px",
+                  padding: "0 12px",
+                  borderRadius: "10px",
+                  fontSize: "13.5px",
+                  cursor: "pointer",
+                  transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+                  background: isExtraTabActive && !showMoreModules ? S.itemActiveBg : "transparent",
+                  color: (isExtraTabActive && !showMoreModules) || showMoreModules ? "#ffffff" : S.itemInactiveText,
+                  fontWeight: (isExtraTabActive && !showMoreModules) || showMoreModules ? 600 : 450,
+                  whiteSpace: "nowrap",
+                  flexWrap: "nowrap",
+                }}
+                onMouseEnter={(e) => {
+                  if (!(isExtraTabActive && !showMoreModules)) {
+                    e.currentTarget.style.color = "#ffffff";
+                    e.currentTarget.style.background = S.itemHoverBg;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!(isExtraTabActive && !showMoreModules)) {
+                    e.currentTarget.style.color = showMoreModules ? "#ffffff" : S.itemInactiveText;
+                    e.currentTarget.style.background = "transparent";
+                  }
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "11px", minWidth: 0, flex: 1, overflow: "hidden" }}>
+                  <LayoutGrid
+                    size={18}
+                    strokeWidth={(isExtraTabActive && !showMoreModules) || showMoreModules ? 2 : 1.75}
+                    style={{
+                      flexShrink: 0,
+                      color: (isExtraTabActive && !showMoreModules) || showMoreModules ? "#ffffff" : S.itemInactiveText,
+                    }}
+                  />
+                  <span
+                    style={{
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    More Modules
+                  </span>
+                </div>
+                <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
+                  <ChevronDown
+                    size={15}
+                    style={{
+                      color: (isExtraTabActive && !showMoreModules) || showMoreModules ? "#ffffff" : S.itemInactiveText,
+                      transform: showMoreModules ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+                      flexShrink: 0,
+                    }}
+                  />
+                </div>
+              </button>
+
+              {/* Seamless Expanded Items with Matching Full-Width Pill Selector */}
+              {showMoreModules && (
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "3px",
+                    padding: "4px",
+                    background: "rgba(255, 255, 255, 0.02)",
+                    borderRadius: "10px",
+                    border: "1px solid rgba(255, 255, 255, 0.04)",
+                  }}
+                >
+                  {extraTeacherItems.map(item => renderNavItem(item))}
+                </div>
+              )}
+            </div>
+
+            {/* Section 3: SETTINGS */}
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: S.groupLabel,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                padding: "14px 12px 4px",
+                userSelect: "none",
+              }}
+            >
+              SETTINGS
+            </div>
+
+            {renderNavItem({
+              id: 'settings-workload',
+              label: 'Faculty Settings',
+              tab: 'workload',
+              icon: Settings,
+            })}
+          </nav>
+
+          {/* Profile Footer */}
+          <div style={{ marginTop: "auto", paddingTop: "14px" }}>
+            <div
+              style={{
+                height: "1px",
+                background: "rgba(255, 255, 255, 0.06)",
+                marginBottom: "12px",
+              }}
+            />
+
+            <div
+              onClick={() => navigateTo('workload')}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                cursor: "pointer",
+                padding: "8px 10px",
+                borderRadius: "12px",
+                background: "rgba(255, 255, 255, 0.03)",
+                border: "1px solid rgba(255, 255, 255, 0.05)",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.07)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
+                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.05)";
+              }}
+              title="Faculty Account & Settings"
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  width: "100%",
+                  gap: "8px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+                  <div
+                    style={{
+                      width: "36px",
+                      height: "36px",
+                      borderRadius: "10px",
+                      overflow: "hidden",
+                      flexShrink: 0,
+                      background: "rgba(255, 255, 255, 0.08)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      border: "1px solid rgba(255, 255, 255, 0.12)",
+                    }}
+                  >
+                    <img
+                      src={avatarUrl}
+                      alt={teacherName}
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px", whiteSpace: "nowrap", overflow: "hidden", minWidth: 0 }}>
+                    <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#ffffff", textOverflow: "ellipsis", overflow: "hidden" }}>
+                      {teacherName}
+                    </p>
+                    <p style={{ margin: 0, fontSize: "11px", color: S.itemInactiveText, textOverflow: "ellipsis", overflow: "hidden" }}>
+                      {teacherSubtitle}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onLogout();
+                  }}
+                  title="Log out of faculty account"
+                  style={{
+                    all: "unset",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                    color: "rgba(255, 255, 255, 0.45)",
+                    flexShrink: 0,
+                    transition: "all 0.15s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "#f43f5e";
+                    e.currentTarget.style.background = "rgba(244, 63, 94, 0.15)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "rgba(255, 255, 255, 0.45)";
+                    e.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  <LogOut size={14} strokeWidth={1.75} />
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </aside>
 
       {/* ═══════════════════════════════════════════════
-          M A I N   A R E A
+          W O R K S P A C E   &   H E A D E R
       ═══════════════════════════════════════════════ */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
-        {/* Sticky Top Header Bar with Kept Action Buttons Strictly on Top */}
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
+        {/* Header Bar - Exactly 68px matching Student Workspace */}
         <header
           style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 30,
-            height: "58px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            padding: "0 28px",
-            background: S.headerBg,
-            borderBottom: `1px solid ${S.headerBorder}`,
             gap: "16px",
+            height: "68px",
+            padding: "0 32px",
+            background: "#fff",
+            borderBottom: "1px solid rgba(206, 216, 229, 0.97)",
+            position: "sticky",
+            top: 0,
+            zIndex: 30,
             flexShrink: 0,
           }}
         >
-          {/* Left Title */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "16px",
-                fontWeight: 600,
-                color: S.headerInk,
-                letterSpacing: "-0.02em",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              {pageTitles[activeTab] ?? "Teacher Command Center"}
-            </h1>
+          {/* Header Title & Crumb */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", whiteSpace: "nowrap" }}>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: S.navy }}>
+              Teacher Command Center
+            </p>
+            <span style={{ width: "1px", height: "16px", background: S.line }} />
+            <p style={{ margin: 0, fontSize: "13px", color: S.slate }}>
+              {pageTitles[activeTab] || "Command Center"}
+            </p>
+
             {activeTab === "dashboard" && (
               <button
-                onClick={() => window.location.reload()}
+                onClick={() => setAttendanceRefreshKey(k => k + 1)}
                 title="Refresh Dashboard"
                 style={{
                   all: "unset",
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  width: "26px",
-                  height: "26px",
+                  width: "28px",
+                  height: "28px",
                   borderRadius: "6px",
                   cursor: "pointer",
-                  color: S.headerMuted,
+                  color: S.slate,
+                  marginLeft: "4px",
                   transition: "background 0.12s",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#F2F4F7")}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f2f5")}
                 onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
               >
-                <RefreshCw size={13} strokeWidth={2} />
+                <RefreshCw size={13} />
               </button>
             )}
           </div>
 
-          {/* Right: Quick Action Buttons strictly placed on top as requested */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
-            {/* Mark Attendance */}
+          {/* Header Actions (Preserving Teacher Action Buttons with Student Styling) */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {/* Quick Action Button 1: Mark Attendance */}
             <button
+              type="button"
               onClick={() => handleOpenAttendance()}
               style={{
-                all: "unset",
-                boxSizing: "border-box",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "6px",
-                padding: "6px 12px",
-                background: "#FFFFFF",
-                border: "1px solid #D0D5DD",
-                borderRadius: "8px",
+                gap: "7px",
+                padding: "8px 14px",
+                border: `1px solid ${S.line}`,
+                borderRadius: "6px",
+                background: "#ffffff",
                 fontSize: "12.5px",
                 fontWeight: 600,
-                color: S.headerInk,
+                color: S.navy,
                 cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(16,24,40,0.05)",
-                transition: "all 0.12s ease",
+                whiteSpace: "nowrap",
+                boxShadow: "0 1px 2px rgba(12, 30, 51, 0.04)",
+                transition: "all 0.15s ease",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#98A2B3"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#D0D5DD"; }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#98A2B3";
+                e.currentTarget.style.background = "#FAF8F5";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = S.line;
+                e.currentTarget.style.background = "#ffffff";
+              }}
             >
-              <CheckSquare size={13} style={{ color: "#475467" }} />
+              <CheckSquare size={14} style={{ color: S.navy }} />
               <span>Mark Attendance</span>
             </button>
 
-            {/* + New Assignment */}
+            {/* Quick Action Button 2: + New Assignment */}
             <button
+              type="button"
               onClick={() => setAssignmentModalOpen(true)}
               style={{
-                all: "unset",
-                boxSizing: "border-box",
                 display: "inline-flex",
                 alignItems: "center",
-                gap: "6px",
-                padding: "6px 14px",
-                background: S.headerInk,
-                border: `1px solid ${S.headerInk}`,
-                borderRadius: "8px",
+                gap: "7px",
+                padding: "8px 15px",
+                border: `1px solid ${S.navy}`,
+                borderRadius: "6px",
+                background: S.navy,
                 fontSize: "12.5px",
                 fontWeight: 600,
-                color: "#FFFFFF",
+                color: "#ffffff",
                 cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(16,24,40,0.08)",
-                transition: "background 0.12s ease",
+                whiteSpace: "nowrap",
+                boxShadow: "0 1px 2px rgba(12, 30, 51, 0.1)",
+                transition: "background 0.15s ease",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#1D2939")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = S.headerInk)}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
             >
-              <Plus size={13} style={{ color: "#FFFFFF" }} />
+              <Plus size={14} strokeWidth={2.5} style={{ color: "#ffffff" }} />
               <span>New Assignment</span>
             </button>
 
-            {/* Search Input */}
+            {/* Search Box */}
             <div
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "7px",
-                height: "34px",
-                padding: "0 11px",
-                border: `1px solid ${searchFocused ? "#98A2B3" : S.inputBorder}`,
-                borderRadius: "8px",
-                background: S.inputBg,
-                transition: "border-color 0.15s",
+                gap: "8px",
+                width: "180px",
+                padding: "6px 14px",
+                background: S.chip,
+                border: "1px solid #ebedf2",
+                borderRadius: "6px",
+                color: S.slate,
               }}
             >
-              <Search size={13} strokeWidth={2} style={{ color: S.headerMuted, flexShrink: 0 }} />
+              <Search size={14} style={{ flexShrink: 0, color: S.slate }} />
               <input
                 type="text"
+                placeholder="Search..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                placeholder="Search classes…"
                 style={{
                   border: "none",
                   outline: "none",
                   background: "transparent",
-                  fontSize: "13px",
-                  color: S.headerInk,
-                  width: "130px",
+                  fontSize: "12.5px",
+                  color: S.navy,
+                  width: "100%",
                   fontFamily: "inherit",
                 }}
               />
+              <span style={{ fontSize: "10.5px", color: S.faint, whiteSpace: "nowrap", flexShrink: 0 }}>
+                ⌘ K
+              </span>
             </div>
 
-            {/* Multi-Org Switcher */}
-            {organizations.length > 1 && (
-              <select
-                value={organization.id}
-                onChange={(e) => onSwitchOrganization(e.target.value)}
+            {/* Action Icon Group */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              {/* Message / Inbox button */}
+              <button
+                type="button"
+                onClick={() => navigateTo('communication')}
+                title="Academic Inbox & Directives"
                 style={{
-                  height: "34px",
-                  padding: "0 10px",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  color: S.headerInk,
-                  background: S.inputBg,
-                  border: `1px solid ${S.inputBorder}`,
+                  all: "unset",
+                  display: "grid",
+                  placeItems: "center",
+                  width: "36px",
+                  height: "36px",
                   borderRadius: "8px",
-                  outline: "none",
+                  background: S.chip,
+                  color: S.navy,
                   cursor: "pointer",
+                  transition: "background 0.15s ease",
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#eaedf2")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = S.chip)}
               >
-                {organizations.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name}
-                  </option>
-                ))}
-              </select>
-            )}
+                <MessageSquare size={17} />
+              </button>
 
-            {/* Teacher Avatar */}
-            <div
-              style={{
-                width: "32px",
-                height: "32px",
-                borderRadius: "50%",
-                background: S.avatarBg,
-                color: S.avatarText,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontWeight: 700,
-                fontSize: "12px",
-                letterSpacing: "0.02em",
-              }}
-            >
-              {teacherInitials}
+              {/* Notification bell button */}
+              <button
+                type="button"
+                onClick={() => navigateTo('activity')}
+                title="Faculty Activity & Notifications"
+                style={{
+                  all: "unset",
+                  display: "grid",
+                  placeItems: "center",
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "8px",
+                  background: S.chip,
+                  color: S.navy,
+                  cursor: "pointer",
+                  transition: "background 0.15s ease",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "#eaedf2")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = S.chip)}
+              >
+                <Bell size={17} />
+              </button>
+
+              {/* Multi-Org Switcher */}
+              {organizations.length > 1 && (
+                <select
+                  value={organization.id}
+                  onChange={(e) => onSwitchOrganization(e.target.value)}
+                  style={{
+                    height: "36px",
+                    padding: "0 10px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: S.navy,
+                    background: S.chip,
+                    border: "1px solid #ebedf2",
+                    borderRadius: "8px",
+                    outline: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+
+              {/* Teacher Avatar & Profile Dropdown */}
+              <div style={{ position: "relative" }}>
+                <div
+                  onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                  title="Faculty Profile & Dossier"
+                  style={{
+                    width: "36px",
+                    height: "36px",
+                    borderRadius: "50%",
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    border: profileMenuOpen ? "2px solid #0c1e33" : `1px solid ${S.border}`,
+                    background: "#f0f4f8",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    boxShadow: profileMenuOpen ? "0 0 0 3px rgba(12, 30, 51, 0.1)" : "none",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <img
+                    src={avatarUrl}
+                    alt={teacherName}
+                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                  />
+                </div>
+
+                {profileMenuOpen && (
+                  <>
+                    <div
+                      style={{ position: "fixed", inset: 0, zIndex: 90 }}
+                      onClick={() => setProfileMenuOpen(false)}
+                    />
+                    <div
+                      style={{
+                        position: "absolute",
+                        top: "calc(100% + 8px)",
+                        right: 0,
+                        zIndex: 100,
+                        width: "240px",
+                        background: "#ffffff",
+                        border: `1px solid ${S.border}`,
+                        borderRadius: "12px",
+                        boxShadow: "0 10px 25px -5px rgba(12, 30, 51, 0.15), 0 8px 10px -6px rgba(12, 30, 51, 0.1)",
+                        padding: "8px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "4px",
+                      }}
+                    >
+                      <div style={{ padding: "10px 12px", borderBottom: `1px solid ${S.border}`, marginBottom: "4px" }}>
+                        <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: S.navy }}>
+                          {teacherName}
+                        </p>
+                        <p style={{ margin: "2px 0 0", fontSize: "11px", color: S.slate }}>
+                          {teacherEmail}
+                        </p>
+                        <span
+                          style={{
+                            display: "inline-block",
+                            marginTop: "6px",
+                            padding: "2px 8px",
+                            borderRadius: "100px",
+                            background: "#d9eed1",
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            color: "#1a5c0a",
+                          }}
+                        >
+                          Faculty Member
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          navigateTo('workload');
+                        }}
+                        style={{
+                          all: "unset",
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "8px 12px",
+                          fontSize: "12.5px",
+                          fontWeight: 500,
+                          color: S.navy,
+                          cursor: "pointer",
+                          borderRadius: "6px",
+                          boxSizing: "border-box",
+                          transition: "background 0.12s ease",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = S.chip)}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <ShieldCheck size={15} strokeWidth={1.75} style={{ color: "#495d72" }} />
+                        <span>Workload &amp; Profile</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProfileMenuOpen(false);
+                          onLogout();
+                        }}
+                        style={{
+                          all: "unset",
+                          width: "100%",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "10px",
+                          padding: "8px 12px",
+                          fontSize: "12.5px",
+                          fontWeight: 500,
+                          color: "#e11d48",
+                          cursor: "pointer",
+                          borderRadius: "6px",
+                          boxSizing: "border-box",
+                          transition: "background 0.12s ease",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#fff1f2")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <LogOut size={15} strokeWidth={1.75} style={{ color: "#e11d48" }} />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </header>
 
-        {/* Content Body Container */}
-        <div style={{ padding: "24px 28px", flex: 1 }}>
+        {/* ═══════════════════════════════════════════════
+            M A I N   C O N T E N T   B O D Y
+        ═══════════════════════════════════════════════ */}
+        <main
+          style={{
+            flex: 1,
+            padding: "28px 32px 32px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            gap: "24px",
+          }}
+        >
           {navigation.loading ? (
-            <div style={{ padding: "48px 0", textAlign: "center", color: S.headerMuted }}>
-              <p>Loading dashboard navigation…</p>
+            <div style={{ padding: "48px 0", textAlign: "center", color: S.slate }}>
+              <p>Loading teacher workspace...</p>
             </div>
-          ) : navigation.error ? (
-            <p role="alert" style={{ color: "#B42318" }}>{navigation.error}</p>
-          ) : !availableTabs.has(activeTab) ? (
-            <p style={{ color: S.headerMuted }}>This feature is unavailable for this school or role.</p>
           ) : (
             <>
               {activeTab === 'dashboard' && (
@@ -645,7 +1026,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
                   organizationId={organization.id}
                   onOpenStudentDossier={handleViewStudent}
                   onTakeAttendance={(sectionId, className) => handleOpenAttendance(sectionId, 1, className)}
-                  onCreateAssignment={(sectionId) => setAssignmentModalOpen(true)}
+                  onCreateAssignment={() => setAssignmentModalOpen(true)}
                 />
               )}
 
@@ -731,10 +1112,10 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
               )}
             </>
           )}
-        </div>
-      </main>
+        </main>
+      </div>
 
-      {/* Global Modals */}
+      {/* Global Modals & Drawers */}
       <QuickAttendanceModal
         isOpen={attendanceModalOpen}
         onClose={() => setAttendanceModalOpen(false)}

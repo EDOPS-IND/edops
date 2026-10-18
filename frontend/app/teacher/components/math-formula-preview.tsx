@@ -2,6 +2,15 @@
 
 import React, { useEffect, useState } from "react";
 
+const S = {
+  navy: "#0c1e33",
+  slate: "#495d72",
+  chip: "#f5f6f8",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  blue: "#17a1fa",
+};
+
 interface MathFormulaPreviewProps {
   formula: string;
   className?: string;
@@ -40,7 +49,7 @@ export function MathFormulaPreview({ formula, className = "" }: MathFormulaPrevi
 
   const renderContent = () => {
     if (!formula.trim()) {
-      return <span className="text-gray-400 italic">No formula entered yet</span>;
+      return <span style={{ color: "#a6abb5", fontStyle: "italic" }}>No formula entered yet</span>;
     }
 
     // 1. Try KaTeX if loaded
@@ -77,21 +86,30 @@ export function MathFormulaPreview({ formula, className = "" }: MathFormulaPrevi
 
     return (
       <span
-        className="font-serif tracking-wide text-indigo-900"
+        style={{ fontFamily: "'Poppins', serif", letterSpacing: "0.03em", color: S.navy }}
         dangerouslySetInnerHTML={{ __html: processed }}
       />
     );
   };
 
   return (
-    <div className={`p-2.5 rounded-lg bg-indigo-50/70 border border-indigo-200/60 text-xs ${className}`}>
-      <div className="flex items-center justify-between text-[10px] text-indigo-700 font-bold mb-1">
+    <div
+      style={{
+        padding: "10px 14px",
+        borderRadius: "8px",
+        background: S.chip,
+        border: `1px solid ${S.border}`,
+        fontSize: "12px",
+      }}
+      className={className}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "10px", color: S.slate, fontWeight: 700, marginBottom: "6px" }}>
         <span>Formula Live Preview</span>
-        <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-indigo-100/80 text-indigo-600">
+        <span style={{ fontSize: "9px", textTransform: "uppercase", padding: "1px 6px", borderRadius: "4px", background: "#e8eff7", color: S.navy, fontWeight: 600 }}>
           {katexLoaded ? "KaTeX Active" : "MathML Mode"}
         </span>
       </div>
-      <div className="font-medium text-slate-800 text-sm overflow-x-auto py-1">
+      <div style={{ fontWeight: 500, color: S.navy, fontSize: "14px", overflowX: "auto", padding: "4px 0" }}>
         {renderContent()}
       </div>
     </div>

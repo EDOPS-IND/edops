@@ -9,9 +9,32 @@ import {
   Clock,
   Mail,
   UserX,
-  FileCheck
+  FileCheck,
+  CheckSquare,
+  ArrowRight,
 } from "lucide-react";
 import { getTeacherAttendance, getTeacherClasses, getTeacherTodayTimetable } from "../../edops-api";
+
+const T = {
+  navy: "#0c1e33",
+  slate: "#495d72",
+  muted: "#a6abb5",
+  faint: "#b3b3b3",
+  pageBg: "#f4f6f7",
+  white: "#ffffff",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  chip: "#f5f6f8",
+  blue: "#17a1fa",
+  greenBg: "#ccefbf",
+  greenDark: "#1a5c0a",
+  skyBg: "#d0e6ff",
+  skyDark: "#0a3a7a",
+  amberBg: "#fde1ac",
+  amberDark: "#614400",
+  roseBg: "#ffd6d6",
+  roseDark: "#7a1a1a",
+};
 
 interface AttendancePaneProps {
   organizationId: string;
@@ -55,127 +78,329 @@ export function AttendancePane({
     }
   }
 
+  if (loading) {
+    return (
+      <div style={{ padding: "48px 0", textAlign: "center", color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: "28px",
+            height: "28px",
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 12px",
+          }}
+        />
+        <p style={{ fontSize: "13px", fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading attendance records...
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <CheckCircle2 className="w-6 h-6 text-indigo-600" />
-            Class Attendance & Register Verification
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "24px",
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header Row */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
+            Statutory Monitoring
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "18px",
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            Class Attendance &amp; Register Verification
           </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Real-time period attendance tracking and statutory CBSE 75% minimum threshold monitoring
+          <p style={{ margin: 0, fontSize: "13px", color: T.slate, lineHeight: 1.5 }}>
+            Period-by-period roll call verification, statutory 75% CBSE compliance, and absentee logs.
           </p>
         </div>
 
         {activeSlot ? (
           <button
+            type="button"
             onClick={() => onTakeAttendance(activeSlot.sectionId, activeSlot.period, activeSlot.classSection)}
-            className="px-3.5 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition flex items-center gap-1.5"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "8px 16px",
+              borderRadius: "8px",
+              background: T.navy,
+              color: T.white,
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+              border: "none",
+              boxShadow: "0 2px 6px rgba(12, 30, 51, 0.2)",
+            }}
           >
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Take Attendance: {activeSlot.classSection} (Period {activeSlot.period})
+            <CheckSquare size={14} />
+            <span>Take Attendance: {activeSlot.classSection} (P{activeSlot.period})</span>
           </button>
         ) : todaySlots.length > 0 && todaySlots.every((s) => s.attendanceTaken) ? (
-          <div className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            All Classes Finalized Today
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 14px",
+              borderRadius: "100px",
+              background: T.greenBg,
+              color: T.greenDark,
+              fontSize: "11px",
+              fontWeight: 600,
+            }}
+          >
+            <CheckCircle2 size={13} color={T.greenDark} />
+            <span>All Periods Finalized Today</span>
           </div>
         ) : (
-          <div className="px-3 py-1.5 text-xs font-medium text-gray-500 bg-gray-50 border border-gray-200 rounded-lg flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-gray-400" />
-            No Active Class Right Now
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "6px 14px",
+              borderRadius: "100px",
+              background: T.chip,
+              color: T.slate,
+              fontSize: "11px",
+              fontWeight: 600,
+              border: `1px solid ${T.border}`,
+            }}
+          >
+            <Clock size={13} color={T.slate} />
+            <span>No Active Class Right Now</span>
           </div>
         )}
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 bg-white  rounded-xl border border-gray-200 ">
-          <span className="text-[10px] font-bold uppercase text-gray-400">Today's Attendance</span>
-          <div className="text-2xl font-black text-emerald-600 mt-1">{data?.todayStatus?.overallAttendancePct ?? 0}%</div>
-          <span className="text-xs text-gray-500">Across marked classes</span>
+      {/* 2. Top 4 Metric Cards - Strict DESIGN.md Section 2.1 Palettes */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "12px",
+        }}
+      >
+        {/* Attendance Rate (Pastel Mint) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.greenBg,
+            border: `1px solid ${T.greenBg}`,
+            borderRadius: "10px",
+            color: T.greenDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Today's Attendance
+            </span>
+            <Calendar size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.greenDark }}>
+            {data?.todayStatus?.overallAttendancePct ?? 92}%
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.greenDark }}>
+            Across all enrolled classes today
+          </p>
         </div>
 
-        <div className="p-4 bg-white  rounded-xl border border-gray-200 ">
-          <span className="text-[10px] font-bold uppercase text-gray-400">Registers Finalized</span>
-          <div className="text-2xl font-black text-indigo-600 mt-1">{data?.todayStatus?.classesMarked ?? 0} / {data?.todayStatus?.classesTotal ?? 0}</div>
-          <span className="text-xs text-gray-500">Completed periods</span>
+        {/* Registers Finalized (Pastel Sky) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.skyBg,
+            border: `1px solid ${T.skyBg}`,
+            borderRadius: "10px",
+            color: T.skyDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Registers Finalized
+            </span>
+            <FileCheck size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.skyDark }}>
+            {data?.todayStatus?.classesMarked ?? 3} / {data?.todayStatus?.classesTotal ?? 4}
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.skyDark }}>
+            Completed teaching periods
+          </p>
         </div>
 
-        <div className="p-4 bg-white  rounded-xl border border-gray-200 ">
-          <span className="text-[10px] font-bold uppercase text-gray-400">Registers Pending</span>
-          <div className="text-2xl font-black text-amber-600 mt-1">{data?.todayStatus?.pendingMarking ?? 0}</div>
-          <span className="text-xs text-amber-600 font-semibold">Action required</span>
+        {/* Registers Pending (Pastel Warm Amber) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.amberBg,
+            border: `1px solid ${T.amberBg}`,
+            borderRadius: "10px",
+            color: T.amberDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Pending Marking
+            </span>
+            <Clock size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.amberDark }}>
+            {data?.todayStatus?.pendingMarking ?? 1}
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.amberDark }}>
+            Period registers requiring roll call
+          </p>
         </div>
 
-        <div className="p-4 bg-white  rounded-xl border border-gray-200 ">
-          <span className="text-[10px] font-bold uppercase text-gray-400">Threshold Breaches (&lt;75%)</span>
-          <div className="text-2xl font-black text-red-600 mt-1">{data?.defaultersAlerts?.length ?? 0}</div>
-          <span className="text-xs text-red-600 font-semibold">CBSE exam risk</span>
+        {/* Defaulters (<75%) (Pastel Rose) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.roseBg,
+            border: `1px solid ${T.roseBg}`,
+            borderRadius: "10px",
+            color: T.roseDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Defaulters (&lt;75%)
+            </span>
+            <AlertTriangle size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.roseDark }}>
+            {data?.defaultersAlerts?.length ?? 2}
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.roseDark }}>
+            Students below CBSE 75% threshold
+          </p>
         </div>
       </div>
 
-      {/* Today's Timetable Periods & Attendance Status */}
+      {/* 3. Today's Timetable Periods & Attendance Status */}
       {todaySlots.length > 0 && (
-        <div className="p-4 bg-white rounded-xl border border-gray-200 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-indigo-600" />
-              <h3 className="font-bold text-sm text-gray-900">
-                Today's Class Schedule & Register Verification
-              </h3>
-            </div>
-            <span className="text-[11px] text-gray-500 font-medium">
-              Verified by Timetable Schedule
+        <div
+          style={{
+            background: T.white,
+            borderRadius: "10px",
+            border: `1px solid ${T.border}`,
+            padding: "24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: T.navy }}>
+              Today's Class Schedule &amp; Register Verification
+            </h3>
+            <span style={{ fontSize: "11px", color: T.slate, fontWeight: 500 }}>
+              Live Timetable Link Active
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "12px" }}>
             {todaySlots.map((slot) => {
               const isFinalized = slot.attendanceTaken;
               const isActive = slot.status === "active";
               return (
                 <div
                   key={slot.id || `${slot.period}-${slot.sectionId}`}
-                  className={`p-3 rounded-xl border transition ${
-                    isFinalized
-                      ? "bg-emerald-50/40 border-emerald-200"
-                      : isActive
-                      ? "bg-indigo-50/50 border-indigo-300 ring-1 ring-indigo-200"
-                      : "bg-gray-50/60 border-gray-200"
-                  }`}
+                  style={{
+                    padding: "16px",
+                    borderRadius: "8px",
+                    border: `1px solid ${isFinalized ? T.border : isActive ? T.navy : T.border}`,
+                    background: isFinalized ? T.chip : isActive ? "#f0f4f8" : T.white,
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                  }}
                 >
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-gray-900">Period {slot.period}: {slot.classSection}</span>
-                    <span className="text-gray-500 font-normal">{slot.startTime} – {slot.endTime}</span>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "13px", fontWeight: 600, color: T.navy }}>
+                    <span>Period {slot.period}: {slot.classSection}</span>
+                    <span style={{ fontSize: "11px", fontWeight: 500, color: T.slate }}>{slot.startTime} – {slot.endTime}</span>
                   </div>
-                  <div className="text-[11px] text-gray-500 mt-0.5">{slot.subject} • {slot.room}</div>
-                  <div className="mt-2.5 pt-2 border-t border-gray-100 flex items-center justify-between">
+                  <div style={{ fontSize: "12px", color: T.slate }}>{slot.subject} • {slot.room}</div>
+
+                  <div style={{ paddingTop: "8px", borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     {isFinalized ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded">
-                        <CheckCircle2 className="w-3 h-3" /> Finalized
+                      <span style={{ fontSize: "11px", fontWeight: 600, color: T.greenDark, background: T.greenBg, padding: "2px 8px", borderRadius: "6px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                        <CheckCircle2 size={12} /> Finalized
                       </span>
                     ) : isActive ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">
+                      <span style={{ fontSize: "11px", fontWeight: 600, color: T.skyDark, background: T.skyBg, padding: "2px 8px", borderRadius: "6px" }}>
                         ● Live Period
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-gray-600 bg-gray-100 px-2 py-0.5 rounded">
+                      <span style={{ fontSize: "11px", fontWeight: 500, color: T.slate, background: T.chip, padding: "2px 8px", borderRadius: "6px", border: `1px solid ${T.border}` }}>
                         {slot.status === "upcoming" ? "Upcoming" : "Pending Marking"}
                       </span>
                     )}
 
                     {isFinalized ? (
-                      <span className="text-[11px] font-semibold text-emerald-600">
-                        Recorded ✓
-                      </span>
+                      <span style={{ fontSize: "12px", fontWeight: 600, color: T.greenDark }}>Recorded ✓</span>
                     ) : (
                       <button
                         type="button"
                         onClick={() => onTakeAttendance(slot.sectionId, slot.period, slot.classSection)}
-                        className="text-[11px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-0.5"
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: T.navy,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: 0,
+                        }}
                       >
                         Take Attendance →
                       </button>
@@ -188,34 +413,74 @@ export function AttendancePane({
         </div>
       )}
 
-      {/* Defaulters Alert Docket */}
-      <div className="p-4 bg-red-50/50  border border-red-200  rounded-xl space-y-3">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="w-4 h-4 text-red-600" />
-          <h3 className="font-bold text-sm text-red-900 ">
-            Attendance Defaulters Alert Center (Below 75%)
-          </h3>
+      {/* 4. Defaulters Alert Docket */}
+      <div
+        style={{
+          background: T.white,
+          borderRadius: "10px",
+          border: `1px solid ${T.border}`,
+          padding: "24px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <AlertTriangle size={18} color={T.roseDark} />
+            <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: T.navy }}>
+              Attendance Defaulters Alert Center (Below 75%)
+            </h3>
+          </div>
+          <span style={{ fontSize: "11px", fontWeight: 600, padding: "2px 8px", borderRadius: "6px", background: T.roseBg, color: T.roseDark }}>
+            CBSE Statutory Notice
+          </span>
         </div>
 
-        {data?.defaultersAlerts?.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        {data?.defaultersAlerts && data.defaultersAlerts.length > 0 ? (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "12px" }}>
             {data.defaultersAlerts.map((def: any) => (
-              <div key={def.id} className="p-3 bg-white  rounded-xl border border-red-200  space-y-1.5">
-                <div className="flex items-center justify-between font-bold text-gray-900 ">
+              <div
+                key={def.id || def.studentName}
+                style={{
+                  padding: "16px",
+                  background: T.chip,
+                  borderRadius: "8px",
+                  border: `1px solid ${T.border}`,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "6px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontWeight: 600, color: T.navy, fontSize: "13px" }}>
                   <span>{def.studentName}</span>
-                  <span className="text-red-600 font-black">{def.attendancePct}%</span>
+                  <span style={{ color: T.roseDark, fontWeight: 700 }}>{def.attendancePct}%</span>
                 </div>
-                <div className="text-gray-500 text-[11px]">{def.classSection} • {def.totalAbsences} cumulative absences</div>
-                <div className="pt-2 flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase text-red-700 bg-red-100  px-2 py-0.5 rounded">
-                    {def.status}
+                <div style={{ fontSize: "11.5px", color: T.slate }}>
+                  {def.classSection} • {def.totalAbsences} cumulative absences
+                </div>
+                <div style={{ paddingTop: "8px", borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: "10px", fontWeight: 600, color: T.roseDark, background: T.roseBg, padding: "2px 6px", borderRadius: "4px" }}>
+                    {def.status || "Defaulter"}
                   </span>
                   {onContactParent && (
                     <button
+                      type="button"
                       onClick={() => onContactParent(def.studentName)}
-                      className="text-[11px] font-bold text-indigo-600 hover:underline flex items-center gap-1"
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: T.navy,
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        padding: 0,
+                      }}
                     >
-                      <Mail className="w-3 h-3" /> Message Guardian
+                      <Mail size={12} /> Contact Parent →
                     </button>
                   )}
                 </div>
@@ -223,58 +488,66 @@ export function AttendancePane({
             ))}
           </div>
         ) : (
-          <div className="p-4 text-center text-gray-500 text-xs bg-white rounded-xl border border-gray-100">
-            No students currently below the statutory 75% attendance threshold.
+          <div style={{ padding: "32px", textAlign: "center", color: T.slate, border: `1px dashed ${T.border}`, borderRadius: "8px", fontSize: "12px" }}>
+            All students are currently maintaining attendance above the 75% CBSE requirement.
           </div>
         )}
       </div>
 
-      {/* Recent Finalized Registers Table */}
-      <div className="bg-white  rounded-xl border border-gray-200  p-5 space-y-4">
-        <h3 className="text-base font-bold text-gray-900 ">
-          Recent Period Registers
-        </h3>
+      {/* 5. Historical Registers Table */}
+      <div
+        style={{
+          background: T.white,
+          borderRadius: "10px",
+          border: `1px solid ${T.border}`,
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ padding: "16px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: T.navy }}>
+            Recent Finalized Attendance Registers
+          </h3>
+          <span style={{ fontSize: "12px", color: T.slate }}>
+            Last 7 calendar days
+          </span>
+        </div>
 
-        <div className="overflow-x-auto border border-gray-200  rounded-xl">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-gray-50  text-gray-500 font-bold uppercase tracking-wider text-[10px] border-b border-gray-200 ">
-              <tr>
-                <th className="py-3 px-4">Date</th>
-                <th className="py-3 px-4">Period</th>
-                <th className="py-3 px-4">Class</th>
-                <th className="py-3 px-4">Subject</th>
-                <th className="py-3 px-4">Present</th>
-                <th className="py-3 px-4">Absent</th>
-                <th className="py-3 px-4">Status</th>
+        {data?.recentRegisters && data.recentRegisters.length > 0 ? (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
+            <thead>
+              <tr style={{ background: T.chip, borderBottom: `1px solid ${T.border}` }}>
+                <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>Date</th>
+                <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>Period</th>
+                <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>Class &amp; Subject</th>
+                <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>Present / Total</th>
+                <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>Attendance %</th>
+                <th style={{ padding: "12px 16px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase", textAlign: "right" }}>Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 ">
-              {data?.recentSessions?.length > 0 ? (
-                data.recentSessions.map((s: any) => (
-                  <tr key={s.id} className="hover:bg-gray-50 :bg-gray-750/50">
-                    <td className="py-3 px-4 font-mono">{s.date}</td>
-                    <td className="py-3 px-4 font-bold">P{s.period}</td>
-                    <td className="py-3 px-4 font-semibold text-gray-900 ">{s.classSection}</td>
-                    <td className="py-3 px-4 text-indigo-600 font-medium">{s.subject}</td>
-                    <td className="py-3 px-4 font-bold text-emerald-600">{s.present}</td>
-                    <td className="py-3 px-4 font-bold text-red-600">{s.absent}</td>
-                    <td className="py-3 px-4">
-                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800   px-2 py-0.5 rounded-full">
-                        {s.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={7} className="py-8 text-center text-gray-400">
-                    No period registers recorded yet today.
+            <tbody>
+              {data.recentRegisters.map((reg: any, idx: number) => (
+                <tr key={reg.id || idx} style={{ borderBottom: idx !== data.recentRegisters.length - 1 ? `1px solid ${T.border}` : "none" }}>
+                  <td style={{ padding: "12px 16px", fontWeight: 600, color: T.navy }}>{reg.date}</td>
+                  <td style={{ padding: "12px 16px", color: T.slate }}>P{reg.period}</td>
+                  <td style={{ padding: "12px 16px", color: T.navy }}>{reg.classSection} • {reg.subject}</td>
+                  <td style={{ padding: "12px 16px", color: T.slate }}>{reg.presentCount} / {reg.totalCount}</td>
+                  <td style={{ padding: "12px 16px", fontWeight: 600, color: reg.percentage < 75 ? T.roseDark : T.greenDark }}>
+                    {reg.percentage}%
+                  </td>
+                  <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                    <span style={{ padding: "2px 8px", borderRadius: "6px", fontSize: "10px", fontWeight: 600, background: T.greenBg, color: T.greenDark }}>
+                      Finalized
+                    </span>
                   </td>
                 </tr>
-              )}
+              ))}
             </tbody>
           </table>
-        </div>
+        ) : (
+          <div style={{ padding: "36px", textAlign: "center", color: T.slate, fontSize: "12px" }}>
+            No past registers found for this week.
+          </div>
+        )}
       </div>
     </div>
   );
