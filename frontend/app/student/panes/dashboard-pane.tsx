@@ -2,59 +2,42 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Clock,
   Calendar,
   CheckCircle2,
-  AlertTriangle,
   BookOpen,
-  Users,
   ClipboardList,
-  GraduationCap,
   MessageSquare,
   ArrowRight,
   TrendingUp,
-  MapPin,
-  ChevronRight,
   Upload,
   Play,
   HelpCircle,
-  Activity,
-  FileText,
   Trophy,
   Award,
-  ShieldAlert,
+  Clock,
+  MapPin,
+  AlertCircle,
+  Activity,
 } from "lucide-react";
 import { getStudentDashboard } from "../../edops-api";
 import { StudentTab } from "../types";
 
-// ─── Design Tokens (Neutral / Minimalist Admin Design System) ───────────────────────────
+// Design tokens matching HTML & Design specification
 const S = {
-  ink: "#101828",       // primary text
-  muted: "#475467",     // secondary text
-  faint: "#667085",     // tertiary text
-  border: "#E2DDD5",    // dividers / borders (matching school admin)
-  borderSubtle: "#EAECF0",
-  bg: "#FFFFFF",        // card background
-  canvas: "#F7F8FA",    // page background
-  cardRowBg: "#FAF8F5", // subtle tinted background for list items
-  accent: "#101828",    // dark accent for buttons/links
-
-  // Status colors (subtle)
-  greenBg: "#ECFDF3",
-  greenTxt: "#027A48",
-  greenBdr: "#ABEFC6",
-
-  amberBg: "#FFFAEB",
-  amberTxt: "#B54708",
-  amberBdr: "#FEDF89",
-
-  redBg: "#FEF3F2",
-  redTxt: "#B42318",
-  redBdr: "#FECDCA",
-
-  blueBg: "#EFF8FF",
-  blueTxt: "#175CD3",
-  blueBdr: "#B2DDFF",
+  navy: "#0c1e33",
+  slate: "#495d72",
+  muted: "#a6abb5",
+  faint: "#b3b3b3",
+  bg: "#f4f6f7",
+  white: "#ffffff",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  chip: "#f5f6f8",
+  blue: "#17a1fa",
+  greenBg: "#d9eed1",
+  green: "#61a249",
+  greenDk: "#1a5c0a",
+  track: "#eceef3",
 };
 
 interface DashboardPaneProps {
@@ -97,23 +80,46 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 
   if (loading) {
     return (
-      <div style={{ padding: "48px 0", textAlign: "center", color: S.faint }}>
-        <div style={{ width: "28px", height: "28px", border: `2px solid ${S.ink}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-        <p style={{ fontSize: "13px", fontWeight: 600, color: S.muted, margin: 0 }}>Loading student learning command center...</p>
+      <div style={{ padding: "48px 0", textAlign: "center", color: S.slate }}>
+        <div
+          style={{
+            width: "28px",
+            height: "28px",
+            border: `3px solid ${S.line}`,
+            borderTopColor: S.navy,
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 12px",
+          }}
+        />
+        <p style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: 0 }}>
+          Loading dashboard...
+        </p>
       </div>
     );
   }
 
-  const enrollment = data?.enrollment || { classSection: "", academicYear: "", rollNumber: "", classTeacher: "" };
+  const enrollment = data?.enrollment || {
+    classSection: "10-A",
+    academicYear: "2026–2027",
+    rollNumber: "101",
+    classTeacher: "Faculty",
+  };
 
-  const kpis = data?.kpis || { overallAttendance: 0, academicAverage: 0, improvement: 0, assignmentCompletion: 0, assignmentsPending: 0, curriculumProgress: 0 };
+  const kpis = data?.kpis || {
+    overallAttendance: 0,
+    academicAverage: null,
+    improvement: 0,
+    assignmentCompletion: 0,
+    assignmentsPending: 0,
+    curriculumProgress: 0,
+  };
 
   const healthScore = kpis.academicAverage == null ? null : Math.round(kpis.academicAverage);
-
-  const nextClass = data?.nextClass || { subject: "", teacher: "", room: "", startTime: "", endTime: "", startsInMinutes: 0, topic: "", lessonStatus: "", lessonPlanStatus: "" };
-
+  const nextClass = data?.nextClass;
   const timetable = data?.timetable || [];
-  const attentionItems = data?.attentionRequired || (data?.pendingTasks ? data.pendingTasks.map((t: any) => ({
+  const pendingTasks = data?.pendingTasks || [];
+  const attentionItems = data?.attentionRequired || pendingTasks.map((t: any) => ({
     id: t.id,
     title: t.title,
     desc: `Due: ${t.dueDate || t.due || "Soon"}`,
@@ -121,314 +127,631 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
     severity: t.priority === "urgent" ? "critical" : "warning",
     action: t.type === "arena" ? "Start Arena" : "Submit Homework",
     type: t.type || "assignment",
-  })) : []);
+  }));
 
-  const activityLogs = data?.recentActivity || ([] as any[]);
-
+  const alerts = data?.alerts || [];
+  const activityLogs = data?.recentActivity || [];
   const messages = data?.recentMessages || [];
 
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
-      {/* 1. TOP GREETING HEADER WITH KEPT BUTTONS STRICTLY ON TOP */}
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      {/* ═══════════════════════════════════════════════
+          1. HERO BANNER WITH COLLABORATION ARTWORK
+      ═══════════════════════════════════════════════ */}
       <section
+        aria-labelledby="greeting"
         style={{
-          background: S.bg,
-          border: `1px solid ${S.border}`,
-          borderRadius: "12px",
-          padding: "20px 24px",
           display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "space-between",
-          alignItems: "center",
+          minHeight: "180px",
+          overflow: "hidden",
+          background: "#eaedf2",
+          border: "1px solid #d8dee6",
+          borderRadius: "12px",
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flex: 1,
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: "12px",
+            minWidth: 0,
+            padding: "28px 32px",
+          }}
+        >
+          {/* Greeting Row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "28px", lineHeight: 1 }} aria-hidden="true">
+              👋
+            </span>
+            <h1
+              id="greeting"
+              style={{
+                margin: 0,
+                fontSize: "26px",
+                fontWeight: 600,
+                color: S.navy,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {(() => {
+                const hour = new Date().getHours();
+                const timeGreeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
+                const name = (data?.studentName || data?.student?.name || data?.student?.email || "Student").replace(/\s*\(Student\)/gi, "").trim();
+                return `${timeGreeting}, ${name}!`;
+              })()}
+            </h1>
+          </div>
+
+          {/* Details & Badges */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              fontSize: "13px",
+              color: S.slate,
+              flexWrap: "wrap",
+            }}
+          >
+            {enrollment.classSection && (
+              <>
+                <span style={{ fontWeight: 600, color: S.navy }}>
+                  {enrollment.classSection}
+                </span>
+                <span style={{ color: "#5c6b80" }}>/</span>
+              </>
+            )}
+            <span>Academic Year {enrollment.academicYear || "Active Session"}</span>
+            {enrollment.rollNumber && (
+              <span
+                style={{
+                  padding: "4px 8px",
+                  borderRadius: "4px",
+                  background: "rgba(12, 30, 51, 0.05)",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: S.navy,
+                }}
+              >
+                Roll No: {enrollment.rollNumber}
+              </span>
+            )}
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginTop: "2px" }}>
+            {/* Submit Homework */}
+            <button
+              type="button"
+              onClick={() => (onSubmitAssignment ? onSubmitAssignment() : onNavigateTab("assignments"))}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 16px",
+                border: `1px solid ${S.line}`,
+                borderRadius: "6px",
+                background: "#fff",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: S.navy,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#98A2B3";
+                e.currentTarget.style.background = "#FAF8F5";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = S.line;
+                e.currentTarget.style.background = "#fff";
+              }}
+            >
+              <Upload size={16} />
+              <span>Submit Homework</span>
+            </button>
+
+            {/* Start Arena */}
+            <button
+              type="button"
+              onClick={() => (onStartArena ? onStartArena() : onNavigateTab("arena"))}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 16px",
+                border: `1px solid ${S.line}`,
+                borderRadius: "6px",
+                background: "#fff",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: S.navy,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#98A2B3";
+                e.currentTarget.style.background = "#FAF8F5";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = S.line;
+                e.currentTarget.style.background = "#fff";
+              }}
+            >
+              <Play size={16} />
+              <span>Start Arena</span>
+            </button>
+
+            {/* Ask Teacher */}
+            <button
+              type="button"
+              onClick={() => (onAskTeacher ? onAskTeacher() : onNavigateTab("communication"))}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 16px",
+                border: `1px solid ${S.navy}`,
+                borderRadius: "6px",
+                background: S.navy,
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#fff",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "background 0.15s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
+            >
+              <MessageSquare size={16} />
+              <span>Ask Teacher</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Student Dashboard Illustration */}
+        <div style={{ flexShrink: 0, width: "251px", height: "196px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <img
+            src="/studentdashboard.svg"
+            alt="Student Dashboard"
+            width={251}
+            height={196}
+            style={{ width: "100%", height: "100%", display: "block", objectFit: "contain" }}
+          />
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════
+          2. ACADEMIC OVERVIEW HEADER
+      ═══════════════════════════════════════════════ */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 600, color: S.navy, whiteSpace: "nowrap" }}>
+            Your Academic Overview
+          </h2>
+          <span
+            style={{
+              padding: "4px 10px",
+              borderRadius: "100px",
+              background: S.chip,
+              fontSize: "10px",
+              fontWeight: 600,
+              color: S.slate,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {enrollment.academicYear || "2026–2027"}
+          </span>
+        </div>
+        <p style={{ margin: 0, fontSize: "11px", color: S.faint, whiteSpace: "nowrap" }}>
+          Current academic year
+        </p>
+      </div>
+
+      {/* ═══════════════════════════════════════════════
+          3. SIX 6-COLOR METRIC STAT CARDS
+      ═══════════════════════════════════════════════ */}
+      <section
+        aria-label="Academic metrics"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "12px",
+        }}
+      >
+        {/* 1. Attendance Rate (Pastel Violet) */}
+        <article
+          onClick={() => onNavigateTab("attendance")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: "#e1d2ff",
+            border: "1px solid #e1d2ff",
+            borderRadius: "10px",
+            color: "#4a0e8f",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Attendance Rate
+            </h3>
+            <Calendar size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#4a0e8f" }}>
+            {kpis?.overallAttendance ?? 0}%
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              {(kpis?.overallAttendance ?? 0) < 75 ? "Below 75% threshold" : "≥ 75% threshold met"}
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#4a0e8f" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+
+        {/* 2. Overall Score (Pastel Warm Amber) */}
+        <article
+          onClick={() => onNavigateTab("performance")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: "#fde1ac",
+            border: "1px solid #fde1ac",
+            borderRadius: "10px",
+            color: "#7a4a00",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Overall Score
+            </h3>
+            <TrendingUp size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#7a4a00" }}>
+            {kpis?.academicAverage ?? 0}%
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              +{kpis?.improvement ?? 0}% vs last term
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#7a4a00" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+
+        {/* 3. Assignments Due (Pastel Sky Blue) */}
+        <article
+          onClick={() => onNavigateTab("assignments")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: "#bae5f5",
+            border: "1px solid #bae5f5",
+            borderRadius: "10px",
+            color: "#0a5a7a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Assignments Due
+            </h3>
+            <ClipboardList size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
+            {kpis?.assignmentsPending ?? 0}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              {(kpis?.assignmentsPending ?? 0) === 0 ? "All submissions clear" : `${kpis.assignmentsPending} pending submission`}
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#0a5a7a" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+
+        {/* 4. Curriculum Pacing (Pastel Mint Green) */}
+        <article
+          onClick={() => onNavigateTab("curriculum")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: "#ccefbf",
+            border: "1px solid #ccefbf",
+            borderRadius: "10px",
+            color: "#1a5c0a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Curriculum Pacing
+            </h3>
+            <BookOpen size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
+            {kpis?.curriculumProgress ?? 0}%
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              Saved curriculum progress
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#1a5c0a" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+
+        {/* 5. Arena Practice (Pastel Rose / Coral) */}
+        <article
+          onClick={() => onNavigateTab("arena")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: "#ffd6d6",
+            border: "1px solid #ffd6d6",
+            borderRadius: "10px",
+            color: "#7a1a1a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Arena Practice
+            </h3>
+            <Trophy size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#7a1a1a" }}>
+            {data?.metrics?.completedTests ?? 0}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              Questions answered
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#7a1a1a" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+
+        {/* 6. Academic Average (Dark Navy High-Contrast) */}
+        <article
+          onClick={() => onNavigateTab("assessments")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: S.navy,
+            border: `1px solid ${S.navy}`,
+            borderRadius: "10px",
+            color: S.muted,
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Academic Average
+            </h3>
+            <Award size={18} color={S.muted} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#fff" }}>
+            {kpis?.academicAverage != null ? `${kpis.academicAverage}%` : "—"}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px", color: S.muted }}>
+              Saved assessment results
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#fff" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+      </section>
+
+      {/* ═══════════════════════════════════════════════
+          4. ACADEMIC STATUS (Dual Cards)
+      ═══════════════════════════════════════════════ */}
+      <section
+        aria-label="Academic status"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1.2fr 1.8fr",
           gap: "16px",
         }}
       >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 800, color: S.ink, letterSpacing: "-0.02em" }}>
-              Good Morning, {data?.studentName || "Student"} 👋
-            </h2>
-            <span
-              style={{
-                background: S.cardRowBg,
-                border: `1px solid ${S.border}`,
-                color: S.ink,
-                fontSize: "11px",
-                fontWeight: 700,
-                padding: "2px 8px",
-                borderRadius: "12px",
-              }}
-            >
-              Roll No: {enrollment.rollNumber}
-            </span>
-          </div>
-          <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: S.muted, fontWeight: 500 }}>
-            {enrollment.classSection} · Academic Year {enrollment.academicYear} · Class Teacher: <b style={{ color: S.ink }}>{enrollment.classTeacher}</b>
-          </p>
-        </div>
-
-        {/* Action Buttons strictly placed on top as requested */}
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px" }}>
-          {/* Submit Homework */}
-          <button
-            onClick={() => onSubmitAssignment ? onSubmitAssignment() : onNavigateTab("assignments")}
-            style={{
-              background: "#FFFFFF",
-              color: S.ink,
-              border: `1px solid #D0D5DD`,
-              borderRadius: "8px",
-              padding: "8px 14px",
-              fontSize: "12.5px",
-              fontWeight: 650,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "7px",
-              boxShadow: "0 1px 2px rgba(16,24,40,0.05)",
-              transition: "all 0.15s ease",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#98A2B3"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#D0D5DD"; }}
-          >
-            <Upload size={14} style={{ color: S.muted }} />
-            <span>Submit Homework</span>
-            {(kpis?.assignmentsPending ?? 0) > 0 && (
-              <span
-                style={{
-                  background: S.redBg,
-                  color: S.redTxt,
-                  border: `1px solid ${S.redBdr}`,
-                  padding: "1px 6px",
-                  borderRadius: "999px",
-                  fontSize: "10.5px",
-                  fontWeight: 700,
-                }}
-              >
-                {kpis.assignmentsPending} Due
-              </span>
-            )}
-          </button>
-
-          {/* Start Arena */}
-          <button
-            onClick={() => onStartArena ? onStartArena() : onNavigateTab("arena")}
-            style={{
-              background: "#FFFFFF",
-              color: S.ink,
-              border: `1px solid #D0D5DD`,
-              borderRadius: "8px",
-              padding: "8px 14px",
-              fontSize: "12.5px",
-              fontWeight: 650,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "7px",
-              boxShadow: "0 1px 2px rgba(16,24,40,0.05)",
-              transition: "all 0.15s ease",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#98A2B3"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#D0D5DD"; }}
-          >
-            <Play size={14} style={{ color: "#101828" }} />
-            <span>Start Arena</span>
-          </button>
-
-          {/* Ask Teacher */}
-          <button
-            onClick={() => onAskTeacher ? onAskTeacher() : onNavigateTab("communication")}
-            style={{
-              background: S.accent,
-              color: "#FFFFFF",
-              border: `1px solid ${S.accent}`,
-              borderRadius: "8px",
-              padding: "8px 16px",
-              fontSize: "12.5px",
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "7px",
-              boxShadow: "0 1px 2px rgba(16,24,40,0.08)",
-              transition: "all 0.15s ease",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#1D2939")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = S.accent)}
-          >
-            <HelpCircle size={14} style={{ color: "#FFFFFF" }} />
-            <span>Ask Teacher</span>
-          </button>
-
-          {/* Full Timetable */}
-          <button
-            onClick={() => onNavigateTab("timetable")}
-            style={{
-              background: S.cardRowBg,
-              color: S.muted,
-              border: `1px solid ${S.border}`,
-              borderRadius: "8px",
-              padding: "8px 12px",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "6px",
-              transition: "all 0.15s ease",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#F1EFEA")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = S.cardRowBg)}
-          >
-            <Calendar size={13} style={{ color: S.faint }} />
-            <span>Full Timetable</span>
-          </button>
-        </div>
-      </section>
-
-      {/* 2. TOP EXECUTIVE KPI CARDS (Admin StatCard Grid) */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
-        {[
-          { label: "Attendance Rate", value: `${kpis?.overallAttendance ?? 0}%`, sub: (kpis?.overallAttendance ?? 0) >= 75 ? "≥ 75% CBSE threshold met" : "Below 75% threshold", tab: "attendance" as StudentTab, icon: CheckCircle2 },
-          { label: "Overall Score", value: `${kpis?.academicAverage ?? 0}%`, sub: `+${kpis?.improvement ?? 0}% vs last term`, tab: "performance" as StudentTab, icon: TrendingUp },
-          { label: "Assignments Due", value: String(kpis?.assignmentsPending ?? 0), sub: (kpis?.assignmentsPending ?? 0) > 0 ? `${kpis.assignmentsPending} pending submission` : "All submissions clear", tab: "assignments" as StudentTab, icon: FileText },
-          { label: "Curriculum Pacing", value: `${kpis?.curriculumProgress ?? 0}%`, sub: "Saved curriculum progress", tab: "curriculum" as StudentTab, icon: BookOpen },
-          { label: "Arena Practice", value: String(data?.metrics?.completedTests ?? 0), sub: "Questions attempted", tab: "arena" as StudentTab, icon: Trophy },
-          { label: "Academic Average", value: kpis.academicAverage == null ? "—" : `${kpis.academicAverage}%`, sub: "Saved assessment results", tab: "assessments" as StudentTab, icon: Award },
-        ].map((kpi, idx) => {
-          const Icon = kpi.icon;
-          return (
-            <div
-              key={idx}
-              onClick={() => onNavigateTab(kpi.tab)}
-              style={{
-                background: S.bg,
-                border: `1px solid ${S.border}`,
-                borderRadius: "12px",
-                padding: "20px",
-                cursor: "pointer",
-                transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 6px 16px rgba(16,24,40,0.06)";
-                e.currentTarget.style.borderColor = "#D0D5DD";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "none";
-                e.currentTarget.style.borderColor = S.border;
-              }}
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <span style={{ fontSize: "12px", fontWeight: 650, color: S.muted, textTransform: "uppercase", letterSpacing: "0.03em" }}>{kpi.label}</span>
-                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#FDF9F0", display: "grid", placeItems: "center", color: S.ink }}>
-                  <Icon size={16} />
-                </div>
-              </div>
-              <div style={{ margin: "14px 0 6px" }}>
-                <span style={{ fontSize: "28px", fontWeight: 800, color: S.ink, letterSpacing: "-0.03em" }}>{kpi.value}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11.5px", color: S.faint }}>
-                <span>{kpi.sub}</span>
-                <span style={{ color: S.ink, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "2px" }}>
-                  View <ChevronRight size={13} />
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* 3. STUDENT ACADEMIC HEALTH SCORE & ATTENTION REQUIRED (Identical to Admin Dashboard Health Card) */}
-      <section style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: "20px" }}>
-        {/* Student Academic Standing Score Card */}
-        <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: "12px", padding: "22px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: S.ink }}>EDOPS Student Academic Standing</h3>
-              <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.faint }}>Deterministic metric score based on verified attendance, coursework, and assessments</p>
+        {/* Card 1: Academic Standing */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+            padding: "24px",
+            background: "#fff",
+            border: `1px solid ${S.border}`,
+            borderRadius: "10px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <p style={{ margin: 0, fontSize: "10px", fontWeight: 600, color: S.slate }}>EDOPS</p>
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 600, color: S.navy }}>
+                Academic Standing
+              </h2>
             </div>
             <button
+              type="button"
               onClick={() => setShowHealthExplainer(!showHealthExplainer)}
-              style={{ background: "#FDF9F0", border: "1px solid #E5CCA2", color: S.ink, padding: "4px 10px", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}
+              style={{
+                all: "unset",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "11px",
+                fontWeight: 600,
+                color: S.navy,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
             >
-              {showHealthExplainer ? "Hide Logic" : "Explain Score"}
+              Explain Score <HelpCircle size={15} />
             </button>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "24px", margin: "18px 0" }}>
-            <div style={{ position: "relative", width: "96px", height: "96px", borderRadius: "50%", background: `conic-gradient(#101828 0% ${healthScore}%, #E2DDD5 ${healthScore}% 100%)`, display: "grid", placeItems: "center" }}>
-              <div style={{ width: "76px", height: "76px", borderRadius: "50%", background: "#FFFFFF", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "24px", fontWeight: 900, color: S.ink, lineHeight: 1 }}>{healthScore ?? "—"}</span>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: S.faint }}>/100</span>
-              </div>
+          <p style={{ margin: 0, fontSize: "13px", lineHeight: 1.5, color: S.slate }}>
+            Deterministic metric score based on verified attendance, coursework, and assessments.
+          </p>
+
+          <div style={{ height: "1px", background: "#f2f2f2" }} />
+
+          <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "80px", flexShrink: 0 }}>
+              <p style={{ margin: 0, fontSize: "36px", fontWeight: 600, lineHeight: 1, color: S.navy }}>
+                {healthScore ?? "—"}
+              </p>
+              <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>/100</p>
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "inline-block", background: S.greenBg, border: `1px solid ${S.greenBdr}`, padding: "3px 10px", borderRadius: "12px", fontSize: "11.5px", fontWeight: 700, color: S.greenTxt }}>
+            <div style={{ display: "flex", flex: 1, flexDirection: "column", alignItems: "flex-start", gap: "10px", minWidth: 0 }}>
+              <span
+                style={{
+                  padding: "5px 9px",
+                  borderRadius: "100px",
+                  background: S.chip,
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: S.navy,
+                }}
+              >
                 {healthScore == null ? "No graded results" : "Recorded academic average"}
-              </div>
-              <p style={{ margin: "8px 0 0", fontSize: "12.5px", color: "#334155", lineHeight: 1.5 }}>
+              </span>
+              <p style={{ margin: 0, fontSize: "11px", lineHeight: 1.6, color: S.slate }}>
                 Verified attendance ({kpis?.overallAttendance ?? 0}%), homework completion ({kpis?.assignmentCompletion ?? 0}%), and academic average ({kpis?.academicAverage ?? 0}%) live in register.
               </p>
             </div>
           </div>
 
           {showHealthExplainer && (
-            <div style={{ background: S.cardRowBg, border: `1px solid ${S.borderSubtle}`, borderRadius: "8px", padding: "12px 14px", marginTop: "12px", fontSize: "12px", color: "#334155" }}>
-              <b style={{ color: S.ink }}>Recorded indicators:</b>
+            <div
+              style={{
+                background: S.chip,
+                border: `1px solid ${S.border}`,
+                borderRadius: "8px",
+                padding: "12px 14px",
+                fontSize: "12px",
+                color: S.slate,
+              }}
+            >
+              <b style={{ color: S.navy }}>Recorded indicators:</b>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
                 <div>• Attendance: {kpis.overallAttendance}%</div>
-                <div>• Academic Average: {kpis.academicAverage}%</div>
+                <div>• Academic Average: {kpis.academicAverage ?? 0}%</div>
                 <div>• Coursework Completion: {kpis.assignmentCompletion}%</div>
-                <div>Practice drill results are shown in Arena</div>
+                <div>Practice drill results are tracked in Arena</div>
               </div>
             </div>
           )}
-        </div>
+        </article>
 
-        {/* Attention Required (§54: Operational Loop) */}
-        <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: "12px", padding: "22px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <ShieldAlert size={18} color="#D97706" />
-                <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: S.ink }}>Attention Required</h3>
-                <span
-                  style={{
-                    background: attentionItems.length > 0 ? S.amberBg : S.greenBg,
-                    color: attentionItems.length > 0 ? S.amberTxt : S.greenTxt,
-                    border: `1px solid ${attentionItems.length > 0 ? S.amberBdr : S.greenBdr}`,
-                    padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700
-                  }}
-                >
-                  {attentionItems.length > 0 ? `${attentionItems.length} Active Notice(s)` : "All Clear"}
-                </span>
-              </div>
-              <p style={{ margin: "3px 0 0", fontSize: "12px", color: S.faint }}>Click any alert to launch the corrective action loop</p>
+        {/* Card 2: Attention Required */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+            padding: "24px",
+            background: "#fff",
+            border: `1px solid ${S.border}`,
+            borderRadius: "10px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+              <CheckCircle2 size={19} color={S.navy} />
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 600, color: S.navy }}>
+                Attention Required
+              </h2>
             </div>
-            <button
-              onClick={() => onNavigateTab("assignments")}
-              style={{ background: "transparent", border: "none", color: S.ink, fontWeight: 700, fontSize: "12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
+            <span
+              style={{
+                padding: "5px 9px",
+                borderRadius: "100px",
+                background: S.greenBg,
+                fontSize: "11px",
+                fontWeight: 600,
+                color: S.green,
+              }}
             >
-              Assignments <ArrowRight size={13} />
-            </button>
+              {attentionItems.length > 0 ? `${attentionItems.length} Notice(s)` : "All Clear"}
+            </span>
           </div>
 
-          <div style={{ display: "grid", gap: "10px" }}>
-            {attentionItems.length > 0 ? (
-              attentionItems.map((al: any, idx: number) => {
+          <p style={{ margin: 0, fontSize: "13px", lineHeight: "normal", color: S.slate }}>
+            Click any alert to open the recommended action loop.
+          </p>
+
+          {attentionItems.length > 0 ? (
+            <div style={{ display: "grid", gap: "10px" }}>
+              {attentionItems.map((al: any, idx: number) => {
                 const isHigh = al.severity === "critical" || al.severity === "high";
                 return (
                   <div
                     key={idx}
                     style={{
                       padding: "12px 14px",
-                      borderRadius: "8px",
-                      background: S.cardRowBg,
-                      border: `1px solid ${isHigh ? S.redBdr : S.amberBdr}`,
+                      borderRadius: "6px",
+                      background: S.chip,
+                      border: `1px solid ${isHigh ? "#FECDCA" : "#FEDF89"}`,
                       display: "grid",
                       gap: "6px",
                     }}
@@ -437,20 +760,26 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                       <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
                         <span
                           style={{
-                            fontSize: "11px", fontWeight: 700, textTransform: "uppercase",
-                            color: isHigh ? S.redTxt : S.amberTxt,
-                            background: isHigh ? S.redBg : S.amberBg,
-                            padding: "1px 6px", borderRadius: "4px"
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            color: isHigh ? "#B42318" : "#B54708",
+                            background: isHigh ? "#FEF3F2" : "#FFFAEB",
+                            padding: "1px 6px",
+                            borderRadius: "4px",
                           }}
                         >
                           {isHigh ? "High" : "Notice"}
                         </span>
-                        <b style={{ fontSize: "13px", color: S.ink }}>{al.title}</b>
+                        <b style={{ fontSize: "13px", color: S.navy }}>{al.title}</b>
                       </div>
                     </div>
-                    <p style={{ margin: 0, fontSize: "12px", color: "#334155", lineHeight: 1.4 }}>{al.message || al.desc}</p>
-                    <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2px" }}>
+                    <p style={{ margin: 0, fontSize: "12px", color: S.slate, lineHeight: 1.4 }}>
+                      {al.message || al.desc}
+                    </p>
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
                       <button
+                        type="button"
                         onClick={() => {
                           if (al.type === "arena" || al.action?.toLowerCase().includes("arena")) {
                             if (onStartArena) onStartArena();
@@ -461,17 +790,14 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                           }
                         }}
                         style={{
-                          background: S.accent,
+                          background: S.navy,
                           border: "none",
                           color: "#FFFFFF",
                           padding: "5px 12px",
                           borderRadius: "6px",
                           fontSize: "11.5px",
-                          fontWeight: 700,
+                          fontWeight: 600,
                           cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "5px",
                         }}
                       >
                         {al.action || "Take Action"} ↗
@@ -479,23 +805,43 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                     </div>
                   </div>
                 );
-              })
-            ) : (
-              <div style={{ padding: "20px", textAlign: "center", color: S.greenTxt, background: S.greenBg, borderRadius: "8px", border: `1px solid ${S.greenBdr}`, fontSize: "12.5px" }}>
-                ✓ All coursework up to date. No pending submissions or alerts.
+              })}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "15px",
+                padding: "20px",
+                borderRadius: "6px",
+                background: S.greenBg,
+                color: S.greenDk,
+              }}
+            >
+              <CheckCircle2 size={26} color={S.green} style={{ flexShrink: 0 }} />
+              <div style={{ display: "flex", flex: 1, flexDirection: "column", gap: "5px", minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>
+                  All coursework is up to date.
+                </p>
+                <p style={{ margin: 0, fontSize: "12px", lineHeight: 1.5 }}>
+                  No pending submissions or alerts.
+                </p>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+          )}
+        </article>
       </section>
 
-      {/* 4. CURRENT / NEXT CLASS PROMINENT CARD (Admin Style) */}
-      {nextClass ? (
+      {/* ═══════════════════════════════════════════════
+          5. NEXT CLASS PERIOD (When Scheduled)
+      ═══════════════════════════════════════════════ */}
+      {nextClass && (
         <section
           style={{
-            background: S.bg,
+            background: "#fff",
             border: `1px solid ${S.border}`,
-            borderRadius: "12px",
+            borderRadius: "10px",
             padding: "20px 24px",
             display: "flex",
             flexWrap: "wrap",
@@ -509,77 +855,71 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
               <span
                 style={{
                   background: S.greenBg,
-                  color: S.greenTxt,
-                  border: `1px solid ${S.greenBdr}`,
+                  color: S.greenDk,
                   padding: "2px 8px",
-                  borderRadius: "6px",
+                  borderRadius: "4px",
                   fontSize: "11px",
                   fontWeight: 700,
                   textTransform: "uppercase",
-                  letterSpacing: "0.04em",
                 }}
               >
                 NOW / NEXT PERIOD
               </span>
-              <span style={{ fontSize: "12.5px", color: S.muted, fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
-                <Clock size={13} style={{ color: S.faint }} /> Starts in {nextClass.startsInMinutes ?? 15} mins ({nextClass.startTime}–{nextClass.endTime})
+              <span style={{ fontSize: "12px", color: S.slate, display: "flex", alignItems: "center", gap: "4px" }}>
+                <Clock size={13} /> Starts in {nextClass.startsInMinutes ?? 15} mins ({nextClass.startTime}–{nextClass.endTime})
               </span>
             </div>
-            <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: S.ink }}>
-              {nextClass.subject} · <span style={{ fontWeight: 600, color: S.muted }}>{nextClass.topic || "Instructional Period"}</span>
+            <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: S.navy }}>
+              {nextClass.subject} · <span style={{ fontWeight: 500, color: S.slate }}>{nextClass.topic || "Instructional Period"}</span>
             </h3>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px", fontSize: "12px", color: S.faint, marginTop: "2px" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <MapPin size={13} /> Room {nextClass.room || "302"}
-              </span>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px", fontSize: "12px", color: S.slate }}>
+              <span>Room {nextClass.room || "302"}</span>
               <span>•</span>
-              <span>Teacher: <b style={{ color: S.ink }}>{nextClass.teacher || "Faculty"}</b></span>
-              <span>•</span>
-              <span style={{ color: S.greenTxt, fontWeight: 600 }}>Status: {nextClass.lessonStatus || "Active"}</span>
+              <span>Teacher: <b style={{ color: S.navy }}>{nextClass.teacher || "Faculty"}</b></span>
             </div>
           </div>
 
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <button
               onClick={() => onNavigateTab("subjects")}
               style={{
-                background: "#FFFFFF",
-                border: "1px solid #D0D5DD",
-                color: S.ink,
+                background: "#fff",
+                border: `1px solid ${S.line}`,
+                color: S.navy,
                 padding: "8px 14px",
-                borderRadius: "8px",
+                borderRadius: "6px",
                 fontSize: "12px",
-                fontWeight: 650,
+                fontWeight: 600,
                 cursor: "pointer",
               }}
             >
               Subject Hub
             </button>
             <button
-              onClick={() => onOpenLecture ? onOpenLecture() : onNavigateTab("resources")}
+              onClick={() => onNavigateTab("timetable")}
               style={{
-                background: "#FFFFFF",
-                border: "1px solid #D0D5DD",
-                color: S.ink,
+                background: "#fff",
+                border: `1px solid ${S.line}`,
+                color: S.navy,
                 padding: "8px 14px",
-                borderRadius: "8px",
+                borderRadius: "6px",
                 fontSize: "12px",
-                fontWeight: 650,
+                fontWeight: 600,
                 cursor: "pointer",
               }}
             >
-              Study Notes
+              Timetable
             </button>
             <button
-              onClick={() => onStartArena ? onStartArena() : onNavigateTab("arena")}
+              onClick={() => (onStartArena ? onStartArena() : onNavigateTab("arena"))}
               style={{
-                background: S.accent,
-                color: "#FFFFFF",
+                background: S.navy,
+                color: "#fff",
                 border: "none",
                 padding: "8px 16px",
-                borderRadius: "8px",
+                borderRadius: "6px",
                 fontSize: "12px",
-                fontWeight: 700,
+                fontWeight: 600,
                 cursor: "pointer",
               }}
             >
@@ -587,26 +927,51 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             </button>
           </div>
         </section>
-      ) : null}
+      )}
 
-      {/* 5. TODAY'S SCHEDULE & REAL-TIME ACTIVITY RADAR */}
-      <section style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: "20px" }}>
-        {/* Today's Instructional Periods */}
-        <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: "12px", padding: "22px" }}>
+      {/* ═══════════════════════════════════════════════
+          6. TIMETABLE & ACTION ITEMS SPLIT ROW
+      ═══════════════════════════════════════════════ */}
+      <section style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr", gap: "16px" }}>
+        {/* Today's Lectures & Timetable */}
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${S.border}`,
+            borderRadius: "10px",
+            padding: "22px",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: S.ink }}>Today's Instructional Periods</h3>
-              <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.faint }}>Daily academic schedule checkpoints and lecture tracking</p>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Calendar size={16} color={S.navy} />
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: S.navy }}>
+                Today&apos;s Lectures
+              </h3>
             </div>
             <button
               onClick={() => onNavigateTab("timetable")}
-              style={{ background: S.cardRowBg, border: `1px solid ${S.border}`, color: S.ink, padding: "4px 10px", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
+              style={{
+                background: S.chip,
+                border: `1px solid ${S.border}`,
+                color: S.navy,
+                padding: "4px 10px",
+                borderRadius: "6px",
+                fontSize: "11.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
             >
               Weekly Grid <ArrowRight size={13} />
             </button>
           </div>
 
-          <div style={{ display: "grid", gap: "10px" }}>
+          <div style={{ display: "grid", gap: "8px", flex: 1 }}>
             {timetable && timetable.length > 0 ? (
               timetable.map((period: any, idx: number) => {
                 const status = (period.status || "upcoming").toLowerCase();
@@ -615,47 +980,55 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 
                 return (
                   <div
-                    key={period.periodNumber || period.period || idx}
+                    key={idx}
                     style={{
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
-                      padding: "12px 14px",
-                      background: isNow ? S.blueBg : S.cardRowBg,
-                      border: `1px solid ${isNow ? S.blueBdr : S.borderSubtle}`,
-                      borderRadius: "8px",
-                      transition: "all 0.15s ease",
+                      padding: "10px 14px",
+                      background: isNow ? "#e0f2fe" : S.chip,
+                      border: `1px solid ${isNow ? "#bae6fd" : S.border}`,
+                      borderRadius: "6px",
                     }}
                   >
                     <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                       <div
                         style={{
-                          width: "32px",
-                          height: "32px",
-                          borderRadius: "8px",
-                          background: S.bg,
-                          border: `1px solid ${isCompleted ? S.greenBdr : S.borderSubtle}`,
-                          color: isCompleted ? S.greenTxt : S.ink,
+                          width: "30px",
+                          height: "30px",
+                          borderRadius: "6px",
+                          background: "#fff",
+                          border: `1px solid ${isCompleted ? "#ABEFC6" : S.line}`,
+                          color: isCompleted ? "#027A48" : S.navy,
                           display: "grid",
                           placeItems: "center",
-                          fontSize: "11.5px",
-                          fontWeight: 800,
+                          fontSize: "11px",
+                          fontWeight: 700,
                         }}
                       >
                         P{period.periodNumber || period.period || idx + 1}
                       </div>
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <b style={{ fontSize: "13px", color: S.ink }}>
+                          <b style={{ fontSize: "13px", color: S.navy }}>
                             {period.subjectName || period.subject || "Subject"}
                           </b>
                           {isNow && (
-                            <span style={{ fontSize: "10px", fontWeight: 800, background: S.blueTxt, color: "#FFFFFF", padding: "1px 6px", borderRadius: "4px", textTransform: "uppercase" }}>
+                            <span
+                              style={{
+                                fontSize: "9px",
+                                fontWeight: 700,
+                                background: S.navy,
+                                color: "#fff",
+                                padding: "1px 5px",
+                                borderRadius: "3px",
+                              }}
+                            >
                               NOW
                             </span>
                           )}
                         </div>
-                        <div style={{ fontSize: "11.5px", color: S.faint, marginTop: "2px" }}>
+                        <div style={{ fontSize: "11.5px", color: S.slate, marginTop: "2px" }}>
                           {period.startTime ? `${period.startTime} - ${period.endTime}` : (period.time || "09:00 - 09:45")} · {period.teacherName || period.teacher || "Faculty"} (Room {period.room || "302"})
                         </div>
                       </div>
@@ -663,20 +1036,20 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 
                     <div>
                       {isCompleted ? (
-                        <span style={{ background: S.greenBg, color: S.greenTxt, border: `1px solid ${S.greenBdr}`, padding: "3px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          <CheckCircle2 size={12} /> Completed
+                        <span style={{ background: S.greenBg, color: S.greenDk, padding: "3px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 600 }}>
+                          ✓ Completed
                         </span>
                       ) : isNow ? (
                         <button
-                          onClick={() => onOpenLecture ? onOpenLecture() : onNavigateTab("resources")}
-                          style={{ background: S.accent, color: "#FFFFFF", border: "none", padding: "5px 12px", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}
+                          onClick={() => (onOpenLecture ? onOpenLecture() : onNavigateTab("resources"))}
+                          style={{ background: S.navy, color: "#fff", border: "none", padding: "5px 12px", borderRadius: "6px", fontSize: "11.5px", fontWeight: 600, cursor: "pointer" }}
                         >
                           Join Session ↗
                         </button>
                       ) : (
                         <button
                           onClick={() => onNavigateTab("resources")}
-                          style={{ background: S.bg, color: S.ink, border: `1px solid #D0D5DD`, padding: "5px 10px", borderRadius: "6px", fontSize: "11.5px", fontWeight: 650, cursor: "pointer" }}
+                          style={{ background: "#fff", color: S.navy, border: `1px solid ${S.line}`, padding: "4px 10px", borderRadius: "6px", fontSize: "11.5px", fontWeight: 600, cursor: "pointer" }}
                         >
                           Study Notes
                         </button>
@@ -686,88 +1059,262 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                 );
               })
             ) : (
-              <div style={{ padding: "20px", textAlign: "center", color: S.faint, fontSize: "12px" }}>
-                No instructional periods scheduled for today.
+              <div style={{ padding: "28px", textAlign: "center", color: S.slate, fontSize: "12.5px" }}>
+                No instructional lectures scheduled for today.
               </div>
             )}
           </div>
         </div>
 
-        {/* Right Column: Real-Time Activity Feed & Directives */}
-        <div style={{ display: "grid", gap: "20px" }}>
-          {/* Real-Time Learning & Activity Log Feed (§55) */}
-          <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: "12px", padding: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: S.ink }}>Real-Time Learning Activity Feed</h3>
-                <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.faint }}>Live auditable actions logged across homework, arena, and classes</p>
-              </div>
-              <button
-                onClick={() => onNavigateTab("progress")}
-                style={{ background: "transparent", border: "none", color: S.ink, fontWeight: 700, fontSize: "12px", cursor: "pointer" }}
-              >
-                Progress Log ↗
-              </button>
+        {/* Action Items / Pending Tasks */}
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${S.border}`,
+            borderRadius: "10px",
+            padding: "22px",
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <ClipboardList size={16} color={S.navy} />
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 600, color: S.navy }}>
+                Action Items
+              </h3>
             </div>
-
-            <div style={{ display: "grid", gap: "8px" }}>
-              {activityLogs.length > 0 ? (
-                activityLogs.map((item: any, idx: number) => (
-                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: S.cardRowBg, borderRadius: "6px", fontSize: "12.5px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: S.ink }} />
-                      <div>
-                        <b style={{ color: S.ink }}>{item.category || "Academic"}</b> · <span style={{ color: "#334155" }}>{item.text || item.action}</span>
-                      </div>
-                    </div>
-                    <span style={{ fontSize: "11px", color: S.faint, fontWeight: 600 }}>{item.time}</span>
-                  </div>
-                ))
-              ) : (
-                <div style={{ padding: "16px", textAlign: "center", color: S.faint, fontSize: "12px" }}>
-                  No recent learning actions recorded today.
-                </div>
-              )}
-            </div>
+            <span style={{ fontSize: "12px", color: S.slate, fontWeight: 600 }}>
+              {pendingTasks.length} Due
+            </span>
           </div>
 
-          {/* Teacher Directives & Inbox */}
-          <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: "12px", padding: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: S.ink }}>Teacher Directives & In-App Notes</h3>
-                <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.faint }}>Official communications from instructional faculty</p>
-              </div>
-              <button
-                onClick={() => onNavigateTab("communication")}
-                style={{ background: "transparent", border: "none", color: S.ink, fontWeight: 700, fontSize: "12px", cursor: "pointer" }}
-              >
-                Open Inbox ({messages.length}) ↗
-              </button>
-            </div>
-
-            <div style={{ display: "grid", gap: "8px" }}>
-              {messages.length > 0 ? (
-                messages.map((m: any, idx: number) => (
+          <div style={{ display: "grid", gap: "8px", flex: 1 }}>
+            {pendingTasks && pendingTasks.length > 0 ? (
+              pendingTasks.map((task: any) => {
+                const isUrgent = task.priority === "urgent";
+                return (
                   <div
-                    key={idx}
-                    onClick={() => onNavigateTab("communication")}
-                    style={{ padding: "10px 12px", background: S.cardRowBg, borderRadius: "6px", fontSize: "12px", cursor: "pointer", border: `1px solid ${S.borderSubtle}` }}
+                    key={task.id}
+                    style={{
+                      padding: "11px 13px",
+                      borderRadius: "6px",
+                      background: S.chip,
+                      border: `1px solid ${isUrgent ? "#FECDCA" : S.border}`,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "6px",
+                    }}
                   >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "3px" }}>
-                      <b style={{ color: S.ink }}>{m.senderName}</b>
-                      <span style={{ fontSize: "10.5px", color: S.faint }}>{m.date}</span>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.navy }}>
+                        {task.title}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "9.5px",
+                          fontWeight: 700,
+                          textTransform: "uppercase",
+                          padding: "1px 5px",
+                          borderRadius: "3px",
+                          background: isUrgent ? "#FEF3F2" : "#FFFAEB",
+                          color: isUrgent ? "#B42318" : "#B54708",
+                        }}
+                      >
+                        {task.priority || "Normal"}
+                      </span>
                     </div>
-                    <div style={{ fontWeight: 600, color: S.ink, marginBottom: "2px" }}>{m.subjectLine}</div>
-                    <p style={{ margin: 0, color: S.muted, fontSize: "11.5px", lineHeight: 1.4 }}>{m.body}</p>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontSize: "11px", color: S.slate }}>
+                        Due: {task.dueDate || "Upcoming"}
+                      </span>
+                      <button
+                        onClick={() => {
+                          if (task.type === "assignment") {
+                            if (onSubmitAssignment) onSubmitAssignment(task);
+                            else onNavigateTab("assignments");
+                          } else {
+                            if (onStartArena) onStartArena(task);
+                            else onNavigateTab("arena");
+                          }
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: S.navy,
+                          fontWeight: 700,
+                          fontSize: "11.5px",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "3px",
+                        }}
+                      >
+                        Start <ArrowRight size={12} />
+                      </button>
+                    </div>
                   </div>
-                ))
-              ) : (
-                <div style={{ padding: "14px", textAlign: "center", color: S.faint, fontSize: "12px" }}>
-                  No unread directives recorded from teachers.
+                );
+              })
+            ) : (
+              <div style={{ padding: "28px", textAlign: "center", color: S.slate, fontSize: "12px" }}>
+                ✓ No pending tasks or assignments due.
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════
+          7. ACADEMIC RADAR & NOTICES (If Alerts Exist)
+      ═══════════════════════════════════════════════ */}
+      {alerts && alerts.length > 0 && (
+        <section style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <h3 style={{ margin: 0, fontSize: "12px", fontWeight: 700, color: S.slate, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+            Academic Radar & Notices
+          </h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" }}>
+            {alerts.map((alert: any) => (
+              <div
+                key={alert.id}
+                style={{
+                  padding: "12px 14px",
+                  borderRadius: "8px",
+                  border: "1px solid #FEDF89",
+                  background: "#FFFAEB",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: "10px",
+                }}
+              >
+                <AlertCircle size={16} color="#B54708" style={{ flexShrink: 0, marginTop: "2px" }} />
+                <div>
+                  <h4 style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#7A2E0E" }}>
+                    {alert.title}
+                  </h4>
+                  <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#93370D" }}>
+                    {alert.message}
+                  </p>
                 </div>
-              )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          8. REAL-TIME ACTIVITY & TEACHER DIRECTIVES
+      ═══════════════════════════════════════════════ */}
+      <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+        {/* Real-time Activity Feed */}
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${S.border}`,
+            borderRadius: "10px",
+            padding: "20px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <Activity size={16} color={S.navy} />
+              <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: S.navy }}>
+                Recent Learning Activity
+              </h3>
             </div>
+            <button
+              onClick={() => onNavigateTab("progress")}
+              style={{ background: "transparent", border: "none", color: S.navy, fontWeight: 600, fontSize: "11.5px", cursor: "pointer" }}
+            >
+              Full Log ↗
+            </button>
+          </div>
+
+          <div style={{ display: "grid", gap: "8px" }}>
+            {activityLogs && activityLogs.length > 0 ? (
+              activityLogs.slice(0, 4).map((item: any, idx: number) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "9px 12px",
+                    background: S.chip,
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: S.navy }} />
+                    <span style={{ color: S.navy, fontWeight: 500 }}>{item.text || item.action}</span>
+                  </div>
+                  <span style={{ fontSize: "10.5px", color: S.faint }}>
+                    {item.time ? new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Today"}
+                  </span>
+                </div>
+              ))
+            ) : (
+              <div style={{ padding: "16px", textAlign: "center", color: S.slate, fontSize: "12px" }}>
+                No recent activity logged today.
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Teacher Directives */}
+        <div
+          style={{
+            background: "#fff",
+            border: `1px solid ${S.border}`,
+            borderRadius: "10px",
+            padding: "20px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <MessageSquare size={16} color={S.navy} />
+              <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: S.navy }}>
+                Teacher Directives & Notes
+              </h3>
+            </div>
+            <button
+              onClick={() => onNavigateTab("communication")}
+              style={{ background: "transparent", border: "none", color: S.navy, fontWeight: 600, fontSize: "11.5px", cursor: "pointer" }}
+            >
+              Inbox ({messages.length}) ↗
+            </button>
+          </div>
+
+          <div style={{ display: "grid", gap: "8px" }}>
+            {messages && messages.length > 0 ? (
+              messages.slice(0, 3).map((m: any, idx: number) => (
+                <div
+                  key={idx}
+                  onClick={() => onNavigateTab("communication")}
+                  style={{
+                    padding: "9px 12px",
+                    background: S.chip,
+                    borderRadius: "6px",
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    border: `1px solid ${S.border}`,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
+                    <b style={{ color: S.navy }}>{m.senderName || "Teacher"}</b>
+                    <span style={{ fontSize: "10.5px", color: S.faint }}>{m.date || "Recent"}</span>
+                  </div>
+                  <p style={{ margin: 0, color: S.slate, fontSize: "11.5px", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {m.subjectLine || m.body || "Class directive"}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div style={{ padding: "16px", textAlign: "center", color: S.slate, fontSize: "12px" }}>
+                No unread directives from teachers.
+              </div>
+            )}
           </div>
         </div>
       </section>

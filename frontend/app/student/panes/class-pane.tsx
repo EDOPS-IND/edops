@@ -1,8 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Users, Megaphone, User, ShieldCheck } from 'lucide-react';
+import { Users, Megaphone, User, ShieldCheck, School, DoorOpen } from 'lucide-react';
 import { getStudentClass } from '../../edops-api';
+
+const T = {
+  navy: '#0c1e33',
+  slate: '#495d72',
+  muted: '#a6abb5',
+  faint: '#b3b3b3',
+  pageBg: '#f4f6f7',
+  white: '#ffffff',
+  border: '#e4e6e9',
+  line: '#ced8e5',
+  chip: '#f5f6f8',
+  blue: '#17a1fa',
+  track: '#eceef3',
+  greenBg: '#d9eed1',
+  green: '#61a249',
+  greenDark: '#1a5c0a',
+};
 
 interface ClassPaneProps {
   organizationId: string;
@@ -29,101 +46,364 @@ export const ClassPane: React.FC<ClassPaneProps> = ({ organizationId }) => {
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading class information...</div>;
+    return (
+      <div style={{ padding: '48px 0', textAlign: 'center', color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 12px',
+          }}
+        />
+        <p style={{ fontSize: '13px', fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading class information...
+        </p>
+      </div>
+    );
   }
 
-  const classInfo = data?.classInfo || { className: "", academicYear: "", classTeacher: "", roomNumber: "", studentCount: 0, subjectsCount: 0 };
+  const classInfo = data?.classInfo || {
+    className: '',
+    academicYear: '',
+    classTeacher: '',
+    roomNumber: '',
+    studentCount: 0,
+    subjectsCount: 0,
+  };
 
   const classmates = data?.classmates || [];
   const announcements = data?.announcements || [];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-900">My Class Hub</h2>
-        <p className="text-sm text-slate-500">Official cohort registration, class leadership, and peer directory.</p>
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Cohort Registration
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            My Class Hub
+          </h2>
+          <p style={{ margin: 0, fontSize: '13px', color: T.slate, lineHeight: 1.5 }}>
+            Official cohort registration, class leadership, and peer directory.
+          </p>
+        </div>
+        <div
+          style={{
+            padding: '4px 10px',
+            borderRadius: '100px',
+            background: T.chip,
+            fontSize: '10px',
+            fontWeight: 600,
+            color: T.slate,
+          }}
+        >
+          {classInfo.className} · AY {classInfo.academicYear}
+        </div>
       </div>
 
-      {/* Class Meta Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500 uppercase">Enrolled Section</span>
-          <div className="text-xl font-bold text-slate-900 mt-1">{classInfo.className}</div>
-          <p className="text-xs text-slate-400 mt-1">AY {classInfo.academicYear}</p>
-        </div>
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500 uppercase">Class Teacher</span>
-          <div className="text-xl font-bold text-slate-900 mt-1">{classInfo.classTeacher}</div>
-          <p className="text-xs text-slate-400 mt-1">Senior Mathematics Faculty</p>
-        </div>
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500 uppercase">Home Classroom</span>
-          <div className="text-xl font-bold text-indigo-600 mt-1">Room {classInfo.roomNumber}</div>
-          <p className="text-xs text-slate-400 mt-1">Main Academic Wing</p>
-        </div>
-        <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-xs">
-          <span className="text-xs font-semibold text-slate-500 uppercase">Cohort Size</span>
-          <div className="text-xl font-bold text-slate-900 mt-1">{classInfo.studentCount} Students</div>
-          <p className="text-xs text-slate-400 mt-1">{classInfo.subjectsCount} Prescribed Subjects</p>
-        </div>
-      </div>
-
-      {/* Class Announcements */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center gap-2">
-          <Megaphone className="w-4 h-4 text-indigo-600" />
-          <h3 className="font-bold text-slate-900 text-sm">Official Class Notices & Bulletins</h3>
-        </div>
-        <div className="divide-y divide-slate-100">
-          {announcements.map((ann: any) => (
-            <div key={ann.id} className="p-4 space-y-1 hover:bg-slate-50 transition-colors">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-slate-900">{ann.title}</h4>
-                <span className="text-[11px] text-slate-400">{ann.date}</span>
-              </div>
-              <p className="text-xs text-slate-600">{ann.content}</p>
-              <p className="text-[11px] text-slate-400 pt-1">Posted by: {ann.author}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Classmate Directory (Privacy Protected: Only Name & Roll Number) */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-slate-600" />
-            <h3 className="font-bold text-slate-900 text-sm">Classmate Roster</h3>
+      {/* 2. Top Metric Cards - DESIGN.md Section 2.1 */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '12px',
+        }}
+      >
+        {/* Enrolled Section (Pastel Violet) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            height: '148px',
+            padding: '20px',
+            background: '#e1d2ff',
+            border: '1px solid #e1d2ff',
+            borderRadius: '10px',
+            color: '#4a0e8f',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Enrolled Section
+            </span>
+            <School size={18} />
           </div>
-          <span className="text-xs text-slate-400 flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Privacy Guard Active (No personal contacts exposed)</span>
+          <p style={{ margin: 0, fontSize: '36px', fontWeight: 700, lineHeight: 1, color: '#4a0e8f' }}>
+            {classInfo.className || '10-A'}
+          </p>
+          <p style={{ margin: 0, fontSize: '11px', color: '#4a0e8f' }}>
+            Academic Year {classInfo.academicYear}
+          </p>
+        </div>
+
+        {/* Class Teacher (Pastel Warm Amber) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            height: '148px',
+            padding: '20px',
+            background: '#fde1ac',
+            border: '1px solid #fde1ac',
+            borderRadius: '10px',
+            color: '#7a4a00',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Class Teacher
+            </span>
+            <User size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: '20px', fontWeight: 700, color: '#7a4a00', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {classInfo.classTeacher || 'Senior Faculty'}
+          </p>
+          <p style={{ margin: 0, fontSize: '11px', color: '#7a4a00' }}>
+            Class Counselor & Academic Mentor
+          </p>
+        </div>
+
+        {/* Home Classroom (Pastel Mint) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            height: '148px',
+            padding: '20px',
+            background: '#ccefbf',
+            border: '1px solid #ccefbf',
+            borderRadius: '10px',
+            color: '#1a5c0a',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Home Classroom
+            </span>
+            <DoorOpen size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: '36px', fontWeight: 700, lineHeight: 1, color: '#1a5c0a' }}>
+            {classInfo.roomNumber ? `Room ${classInfo.roomNumber}` : 'Room 302'}
+          </p>
+          <p style={{ margin: 0, fontSize: '11px', color: '#1a5c0a' }}>
+            Main Academic Building Wing
+          </p>
+        </div>
+
+        {/* Cohort Size (Academic Navy) */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'space-between',
+            height: '148px',
+            padding: '20px',
+            background: T.navy,
+            border: `1px solid ${T.navy}`,
+            borderRadius: '10px',
+            color: T.muted,
+            boxSizing: 'border-box',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Cohort Size
+            </span>
+            <Users size={18} color={T.muted} />
+          </div>
+          <p style={{ margin: 0, fontSize: '36px', fontWeight: 700, lineHeight: 1, color: '#ffffff' }}>
+            {classInfo.studentCount}
+          </p>
+          <p style={{ margin: 0, fontSize: '11px', color: T.muted }}>
+            Students registered in Section
+          </p>
+        </div>
+      </div>
+
+      {/* 3. Official Class Notices Card */}
+      <div
+        style={{
+          background: T.white,
+          border: `1px solid ${T.border}`,
+          borderRadius: '10px',
+          overflow: 'hidden',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div
+          style={{
+            padding: '18px 24px',
+            borderBottom: `1px solid ${T.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+          }}
+        >
+          <Megaphone size={18} color={T.navy} />
+          <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: T.navy }}>
+            Official Class Notices & Bulletins
+          </h3>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {announcements.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', fontSize: '13px', color: T.slate }}>
+              No current class notices posted.
+            </div>
+          ) : (
+            announcements.map((ann: any, idx: number) => (
+              <div
+                key={ann.id || idx}
+                style={{
+                  padding: '16px 24px',
+                  borderBottom: idx === announcements.length - 1 ? 'none' : `1px solid ${T.border}`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                  background: idx % 2 === 0 ? T.white : '#fcfdfe',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: T.navy }}>
+                    {ann.title}
+                  </h4>
+                  <span style={{ fontSize: '11px', color: T.faint }}>{ann.date}</span>
+                </div>
+                <p style={{ margin: 0, fontSize: '13px', color: T.slate, lineHeight: 1.5 }}>
+                  {ann.content}
+                </p>
+                <p style={{ margin: 0, fontSize: '11px', color: T.faint, paddingTop: '4px' }}>
+                  Posted by: {ann.author || 'Class Administration'}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* 4. Classmate Roster Card */}
+      <div
+        style={{
+          background: T.white,
+          border: `1px solid ${T.border}`,
+          borderRadius: '10px',
+          padding: '20px 24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Users size={18} color={T.navy} />
+            <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: T.navy }}>
+              Classmate Roster
+            </h3>
+          </div>
+          <span
+            style={{
+              padding: '4px 10px',
+              borderRadius: '100px',
+              background: T.greenBg,
+              color: T.greenDark,
+              fontSize: '10px',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <ShieldCheck size={12} />
+            Privacy Guard Active
           </span>
         </div>
-        <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {classmates.map((mate: any, idx: number) => (
-            <div
-              key={idx}
-              className={`p-3 rounded-xl border flex items-center gap-3 transition-colors ${
-                mate.isSelf
-                  ? 'bg-indigo-50/80 border-indigo-200 text-indigo-900 font-bold'
-                  : 'bg-slate-50/60 border-slate-200/80 text-slate-800'
-              }`}
-            >
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '10px',
+          }}
+        >
+          {classmates.map((mate: any, idx: number) => {
+            const isSelf = !!mate.isSelf;
+            return (
               <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                  mate.isSelf ? 'bg-indigo-600 text-white' : 'bg-slate-200 text-slate-700'
-                }`}
+                key={idx}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: '6px',
+                  border: isSelf ? `1px solid ${T.navy}` : `1px solid ${T.border}`,
+                  background: isSelf ? '#f0f4f8' : T.pageBg,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                }}
               >
-                {mate.rollNumber}
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: isSelf ? T.navy : T.chip,
+                    color: isSelf ? '#ffffff' : T.navy,
+                    border: `1px solid ${T.border}`,
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    display: 'grid',
+                    placeItems: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {mate.rollNumber}
+                </div>
+                <div style={{ overflow: 'hidden' }}>
+                  <div style={{ fontSize: '13px', fontWeight: isSelf ? 700 : 500, color: T.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {mate.name} {isSelf && '(You)'}
+                  </div>
+                  <div style={{ fontSize: '11px', color: T.slate }}>
+                    Roll No. {mate.rollNumber}
+                  </div>
+                </div>
               </div>
-              <div className="truncate">
-                <div className="text-xs truncate font-medium">{mate.name}</div>
-                <div className="text-[10px] text-slate-400">Roll No. {mate.rollNumber}</div>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

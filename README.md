@@ -2,6 +2,17 @@
 
 B2B multi-tenant LMS sold to schools and education organizations.
 
+## Quick Start
+
+Start all services (Database, Backend, Frontend) with one command:
+
+```bash
+npm start
+# or: bash start.sh
+```
+
+Pre-seeded demo credentials for all roles (Super Admin, School Admin, Principal, Teacher, Student, Parent) are documented in [ACCOUNTS.md](ACCOUNTS.md). Password is the same as the email address for all demo accounts.
+
 The NestJS backend implements Milestones 1-6: onboarding, authentication,
 academic structure, teacher/student provisioning, enrollment lifecycle,
 assignments, submissions, attendance, stored scorecards, tenant-scoped settings,

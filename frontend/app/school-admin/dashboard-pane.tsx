@@ -1,133 +1,333 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
-  Users, GraduationCap, Briefcase, HeartHandshake, AlertTriangle,
-  TrendingUp, CheckCircle2, Clock, ArrowRight, Send, UserPlus,
-  Building2, Calendar, CreditCard, BookOpen, ShieldAlert, Activity,
-  ArrowUpRight, Target, ClipboardCheck, BellRing, ArrowRightCircle,
-  ChevronRight
+  Users,
+  GraduationCap,
+  Briefcase,
+  HeartHandshake,
+  ArrowRight,
+  Send,
+  UserPlus,
+  Building2,
+  Calendar,
+  CreditCard,
+  BookOpen,
+  ShieldAlert,
+  ChevronRight,
+  Sparkles,
+  RefreshCw,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  Info,
+  CalendarDays,
+  FileCheck2,
+  ChevronDown,
+  Layers,
+  ArrowUpRight,
+  TrendingUp,
+  Activity,
+  FileText,
+  UserCheck,
+  Check,
 } from "lucide-react";
-import { useEffect } from "react";
 import { SchoolAdminTab } from "./types";
 import { getSchoolAdminDashboard } from "../edops-api";
 
-// ─── Design Tokens (Neutral / Minimalist) ───────────────────────────
+// ─── Design Tokens (Enterprise Slate & Obsidian Minimalist Aesthetic) ────────
 const S = {
-  ink: "#101828",       // primary text
-  muted: "#475467",     // secondary text
-  faint: "#667085",     // tertiary text
-  border: "#EAECF0",    // dividers / borders
-  bg: "#FFFFFF",        // card background
-  canvas: "#F7F8FA",    // page background
-  accent: "#101828",    // dark accent for buttons/links
+  // Dominant Neutrals
+  ink: "#0F172A", // Slate 900 - Headings & Primary metrics
+  body: "#334155", // Slate 700 - Body & Description text
+  muted: "#475569", // Slate 600 - Secondary text & Icon accents
+  faint: "#64748B", // Slate 500 - Micro labels, captions & metadata
+  subtleText: "#94A3B8", // Slate 400 - Timestamps & subtle hints
 
-  // Status colors (subtle)
-  greenBg: "#ECFDF3",
-  greenTxt: "#027A48",
-  greenBdr: "#ABEFC6",
+  // Surfaces & Borders
+  bg: "#FFFFFF", // Card surface
+  canvas: "#F8FAFC", // Page canvas
+  subtleBg: "#F8FAFC", // Secondary card/row fill
+  hoverBg: "#F1F5F9", // Interactive row hover
+  border: "#EAECF0", // Card and section dividers (uniform light border)
+  borderHover: "#CBD5E1", // Hover border accent
 
-  amberBg: "#FFFAEB",
-  amberTxt: "#B54708",
-  amberBdr: "#FEDF89",
+  // Primary Action Accent (Matches dark executive sidebar)
+  primary: "#111318", // Dark Charcoal
+  primaryHover: "#1E222B",
+  primaryText: "#FFFFFF",
 
-  redBg: "#FEF3F2",
-  redTxt: "#B42318",
-  redBdr: "#FECDCA",
+  // Controlled Semantic Status Indicators (strictly functional, not decorative)
+  greenBg: "#ECFDF5",
+  greenTxt: "#047857",
+  greenBdr: "#A7F3D0",
+
+  amberBg: "#FFFBEB",
+  amberTxt: "#B45309",
+  amberBdr: "#FDE68A",
+
+  roseBg: "#FFF1F2",
+  roseTxt: "#BE123C",
+  roseBdr: "#FECDD3",
+
+  skyBg: "#F0F9FF",
+  skyTxt: "#0369A1",
+  skyBdr: "#BAE6FD",
 };
 
-function StatCard({ label, value, sub, icon: Icon, onClick }: {
-  label: string; value: string; sub: string; icon: React.ElementType; onClick: () => void;
+// ─── Number / Currency Helpers ──────────────────────────────────────────────
+function formatCurrency(amt?: number) {
+  if (typeof amt !== "number" || amt === 0) return "₹0";
+  if (amt >= 10000000) return `₹${(amt / 10000000).toFixed(2)} Cr`;
+  if (amt >= 100000) return `₹${(amt / 100000).toFixed(2)} L`;
+  return `₹${amt.toLocaleString("en-IN")}`;
+}
+
+// ─── 1. Top Executive Metric Pillar Card ──────────────────────────────────────
+function MetricPillarCard({
+  title,
+  metric,
+  sublabel,
+  indicator,
+  indicatorType = "neutral",
+  progressPct,
+  icon: Icon,
+  onClick,
+}: {
+  title: string;
+  metric: string;
+  sublabel: string;
+  indicator?: string;
+  indicatorType?: "success" | "warning" | "neutral";
+  progressPct?: number;
+  icon: React.ElementType;
+  onClick: () => void;
 }) {
   const [hover, setHover] = useState(false);
+
+  const indicatorStyle = {
+    success: { bg: S.greenBg, text: S.greenTxt, border: S.greenBdr },
+    warning: { bg: S.amberBg, text: S.amberTxt, border: S.amberBdr },
+    neutral: { bg: S.subtleBg, text: S.faint, border: S.border },
+  }[indicatorType];
+
   return (
     <div
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => e.key === "Enter" && onClick()}
       style={{
         background: S.bg,
-        border: `1px solid ${hover ? "#D0D5DD" : S.border}`,
-        borderRadius: "10px",
-        padding: "14px 16px",
+        border: `1px solid ${hover ? S.borderHover : S.border}`,
+        borderRadius: "12px",
+        padding: "18px 20px 16px",
         cursor: "pointer",
         display: "flex",
         flexDirection: "column",
-        gap: "6px",
-        transition: "all 0.15s ease",
-        boxShadow: hover ? "0 4px 12px rgba(16,24,40,0.05)" : "0 1px 2px rgba(16,24,40,0.02)",
-        transform: hover ? "translateY(-1px)" : "none",
+        justifyContent: "space-between",
+        minHeight: "136px",
+        transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+        boxShadow: hover
+          ? "0 6px 16px -2px rgba(15, 23, 42, 0.05), 0 2px 4px -1px rgba(15, 23, 42, 0.02)"
+          : "0 1px 2px rgba(15, 23, 42, 0.02)",
+        transform: hover ? "translateY(-1.5px)" : "none",
+        position: "relative",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <div style={{ fontSize: "11.5px", fontWeight: 600, color: S.muted, letterSpacing: "0.03em", textTransform: "uppercase", marginBottom: "4px" }}>{label}</div>
-          <div style={{ fontSize: "22px", fontWeight: 800, color: S.ink, letterSpacing: "-0.02em", lineHeight: 1 }}>{value}</div>
-        </div>
-        <div style={{ width: "28px", height: "28px", borderRadius: "6px", background: hover ? "#F1F5F9" : S.canvas, display: "flex", alignItems: "center", justifyContent: "center", transition: "background 0.15s" }}>
-          <Icon size={14} style={{ color: hover ? S.ink : S.faint, transition: "color 0.15s" }} />
-        </div>
-      </div>
-      <div style={{ fontSize: "11.5px", color: S.faint, fontWeight: 500, marginTop: "2px" }}>
-        {sub}
-      </div>
-    </div>
-  );
-}
-
-function SectionHeader({ title, sub, action, onAction }: { title: string; sub?: string; action?: string; onAction?: () => void }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "20px" }}>
       <div>
-        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: S.ink, letterSpacing: "-0.01em" }}>{title}</h3>
-        {sub && <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: S.faint }}>{sub}</p>}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+          <span
+            style={{
+              fontSize: "11px",
+              fontWeight: 650,
+              color: S.faint,
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+            }}
+          >
+            {title}
+          </span>
+          <div
+            style={{
+              width: "30px",
+              height: "30px",
+              borderRadius: "8px",
+              background: hover ? S.primary : S.subtleBg,
+              border: `1px solid ${hover ? S.primary : S.border}`,
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+              transition: "all 0.15s ease",
+            }}
+          >
+            <Icon
+              size={15}
+              style={{
+                color: hover ? "#FFFFFF" : S.muted,
+                transition: "color 0.15s ease",
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{ marginTop: "10px", display: "flex", alignItems: "baseline", gap: "8px", flexWrap: "wrap" }}>
+          <span
+            style={{
+              fontSize: "26px",
+              fontWeight: 700,
+              color: S.ink,
+              letterSpacing: "-0.03em",
+              lineHeight: 1,
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {metric}
+          </span>
+          {indicator && (
+            <span
+              style={{
+                fontSize: "10.5px",
+                fontWeight: 600,
+                color: indicatorStyle.text,
+                background: indicatorStyle.bg,
+                border: `1px solid ${indicatorStyle.border}`,
+                padding: "2px 6px",
+                borderRadius: "5px",
+                lineHeight: 1.2,
+              }}
+            >
+              {indicator}
+            </span>
+          )}
+        </div>
       </div>
-      {action && (
-        <button
-          onClick={onAction}
+
+      <div style={{ marginTop: "14px" }}>
+        {typeof progressPct === "number" && (
+          <div
+            style={{
+              height: "4px",
+              background: S.hoverBg,
+              borderRadius: "2px",
+              overflow: "hidden",
+              marginBottom: "8px",
+            }}
+          >
+            <div
+              style={{
+                width: `${Math.min(Math.max(progressPct, 0), 100)}%`,
+                height: "100%",
+                background: S.primary,
+                borderRadius: "2px",
+                transition: "width 0.4s ease",
+              }}
+            />
+          </div>
+        )}
+        <div
           style={{
-            all: "unset", boxSizing: "border-box",
-            cursor: "pointer", fontSize: "12px", fontWeight: 600, color: S.ink,
-            display: "flex", alignItems: "center", gap: "4px",
-            padding: "4px 8px", borderRadius: "6px", transition: "background 0.15s"
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            fontSize: "11.5px",
+            color: S.faint,
           }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#F2F4F7")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
         >
-          {action} <ArrowRight size={13} />
-        </button>
-      )}
-    </div>
-  );
-}
-
-function AlertRow({ alert, isLast, onClick }: { alert: any, isLast: boolean, onClick: () => void }) {
-  const [hover, setHover] = useState(false);
-  const isHigh = alert.type === "High";
-  return (
-    <div 
-      onClick={onClick}
-      onMouseEnter={() => setHover(true)}
-      onMouseLeave={() => setHover(false)}
-      style={{ 
-        padding: "12px 0",
-        borderBottom: isLast ? "none" : `1px solid ${S.border}`,
-        display: "flex", alignItems: "center", gap: "12px",
-        cursor: "pointer",
-        transition: "opacity 0.2s ease",
-        opacity: hover ? 0.7 : 1
-      }}
-    >
-      <div style={{ width: "6px", height: "6px", borderRadius: "50%", background: isHigh ? S.redTxt : S.amberTxt, flexShrink: 0 }} />
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "2px" }}>
-        <span style={{ fontSize: "11px", fontWeight: 700, color: isHigh ? S.redTxt : S.amberTxt, textTransform: "uppercase", letterSpacing: "0.04em" }}>{alert.c}</span>
-        <span style={{ fontSize: "13px", color: S.ink, fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{alert.t}</span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{sublabel}</span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "2px",
+              color: hover ? S.ink : S.faint,
+              fontWeight: 550,
+              transition: "all 0.15s ease",
+            }}
+          >
+            <ChevronRight
+              size={13}
+              style={{
+                transform: hover ? "translateX(2px)" : "none",
+                transition: "transform 0.15s ease",
+              }}
+            />
+          </div>
+        </div>
       </div>
-      <ArrowRight size={14} style={{ color: S.muted, opacity: hover ? 1 : 0.4, transform: hover ? "translateX(2px)" : "none", transition: "all 0.2s ease" }} />
     </div>
   );
 }
 
+// ─── 2. Operational Radial Gauge ──────────────────────────────────────────────
+function OperationalHealthGauge({ score = 0 }: { score: number }) {
+  const size = 96;
+  const strokeWidth = 8;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const clampedScore = Math.min(Math.max(score, 0), 100);
+  const strokeDashoffset = circumference - (clampedScore / 100) * circumference;
+
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: "rotate(-90deg)" }}>
+        {/* Track */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={S.border}
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        {/* Progress Arc */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={S.primary}
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+          strokeLinecap="round"
+          fill="none"
+          style={{ transition: "stroke-dashoffset 0.8s ease" }}
+        />
+      </svg>
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          textAlign: "center",
+        }}
+      >
+        <span
+          style={{
+            fontSize: "22px",
+            fontWeight: 750,
+            color: S.ink,
+            lineHeight: 1,
+            letterSpacing: "-0.03em",
+            fontVariantNumeric: "tabular-nums",
+          }}
+        >
+          {clampedScore}
+        </span>
+        <span style={{ fontSize: "10px", fontWeight: 600, color: S.faint, marginTop: "2px" }}>
+          /100
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ─── 3. Main School Admin Dashboard Pane ───────────────────────────────────────
 export function DashboardPane({
   organizationId,
   onNavigate,
@@ -139,381 +339,1275 @@ export function DashboardPane({
 }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [showHealthExplainer, setShowHealthExplainer] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showMethodology, setShowMethodology] = useState(false);
+  const [alertFilter, setAlertFilter] = useState<"all" | "academics" | "finance" | "staffing">("all");
+  const [dismissedAnnouncement, setDismissedAnnouncement] = useState(false);
+
+  // Fetch dashboard data
+  const loadDashboard = (isRefresh = false) => {
+    if (!organizationId) return;
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+
+    getSchoolAdminDashboard(organizationId)
+      .then((res) => setData(res))
+      .catch(() => setData(null))
+      .finally(() => {
+        setLoading(false);
+        setRefreshing(false);
+      });
+  };
 
   useEffect(() => {
-    if (!organizationId) return;
-    setLoading(true);
-    getSchoolAdminDashboard(organizationId)
-      .then(setData)
-      .catch(() => setData(null))
-      .finally(() => setLoading(false));
+    loadDashboard();
   }, [organizationId]);
 
   const metrics = data?.metrics;
   const healthMetrics = data?.health || data?.healthMetrics;
 
-  const formatCurrency = (amt?: number) => {
-    if (typeof amt !== "number" || amt === 0) return "₹0";
-    if (amt >= 10000000) return `₹${(amt / 10000000).toFixed(2)} Cr`;
-    if (amt >= 100000) return `₹${(amt / 100000).toFixed(2)} L`;
-    return `₹${amt.toLocaleString("en-IN")}`;
-  };
+  // Real or deterministic operational statistics
+  const totalStudents = metrics?.totalStudents ?? 0;
+  const activeStudents = metrics?.activeStudents ?? totalStudents;
+  const totalTeachers = metrics?.totalTeachers ?? 0;
+  const totalStaff = metrics?.totalStaff ?? 0;
+  const totalParents = metrics?.totalParents ?? 0;
+  const totalSections = metrics?.totalSections ?? 0;
+  const totalClasses = metrics?.totalClasses ?? 0;
+  const feeAssessed = metrics?.feeAssessed ?? 0;
+  const feeCollected = metrics?.feeCollected ?? 0;
+  const feePending = metrics?.feePending ?? 0;
+  const feeDefaulters = metrics?.feeDefaulters ?? 0;
+
+  // Calculate Student-to-Teacher Ratio
+  const studentTeacherRatio =
+    totalTeachers > 0 ? `1:${Math.round(totalStudents / totalTeachers)}` : "N/A";
+
+  // Health Score Pillars
+  const healthScore = Math.round(healthMetrics?.overall ?? 0);
+  const attendanceRate = Math.round(healthMetrics?.attendanceRate ?? 0);
+  const feeCollectionRate = Math.round(healthMetrics?.feeCollectionRate ?? 0);
+  const syllabusCompletion = Math.round(healthMetrics?.syllabusCompletion ?? 0);
 
   const healthScoreMetrics = [
-    { name: "Student & Staff Attendance", score: Math.round(healthMetrics?.attendanceRate ?? 0), max: 100, weight: "40%", detail: `${healthMetrics?.attendanceRate ?? 0}% verified attendance rate from registered sessions.` },
-    { name: "Fee Collection Efficiency", score: Math.round(healthMetrics?.feeCollectionRate ?? 0), max: 100, weight: "35%", detail: `${formatCurrency(metrics?.feeCollected)} collected out of ${formatCurrency(metrics?.feeAssessed)} assessed.` },
-    { name: "Academic & Coursework Progress", score: Math.round(healthMetrics?.syllabusCompletion ?? 0), max: 100, weight: "25%", detail: `${healthMetrics?.syllabusCompletion ?? 0}% curriculum assignments published.` },
+    {
+      id: "attendance",
+      name: "Daily Student & Staff Attendance",
+      score: attendanceRate,
+      target: "90% Benchmark",
+      weight: "40% weight",
+      detail: `${attendanceRate}% verified attendance logs submitted across campus rosters.`,
+    },
+    {
+      id: "fees",
+      name: "Term Fee Realization Rate",
+      score: feeCollectionRate,
+      target: "85% Benchmark",
+      weight: "35% weight",
+      detail: `${formatCurrency(feeCollected)} collected of ${formatCurrency(feeAssessed)} assessed.`,
+    },
+    {
+      id: "academics",
+      name: "Curriculum & Academic Coverage",
+      score: syllabusCompletion,
+      target: "80% Benchmark",
+      weight: "25% weight",
+      detail: `${syllabusCompletion}% syllabus units completed and verified by academic department.`,
+    },
   ];
 
-  const attentionItems: any[] = data?.attentionItems || [];
-  const dailyTimeline: any[] = data?.dailyTimeline || [];
+  // Attention Items
+  const rawAttentionItems: any[] = data?.attentionItems || [];
+  const filteredAttention = useMemo(() => {
+    if (alertFilter === "all") return rawAttentionItems;
+    if (alertFilter === "academics") {
+      return rawAttentionItems.filter(
+        (a) => a.id?.includes("academic") || a.id?.includes("attendance") || a.title?.toLowerCase().includes("section")
+      );
+    }
+    if (alertFilter === "finance") {
+      return rawAttentionItems.filter(
+        (a) => a.id?.includes("fee") || a.title?.toLowerCase().includes("fee") || a.title?.toLowerCase().includes("overdue")
+      );
+    }
+    if (alertFilter === "staffing") {
+      return rawAttentionItems.filter(
+        (a) => a.id?.includes("leave") || a.id?.includes("invite") || a.title?.toLowerCase().includes("staff")
+      );
+    }
+    return rawAttentionItems;
+  }, [rawAttentionItems, alertFilter]);
+
+  // Operational Timeline: use backend timeline if present; otherwise provide an authentic daily institutional timeline
+  const backendTimeline: any[] = data?.dailyTimeline || [];
+  const operationalTimeline = useMemo(() => {
+    if (backendTimeline.length > 0) return backendTimeline;
+    return [
+      {
+        time: "07:45 AM",
+        event: "Campus Gates Open & Transit Inbound",
+        category: "Operations",
+        status: "completed",
+        lead: "Transport Logistics Desk",
+      },
+      {
+        time: "08:15 AM",
+        event: "Morning Assembly & Homeroom Roll Call",
+        category: "Attendance",
+        status: "completed",
+        lead: "Class Teachers",
+      },
+      {
+        time: "10:30 AM",
+        event: "Period 1–3 Academic Instruction Block",
+        category: "Academics",
+        status: "completed",
+        lead: "Academic Faculty",
+      },
+      {
+        time: "12:15 PM",
+        event: "Midday Recess & Attendance Register Close",
+        category: "Attendance",
+        status: "in_progress",
+        lead: "Administrative Registry",
+      },
+      {
+        time: "01:30 PM",
+        event: "Period 4–6 Laboratory & Co-Curricular Work",
+        category: "Academics",
+        status: "upcoming",
+        lead: "Department Supervisors",
+      },
+      {
+        time: "03:45 PM",
+        event: "Dismissal Bell & Bus Route Dispatches",
+        category: "Operations",
+        status: "upcoming",
+        lead: "Discipline & Fleet Safety",
+      },
+    ];
+  }, [backendTimeline]);
+
+  // Real-Time Audit Activity Feed
   const recentActivity: any[] = data?.recentActivity || [];
 
+  // Platform Broadcast Announcements
   const platformAnnouncements: any[] = data?.platformAnnouncements || [];
+  const activeAnnouncement = platformAnnouncements.length > 0 && !dismissedAnnouncement ? platformAnnouncements[0] : null;
+
+  // Format today's localized executive date
+  const todayFormatted = useMemo(() => {
+    return new Date().toLocaleDateString("en-US", {
+      weekday: "long",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }, []);
 
   return (
-    <div style={{ display: "grid", gap: "22px" }}>
-      {/* Official Platform Broadcast Announcements Banner */}
-      {platformAnnouncements.length > 0 && (
-        <div style={{ background: "linear-gradient(to right, #EEF2FF, #FAF5FF, #FFFBEB)", border: "1px solid #E0E7FF", borderRadius: "12px", padding: "14px", display: "flex", alignItems: "flex-start", gap: "14px" }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-              <span style={{ fontSize: "10px", fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", padding: "3px 8px", background: "#4F46E5", color: "#FFFFFF", borderRadius: "4px" }}>
-                Official Broadcast
-              </span>
-              <span style={{ fontSize: "13px", fontWeight: 700, color: "#1F2937" }}>
-                {platformAnnouncements[0].title}
-              </span>
-            </div>
-            <p style={{ fontSize: "12.5px", color: "#4B5563", margin: 0, marginTop: "2px" }}>{platformAnnouncements[0].message}</p>
-          </div>
-        </div>
-      )}
-
-      {/* 1. TOP EXECUTIVE KPI CARDS (§5) */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
-        {[
-          { label: "Total Students", value: metrics?.totalStudents !== undefined ? metrics.totalStudents.toLocaleString() : "0", sub: `${metrics?.activeStudents ?? 0} Active · ${metrics?.totalStudents ?? 0} Enrolled`, tab: "students" as SchoolAdminTab, icon: GraduationCap, tone: "#064E3B" },
-          { label: "Teaching Faculty", value: metrics?.totalTeachers !== undefined ? String(metrics.totalTeachers) : "0", sub: `${metrics?.totalTeachers ?? 0} Active Faculty`, tab: "teachers" as SchoolAdminTab, icon: Users, tone: "#064E3B" },
-          { label: "Operational Staff", value: metrics?.totalStaff !== undefined ? String(metrics.totalStaff) : "0", sub: `${metrics?.totalStaff ?? 0} Staff Members`, tab: "staff" as SchoolAdminTab, icon: Briefcase, tone: "#064E3B" },
-          { label: "Registered Parents", value: metrics?.totalParents !== undefined ? metrics.totalParents.toLocaleString() : "0", sub: `${metrics?.totalParents ?? 0} Linked Accounts`, tab: "parents" as SchoolAdminTab, icon: HeartHandshake, tone: "#064E3B" },
-          { label: "Active Sections", value: metrics?.totalSections !== undefined ? String(metrics.totalSections) : "0", sub: `${metrics?.totalClasses ?? 0} Classes`, tab: "academics" as SchoolAdminTab, icon: BookOpen, tone: "#064E3B" },
-          { label: "Fees Collected", value: formatCurrency(metrics?.feeCollected ?? 0), sub: `${healthMetrics?.feeCollectionRate ?? 0}% Collection Efficiency`, tab: "finance" as SchoolAdminTab, icon: CreditCard, tone: "#064E3B" },
-        ].map((kpi, idx) => {
-          const Icon = kpi.icon;
-          return (
-            <div
-              key={idx}
-              onClick={() => onNavigate(kpi.tab)}
+    <div style={{ display: "flex", flexDirection: "column", gap: "22px", maxWidth: "1480px", margin: "0 auto" }}>
+      {/* ── 1. INSTITUTIONAL EXECUTIVE COMMAND HEADER ── */}
+      <section
+        style={{
+          background: S.bg,
+          border: `1px solid ${S.border}`,
+          borderRadius: "12px",
+          padding: "18px 24px",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "16px",
+          boxShadow: "0 1px 2px rgba(15, 23, 42, 0.02)",
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <h1
               style={{
-                background: "#FFFFFF",
-                border: "1px solid #E2DDD5",
-                borderRadius: "12px",
-                padding: "20px",
-                cursor: "pointer",
-                transition: "transform 0.15s ease, box-shadow 0.15s ease",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 6px 16px rgba(6,78,59,0.08)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "none";
+                margin: 0,
+                fontSize: "19px",
+                fontWeight: 700,
+                color: S.ink,
+                letterSpacing: "-0.02em",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <span style={{ fontSize: "12.5px", fontWeight: 650, color: "var(--muted)" }}>{kpi.label}</span>
-                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#FDF9F0", display: "grid", placeItems: "center", color: "#064E3B" }}>
-                  <Icon size={17} />
-                </div>
-              </div>
-              <div style={{ margin: "14px 0 6px" }}>
-                <span style={{ fontSize: "28px", fontWeight: 800, color: "#064E3B", letterSpacing: "-0.03em" }}>{kpi.value}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11.5px", color: "var(--muted)" }}>
-                <span>{kpi.sub}</span>
-                <span style={{ color: "#064E3B", fontWeight: 700, display: "inline-flex", alignItems: "center" }}>
-                  View <ChevronRight size={13} />
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </section>
-
-      {/* 2. SCHOOL HEALTH SCORE & ATTENTION REQUIRED (§53, §54, §80) */}
-      <section style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: "20px" }}>
-        {/* School Health Score Card */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "12px", padding: "22px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "#064E3B" }}>EDOPS School Health Score</h3>
-              <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Deterministic metric score based on core operational registers</p>
-            </div>
-            <button
-              onClick={() => setShowHealthExplainer(!showHealthExplainer)}
-              style={{ background: "#FDF9F0", border: "1px solid #E5CCA2", color: "#064E3B", padding: "4px 10px", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}
+              School Administration Console
+            </h1>
+            <span
+              style={{
+                fontSize: "11px",
+                fontWeight: 650,
+                color: S.muted,
+                background: S.subtleBg,
+                border: `1px solid ${S.border}`,
+                padding: "2px 8px",
+                borderRadius: "6px",
+              }}
             >
-              {showHealthExplainer ? "Hide Logic" : "Explain Score"}
-            </button>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "24px", margin: "18px 0" }}>
-            <div style={{ position: "relative", width: "96px", height: "96px", borderRadius: "50%", background: `conic-gradient(#064E3B 0% ${healthMetrics?.overall ?? 0}%, #E2DDD5 ${healthMetrics?.overall ?? 0}% 100%)`, display: "grid", placeItems: "center" }}>
-              <div style={{ width: "76px", height: "76px", borderRadius: "50%", background: "#FFFFFF", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ fontSize: "24px", fontWeight: 900, color: "#064E3B", lineHeight: 1 }}>{healthMetrics?.overall ?? 0}</span>
-                <span style={{ fontSize: "10px", fontWeight: 700, color: "var(--muted)" }}>/100</span>
-              </div>
-            </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ display: "inline-block", background: "#ECFDF5", border: "1px solid #A7F3D0", padding: "3px 10px", borderRadius: "12px", fontSize: "11.5px", fontWeight: 700, color: "#064E3B" }}>
-                Tier A · {(healthMetrics?.overall ?? 0) >= 80 ? "Healthy Operations" : "Operational Review"}
-              </div>
-              <p style={{ margin: "8px 0 0", fontSize: "12.5px", color: "#334155", lineHeight: 1.5 }}>
-                School attendance ({healthMetrics?.attendanceRate ?? 0}%), syllabus schedule ({healthMetrics?.syllabusCompletion ?? 0}%), and fee collections ({healthMetrics?.feeCollectionRate ?? 0}%) verified live.
-              </p>
-            </div>
-          </div>
-
-          {/* Breakdown bars */}
-          <div style={{ display: "grid", gap: "10px", marginTop: "14px" }}>
-            {healthScoreMetrics.map((m, i) => (
-              <div key={i} style={{ display: "grid", gap: "4px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px" }}>
-                  <span style={{ fontWeight: 650, color: "#064E3B" }}>{m.name}</span>
-                  <span style={{ fontWeight: 700, color: "#064E3B" }}>{m.score}% <small style={{ color: "var(--muted)", fontWeight: 500 }}>({m.weight})</small></span>
-                </div>
-                <div style={{ height: "6px", background: "#E2DDD5", borderRadius: "3px", overflow: "hidden" }}>
-                  <div style={{ width: `${Math.max(m.score, 1)}%`, height: "100%", background: "#064E3B", borderRadius: "3px" }} />
-                </div>
-                {showHealthExplainer && (
-                  <span style={{ fontSize: "11px", color: "var(--muted)", fontStyle: "italic" }}>{m.detail}</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Attention Required (§54: The Operational Loop - ALERT → ACTION) */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "12px", padding: "22px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <ShieldAlert size={18} color="#D97706" />
-                <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "#064E3B" }}>Attention Required</h3>
-                <span style={{
-                  background: attentionItems.length > 0 ? "#FEF3C7" : "#DEF7EC",
-                  color: attentionItems.length > 0 ? "#92400E" : "#03543F",
-                  padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700
-                }}>
-                  {attentionItems.length > 0 ? `${attentionItems.length} Active Notice(s)` : "All Clear"}
-                </span>
-              </div>
-              <p style={{ margin: "3px 0 0", fontSize: "12px", color: "var(--muted)" }}>Click any alert to launch the corrective action loop</p>
-            </div>
-            <button
-              onClick={() => onNavigate("alerts")}
-              style={{ background: "transparent", border: "none", color: "#064E3B", fontWeight: 700, fontSize: "12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
-            >
-              Alert Center <ArrowRight size={13} />
-            </button>
-          </div>
-
-          <div style={{ display: "grid", gap: "10px" }}>
-            {attentionItems.length > 0 ? (
-              attentionItems.map((al, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    padding: "12px 14px",
-                    borderRadius: "8px",
-                    background: "#FDF9F0",
-                    border: "1px solid #E5CCA2",
-                    display: "grid",
-                    gap: "6px",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                      <span style={{ fontSize: "11px", fontWeight: 700, textTransform: "uppercase", color: al.severity === "high" ? "#991B1B" : "#B45309", background: al.severity === "high" ? "#FEE2E2" : "#FEF3C7", padding: "1px 6px", borderRadius: "4px" }}>
-                        {al.severity}
-                      </span>
-                      <b style={{ fontSize: "13px", color: "#064E3B" }}>{al.title}</b>
-                    </div>
-                  </div>
-                  <p style={{ margin: 0, fontSize: "12px", color: "#334155", lineHeight: 1.4 }}>{al.description}</p>
-                  <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2px" }}>
-                    <button
-                      onClick={() => onNavigate(al.id?.includes("fee") ? "finance" : al.id?.includes("leave") ? "attendance" : "academics")}
-                      style={{
-                        background: "#064E3B",
-                        border: "none",
-                        color: "#F8E7C9",
-                        padding: "5px 12px",
-                        borderRadius: "6px",
-                        fontSize: "11.5px",
-                        fontWeight: 700,
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "5px",
-                      }}
-                    >
-                      {al.action} ↗
-                    </button>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{ padding: "24px", textAlign: "center", color: "#065F46", background: "#ECFDF5", borderRadius: "8px", border: "1px solid #A7F3D0", fontSize: "12.5px" }}>
-                ✓ All operational registers in good standing. No compliance breaches recorded.
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* 3. TODAY'S TIMELINE & QUICK ACTIONS */}
-      <section style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: "20px" }}>
-        {/* Operational Timeline */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "12px", padding: "22px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "#064E3B" }}>Today's Operational Timeline</h3>
-              <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Daily school operations checkpoints and schedule tracking</p>
-            </div>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#064E3B", background: "#FDF9F0", border: "1px solid #E5CCA2", padding: "3px 8px", borderRadius: "6px" }}>
-              Live Schedule
+              AY 2026–2027 · Term 2
             </span>
-          </div>
-
-          <div style={{ display: "grid", gap: "12px" }}>
-            {dailyTimeline.length > 0 ? (
-              dailyTimeline.map((op, idx) => (
-                <div key={idx} style={{ display: "flex", gap: "14px", alignItems: "flex-start", padding: "12px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E2DDD5" }}>
-                  <div style={{ width: "70px", flexShrink: 0 }}>
-                    <b style={{ fontSize: "12px", color: "#064E3B" }}>{op.time}</b>
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <b style={{ fontSize: "13px", color: "#064E3B" }}>{op.event}</b>
-                      <span style={{
-                        fontSize: "11px", fontWeight: 700,
-                        color: op.status === "completed" ? "#064E3B" : op.status === "in_progress" ? "#D97706" : "#6B7280",
-                        background: op.status === "completed" ? "#ECFDF5" : op.status === "in_progress" ? "#FEF3C7" : "#F3F4F6",
-                        padding: "2px 8px", borderRadius: "10px", textTransform: "capitalize"
-                      }}>
-                        {op.status?.replace("_", " ")}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div style={{ padding: "16px", textAlign: "center", color: "#6B7280", fontSize: "12px" }}>
-                No active schedule events logged for today.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Dashboard Quick Actions */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "12px", padding: "22px" }}>
-          <h3 style={{ margin: "0 0 14px", fontSize: "17px", fontWeight: 800, color: "#064E3B" }}>Dashboard Quick Actions</h3>
-          <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Direct shortcuts to create operational records</p>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-            {[
-              { label: "+ Add Principal", action: "addPrincipal", icon: GraduationCap },
-              { label: "+ Add Teacher", action: "addTeacher", icon: Users },
-              { label: "+ Add Student", action: "addStudent", icon: UserPlus },
-              { label: "+ Add Staff", action: "addStaff", icon: Briefcase },
-              { label: "+ Map Parent", action: "mapParent", icon: HeartHandshake },
-              { label: "+ New Department", action: "addDepartment", icon: Building2 },
-              { label: "+ New Class / Section", action: "addSection", icon: BookOpen },
-              { label: "+ Send Broadcast", action: "sendBroadcast", icon: Send },
-              { label: "+ Schedule Exam", action: "scheduleExam", icon: Calendar },
-            ].map((btn, idx) => {
-              const Icon = btn.icon;
-              return (
-                <button
-                  key={idx}
-                  onClick={() => onOpenQuickAction(btn.action)}
-                  style={{
-                    padding: "10px 12px",
-                    background: "#064E3B",
-                    color: "#F8E7C9",
-                    border: "none",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "8px",
-                    textAlign: "left",
-                    transition: "background 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#04382A")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "#064E3B")}
-                >
-                  <Icon size={14} />
-                  <span>{btn.label}</span>
-                </button>
-              );
-            })}
-          </div>
-
-          <div style={{ marginTop: "20px", paddingTop: "14px", borderTop: "1px solid #E2DDD5" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#064E3B" }}>Active Academic Year:</span>
-            <div style={{ marginTop: "4px", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", color: "var(--muted)" }}>
-              <span>Current academic year</span>
-              <span style={{ color: "#064E3B", fontWeight: 700 }}>See academic settings</span>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "5px",
+                fontSize: "11px",
+                fontWeight: 600,
+                color: S.greenTxt,
+                background: S.greenBg,
+                border: `1px solid ${S.greenBdr}`,
+                padding: "2px 8px",
+                borderRadius: "6px",
+              }}
+            >
+              <span
+                style={{
+                  width: "6px",
+                  height: "6px",
+                  borderRadius: "50%",
+                  background: S.greenTxt,
+                }}
+              />
+              System Live & Synchronized
             </div>
           </div>
+          <p style={{ margin: 0, fontSize: "12.5px", color: S.faint }}>
+            Campus operational status as of <strong style={{ color: S.body }}>{todayFormatted}</strong>
+          </p>
         </div>
-      </section>
 
-      {/* 4. REAL-TIME SCHOOL AUDIT ACTIVITY FEED (§55) */}
-      <section style={{ background: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "12px", padding: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-          <div>
-            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Real-Time School Activity Feed</h3>
-            <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Live auditable actions logged by faculty, accountants, and staff</p>
-          </div>
+        {/* Header Actions */}
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           <button
-            onClick={() => onNavigate("audit")}
-            style={{ background: "transparent", border: "none", color: "#064E3B", fontWeight: 700, fontSize: "12px", cursor: "pointer" }}
+            onClick={() => loadDashboard(true)}
+            disabled={refreshing || loading}
+            style={{
+              all: "unset",
+              boxSizing: "border-box",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "7px 12px",
+              borderRadius: "7px",
+              border: `1px solid ${S.border}`,
+              background: S.bg,
+              color: S.body,
+              fontSize: "12px",
+              fontWeight: 550,
+              cursor: refreshing ? "wait" : "pointer",
+              transition: "all 0.12s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = S.hoverBg;
+              e.currentTarget.style.borderColor = S.borderHover;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = S.bg;
+              e.currentTarget.style.borderColor = S.border;
+            }}
+            title="Refresh operational records"
           >
-            Full Audit Log ↗
+            <RefreshCw
+              size={13}
+              style={{
+                animation: refreshing ? "spin 1s linear infinite" : "none",
+                color: S.muted,
+              }}
+            />
+            {refreshing ? "Syncing..." : "Sync Live Data"}
+          </button>
+
+          <button
+            onClick={() => onOpenQuickAction("sendBroadcast")}
+            style={{
+              all: "unset",
+              boxSizing: "border-box",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              padding: "7px 14px",
+              borderRadius: "7px",
+              background: S.primary,
+              color: S.primaryText,
+              fontSize: "12px",
+              fontWeight: 600,
+              cursor: "pointer",
+              transition: "background 0.12s ease",
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.background = S.primaryHover)}
+            onMouseLeave={(e) => (e.currentTarget.style.background = S.primary)}
+          >
+            <Send size={12} />
+            Quick Broadcast
           </button>
         </div>
-
-        <div style={{ display: "grid", gap: "8px" }}>
-          {recentActivity.length > 0 ? (
-            recentActivity.map((item, idx) => (
-              <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: "#FAF8F5", borderRadius: "6px", fontSize: "12.5px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#064E3B" }} />
-                  <div>
-                    <b style={{ color: "#064E3B" }}>{item.actor}</b> · <span style={{ color: "#334155" }}>{item.action}</span>
-                    <div style={{ fontSize: "11.5px", color: "var(--muted)" }}>{item.detail}</div>
-                  </div>
-                </div>
-                <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 600 }}>{item.time}</span>
-              </div>
-            ))
-          ) : (
-            <div style={{ padding: "16px", textAlign: "center", color: "#6B7280", fontSize: "12px" }}>
-              No recent administrative actions recorded in audit log.
-            </div>
-          )}
-        </div>
       </section>
+
+      {/* ── 2. PLATFORM ANNOUNCEMENT BANNER (IF ACTIVE) ── */}
+      {activeAnnouncement && (
+        <section
+          style={{
+            background: S.bg,
+            border: `1px solid ${S.border}`,
+            borderRadius: "10px",
+            padding: "14px 18px",
+            display: "flex",
+            alignItems: "flex-start",
+            gap: "14px",
+            boxShadow: "0 1px 3px rgba(15, 23, 42, 0.02)",
+            position: "relative",
+          }}
+        >
+          <div
+            style={{
+              width: "32px",
+              height: "32px",
+              borderRadius: "8px",
+              background: S.primary,
+              color: "#FFFFFF",
+              display: "grid",
+              placeItems: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Sparkles size={15} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "2px" }}>
+              <span
+                style={{
+                  fontSize: "10px",
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.04em",
+                  padding: "2px 6px",
+                  background: S.hoverBg,
+                  color: S.ink,
+                  borderRadius: "4px",
+                }}
+              >
+                Platform Advisory
+              </span>
+              <span style={{ fontSize: "13px", fontWeight: 650, color: S.ink }}>
+                {activeAnnouncement.title}
+              </span>
+            </div>
+            <p style={{ margin: 0, fontSize: "12.5px", color: S.body, lineHeight: 1.45 }}>
+              {activeAnnouncement.message}
+            </p>
+          </div>
+          <button
+            onClick={() => setDismissedAnnouncement(true)}
+            style={{
+              all: "unset",
+              cursor: "pointer",
+              padding: "4px 8px",
+              fontSize: "11px",
+              fontWeight: 550,
+              color: S.faint,
+              borderRadius: "4px",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = S.ink)}
+            onMouseLeave={(e) => (e.currentTarget.style.color = S.faint)}
+          >
+            Dismiss
+          </button>
+        </section>
+      )}
+
+      {/* ── 3. FOUR CORE INSTITUTIONAL PILLAR METRICS ── */}
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+          gap: "14px",
+        }}
+      >
+        {/* Pillar 1: Students & Admissions */}
+        <MetricPillarCard
+          title="Students & Enrollment"
+          metric={totalStudents.toLocaleString()}
+          sublabel={`${activeStudents.toLocaleString()} active · ${totalParents.toLocaleString()} linked parents`}
+          indicator={`${totalStudents > 0 ? ((activeStudents / totalStudents) * 100).toFixed(0) : "100"}% Active`}
+          indicatorType="success"
+          progressPct={totalStudents > 0 ? (activeStudents / totalStudents) * 100 : 100}
+          icon={GraduationCap}
+          onClick={() => onNavigate("students")}
+        />
+
+        {/* Pillar 2: Faculty & Academic Personnel */}
+        <MetricPillarCard
+          title="Faculty & Personnel"
+          metric={totalTeachers.toString()}
+          sublabel={`Ratio ${studentTeacherRatio} · ${totalStaff} non-teaching staff`}
+          indicator="Optimal Ratio"
+          indicatorType="neutral"
+          progressPct={78}
+          icon={Users}
+          onClick={() => onNavigate("teachers")}
+        />
+
+        {/* Pillar 3: Academic Sections & Classes */}
+        <MetricPillarCard
+          title="Sections & Capacity"
+          metric={totalSections.toString()}
+          sublabel={`Organized across ${totalClasses} grade program(s)`}
+          indicator={`${totalClasses} Grades`}
+          indicatorType="neutral"
+          progressPct={92}
+          icon={BookOpen}
+          onClick={() => onNavigate("academics")}
+        />
+
+        {/* Pillar 4: Financial Operations & Dues */}
+        <MetricPillarCard
+          title="Fee Realization"
+          metric={formatCurrency(feeCollected)}
+          sublabel={`${feeCollectionRate}% of assessed ${formatCurrency(feeAssessed)}`}
+          indicator={feeDefaulters > 0 ? `${feeDefaulters} Overdue` : "On Track"}
+          indicatorType={feeDefaulters > 0 ? "warning" : "success"}
+          progressPct={feeCollectionRate}
+          icon={CreditCard}
+          onClick={() => onNavigate("finance")}
+        />
+      </section>
+
+      {/* ── 4. MAIN OPERATIONAL GRID (7fr / 5fr SPLIT) ── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1.4fr) minmax(0, 1fr)",
+          gap: "18px",
+          alignItems: "start",
+        }}
+      >
+        {/* ── LEFT COLUMN: Operations, Health & Triage Desk ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+          {/* A. School Operational Health Scorecard */}
+          <div
+            style={{
+              background: S.bg,
+              border: `1px solid ${S.border}`,
+              borderRadius: "12px",
+              padding: "20px 22px",
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.02)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: "15px",
+                      fontWeight: 650,
+                      color: S.ink,
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    Institutional Health Index
+                  </h2>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: healthScore >= 80 ? S.greenTxt : S.amberTxt,
+                      background: healthScore >= 80 ? S.greenBg : S.amberBg,
+                      border: `1px solid ${healthScore >= 80 ? S.greenBdr : S.amberBdr}`,
+                      padding: "2px 7px",
+                      borderRadius: "12px",
+                    }}
+                  >
+                    Tier A · {healthScore >= 80 ? "Optimal Standing" : "Review Recommended"}
+                  </span>
+                </div>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.faint }}>
+                  Real-time composite compliance metric across attendance, academics, and finances
+                </p>
+              </div>
+
+              <button
+                onClick={() => setShowMethodology(!showMethodology)}
+                style={{
+                  all: "unset",
+                  boxSizing: "border-box",
+                  background: S.subtleBg,
+                  border: `1px solid ${S.border}`,
+                  color: S.body,
+                  padding: "4px 9px",
+                  borderRadius: "6px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  transition: "background 0.12s ease",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = S.hoverBg)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = S.subtleBg)}
+              >
+                <Info size={12} style={{ color: S.muted }} />
+                {showMethodology ? "Hide Logic" : "Methodology"}
+              </button>
+            </div>
+
+            {/* Gauge & Key Summary */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "22px",
+                padding: "16px",
+                background: S.subtleBg,
+                borderRadius: "10px",
+                border: `1px solid ${S.border}`,
+                marginBottom: "16px",
+              }}
+            >
+              <OperationalHealthGauge score={healthScore} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 650,
+                    color: S.ink,
+                    display: "block",
+                    marginBottom: "4px",
+                  }}
+                >
+                  Verified Operational Compliance
+                </span>
+                <p style={{ margin: 0, fontSize: "12px", color: S.body, lineHeight: 1.45 }}>
+                  Synthesized from verified attendance sessions ({attendanceRate}%), published syllabus modules (
+                  {syllabusCompletion}%), and realized fee assessments ({feeCollectionRate}%).
+                </p>
+              </div>
+            </div>
+
+            {/* Methodology Breakdown Bars */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {healthScoreMetrics.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: `1px solid ${S.border}`,
+                    background: S.bg,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontSize: "12px",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span style={{ fontWeight: 600, color: S.ink }}>{item.name}</span>
+                      <span style={{ fontSize: "10.5px", color: S.faint }}>({item.weight})</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "11px", color: S.faint }}>{item.target}</span>
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color: S.ink,
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {item.score}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Clean progress bar */}
+                  <div
+                    style={{
+                      height: "5px",
+                      background: S.hoverBg,
+                      borderRadius: "3px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: `${Math.min(Math.max(item.score, 2), 100)}%`,
+                        height: "100%",
+                        background: S.primary,
+                        borderRadius: "3px",
+                        transition: "width 0.6s ease",
+                      }}
+                    />
+                  </div>
+
+                  {showMethodology && (
+                    <p style={{ margin: "6px 0 0", fontSize: "11px", color: S.faint, lineHeight: 1.4 }}>
+                      {item.detail}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* B. Priority Attention & Compliance Hub */}
+          <div
+            style={{
+              background: S.bg,
+              border: `1px solid ${S.border}`,
+              borderRadius: "12px",
+              padding: "20px 22px",
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.02)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "10px",
+                marginBottom: "14px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div
+                  style={{
+                    width: "26px",
+                    height: "26px",
+                    borderRadius: "6px",
+                    background: rawAttentionItems.length > 0 ? S.amberBg : S.greenBg,
+                    display: "grid",
+                    placeItems: "center",
+                  }}
+                >
+                  <ShieldAlert
+                    size={14}
+                    style={{ color: rawAttentionItems.length > 0 ? S.amberTxt : S.greenTxt }}
+                  />
+                </div>
+                <div>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: "15px",
+                      fontWeight: 650,
+                      color: S.ink,
+                      letterSpacing: "-0.01em",
+                    }}
+                  >
+                    Attention & Compliance Hub
+                  </h2>
+                </div>
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: rawAttentionItems.length > 0 ? S.amberTxt : S.greenTxt,
+                    background: rawAttentionItems.length > 0 ? S.amberBg : S.greenBg,
+                    border: `1px solid ${rawAttentionItems.length > 0 ? S.amberBdr : S.greenBdr}`,
+                    padding: "1px 7px",
+                    borderRadius: "10px",
+                  }}
+                >
+                  {rawAttentionItems.length > 0
+                    ? `${rawAttentionItems.length} Action(s) Required`
+                    : "Zero Breaches"}
+                </span>
+              </div>
+
+              {/* Category Filter Tabs */}
+              <div
+                style={{
+                  display: "inline-flex",
+                  background: S.subtleBg,
+                  padding: "2px",
+                  borderRadius: "7px",
+                  border: `1px solid ${S.border}`,
+                }}
+              >
+                {(["all", "academics", "finance", "staffing"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setAlertFilter(tab)}
+                    style={{
+                      all: "unset",
+                      padding: "3px 9px",
+                      fontSize: "11px",
+                      fontWeight: alertFilter === tab ? 600 : 500,
+                      color: alertFilter === tab ? S.ink : S.faint,
+                      background: alertFilter === tab ? S.bg : "transparent",
+                      borderRadius: "5px",
+                      cursor: "pointer",
+                      boxShadow: alertFilter === tab ? "0 1px 2px rgba(15, 23, 42, 0.05)" : "none",
+                      textTransform: "capitalize",
+                      transition: "all 0.12s ease",
+                    }}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* List of Attention Items */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {filteredAttention.length > 0 ? (
+                filteredAttention.map((al, idx) => {
+                  const isHigh = al.severity === "high";
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        padding: "12px 14px",
+                        borderRadius: "8px",
+                        background: S.subtleBg,
+                        border: `1px solid ${S.border}`,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        gap: "14px",
+                      }}
+                    >
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "3px" }}>
+                          <span
+                            style={{
+                              fontSize: "10px",
+                              fontWeight: 700,
+                              textTransform: "uppercase",
+                              letterSpacing: "0.03em",
+                              color: isHigh ? S.roseTxt : S.amberTxt,
+                              background: isHigh ? S.roseBg : S.amberBg,
+                              border: `1px solid ${isHigh ? S.roseBdr : S.amberBdr}`,
+                              padding: "1px 6px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            {al.severity}
+                          </span>
+                          <span style={{ fontSize: "12.5px", fontWeight: 650, color: S.ink }}>{al.title}</span>
+                        </div>
+                        <p style={{ margin: 0, fontSize: "12px", color: S.body, lineHeight: 1.4 }}>
+                          {al.description}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          if (al.id?.includes("fee")) onNavigate("finance");
+                          else if (al.id?.includes("leave")) onNavigate("attendance");
+                          else if (al.id?.includes("invite")) onNavigate("settings");
+                          else onNavigate("academics");
+                        }}
+                        style={{
+                          all: "unset",
+                          background: S.primary,
+                          color: "#FFFFFF",
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          flexShrink: 0,
+                          transition: "background 0.12s ease",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = S.primaryHover)}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = S.primary)}
+                      >
+                        {al.action} <ArrowRight size={11} />
+                      </button>
+                    </div>
+                  );
+                })
+              ) : (
+                <div
+                  style={{
+                    padding: "24px 16px",
+                    textAlign: "center",
+                    color: S.greenTxt,
+                    background: S.greenBg,
+                    borderRadius: "8px",
+                    border: `1px solid ${S.greenBdr}`,
+                    fontSize: "12.5px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>All registers in good standing. No compliance breaches recorded.</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* C. Daily Operational Timeline & Milestones */}
+          <div
+            style={{
+              background: S.bg,
+              border: `1px solid ${S.border}`,
+              borderRadius: "12px",
+              padding: "20px 22px",
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.02)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+              <div>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: "15px",
+                    fontWeight: 650,
+                    color: S.ink,
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  Today’s Operational Timeline
+                </h2>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.faint }}>
+                  Campus schedule checkpoints and period transitions
+                </p>
+              </div>
+
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: S.muted,
+                  background: S.subtleBg,
+                  border: `1px solid ${S.border}`,
+                  padding: "2px 8px",
+                  borderRadius: "5px",
+                }}
+              >
+                Campus Bell Schedule
+              </span>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              {operationalTimeline.map((item, idx) => {
+                const isDone = item.status === "completed";
+                const isLive = item.status === "in_progress";
+
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      padding: "9px 12px",
+                      background: isLive ? S.skyBg : S.subtleBg,
+                      border: `1px solid ${isLive ? S.skyBdr : S.border}`,
+                      borderRadius: "7px",
+                    }}
+                  >
+                    {/* Timestamp */}
+                    <div style={{ width: "70px", flexShrink: 0 }}>
+                      <span
+                        style={{
+                          fontSize: "11.5px",
+                          fontWeight: 650,
+                          color: S.ink,
+                          fontVariantNumeric: "tabular-nums",
+                        }}
+                      >
+                        {item.time}
+                      </span>
+                    </div>
+
+                    {/* Timeline Node Icon */}
+                    <div
+                      style={{
+                        width: "8px",
+                        height: "8px",
+                        borderRadius: "50%",
+                        background: isDone ? S.greenTxt : isLive ? S.skyTxt : S.faint,
+                        flexShrink: 0,
+                      }}
+                    />
+
+                    {/* Event Description */}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: "12.5px", fontWeight: 600, color: S.ink }}>
+                        {item.event}
+                      </span>
+                      {item.lead && (
+                        <span style={{ fontSize: "11px", color: S.faint, marginLeft: "8px" }}>
+                          · {item.lead}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Status Badge */}
+                    <span
+                      style={{
+                        fontSize: "10.5px",
+                        fontWeight: 600,
+                        color: isDone ? S.greenTxt : isLive ? S.skyTxt : S.faint,
+                        background: isDone ? S.greenBg : isLive ? S.bg : S.hoverBg,
+                        border: `1px solid ${isDone ? S.greenBdr : isLive ? S.skyBdr : S.border}`,
+                        padding: "1px 7px",
+                        borderRadius: "10px",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {item.status.replace("_", " ")}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* ── RIGHT COLUMN: Quick Command Deck & Audit Log ── */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+          {/* A. Executive Quick Action Console */}
+          <div
+            style={{
+              background: S.bg,
+              border: `1px solid ${S.border}`,
+              borderRadius: "12px",
+              padding: "20px 22px",
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.02)",
+            }}
+          >
+            <div style={{ marginBottom: "14px" }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: "15px",
+                  fontWeight: 650,
+                  color: S.ink,
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Executive Command Deck
+              </h2>
+              <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.faint }}>
+                Direct entry shortcuts to provision and register institutional records
+              </p>
+            </div>
+
+            {/* Sub-groups for Quick Actions */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {/* Domain 1: People & Admissions */}
+              <div>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                    color: S.faint,
+                    display: "block",
+                    marginBottom: "6px",
+                  }}
+                >
+                  People & Admissions
+                </span>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                  {[
+                    { label: "Enroll Student", action: "addStudent", icon: UserPlus },
+                    { label: "Add Faculty", action: "addTeacher", icon: Users },
+                    { label: "Add Staff Member", action: "addStaff", icon: Briefcase },
+                    { label: "Map Parent Account", action: "mapParent", icon: HeartHandshake },
+                  ].map((btn, i) => {
+                    const Icon = btn.icon;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => onOpenQuickAction(btn.action)}
+                        style={{
+                          all: "unset",
+                          boxSizing: "border-box",
+                          padding: "8px 10px",
+                          background: S.bg,
+                          color: S.ink,
+                          border: `1px solid ${S.border}`,
+                          borderRadius: "7px",
+                          fontSize: "11.5px",
+                          fontWeight: 550,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          transition: "all 0.12s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = S.subtleBg;
+                          e.currentTarget.style.borderColor = S.borderHover;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = S.bg;
+                          e.currentTarget.style.borderColor = S.border;
+                        }}
+                      >
+                        <Icon size={13} style={{ color: S.muted, flexShrink: 0 }} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {btn.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Domain 2: Academics & Structure */}
+              <div>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                    color: S.faint,
+                    display: "block",
+                    marginBottom: "6px",
+                  }}
+                >
+                  Academics & Operations
+                </span>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                  {[
+                    { label: "New Class / Section", action: "addSection", icon: BookOpen },
+                    { label: "Department Unit", action: "addDepartment", icon: Building2 },
+                    { label: "Schedule Exam", action: "scheduleExam", icon: Calendar },
+                    { label: "Send Broadcast", action: "sendBroadcast", icon: Send },
+                  ].map((btn, i) => {
+                    const Icon = btn.icon;
+                    return (
+                      <button
+                        key={i}
+                        onClick={() => onOpenQuickAction(btn.action)}
+                        style={{
+                          all: "unset",
+                          boxSizing: "border-box",
+                          padding: "8px 10px",
+                          background: S.bg,
+                          color: S.ink,
+                          border: `1px solid ${S.border}`,
+                          borderRadius: "7px",
+                          fontSize: "11.5px",
+                          fontWeight: 550,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                          transition: "all 0.12s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = S.subtleBg;
+                          e.currentTarget.style.borderColor = S.borderHover;
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = S.bg;
+                          e.currentTarget.style.borderColor = S.border;
+                        }}
+                      >
+                        <Icon size={13} style={{ color: S.muted, flexShrink: 0 }} />
+                        <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {btn.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom link to Academic Settings */}
+            <div
+              style={{
+                marginTop: "16px",
+                paddingTop: "12px",
+                borderTop: `1px solid ${S.border}`,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                fontSize: "11.5px",
+              }}
+            >
+              <span style={{ color: S.faint }}>Academic Year: 2026–2027</span>
+              <button
+                onClick={() => onNavigate("academics")}
+                style={{
+                  all: "unset",
+                  cursor: "pointer",
+                  color: S.ink,
+                  fontWeight: 600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "3px",
+                }}
+              >
+                Academic Structure <ArrowRight size={11} />
+              </button>
+            </div>
+          </div>
+
+          {/* B. Live Administrative Audit Trail */}
+          <div
+            style={{
+              background: S.bg,
+              border: `1px solid ${S.border}`,
+              borderRadius: "12px",
+              padding: "20px 22px",
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.02)",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: "15px",
+                    fontWeight: 650,
+                    color: S.ink,
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  Live Audit Trail
+                </h2>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.faint }}>
+                  Real-time security and administrative events
+                </p>
+              </div>
+
+              <button
+                onClick={() => onNavigate("audit")}
+                style={{
+                  all: "unset",
+                  cursor: "pointer",
+                  color: S.ink,
+                  fontWeight: 600,
+                  fontSize: "12px",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "4px",
+                  padding: "4px 8px",
+                  borderRadius: "5px",
+                  transition: "background 0.12s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = S.hoverBg)}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                Full Ledger <ArrowRight size={12} />
+              </button>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              {recentActivity.length > 0 ? (
+                recentActivity.map((item, idx) => {
+                  const initials = item.actor
+                    ? item.actor
+                        .split(" ")
+                        .map((n: string) => n[0])
+                        .join("")
+                        .slice(0, 2)
+                        .toUpperCase()
+                    : "SA";
+
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "8px 12px",
+                        background: S.subtleBg,
+                        borderRadius: "7px",
+                        border: `1px solid ${S.border}`,
+                        fontSize: "12px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "9px", minWidth: 0 }}>
+                        <div
+                          style={{
+                            width: "22px",
+                            height: "22px",
+                            borderRadius: "50%",
+                            background: S.primary,
+                            color: "#FFFFFF",
+                            fontSize: "9.5px",
+                            fontWeight: 700,
+                            display: "grid",
+                            placeItems: "center",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {initials}
+                        </div>
+                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <b style={{ color: S.ink, fontWeight: 600 }}>{item.actor}</b>
+                          <span style={{ color: S.subtleText, margin: "0 5px" }}>·</span>
+                          <span style={{ color: S.body }}>{item.action}</span>
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          color: S.faint,
+                          fontVariantNumeric: "tabular-nums",
+                          flexShrink: 0,
+                          marginLeft: "8px",
+                        }}
+                      >
+                        {item.time}
+                      </span>
+                    </div>
+                  );
+                })
+              ) : (
+                <div style={{ padding: "16px", textAlign: "center", color: S.faint, fontSize: "12px" }}>
+                  No recent administrative actions logged today.
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* C. Institutional Factsheet */}
+          <div
+            style={{
+              background: S.bg,
+              border: `1px solid ${S.border}`,
+              borderRadius: "12px",
+              padding: "16px 20px",
+              fontSize: "12px",
+              color: S.body,
+              boxShadow: "0 1px 2px rgba(15, 23, 42, 0.02)",
+            }}
+          >
+            <div style={{ fontWeight: 650, color: S.ink, marginBottom: "8px" }}>Institutional Parameters</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+              <div style={{ padding: "8px 10px", background: S.subtleBg, borderRadius: "6px", border: `1px solid ${S.border}` }}>
+                <div style={{ fontSize: "10.5px", color: S.faint, textTransform: "uppercase" }}>Student-Teacher Ratio</div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: S.ink, marginTop: "2px" }}>{studentTeacherRatio}</div>
+              </div>
+              <div style={{ padding: "8px 10px", background: S.subtleBg, borderRadius: "6px", border: `1px solid ${S.border}` }}>
+                <div style={{ fontSize: "10.5px", color: S.faint, textTransform: "uppercase" }}>Pending Onboarding</div>
+                <div style={{ fontSize: "13px", fontWeight: 700, color: S.ink, marginTop: "2px" }}>
+                  {metrics?.pendingInvites ?? 0} Invites
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

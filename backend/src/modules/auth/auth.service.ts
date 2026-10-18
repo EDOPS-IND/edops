@@ -49,6 +49,25 @@ export class AuthService {
     if (authString.startsWith('Bearer ')) {
       return this.userFromJwt(authString.substring(7).trim());
     }
+    const rawCookie = request.cookies?.[this.config.cookieName];
+    if (rawCookie) {
+      const sid = typeof rawCookie === 'string' && rawCookie.startsWith('s:')
+        ? rawCookie.slice(2).split('.')[0]
+        : rawCookie;
+      const [session] = await this.drizzle.query(
+        `SELECT sess FROM sessions WHERE sid = $1 AND expire > NOW() LIMIT 1`,
+        [sid]
+      );
+      const userId = session?.sess?.userId;
+      if (userId) {
+        const [user] = await this.drizzle.query(
+          `SELECT id, email, name, phone, password_hash AS "passwordHash", is_platform_admin AS "isPlatformAdmin", is_active AS "isActive", created_at AS "createdAt"
+           FROM users WHERE id = $1 AND is_active = true LIMIT 1`,
+          [userId]
+        );
+        if (user) return user;
+      }
+    }
     return null;
   }
 

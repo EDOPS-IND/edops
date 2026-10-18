@@ -1,7 +1,7 @@
 export type OrganizationSummary = { id: string; name: string; slug: string; status: "active" | "suspended"; role: "school_admin" | "principal" | "teacher" | "student" | "parent"; features?: string[]; [key: string]: any };
 export type DashboardItem = { key: string; sectionKey?: string; label: string; featureKey?: string; sortOrder: number; enabled?: boolean; effectiveEnabled?: boolean; [key: string]: any };
 export type DashboardSection = { key: string; label: string; sortOrder: number; enabled?: boolean; items: DashboardItem[]; [key: string]: any };
-export type Profile = { user: { id: string; email: string; isPlatformAdmin: boolean }; organizations: OrganizationSummary[]; csrfToken?: string };
+export type Profile = { user: { id: string; email: string; name?: string; phone?: string | null; isPlatformAdmin: boolean }; organizations: OrganizationSummary[]; csrfToken?: string };
 export type Organization = Partial<OrganizationSummary> & { id: string; name: string; slug: string; status: "active" | "suspended"; timeZone?: string; locale?: "en-IN" | "hi-IN" | "en-US"; createdAt?: string; updatedAt?: string; countryCode?: string; [key: string]: any };
 export type ListResult<T> = { items: T[]; total: number; limit?: number; offset?: number; [key: string]: any };
 export type AcademicYear = { id: string; name: string; startDate: string; endDate: string; isCurrent: boolean; createdAt?: string; organizationId?: string; [key: string]: any };
@@ -99,6 +99,16 @@ async function request<T>(path: string, options: { method?: "GET" | "POST" | "PA
     }
   }
 
+  if (path === "/auth/logout") {
+    jwtAccessToken = undefined;
+    jwtRefreshToken = undefined;
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("edops_jwt_token");
+      localStorage.removeItem("edops_refresh_token");
+    }
+    return null as T;
+  }
+
   const data = response.status === 204 ? null : await response.json();
   if (!response.ok) {
     const message = Array.isArray(data?.message) ? data.message.join("; ") : data?.message;
@@ -111,14 +121,6 @@ async function request<T>(path: string, options: { method?: "GET" | "POST" | "PA
   if (data?.refreshToken) {
     jwtRefreshToken = data.refreshToken;
     if (typeof window !== "undefined") localStorage.setItem("edops_refresh_token", data.refreshToken);
-  }
-  if (path === "/auth/logout") {
-    jwtAccessToken = undefined;
-    jwtRefreshToken = undefined;
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("edops_jwt_token");
-      localStorage.removeItem("edops_refresh_token");
-    }
   }
   return data as T;
 }
@@ -135,12 +137,22 @@ export async function api<T>(path: string, options: Parameters<typeof request>[1
 
 export async function csrf() { return { csrfToken: "" }; }
 export function login(email: string, password: string) { return api<Profile & { accessToken?: string; refreshToken?: string }>("/auth/login", { method: "POST", body: { email: email.trim().toLowerCase(), password } }); }
-export function logout() {
+export function logout(): Promise<null> {
+  const currentRefreshToken = jwtRefreshToken;
+  jwtAccessToken = undefined;
+  jwtRefreshToken = undefined;
   if (typeof window !== "undefined") {
     localStorage.removeItem("edops_jwt_token");
     localStorage.removeItem("edops_refresh_token");
   }
-  return api<null>("/auth/logout", { method: "POST", body: { refreshToken: jwtRefreshToken } });
+  return api<null>("/auth/logout", {
+    method: "POST",
+    body: currentRefreshToken ? { refreshToken: currentRefreshToken } : undefined,
+  }).catch(() => null);
+}
+export function getStudentAvatarUrl(name?: string, email?: string): string {
+  const seed = (name || email || "Student").trim();
+  return `https://api.dicebear.com/10.x/glyphs/svg?seed=${encodeURIComponent(seed)}&backgroundColor=ebedf2`;
 }
 export function switchSchool(schoolId: string) { return api<{ accessToken: string; activeSchoolId: string; role?: string }>("/auth/switch-school", { method: "POST", body: { schoolId } }); }
 export type InvitationInfo = {

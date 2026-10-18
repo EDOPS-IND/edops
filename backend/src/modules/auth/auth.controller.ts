@@ -110,6 +110,7 @@ export class AuthController {
     return this.auth.profile(request.user);
   }
 
+  @Public()
   @Post('logout')
   @HttpCode(204)
   @ApiOperation({
@@ -117,17 +118,35 @@ export class AuthController {
     description: 'Revokes the supplied refresh token, clears its cookie and records auth.logout. Other devices and school memberships are unchanged. Limit: 120 requests/minute per IP.',
   })
   @ApiNoContentResponse({ description: 'Session revoked and cookie cleared. Empty body; do not parse it as JSON.' })
-  @ApiErrors(400, 401, 403, 413)
-  async logout(@Body() body: LogoutDto, @Req() request: AuthenticatedRequest, @Res({ passthrough: true }) response: Response) {
+  async logout(@Body() body: LogoutDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    const user = await this.auth.userFromRequest(request);
     const token = body?.refreshToken || request.cookies?.edops_refresh_token;
-    if (token && request.user?.id) {
-      await this.auth.revokeRefreshToken(token, request.user.id);
+    if (token) {
+      if (user?.id) {
+        await this.auth.revokeRefreshToken(token, user.id);
+      } else {
+        const { hashToken } = await import('./jwt.util');
+        await this.auth.drizzle.query(
+          `UPDATE user_refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1 AND revoked_at IS NULL`,
+          [hashToken(token)]
+        );
+      }
+    }
+    const sessionCookie = request.cookies?.[this.config.cookieName];
+    if (sessionCookie) {
+      const sid = typeof sessionCookie === 'string' && sessionCookie.startsWith('s:')
+        ? sessionCookie.slice(2).split('.')[0]
+        : sessionCookie;
+      await this.auth.drizzle.query(`DELETE FROM sessions WHERE sid = $1`, [sid]);
     }
     response.clearCookie('edops_refresh_token', {
       path: '/', httpOnly: true, sameSite: 'lax', secure: this.config.environment === 'production',
     });
-    if (request.user) {
-      await this.auth.recordLogout(request.user);
+    response.clearCookie(this.config.cookieName, {
+      path: '/', httpOnly: true, sameSite: 'lax', secure: this.config.environment === 'production',
+    });
+    if (user) {
+      await this.auth.recordLogout(user);
     }
   }
 }

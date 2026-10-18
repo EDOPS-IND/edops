@@ -1,0 +1,11 @@
+{
+  "name": "edops",
+  "version": "0.1.0",
+  "private": true,
+  "description": "EDOPS Multi-tenant School Operations Platform",
+  "scripts": {
+    "start": "bash start.sh",
+    "dev": "bash start.sh",
+    "seed": "cd backend && npm run seed"
+  }
+}

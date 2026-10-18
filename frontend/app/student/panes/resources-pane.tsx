@@ -1,8 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Video, Bookmark, FileText, Download, Play, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Video, Bookmark, BookmarkCheck, FileText, Download, Play, CheckCircle2 } from 'lucide-react';
 import { getStudentResources, toggleStudentBookmark } from '../../edops-api';
+
+const T = {
+  navy: '#0c1e33',
+  slate: '#495d72',
+  muted: '#a6abb5',
+  faint: '#b3b3b3',
+  pageBg: '#f4f6f7',
+  white: '#ffffff',
+  border: '#e4e6e9',
+  line: '#ced8e5',
+  chip: '#f5f6f8',
+  blue: '#17a1fa',
+  track: '#eceef3',
+  greenBg: '#d9eed1',
+  green: '#61a249',
+  greenDark: '#1a5c0a',
+};
 
 interface ResourcesPaneProps {
   organizationId: string;
@@ -46,7 +63,24 @@ export const ResourcesPane: React.FC<ResourcesPaneProps> = ({ organizationId, on
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading study resources & recorded lectures...</div>;
+    return (
+      <div style={{ padding: '48px 0', textAlign: 'center', color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 12px',
+          }}
+        />
+        <p style={{ fontSize: '13px', fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading study resources & recorded lectures...
+        </p>
+      </div>
+    );
   }
 
   const studyMaterials = data?.studyMaterials || [];
@@ -54,161 +88,336 @@ export const ResourcesPane: React.FC<ResourcesPaneProps> = ({ organizationId, on
   const bookmarks = data?.bookmarks || [];
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-900">Learning Resources & Recorded Lectures</h2>
-        <p className="text-sm text-slate-500">Official teacher-authored study notes, NCERT reference materials, and video lectures with playback tracking.</p>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex border-b border-slate-200 gap-4">
-        <button
-          onClick={() => setActiveTab('materials')}
-          className={`pb-3 text-xs font-bold transition-colors border-b-2 ${
-            activeTab === 'materials'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Study Material & Notes ({studyMaterials.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('lectures')}
-          className={`pb-3 text-xs font-bold transition-colors border-b-2 ${
-            activeTab === 'lectures'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Recorded Classroom Lectures ({recordedLectures.length})
-        </button>
-        <button
-          onClick={() => setActiveTab('bookmarks')}
-          className={`pb-3 text-xs font-bold transition-colors border-b-2 ${
-            activeTab === 'bookmarks'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
-        >
-          Saved Bookmarks ({bookmarks.length})
-        </button>
-      </div>
-
-      {activeTab === 'materials' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {studyMaterials.map((mat: any) => (
-            <div key={mat.id} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3 flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">
-                    {mat.subject}
-                  </span>
-                  <button
-                    onClick={() => handleBookmark(mat, 'study_material')}
-                    className="text-slate-400 hover:text-amber-500"
-                  >
-                    <Bookmark className="w-4 h-4" />
-                  </button>
-                </div>
-                <h4 className="font-bold text-slate-900 text-sm">{mat.title}</h4>
-                <p className="text-xs text-slate-400">Chapter: {mat.chapter} • File: {mat.fileSize}</p>
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[10px] text-slate-400">{mat.uploadedBy}</span>
-                <a
-                  href={mat.fileUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold flex items-center gap-1.5 transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Download</span>
-                </a>
-              </div>
-            </div>
-          ))}
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
+          >
+            Digital Repository
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Learning Resources & Recorded Lectures
+          </h2>
+          <p style={{ margin: 0, fontSize: '13px', color: T.slate, lineHeight: 1.5 }}>
+            Curated study notes, NCERT exemplar problem sets, and recorded classroom sessions.
+          </p>
         </div>
-      )}
+        <div
+          style={{
+            padding: '4px 10px',
+            borderRadius: '100px',
+            background: T.chip,
+            fontSize: '10px',
+            fontWeight: 600,
+            color: T.slate,
+          }}
+        >
+          {studyMaterials.length + recordedLectures.length} Total Resources
+        </div>
+      </div>
 
-      {activeTab === 'lectures' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {recordedLectures.map((lec: any) => (
-            <div key={lec.id} className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-purple-50 text-purple-700">
-                      {lec.subject}
+      {/* 2. Filter Pills */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+        {[
+          { id: 'materials', label: `Study Notes (${studyMaterials.length})` },
+          { id: 'lectures', label: `Recorded Lectures (${recordedLectures.length})` },
+          { id: 'bookmarks', label: `Bookmarked (${bookmarks.length})` },
+        ].map((tab) => {
+          const active = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id as any)}
+              style={{
+                all: 'unset',
+                boxSizing: 'border-box',
+                padding: '6px 16px',
+                borderRadius: '100px',
+                fontSize: '12px',
+                fontWeight: active ? 600 : 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                background: active ? T.navy : T.chip,
+                color: active ? '#ffffff' : T.slate,
+                border: active ? `1px solid ${T.navy}` : `1px solid ${T.border}`,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 3. Resources Grid */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '14px',
+        }}
+      >
+        {activeTab === 'materials' && (
+          studyMaterials.length === 0 ? (
+            <div style={{ gridColumn: '1/-1', padding: '32px', textAlign: 'center', background: T.white, border: `1px solid ${T.border}`, borderRadius: '10px', color: T.slate, fontSize: '13px' }}>
+              No study notes currently published.
+            </div>
+          ) : (
+            studyMaterials.map((item: any) => (
+              <div
+                key={item.id}
+                style={{
+                  background: T.white,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: '10px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '14px',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: 'rgba(12, 30, 51, 0.05)',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        color: T.navy,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {item.subject}
                     </span>
-                    <span className="text-xs text-slate-400 font-medium">Duration: {lec.duration}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleBookmark(item, 'study_material')}
+                      title="Bookmark"
+                      style={{
+                        all: 'unset',
+                        cursor: 'pointer',
+                        color: item.isBookmarked ? '#f59e0b' : T.muted,
+                      }}
+                    >
+                      <Bookmark size={16} fill={item.isBookmarked ? '#f59e0b' : 'none'} />
+                    </button>
                   </div>
-                  <h4 className="font-bold text-slate-900 text-sm">{lec.title}</h4>
-                  <p className="text-xs text-slate-500">Instructor: {lec.teacher} • {lec.chapter}</p>
+                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.navy }}>
+                    {item.title}
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '12px', color: T.slate, lineHeight: 1.5 }}>
+                    {item.description || 'Comprehensive revision material and formula reference sheets.'}
+                  </p>
                 </div>
-              </div>
 
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-xs text-slate-500">
-                  <span>Playback Progress</span>
-                  <span className="font-bold text-slate-800">{lec.watchedPct}% watched</span>
-                </div>
-                <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${lec.isCompleted ? 'bg-emerald-500' : 'bg-indigo-600'}`}
-                    style={{ width: `${lec.watchedPct}%` }}
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-1">
-                <span className="text-[11px] text-slate-400">Recorded: {lec.recordedDate}</span>
-                <button
-                  onClick={() => onOpenLecture(lec)}
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1.5 transition-colors"
-                >
-                  <Play className="w-3.5 h-3.5 fill-white" />
-                  <span>{lec.watchedPct > 0 && !lec.isCompleted ? 'Resume Video' : 'Watch Lecture'}</span>
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {activeTab === 'bookmarks' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-          <div className="p-4 border-b border-slate-100">
-            <h3 className="font-bold text-slate-900 text-sm">Personal Saved Library</h3>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {bookmarks.length === 0 ? (
-              <div className="p-8 text-center text-xs text-slate-400">No bookmarked materials saved yet.</div>
-            ) : (
-              bookmarks.map((bm: any) => (
-                <div key={bm.id} className="p-4 flex items-center justify-between hover:bg-slate-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <Bookmark className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900">{bm.title}</h4>
-                      <p className="text-[11px] text-slate-400">{bm.subjectName} • {bm.resourceType}</p>
-                    </div>
-                  </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '11px', color: T.faint }}>
+                    {item.fileSize || 'PDF Document'}
+                  </span>
                   <a
-                    href={bm.url}
+                    href={item.fileUrl || '#'}
                     target="_blank"
-                    rel="noreferrer"
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      border: `1px solid ${T.line}`,
+                      borderRadius: '6px',
+                      background: T.white,
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: T.navy,
+                      textDecoration: 'none',
+                    }}
                   >
-                    Open Resource
+                    <Download size={13} />
+                    <span>Download</span>
                   </a>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+              </div>
+            ))
+          )
+        )}
+
+        {activeTab === 'lectures' && (
+          recordedLectures.length === 0 ? (
+            <div style={{ gridColumn: '1/-1', padding: '32px', textAlign: 'center', background: T.white, border: `1px solid ${T.border}`, borderRadius: '10px', color: T.slate, fontSize: '13px' }}>
+              No recorded lecture streams available.
+            </div>
+          ) : (
+            recordedLectures.map((item: any) => (
+              <div
+                key={item.id}
+                style={{
+                  background: T.white,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: '10px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '14px',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: '#bae5f5',
+                        color: '#0a5a7a',
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      {item.subject}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleBookmark(item, 'recorded_lecture')}
+                      style={{
+                        all: 'unset',
+                        cursor: 'pointer',
+                        color: item.isBookmarked ? '#f59e0b' : T.muted,
+                      }}
+                    >
+                      <Bookmark size={16} fill={item.isBookmarked ? '#f59e0b' : 'none'} />
+                    </button>
+                  </div>
+                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.navy }}>
+                    {item.title}
+                  </h4>
+                  <p style={{ margin: 0, fontSize: '12px', color: T.slate }}>
+                    Faculty: <strong style={{ color: T.navy }}>{item.teacher}</strong> • {item.duration || '45 mins'}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: `1px solid ${T.border}` }}>
+                  <span style={{ fontSize: '11px', color: T.faint }}>
+                    {item.watchedPct ? `${item.watchedPct}% watched` : 'Unwatched'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onOpenLecture(item)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      border: `1px solid ${T.navy}`,
+                      borderRadius: '6px',
+                      background: T.navy,
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#ffffff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Play size={13} fill="#ffffff" />
+                    <span>Watch Recording</span>
+                  </button>
+                </div>
+              </div>
+            ))
+          )
+        )}
+
+        {activeTab === 'bookmarks' && (
+          bookmarks.length === 0 ? (
+            <div style={{ gridColumn: '1/-1', padding: '32px', textAlign: 'center', background: T.white, border: `1px solid ${T.border}`, borderRadius: '10px', color: T.slate, fontSize: '13px' }}>
+              No bookmarked resources saved yet.
+            </div>
+          ) : (
+            bookmarks.map((bm: any, idx: number) => (
+              <div
+                key={idx}
+                style={{
+                  background: T.white,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: '10px',
+                  padding: '20px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <span
+                    style={{
+                      padding: '2px 8px',
+                      borderRadius: '4px',
+                      background: T.chip,
+                      fontSize: '10px',
+                      fontWeight: 600,
+                      color: T.navy,
+                      textTransform: 'uppercase',
+                      width: 'fit-content',
+                    }}
+                  >
+                    {bm.subjectName || 'Study Material'}
+                  </span>
+                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.navy }}>
+                    {bm.title}
+                  </h4>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleBookmark({ id: bm.resourceId, title: bm.title, subject: bm.subjectName }, bm.resourceType)}
+                    style={{
+                      padding: '6px 12px',
+                      border: `1px solid ${T.line}`,
+                      borderRadius: '6px',
+                      background: T.white,
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      color: T.slate,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Remove Bookmark
+                  </button>
+                </div>
+              </div>
+            ))
+          )
+        )}
+      </div>
     </div>
   );
 };

@@ -1,8 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Compass, CheckCircle2, Clock, BookOpen } from 'lucide-react';
+import { BookOpen, CheckCircle2, Clock, Check, ArrowRight } from 'lucide-react';
 import { getStudentCurriculum } from '../../edops-api';
+
+const T = {
+  navy: '#0c1e33',
+  slate: '#495d72',
+  muted: '#a6abb5',
+  faint: '#b3b3b3',
+  pageBg: '#f4f6f7',
+  white: '#ffffff',
+  border: '#e4e6e9',
+  line: '#ced8e5',
+  chip: '#f5f6f8',
+  blue: '#17a1fa',
+  track: '#eceef3',
+  greenBg: '#d9eed1',
+  green: '#61a249',
+  greenDark: '#1a5c0a',
+};
 
 interface CurriculumPaneProps {
   organizationId: string;
@@ -30,7 +47,24 @@ export const CurriculumPane: React.FC<CurriculumPaneProps> = ({ organizationId }
   };
 
   if (loading) {
-    return <div className="p-8 text-center text-slate-500 animate-pulse">Loading curriculum syllabus tracker...</div>;
+    return (
+      <div style={{ padding: '48px 0', textAlign: 'center', color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: '28px',
+            height: '28px',
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: '50%',
+            animation: 'spin 0.8s linear infinite',
+            margin: '0 auto 12px',
+          }}
+        />
+        <p style={{ fontSize: '13px', fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading curriculum syllabus tracker...
+        </p>
+      </div>
+    );
   }
 
   const overallProgress = data?.overallProgress || 0;
@@ -38,90 +72,258 @@ export const CurriculumPane: React.FC<CurriculumPaneProps> = ({ organizationId }
   const currentSub = subjects.find((s: any) => s.subject === selectedSubject) || subjects[0] || { chapters: [] };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h2 className="text-xl font-bold text-slate-900">Curriculum & Syllabus Completion Tracker</h2>
-        <p className="text-sm text-slate-500">Track NCERT prescribed chapter completion, covered concepts, and upcoming unit topics.</p>
-      </div>
-
-      {/* Overview Card */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <span className="text-xs font-semibold text-slate-500 uppercase">Overall School Curriculum Pacing</span>
-          <div className="text-2xl font-extrabold text-slate-900 mt-1">{overallProgress}% Covered</div>
-          <p className="text-xs text-slate-400 mt-0.5">Your enrolled curriculum</p>
-        </div>
-        <div className="w-full sm:w-64 bg-slate-100 rounded-full h-3 overflow-hidden">
-          <div className="bg-indigo-600 h-full rounded-full" style={{ width: `${overallProgress}%` }} />
-        </div>
-      </div>
-
-      {/* Subject Selector Tabs */}
-      <div className="flex border-b border-slate-200 gap-2 overflow-x-auto">
-        {subjects.map((sub: any) => (
-          <button
-            key={sub.subject}
-            onClick={() => setSelectedSubject(sub.subject)}
-            className={`pb-3 px-4 text-xs font-bold transition-colors border-b-2 whitespace-nowrap ${
-              selectedSubject === sub.subject
-                ? 'border-indigo-600 text-indigo-600'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '24px',
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+          <span
+            style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+            }}
           >
-            {sub.subject} ({sub.progress}%)
-          </button>
-        ))}
+            Syllabus & Coverage
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: '18px',
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: '-0.01em',
+            }}
+          >
+            Curriculum & Syllabus Completion Tracker
+          </h2>
+          <p style={{ margin: 0, fontSize: '13px', color: T.slate, lineHeight: 1.5 }}>
+            Track NCERT prescribed chapter completion, covered concepts, and upcoming unit topics.
+          </p>
+        </div>
+        <div
+          style={{
+            padding: '4px 10px',
+            borderRadius: '100px',
+            background: T.chip,
+            fontSize: '10px',
+            fontWeight: 600,
+            color: T.slate,
+          }}
+        >
+          {subjects.length} Prescribed Subjects
+        </div>
       </div>
 
-      {/* Chapters Breakdown for Selected Subject */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 className="font-bold text-slate-900 text-sm">{currentSub.subject} Chapters & Units</h3>
-          <span className="text-xs text-slate-400">{currentSub.chapters.length} Total Units</span>
+      {/* 2. Overview Banner - Metric card palette: Curriculum Pacing (#ccefbf / #1a5c0a) */}
+      <div
+        style={{
+          background: '#ccefbf',
+          border: '1px solid #ccefbf',
+          borderRadius: '10px',
+          padding: '24px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '16px',
+          color: '#1a5c0a',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Overall School Curriculum Pacing
+            </span>
+            <p style={{ margin: 0, fontSize: '36px', fontWeight: 700, lineHeight: 1 }}>
+              {overallProgress}% Covered
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <BookOpen size={24} />
+          </div>
         </div>
-        <div className="divide-y divide-slate-100">
-          {currentSub.chapters.map((ch: any) => (
-            <div key={ch.number} className="p-4 space-y-2 hover:bg-slate-50 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 font-bold text-xs flex items-center justify-center shrink-0">
-                    {ch.number}
-                  </span>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-900">{ch.title}</h4>
-                    {ch.remainingTopics && (
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        <span className="font-semibold text-slate-700">Remaining to cover:</span> {ch.remainingTopics}
-                      </p>
-                    )}
+
+        {/* Progress Bar: 6 px track, radius 12 px */}
+        <div style={{ width: '100%', height: '6px', background: 'rgba(26, 92, 10, 0.15)', borderRadius: '12px', overflow: 'hidden' }}>
+          <div
+            style={{
+              height: '100%',
+              background: '#1a5c0a',
+              width: `${overallProgress}%`,
+              borderRadius: '12px',
+            }}
+          />
+        </div>
+
+        <p style={{ margin: 0, fontSize: '12px', lineHeight: 1.5 }}>
+          Saved curriculum progress recorded across all academic terms.
+        </p>
+      </div>
+
+      {/* 3. Subject Selector Pills */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+        {subjects.map((sub: any) => {
+          const active = selectedSubject === sub.subject;
+          return (
+            <button
+              key={sub.subject}
+              type="button"
+              onClick={() => setSelectedSubject(sub.subject)}
+              style={{
+                all: 'unset',
+                boxSizing: 'border-box',
+                padding: '6px 14px',
+                borderRadius: '100px',
+                fontSize: '12px',
+                fontWeight: active ? 600 : 500,
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                background: active ? T.navy : T.chip,
+                color: active ? '#ffffff' : T.slate,
+                border: active ? `1px solid ${T.navy}` : `1px solid ${T.border}`,
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {sub.subject} ({sub.progress}%)
+            </button>
+          );
+        })}
+      </div>
+
+      {/* 4. Chapters Breakdown Table Card */}
+      <div
+        style={{
+          background: T.white,
+          border: `1px solid ${T.border}`,
+          borderRadius: '10px',
+          overflow: 'hidden',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div
+          style={{
+            padding: '18px 24px',
+            borderBottom: `1px solid ${T.border}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '8px',
+          }}
+        >
+          <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 600, color: T.navy }}>
+            {currentSub.subject} Chapters & Units
+          </h3>
+          <span
+            style={{
+              padding: '4px 10px',
+              borderRadius: '100px',
+              background: T.chip,
+              fontSize: '10px',
+              fontWeight: 600,
+              color: T.slate,
+            }}
+          >
+            {currentSub.chapters.length} Total Units
+          </span>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          {currentSub.chapters.length === 0 ? (
+            <div style={{ padding: '32px', textAlign: 'center', fontSize: '13px', color: T.slate }}>
+              No chapters published yet for this subject.
+            </div>
+          ) : (
+            currentSub.chapters.map((ch: any, idx: number) => {
+              const isCompleted = ch.status === 'Completed' || ch.progress === 100;
+              const isInProgress = ch.status === 'In Progress' || (ch.progress > 0 && ch.progress < 100);
+              return (
+                <div
+                  key={ch.number || idx}
+                  style={{
+                    padding: '16px 24px',
+                    borderBottom: idx === currentSub.chapters.length - 1 ? 'none' : `1px solid ${T.border}`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    background: idx % 2 === 0 ? T.white : '#fcfdfe',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <div
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '6px',
+                          background: T.pageBg,
+                          border: `1px solid ${T.border}`,
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          color: T.navy,
+                          display: 'grid',
+                          placeItems: 'center',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {ch.number}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: T.navy }}>
+                          {ch.title}
+                        </h4>
+                        {ch.remainingTopics && (
+                          <p style={{ margin: 0, fontSize: '11px', color: T.slate, lineHeight: 1.5 }}>
+                            <strong style={{ color: T.navy, fontWeight: 500 }}>Remaining:</strong> {ch.remainingTopics}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <span
+                        style={{
+                          padding: '4px 10px',
+                          borderRadius: '100px',
+                          fontSize: '10px',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          background: isCompleted ? T.greenBg : isInProgress ? '#bae5f5' : T.chip,
+                          color: isCompleted ? T.greenDark : isInProgress ? '#0a5a7a' : T.slate,
+                        }}
+                      >
+                        {ch.status}
+                      </span>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: T.navy, minWidth: '40px', textAlign: 'right' }}>
+                        {ch.progress}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 6 px track, radius 12 px */}
+                  <div style={{ width: '100%', height: '6px', background: T.track, borderRadius: '12px', overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        height: '100%',
+                        background: isCompleted ? T.green : T.navy,
+                        width: `${ch.progress}%`,
+                        borderRadius: '12px',
+                      }}
+                    />
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <span
-                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
-                      ch.status === 'Completed'
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : ch.status === 'In Progress'
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
-                    {ch.status}
-                  </span>
-                  <span className="block text-[11px] font-bold text-slate-700 mt-1">{ch.progress}%</span>
-                </div>
-              </div>
-              <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    ch.progress === 100 ? 'bg-emerald-500' : ch.progress > 0 ? 'bg-indigo-600' : 'bg-slate-200'
-                  }`}
-                  style={{ width: `${ch.progress}%` }}
-                />
-              </div>
-            </div>
-          ))}
+              );
+            })
+          )}
         </div>
       </div>
     </div>

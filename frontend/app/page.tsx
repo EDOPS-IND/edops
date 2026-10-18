@@ -117,7 +117,16 @@ export default function Home() {
   if (loading && !profile) return <LoadingScreen />;
   if (inviteMode) return <InviteScreen signedIn={Boolean(profile)} onDone={() => { setInviteMode(false); window.history.replaceState({}, "", "/"); }} />;
   if (!profile) return <LoginScreen onLogin={(current) => { setProfile(current); setWorkspace(selectInitialWorkspace(current)); }} onInvite={() => setInviteMode(true)} />;
-  const signOut = async () => { await logout(); setProfile(null); setSchool(null); setWorkspace(""); };
+  const signOut = async () => {
+    try {
+      await logout();
+    } catch {
+      // safe fallback
+    }
+    setProfile(null);
+    setSchool(null);
+    setWorkspace("");
+  };
   const switchWorkspace = (value: string) => { setWorkspace(value); setPanel("overview"); };
   if (workspace === "platform" || !membership) return <PlatformScreen profile={profile} workspace={workspace} onWorkspace={switchWorkspace} onLogout={signOut} />;
   if (membership.role === "principal") {
@@ -150,6 +159,7 @@ export default function Home() {
         onLogout={signOut}
         onSwitchOrganization={switchWorkspace}
         organizations={profile.organizations}
+        userProfile={profile.user}
       />
     );
   }
