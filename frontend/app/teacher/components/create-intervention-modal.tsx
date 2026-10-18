@@ -4,6 +4,23 @@ import React, { useState, useEffect } from "react";
 import { X, ShieldAlert, Check } from "lucide-react";
 import { createTeacherIntervention, getTeacherClassStudents, getTeacherClasses } from "../../edops-api";
 
+const S = {
+  navy: "#0c1e33",
+  slate: "#495d72",
+  muted: "#a6abb5",
+  faint: "#b3b3b3",
+  pageBg: "#f4f6f7",
+  white: "#ffffff",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  chip: "#f5f6f8",
+  blue: "#17a1fa",
+  amberBg: "#fcedb6",
+  amberDark: "#614400",
+  coralBg: "#ffd8c7",
+  coralDark: "#782a00",
+};
+
 interface CreateInterventionModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -29,7 +46,7 @@ export function CreateInterventionModal({
   const [goal, setGoal] = useState("");
   const [recommendedAction, setRecommendedAction] = useState("");
   const [interventionType, setInterventionType] = useState("Remedial Practice");
-  const [reviewDate, setReviewDate] = useState(new Date(Date.now() + 14 * 86400000).toISOString().split('T')[0]);
+  const [reviewDate, setReviewDate] = useState(new Date(Date.now() + 14 * 86400000).toISOString().split("T")[0]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -44,7 +61,10 @@ export function CreateInterventionModal({
       const clsRes = await getTeacherClasses(organizationId);
       const firstSection = clsRes?.classes?.[0]?.sectionId;
       setSubjectId(clsRes?.classes?.[0]?.subjectId || "");
-      if (!firstSection) { setStudents([]); return; }
+      if (!firstSection) {
+        setStudents([]);
+        return;
+      }
       const res = await getTeacherClassStudents(organizationId, firstSection);
       const list = res?.students || [];
       setStudents(list);
@@ -76,48 +96,114 @@ export function CreateInterventionModal({
       if (onSuccess) onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err?.message || "Could not save. Please try again.");
+      setError(err?.message || "Could not assign intervention. Please try again.");
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-white  rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-200  space-y-4 text-xs">
+    <div
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 100,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(12, 30, 51, 0.45)",
+        backdropFilter: "blur(2px)",
+        padding: "16px",
+        boxSizing: "border-box",
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "520px",
+          background: S.white,
+          border: `1px solid ${S.border}`,
+          borderRadius: "14px",
+          boxShadow: "0 20px 40px rgba(12, 30, 51, 0.15)",
+          overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
+          gap: "16px",
+          padding: "24px",
+        }}
+      >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-gray-100 ">
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", borderBottom: `1px solid ${S.line}`, paddingBottom: "14px" }}>
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 ">
+            <span style={{ fontSize: "11px", fontWeight: 700, color: S.navy, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "4px" }}>
               Academic Support & Remedial
             </span>
-            <h3 className="text-lg font-bold text-gray-900 ">
+            <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: S.navy }}>
               Create Student Intervention
             </h3>
+            <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: S.slate }}>
+              Structured remedial plan for struggling learners with milestone tracking.
+            </p>
           </div>
-          <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded-lg">
-            <X className="w-5 h-5" />
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: S.slate,
+              cursor: "pointer",
+              padding: "4px",
+              borderRadius: "6px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <X size={18} />
           </button>
         </div>
 
-        {error && <p role="alert" className="text-red-600">{error}</p>}
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
+        {error && (
+          <div style={{ padding: "10px 12px", borderRadius: "8px", background: S.coralBg, color: S.coralDark, fontSize: "12px", border: `1px solid rgba(120,42,0,0.2)` }}>
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "12px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             <div>
-              <label className="font-bold text-gray-700  block mb-1">
-                Student
+              <label style={{ display: "block", fontWeight: 600, color: S.navy, marginBottom: "6px" }}>
+                Target Student *
               </label>
               <select
                 value={studentId}
                 onChange={(e) => setStudentId(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-gray-50  border border-gray-300  rounded-lg text-gray-900 "
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  border: `1px solid ${S.line}`,
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  color: S.navy,
+                  background: S.white,
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
               >
                 {students.length === 0 ? (
                   <option value="">No enrolled students</option>
                 ) : (
                   students.map((st) => (
                     <option key={st.id} value={st.id}>
-                      {st.name} ({st.rollNumber ? `Roll ${st.rollNumber}` : 'Student'})
+                      {st.name} ({st.rollNumber ? `Roll ${st.rollNumber}` : "Student"})
                     </option>
                   ))
                 )}
@@ -125,13 +211,23 @@ export function CreateInterventionModal({
             </div>
 
             <div>
-              <label className="font-bold text-gray-700  block mb-1">
+              <label style={{ display: "block", fontWeight: 600, color: S.navy, marginBottom: "6px" }}>
                 Intervention Strategy
               </label>
               <select
                 value={interventionType}
                 onChange={(e) => setInterventionType(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-gray-50  border border-gray-300  rounded-lg text-gray-900 "
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  border: `1px solid ${S.line}`,
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  color: S.navy,
+                  background: S.white,
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
               >
                 <option value="Remedial Practice">Remedial Practice</option>
                 <option value="Extra Class">Extra Class</option>
@@ -146,84 +242,159 @@ export function CreateInterventionModal({
           </div>
 
           <div>
-            <label className="font-bold text-gray-700  block mb-1">
-              Targeted Academic Problem Area
+            <label style={{ display: "block", fontWeight: 600, color: S.navy, marginBottom: "6px" }}>
+              Targeted Academic Problem Area *
             </label>
             <input
               type="text"
               required
+              placeholder="e.g. Graphing quadratic functions & vertex determination"
               value={problemArea}
               onChange={(e) => setProblemArea(e.target.value)}
-              className="w-full px-3 py-1.5 bg-gray-50  border border-gray-300  rounded-lg text-gray-900 "
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                border: `1px solid ${S.line}`,
+                borderRadius: "8px",
+                fontSize: "12px",
+                color: S.navy,
+                background: S.white,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
             />
           </div>
 
           <div>
-            <label className="font-bold text-gray-700  block mb-1">
-              Evidence from Assessments / Assignments
+            <label style={{ display: "block", fontWeight: 600, color: S.navy, marginBottom: "6px" }}>
+              Evidence from Assessments / Assignments *
             </label>
             <input
               type="text"
               required
+              placeholder="e.g. Scored 6/20 on Unit Test 2, Section B problems omitted"
               value={evidence}
               onChange={(e) => setEvidence(e.target.value)}
-              className="w-full px-3 py-1.5 bg-gray-50  border border-gray-300  rounded-lg text-gray-900 "
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                border: `1px solid ${S.line}`,
+                borderRadius: "8px",
+                fontSize: "12px",
+                color: S.navy,
+                background: S.white,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
             />
           </div>
 
           <div>
-            <label className="font-bold text-gray-700  block mb-1">
-              Target Learning Goal
+            <label style={{ display: "block", fontWeight: 600, color: S.navy, marginBottom: "6px" }}>
+              Target Learning Goal *
             </label>
             <input
               type="text"
               required
+              placeholder="e.g. Achieve >= 75% on quadratic graphing practice worksheet"
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
-              className="w-full px-3 py-1.5 bg-gray-50  border border-gray-300  rounded-lg text-gray-900 "
+              style={{
+                width: "100%",
+                padding: "8px 12px",
+                border: `1px solid ${S.line}`,
+                borderRadius: "8px",
+                fontSize: "12px",
+                color: S.navy,
+                background: S.white,
+                outline: "none",
+                boxSizing: "border-box",
+              }}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             <div>
-              <label className="font-bold text-gray-700  block mb-1">
-                Action to Execute
+              <label style={{ display: "block", fontWeight: 600, color: S.navy, marginBottom: "6px" }}>
+                Action to Execute *
               </label>
               <input
                 type="text"
                 required
+                placeholder="e.g. 20-minute daily review sessions"
                 value={recommendedAction}
                 onChange={(e) => setRecommendedAction(e.target.value)}
-                className="w-full px-3 py-1.5 bg-gray-50  border border-gray-300  rounded-lg text-gray-900 "
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  border: `1px solid ${S.line}`,
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  color: S.navy,
+                  background: S.white,
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
               />
             </div>
 
             <div>
-              <label className="font-bold text-gray-700  block mb-1">
-                Review Milestone Date
+              <label style={{ display: "block", fontWeight: 600, color: S.navy, marginBottom: "6px" }}>
+                Review Milestone Date *
               </label>
               <input
                 type="date"
                 required
                 value={reviewDate}
                 onChange={(e) => setReviewDate(e.target.value)}
-                className="w-full px-3 py-1.5 bg-gray-50  border border-gray-300  rounded-lg text-gray-900 "
+                style={{
+                  width: "100%",
+                  padding: "8px 12px",
+                  border: `1px solid ${S.line}`,
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  color: S.navy,
+                  background: S.white,
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
               />
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 ">
+          {/* Footer */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "10px", paddingTop: "8px", borderTop: `1px solid ${S.line}` }}>
             <button
               type="button"
               onClick={onClose}
-              className="px-3.5 py-1.5 font-semibold text-gray-600  hover:bg-gray-100 :bg-gray-750 rounded-lg"
+              style={{
+                padding: "8px 16px",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: S.slate,
+                background: "transparent",
+                border: `1px solid ${S.line}`,
+                borderRadius: "8px",
+                cursor: "pointer",
+              }}
             >
               Cancel
             </button>
             <button
               type="submit"
-              disabled={saving || !studentId || !subjectId}
-              className="px-4 py-1.5 font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg shadow-sm transition"
+              disabled={saving || !studentId || !problemArea.trim()}
+              style={{
+                padding: "8px 18px",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: S.white,
+                background: S.navy,
+                border: "none",
+                borderRadius: "8px",
+                cursor: saving ? "not-allowed" : "pointer",
+                opacity: saving ? 0.6 : 1,
+                boxShadow: "0 2px 6px rgba(12,30,51,0.2)",
+              }}
             >
               {saving ? "Registering..." : "Assign Intervention"}
             </button>

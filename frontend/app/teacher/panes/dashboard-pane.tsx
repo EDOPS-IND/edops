@@ -9,254 +9,831 @@ import {
   BookOpen,
   Users,
   ClipboardList,
-  GraduationCap,
   MessageSquare,
   ArrowRight,
   TrendingUp,
   MapPin,
   ChevronRight,
-  ShieldAlert,
-  Activity,
   Award,
   CheckSquare,
+  HelpCircle,
+  Play,
+  Upload,
+  Layers,
+  Sparkles,
 } from "lucide-react";
 import { getTeacherDashboard } from "../../edops-api";
+import { TeacherTab } from "../types";
 
-// ─── Design Tokens (Neutral / Minimalist Admin Design System) ───────────────────────────
+// Design tokens strictly matching Student Dashboard specification
 const S = {
-  ink: "#101828",       // primary text
-  muted: "#475467",     // secondary text
-  faint: "#667085",     // tertiary text
-  border: "#E2DDD5",    // dividers / borders (matching school admin)
-  borderSubtle: "#EAECF0",
-  bg: "#FFFFFF",        // card background
-  canvas: "#F7F8FA",    // page background
-  cardRowBg: "#FAF8F5", // subtle tinted background for list items
-  accent: "#101828",    // dark accent for buttons/links
-
-  // Status colors (subtle)
-  greenBg: "#ECFDF3",
-  greenTxt: "#027A48",
-  greenBdr: "#ABEFC6",
-
-  amberBg: "#FFFAEB",
-  amberTxt: "#B54708",
-  amberBdr: "#FEDF89",
-
-  redBg: "#FEF3F2",
-  redTxt: "#B42318",
-  redBdr: "#FECDCA",
-
-  blueBg: "#EFF8FF",
-  blueTxt: "#175CD3",
-  blueBdr: "#B2DDFF",
+  navy: "#0c1e33",
+  slate: "#495d72",
+  muted: "#a6abb5",
+  faint: "#b3b3b3",
+  bg: "#f4f6f7",
+  white: "#ffffff",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  chip: "#f5f6f8",
+  blue: "#17a1fa",
+  greenBg: "#d9eed1",
+  green: "#61a249",
+  greenDk: "#1a5c0a",
+  track: "#eceef3",
 };
 
 interface DashboardPaneProps {
   organizationId: string;
-  onNavigate: (pane: string, sub?: string) => void;
-  onTakeAttendance: (sectionId: string, periodNumber?: number, classSection?: string) => void;
-  onMarkLessonCompleted: (sectionId: string, periodNumber?: number, classSection?: string) => void;
+  onNavigate: (tab: TeacherTab) => void;
+  onTakeAttendance: (sectionId?: string, periodNumber?: number, classSection?: string) => void;
+  onMarkLessonCompleted: (sectionId?: string, periodNumber?: number, classSection?: string) => void;
   onCreateAssignment?: () => void;
 }
 
-export function DashboardPane({
+export const DashboardPane: React.FC<DashboardPaneProps> = ({
   organizationId,
   onNavigate,
   onTakeAttendance,
   onMarkLessonCompleted,
   onCreateAssignment,
-}: DashboardPaneProps) {
+}) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [showHealthExplainer, setShowHealthExplainer] = useState(false);
 
   useEffect(() => {
     loadDashboard();
   }, [organizationId]);
 
-  async function loadDashboard() {
+  const loadDashboard = async () => {
     setLoading(true);
     try {
       const res = await getTeacherDashboard(organizationId);
       setData(res);
-    } catch {
+    } catch (err) {
+      console.error(err);
       setData(null);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
   if (loading) {
     return (
-      <div style={{ padding: "48px 0", textAlign: "center", color: S.faint }}>
-        <div style={{ width: "28px", height: "28px", border: `2px solid ${S.ink}`, borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto 12px" }} />
-        <p style={{ fontSize: "13px", fontWeight: 600, color: S.muted, margin: 0 }}>Loading teacher command center...</p>
+      <div style={{ padding: "48px 0", textAlign: "center", color: S.slate }}>
+        <div
+          style={{
+            width: "28px",
+            height: "28px",
+            border: `3px solid ${S.line}`,
+            borderTopColor: S.navy,
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 12px",
+          }}
+        />
+        <p style={{ fontSize: "13px", fontWeight: 600, color: S.slate, margin: 0 }}>
+          Loading teacher command center...
+        </p>
       </div>
     );
   }
 
-  const kpis = data?.kpis;
+  const teacher = data?.teacher || {
+    name: "Faculty Member",
+    primarySubject: "Instructional Faculty",
+    assignedClassesCount: 0,
+    totalStudents: 0,
+  };
+
+  const kpis = data?.kpis || {
+    classesToday: 0,
+    periodsToday: 0,
+    studentsToday: 0,
+    pendingAttendance: 0,
+    pendingAssignments: 0,
+    pendingEvaluations: 0,
+    upcomingAssessments: 0,
+    curriculumProgress: 0,
+    unreadMessages: 0,
+  };
+
   const nextClass = data?.nextClass;
   const attentionItems = data?.attentionRequired || [];
+  const todaySchedule = data?.todaySchedule || [];
   const activityLogs = data?.recentActivity || [];
 
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
-      {/* 1. TOP GREETING HEADER WITH KEPT BUTTONS ON TOP */}
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+      {/* ═══════════════════════════════════════════════
+          1. HERO BANNER WITH FACULTY ARTWORK
+      ═══════════════════════════════════════════════ */}
       <section
+        aria-labelledby="teacher-greeting"
         style={{
-          background: S.bg,
-          border: `1px solid ${S.border}`,
-          borderRadius: "12px",
-          padding: "20px 24px",
           display: "flex",
-          flexWrap: "wrap",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: "16px",
+          minHeight: "180px",
+          overflow: "hidden",
+          background: "#eaedf2",
+          border: "1px solid #d8dee6",
+          borderRadius: "12px",
+          boxSizing: "border-box",
         }}
       >
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 800, color: S.ink, letterSpacing: "-0.02em" }}>
-              Good Morning, {data?.teacher?.name || "Teacher"} 👋
-            </h2>
+        <div
+          style={{
+            display: "flex",
+            flex: 1,
+            flexDirection: "column",
+            alignItems: "flex-start",
+            gap: "12px",
+            minWidth: 0,
+            padding: "28px 32px",
+          }}
+        >
+          {/* Greeting Row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "28px", lineHeight: 1 }} aria-hidden="true">
+              👋
+            </span>
+            <h1
+              id="teacher-greeting"
+              style={{
+                margin: 0,
+                fontSize: "26px",
+                fontWeight: 600,
+                color: S.navy,
+                letterSpacing: "-0.02em",
+              }}
+            >
+              {(() => {
+                const hour = new Date().getHours();
+                const timeGreeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
+                const name = teacher.name.replace(/\s*\(Teacher\)|\s*\(Faculty\)/gi, "").trim();
+                return `${timeGreeting}, ${name}!`;
+              })()}
+            </h1>
+          </div>
+
+          {/* Details & Badges */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              fontSize: "13px",
+              color: S.slate,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontWeight: 600, color: S.navy }}>
+              {teacher.primarySubject || "Primary Faculty"}
+            </span>
+            <span style={{ color: "#5c6b80" }}>/</span>
+            <span>
+              {teacher.assignedClassesCount} Assigned Sections ({teacher.totalStudents} Enrolled Students)
+            </span>
             <span
               style={{
-                background: S.greenBg,
-                border: `1px solid ${S.greenBdr}`,
-                color: S.greenTxt,
+                padding: "4px 8px",
+                borderRadius: "4px",
+                background: "rgba(12, 30, 51, 0.05)",
                 fontSize: "11px",
-                fontWeight: 700,
-                padding: "2px 8px",
-                borderRadius: "12px",
+                fontWeight: 600,
+                color: S.navy,
               }}
             >
               Senior Faculty
             </span>
           </div>
-          <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: S.muted, fontWeight: 500 }}>
-            {data?.teacher?.primarySubject || "General"} · {data?.teacher?.assignedClassesCount ?? 0} Assigned Sections ({data?.teacher?.totalStudents ?? 0} Students Enrolled)
-          </p>
+
+          {/* Action Buttons */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginTop: "2px" }}>
+            {/* Mark Attendance */}
+            <button
+              type="button"
+              onClick={() => onTakeAttendance(nextClass?.sectionId, 1, nextClass?.classSection)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 16px",
+                border: `1px solid ${S.line}`,
+                borderRadius: "6px",
+                background: "#fff",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: S.navy,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#98A2B3";
+                e.currentTarget.style.background = "#FAF8F5";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = S.line;
+                e.currentTarget.style.background = "#fff";
+              }}
+            >
+              <CheckSquare size={16} />
+              <span>Mark Attendance</span>
+            </button>
+
+            {/* New Assignment */}
+            <button
+              type="button"
+              onClick={() => (onCreateAssignment ? onCreateAssignment() : onNavigate("assignments"))}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 16px",
+                border: `1px solid ${S.line}`,
+                borderRadius: "6px",
+                background: "#fff",
+                fontSize: "13px",
+                fontWeight: 600,
+                color: S.navy,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "all 0.15s ease",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#98A2B3";
+                e.currentTarget.style.background = "#FAF8F5";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = S.line;
+                e.currentTarget.style.background = "#fff";
+              }}
+            >
+              <Upload size={16} />
+              <span>+ New Assignment</span>
+            </button>
+
+            {/* Full Timetable */}
+            <button
+              type="button"
+              onClick={() => onNavigate("timetable")}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "10px 16px",
+                border: `1px solid ${S.navy}`,
+                borderRadius: "6px",
+                background: S.navy,
+                fontSize: "13px",
+                fontWeight: 600,
+                color: "#fff",
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+                transition: "background 0.15s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
+            >
+              <Calendar size={16} />
+              <span>Full Timetable</span>
+            </button>
+          </div>
         </div>
 
-        {/* Buttons on top - strictly kept in place */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          {onCreateAssignment && (
+        {/* Teacher Dashboard Illustration */}
+        <div style={{ flexShrink: 0, width: "251px", height: "196px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <img
+            src="/teacherdashboard.svg"
+            alt="Teacher Command Center"
+            width={251}
+            height={196}
+            style={{ width: "100%", height: "100%", display: "block", objectFit: "contain" }}
+          />
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════
+          2. INSTRUCTIONAL OVERVIEW HEADER
+      ═══════════════════════════════════════════════ */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 600, color: S.navy, whiteSpace: "nowrap" }}>
+            Instructional Overview &amp; Key Metrics
+          </h2>
+          <span
+            style={{
+              padding: "4px 10px",
+              borderRadius: "100px",
+              background: S.chip,
+              fontSize: "10px",
+              fontWeight: 600,
+              color: S.slate,
+              whiteSpace: "nowrap",
+            }}
+          >
+            Active Term
+          </span>
+        </div>
+        <p style={{ margin: 0, fontSize: "11px", color: S.faint, whiteSpace: "nowrap" }}>
+          Synchronized live with school registers
+        </p>
+      </div>
+
+      {/* ═══════════════════════════════════════════════
+          3. SIX 6-COLOR METRIC STAT CARDS (Picture-Perfect)
+      ═══════════════════════════════════════════════ */}
+      <section
+        aria-label="Instructional metrics"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(3, 1fr)",
+          gap: "12px",
+        }}
+      >
+        {/* 1. Classes Today (Pastel Violet) */}
+        <article
+          onClick={() => onNavigate("timetable")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: "#e1d2ff",
+            border: "1px solid #e1d2ff",
+            borderRadius: "10px",
+            color: "#4a0e8f",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Classes Today
+            </h3>
+            <Calendar size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#4a0e8f" }}>
+            {kpis.classesToday}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              {kpis.periodsToday} instructional periods
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#4a0e8f" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+
+        {/* 2. Students in Attendance (Pastel Warm Amber) */}
+        <article
+          onClick={() => onNavigate("classes")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: "#fde1ac",
+            border: "1px solid #fde1ac",
+            borderRadius: "10px",
+            color: "#7a4a00",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Students Today
+            </h3>
+            <Users size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#7a4a00" }}>
+            {kpis.studentsToday}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              Across assigned class sections
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#7a4a00" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+
+        {/* 3. Assignments & Grading (Pastel Sky Blue) */}
+        <article
+          onClick={() => onNavigate("assignments")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: "#bae5f5",
+            border: "1px solid #bae5f5",
+            borderRadius: "10px",
+            color: "#0a5a7a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Assignments Due
+            </h3>
+            <ClipboardList size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
+            {kpis.pendingAssignments}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              {kpis.pendingAssignments === 0 ? "All grading complete" : "Pending review & evaluation"}
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#0a5a7a" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+
+        {/* 4. Curriculum Progress (Pastel Mint Green) */}
+        <article
+          onClick={() => onNavigate("curriculum")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: "#ccefbf",
+            border: "1px solid #ccefbf",
+            borderRadius: "10px",
+            color: "#1a5c0a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Curriculum Pacing
+            </h3>
+            <BookOpen size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
+            {kpis.curriculumProgress}%
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              Overall LO delivery pacing
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#1a5c0a" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+
+        {/* 5. Pending Attendance Registers (Pastel Rose / Coral) */}
+        <article
+          onClick={() => onNavigate("attendance")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: "#ffd6d6",
+            border: "1px solid #ffd6d6",
+            borderRadius: "10px",
+            color: "#7a1a1a",
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Pending Registers
+            </h3>
+            <CheckSquare size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#7a1a1a" }}>
+            {kpis.pendingAttendance}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              {kpis.pendingAttendance === 0 ? "All registers submitted" : "Periods awaiting roll call"}
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#7a1a1a" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+
+        {/* 6. Academic Directives (Navy High-Contrast) */}
+        <article
+          onClick={() => onNavigate("communication")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            minWidth: 0,
+            height: "148px",
+            padding: "20px",
+            background: S.navy,
+            border: `1px solid ${S.navy}`,
+            borderRadius: "10px",
+            color: S.muted,
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <h3 style={{ margin: 0, fontSize: "10px", fontWeight: 600, textTransform: "uppercase" }}>
+              Directives &amp; Tasks
+            </h3>
+            <Award size={18} color={S.muted} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#fff" }}>
+            {kpis.unreadMessages + kpis.pendingEvaluations}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px", color: S.muted }}>
+              {kpis.unreadMessages} directives · {kpis.pendingEvaluations} evaluations
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#fff" }}>
+              View <ArrowRight size={14} />
+            </span>
+          </div>
+        </article>
+      </section>
+
+      {/* ═══════════════════════════════════════════════
+          4. INSTRUCTIONAL STATUS (Dual Cards)
+      ═══════════════════════════════════════════════ */}
+      <section
+        aria-label="Instructional status"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1.2fr 1.8fr",
+          gap: "16px",
+        }}
+      >
+        {/* Card 1: Faculty Standing & Readiness */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+            padding: "24px",
+            background: "#fff",
+            border: `1px solid ${S.border}`,
+            borderRadius: "10px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <p style={{ margin: 0, fontSize: "10px", fontWeight: 600, color: S.slate }}>EDOPS</p>
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 600, color: S.navy }}>
+                Faculty Instructional Health
+              </h2>
+            </div>
             <button
-              onClick={onCreateAssignment}
+              type="button"
+              onClick={() => setShowHealthExplainer(!showHealthExplainer)}
               style={{
-                background: "#FFFFFF",
-                color: S.ink,
-                border: "1px solid #D0D5DD",
-                borderRadius: "8px",
-                padding: "8px 14px",
-                fontSize: "12.5px",
-                fontWeight: 650,
-                cursor: "pointer",
+                all: "unset",
                 display: "flex",
                 alignItems: "center",
                 gap: "6px",
-                boxShadow: "0 1px 2px rgba(16,24,40,0.05)",
-                transition: "all 0.15s ease",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#F9FAFB"; e.currentTarget.style.borderColor = "#98A2B3"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "#FFFFFF"; e.currentTarget.style.borderColor = "#D0D5DD"; }}
-            >
-              <span>+ New Assignment</span>
-            </button>
-          )}
-
-          <button
-            onClick={() => onNavigate("timetable")}
-            style={{
-              background: S.accent,
-              color: "#FFFFFF",
-              border: `1px solid ${S.accent}`,
-              borderRadius: "8px",
-              padding: "8px 16px",
-              fontSize: "12.5px",
-              fontWeight: 700,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: "7px",
-              boxShadow: "0 1px 2px rgba(16,24,40,0.08)",
-              transition: "all 0.15s ease",
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.background = "#1D2939")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = S.accent)}
-          >
-            <Calendar size={14} style={{ color: "#E0E7FF" }} />
-            <span>Full Timetable</span>
-          </button>
-        </div>
-      </section>
-
-      {/* 2. TOP EXECUTIVE KPI CARDS (Admin StatCard Grid) */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
-        {[
-          { label: "Classes Today", value: String(kpis?.classesToday ?? 0), sub: `${kpis?.periodsToday ?? 0} instructional periods`, tab: "timetable", icon: Calendar },
-          { label: "Students Today", value: String(kpis?.studentsToday ?? 0), sub: "Across assigned sections", tab: "classes", icon: Users },
-          { label: "Pending Register", value: String(kpis?.pendingAttendance ?? 0), sub: (kpis?.pendingAttendance ?? 0) > 0 ? "Pending submission" : "All registers marked", tab: "attendance", icon: CheckSquare },
-          { label: "Pending Grading", value: String(kpis?.pendingEvaluations ?? 0), sub: (kpis?.pendingEvaluations ?? 0) > 0 ? "Pending evaluation" : "Queue clear", tab: "assignments", icon: ClipboardList },
-          { label: "Upcoming Tests", value: String(kpis?.upcomingAssessments ?? 0), sub: "Assessment schedule", tab: "assessment", icon: Award },
-          { label: "Curriculum Pacing", value: `${kpis?.curriculumProgress ?? 0}%`, sub: "Syllabus pacing tracker", tab: "curriculum", icon: BookOpen },
-        ].map((kpi, idx) => {
-          const Icon = kpi.icon;
-          return (
-            <div
-              key={idx}
-              onClick={() => onNavigate(kpi.tab)}
-              style={{
-                background: S.bg,
-                border: `1px solid ${S.border}`,
-                borderRadius: "12px",
-                padding: "18px 20px",
+                fontSize: "11px",
+                fontWeight: 600,
+                color: S.navy,
                 cursor: "pointer",
-                transition: "transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = "translateY(-2px)";
-                e.currentTarget.style.boxShadow = "0 6px 16px rgba(16,24,40,0.06)";
-                e.currentTarget.style.borderColor = "#D0D5DD";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow = "none";
-                e.currentTarget.style.borderColor = S.border;
+                whiteSpace: "nowrap",
               }}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <span style={{ fontSize: "12px", fontWeight: 650, color: S.muted, textTransform: "uppercase", letterSpacing: "0.03em" }}>{kpi.label}</span>
-                <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: S.cardRowBg, display: "grid", placeItems: "center", color: S.ink }}>
-                  <Icon size={16} />
-                </div>
-              </div>
-              <div style={{ margin: "12px 0 6px" }}>
-                <span style={{ fontSize: "26px", fontWeight: 800, color: S.ink, letterSpacing: "-0.02em" }}>{kpi.value}</span>
-              </div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11.5px", color: S.faint }}>
-                <span>{kpi.sub}</span>
-                <span style={{ color: S.ink, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "2px" }}>
-                  View <ChevronRight size={13} />
-                </span>
+              Explain Metric <HelpCircle size={15} />
+            </button>
+          </div>
+
+          <p style={{ margin: 0, fontSize: "13px", lineHeight: 1.5, color: S.slate }}>
+            Automated compliance score reflecting attendance submission rate, syllabus pacing, and active evaluations.
+          </p>
+
+          <div style={{ height: "1px", background: "#f2f2f2" }} />
+
+          <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "80px", flexShrink: 0 }}>
+              <p style={{ margin: 0, fontSize: "36px", fontWeight: 600, lineHeight: 1, color: S.navy }}>
+                {Math.max(0, 100 - (kpis.pendingAttendance * 5) - (kpis.pendingAssignments * 2))}
+              </p>
+              <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>/100</p>
+            </div>
+            <div style={{ display: "flex", flex: 1, flexDirection: "column", alignItems: "flex-start", gap: "10px", minWidth: 0 }}>
+              <span
+                style={{
+                  padding: "5px 9px",
+                  borderRadius: "100px",
+                  background: S.chip,
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  color: S.navy,
+                }}
+              >
+                High Compliance Readiness
+              </span>
+              <p style={{ margin: 0, fontSize: "11px", lineHeight: 1.6, color: S.slate }}>
+                Verified curriculum pacing ({kpis.curriculumProgress}%), timely registers, and active lesson execution in compliance.
+              </p>
+            </div>
+          </div>
+
+          {showHealthExplainer && (
+            <div
+              style={{
+                background: S.chip,
+                border: `1px solid ${S.border}`,
+                borderRadius: "8px",
+                padding: "12px 14px",
+                fontSize: "12px",
+                color: S.slate,
+              }}
+            >
+              <b style={{ color: S.navy }}>Tracked compliance metrics:</b>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
+                <div>• Curriculum Progress: {kpis.curriculumProgress}%</div>
+                <div>• Pending Attendance: {kpis.pendingAttendance}</div>
+                <div>• Pending Grading: {kpis.pendingAssignments}</div>
+                <div>• Directives: {kpis.unreadMessages} unread</div>
               </div>
             </div>
-          );
-        })}
+          )}
+        </article>
+
+        {/* Card 2: Attention Required / At-Risk & Tasks */}
+        <article
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "20px",
+            padding: "24px",
+            background: "#fff",
+            border: `1px solid ${S.border}`,
+            borderRadius: "10px",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "9px" }}>
+              <CheckCircle2 size={19} color={S.navy} />
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 600, color: S.navy }}>
+                Attention Required
+              </h2>
+            </div>
+            <span
+              style={{
+                padding: "5px 9px",
+                borderRadius: "100px",
+                background: attentionItems.length > 0 ? "#FFFAEB" : S.greenBg,
+                fontSize: "11px",
+                fontWeight: 600,
+                color: attentionItems.length > 0 ? "#B54708" : S.green,
+                border: attentionItems.length > 0 ? "1px solid #FEDF89" : "none",
+              }}
+            >
+              {attentionItems.length > 0 ? `${attentionItems.length} Notice(s)` : "All Clear"}
+            </span>
+          </div>
+
+          <p style={{ margin: 0, fontSize: "13px", lineHeight: "normal", color: S.slate }}>
+            Click any alert to open the recommended instructional action loop.
+          </p>
+
+          {attentionItems.length > 0 ? (
+            <div style={{ display: "grid", gap: "10px" }}>
+              {attentionItems.map((al: any, idx: number) => {
+                const isHigh = al.severity === "critical" || al.severity === "high";
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      padding: "12px 14px",
+                      borderRadius: "6px",
+                      background: S.chip,
+                      border: `1px solid ${isHigh ? "#FECDCA" : "#FEDF89"}`,
+                      display: "grid",
+                      gap: "6px",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span
+                          style={{
+                            fontSize: "10px",
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            color: isHigh ? "#B42318" : "#B54708",
+                            background: isHigh ? "#FEF3F2" : "#FFFAEB",
+                            padding: "1px 6px",
+                            borderRadius: "4px",
+                          }}
+                        >
+                          {isHigh ? "Critical" : "Notice"}
+                        </span>
+                        <b style={{ fontSize: "13px", color: S.navy }}>
+                          {al.type ? al.type.toUpperCase() : "TASK"}
+                        </b>
+                      </div>
+                    </div>
+                    <p style={{ margin: 0, fontSize: "12px", color: S.slate, lineHeight: 1.4 }}>
+                      {al.message}
+                    </p>
+                    <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (al.type === "attendance") {
+                            onTakeAttendance();
+                          } else if (al.type === "assignment") {
+                            onNavigate("assignments");
+                          } else if (al.type === "at_risk" || al.type === "student") {
+                            onNavigate("students");
+                          } else {
+                            onNavigate("communication");
+                          }
+                        }}
+                        style={{
+                          background: S.navy,
+                          border: "none",
+                          color: "#FFFFFF",
+                          padding: "5px 12px",
+                          borderRadius: "6px",
+                          fontSize: "11.5px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {al.action || "Resolve Action"} ↗
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "15px",
+                padding: "20px",
+                borderRadius: "6px",
+                background: S.greenBg,
+                color: S.greenDk,
+              }}
+            >
+              <CheckCircle2 size={26} color={S.green} style={{ flexShrink: 0 }} />
+              <div style={{ display: "flex", flex: 1, flexDirection: "column", gap: "5px", minWidth: 0 }}>
+                <p style={{ margin: 0, fontSize: "14px", fontWeight: 600 }}>
+                  All instructional tasks are up to date!
+                </p>
+                <p style={{ margin: 0, fontSize: "12px", lineHeight: 1.5 }}>
+                  No pending attendance registers or overdue assignments requiring faculty action.
+                </p>
+              </div>
+            </div>
+          )}
+        </article>
       </section>
 
-      {/* 3. HERO: CURRENT / NEXT CLASS PROMINENT CARD (Admin Style) */}
+      {/* ═══════════════════════════════════════════════
+          5. NEXT CLASS PERIOD (When Scheduled)
+      ═══════════════════════════════════════════════ */}
       {nextClass ? (
         <section
           style={{
-            background: S.bg,
+            background: "#fff",
             border: `1px solid ${S.border}`,
-            borderRadius: "12px",
+            borderRadius: "10px",
             padding: "20px 24px",
             display: "flex",
             flexWrap: "wrap",
@@ -270,314 +847,240 @@ export function DashboardPane({
               <span
                 style={{
                   background: S.greenBg,
-                  color: S.greenTxt,
-                  border: `1px solid ${S.greenBdr}`,
+                  color: S.greenDk,
                   padding: "2px 8px",
-                  borderRadius: "6px",
+                  borderRadius: "4px",
                   fontSize: "11px",
                   fontWeight: 700,
                   textTransform: "uppercase",
-                  letterSpacing: "0.04em",
                 }}
               >
-                NOW / NEXT PERIOD
+                LIVE / UPCOMING PERIOD
               </span>
-              <span style={{ fontSize: "12.5px", color: S.muted, fontWeight: 600, display: "flex", alignItems: "center", gap: "4px" }}>
-                <Clock size={13} style={{ color: S.faint }} /> Starts in {nextClass.startsInMinutes ?? 15} mins ({nextClass.startTime}–{nextClass.endTime})
+              <span style={{ fontSize: "12px", color: S.slate, display: "flex", alignItems: "center", gap: "4px" }}>
+                <Clock size={13} /> Starts in {nextClass.startsInMinutes ?? 10} mins ({nextClass.startTime}–{nextClass.endTime})
               </span>
             </div>
-            <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 800, color: S.ink }}>
-              {nextClass.classSection} · <span style={{ fontWeight: 600, color: S.muted }}>{nextClass.subject}</span>
+            <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: S.navy }}>
+              {nextClass.classSection} · <span style={{ fontWeight: 500, color: S.slate }}>{nextClass.subject} ({nextClass.topic || "Instructional Plan"})</span>
             </h3>
-            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px", fontSize: "12px", color: S.faint, marginTop: "2px" }}>
-              <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                <MapPin size={13} /> {nextClass.room || "Room 302"}
-              </span>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px", fontSize: "12px", color: S.slate }}>
+              <span>Room {nextClass.room || "Lab 2"}</span>
               <span>•</span>
-              <span>Topic: <b style={{ color: S.ink }}>{nextClass.topic || "Instructional Session"}</b></span>
-              <span>•</span>
-              <span style={{ color: S.greenTxt, fontWeight: 600 }}>Lesson Plan: {nextClass.lessonPlanStatus || "Ready"}</span>
+              <span>Status: <b style={{ color: S.navy }}>{nextClass.lessonPlanStatus || "Prepared"}</b></span>
             </div>
           </div>
 
-          {/* Action buttons kept in place */}
-          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <button
-              onClick={() => onTakeAttendance(nextClass.sectionId, nextClass.periodNumber || nextClass.period || 1, nextClass.classSection)}
+              onClick={() => onTakeAttendance(nextClass.sectionId, 1, nextClass.classSection)}
               style={{
-                background: S.accent,
-                color: "#FFFFFF",
-                border: "none",
+                background: "#fff",
+                border: `1px solid ${S.line}`,
+                color: S.navy,
                 padding: "8px 14px",
-                borderRadius: "8px",
+                borderRadius: "6px",
                 fontSize: "12px",
-                fontWeight: 700,
+                fontWeight: 600,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                gap: "5px",
+                gap: "6px",
               }}
             >
-              <span>Take Attendance</span>
+              <CheckSquare size={14} />
+              <span>Mark Attendance</span>
             </button>
             <button
-              onClick={() => onMarkLessonCompleted(nextClass.sectionId, nextClass.periodNumber || nextClass.period || 1, nextClass.classSection)}
+              onClick={() => onMarkLessonCompleted(nextClass.sectionId, 1, nextClass.classSection)}
               style={{
-                background: "#FFFFFF",
-                border: "1px solid #D0D5DD",
-                color: S.ink,
-                padding: "8px 14px",
-                borderRadius: "8px",
+                background: S.navy,
+                border: `1px solid ${S.navy}`,
+                color: "#ffffff",
+                padding: "8px 16px",
+                borderRadius: "6px",
                 fontSize: "12px",
-                fontWeight: 650,
+                fontWeight: 600,
                 cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
               }}
             >
-              Mark Completed
-            </button>
-            <button
-              onClick={() => onNavigate("classes")}
-              style={{
-                background: "#FFFFFF",
-                border: "1px solid #D0D5DD",
-                color: S.ink,
-                padding: "8px 14px",
-                borderRadius: "8px",
-                fontSize: "12px",
-                fontWeight: 650,
-                cursor: "pointer",
-              }}
-            >
-              Open Class Hub
+              <CheckCircle2 size={14} />
+              <span>Log Lesson Delivery</span>
             </button>
           </div>
         </section>
       ) : null}
 
-      {/* 4. TODAY'S SCHEDULE & ATTENTION / REAL-TIME ACTIVITY RADAR */}
-      <section style={{ display: "grid", gridTemplateColumns: "1.2fr 1.8fr", gap: "20px" }}>
-        {/* Left: Today's Instructional Periods */}
-        <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: "12px", padding: "22px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+      {/* ═══════════════════════════════════════════════
+          6. TODAY'S INSTRUCTIONAL TIMETABLE
+      ═══════════════════════════════════════════════ */}
+      {todaySchedule.length > 0 && (
+        <section
+          style={{
+            background: "#fff",
+            border: `1px solid ${S.border}`,
+            borderRadius: "10px",
+            padding: "20px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: S.ink }}>Today's Instructional Periods</h3>
-              <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.faint }}>Daily teaching schedule and period attendance registers</p>
+              <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: S.navy }}>
+                Today's Class Schedule
+              </h2>
+              <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.slate }}>
+                Live instructional roster for today
+              </p>
             </div>
             <button
               onClick={() => onNavigate("timetable")}
-              style={{ background: S.cardRowBg, border: `1px solid ${S.border}`, color: S.ink, padding: "4px 10px", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
+              style={{
+                all: "unset",
+                display: "flex",
+                alignItems: "center",
+                gap: "4px",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: S.navy,
+                cursor: "pointer",
+              }}
             >
-              Weekly Schedule <ArrowRight size={13} />
+              <span>Full Week Schedule</span>
+              <ArrowRight size={13} />
             </button>
           </div>
 
-          <div style={{ display: "grid", gap: "10px" }}>
-            {data?.todaySchedule?.length > 0 ? (
-              data.todaySchedule.map((period: any) => {
-                const isDone = Boolean(period.attendanceDone);
-                return (
-                  <div
-                    key={period.period || period.periodNumber}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      padding: "12px 14px",
-                      background: S.cardRowBg,
-                      border: `1px solid ${S.borderSubtle}`,
-                      borderRadius: "8px",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                      <div
-                        style={{
-                          width: "32px",
-                          height: "32px",
-                          borderRadius: "8px",
-                          background: S.bg,
-                          border: `1px solid ${isDone ? S.greenBdr : S.borderSubtle}`,
-                          color: isDone ? S.greenTxt : S.ink,
-                          display: "grid",
-                          placeItems: "center",
-                          fontSize: "11.5px",
-                          fontWeight: 800,
-                        }}
-                      >
-                        P{period.period || period.periodNumber}
-                      </div>
-                      <div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <b style={{ fontSize: "13px", color: S.ink }}>
-                            {period.classSection}
-                          </b>
-                          <span style={{ fontSize: "12px", color: S.muted }}>· {period.subject}</span>
-                        </div>
-                        <div style={{ fontSize: "11.5px", color: S.faint, marginTop: "2px" }}>
-                          {period.time} · {period.room}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      {isDone ? (
-                        <span style={{ background: S.greenBg, color: S.greenTxt, border: `1px solid ${S.greenBdr}`, padding: "3px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                          <CheckCircle2 size={12} /> Register Marked
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => onTakeAttendance(period.sectionId || "", period.period || period.periodNumber || 1, period.classSection)}
-                          style={{ background: S.accent, color: "#FFFFFF", border: "none", padding: "5px 12px", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}
-                        >
-                          Mark Attendance
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <div style={{ padding: "20px", textAlign: "center", color: S.faint, fontSize: "12px" }}>
-                No instructional periods scheduled for today.
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Right: Attention Required & Real-Time Activity Feed */}
-        <div style={{ display: "grid", gap: "20px" }}>
-          {/* Attention Required */}
-          <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: "12px", padding: "22px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <ShieldAlert size={18} color="#D97706" />
-                  <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: S.ink }}>Attention Required</h3>
-                  <span
-                    style={{
-                      background: attentionItems.length > 0 ? S.amberBg : S.greenBg,
-                      color: attentionItems.length > 0 ? S.amberTxt : S.greenTxt,
-                      border: `1px solid ${attentionItems.length > 0 ? S.amberBdr : S.greenBdr}`,
-                      padding: "2px 8px", borderRadius: "12px", fontSize: "11px", fontWeight: 700
-                    }}
-                  >
-                    {attentionItems.length > 0 ? `${attentionItems.length} Active Notice(s)` : "All Clear"}
-                  </span>
-                </div>
-                <p style={{ margin: "3px 0 0", fontSize: "12px", color: S.faint }}>Pending evaluations and departmental directives</p>
-              </div>
-              <button
-                onClick={() => onNavigate("assignments")}
-                style={{ background: "transparent", border: "none", color: S.ink, fontWeight: 700, fontSize: "12px", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "4px" }}
-              >
-                Evaluations <ArrowRight size={13} />
-              </button>
-            </div>
-
-            <div style={{ display: "grid", gap: "10px" }}>
-              {attentionItems.length > 0 ? (
-                attentionItems.map((al: any, idx: number) => {
-                  const isHigh = al.severity === "critical" || al.severity === "high";
-                  return (
+          <div style={{ display: "grid", gap: "8px" }}>
+            {todaySchedule.map((period: any, idx: number) => {
+              const isDone = period.attendanceDone;
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px 16px",
+                    background: S.chip,
+                    borderRadius: "8px",
+                    border: `1px solid ${S.border}`,
+                    gap: "12px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
                     <div
-                      key={idx}
                       style={{
-                        padding: "12px 14px",
+                        width: "36px",
+                        height: "36px",
                         borderRadius: "8px",
-                        background: S.cardRowBg,
-                        border: `1px solid ${isHigh ? S.redBdr : S.amberBdr}`,
-                        display: "grid",
-                        gap: "6px",
+                        background: S.navy,
+                        color: "#fff",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: 700,
+                        fontSize: "13px",
+                        flexShrink: 0,
                       }}
                     >
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <span
-                            style={{
-                              fontSize: "11px", fontWeight: 700, textTransform: "uppercase",
-                              color: isHigh ? S.redTxt : S.amberTxt,
-                              background: isHigh ? S.redBg : S.amberBg,
-                              padding: "1px 6px", borderRadius: "4px"
-                            }}
-                          >
-                            {isHigh ? "High" : "Notice"}
-                          </span>
-                          <b style={{ fontSize: "13px", color: S.ink }}>{al.title || "Teaching Notice"}</b>
-                        </div>
-                      </div>
-                      <p style={{ margin: 0, fontSize: "12px", color: "#334155", lineHeight: 1.4 }}>{al.message || al.desc}</p>
-                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "2px" }}>
-                        <button
-                          onClick={() => {
-                            if (al.type === "evaluation_pending" || al.action?.toLowerCase().includes("grade")) onNavigate("assignments");
-                            else if (al.type === "student_drop" || al.action?.toLowerCase().includes("student")) onNavigate("students");
-                            else onNavigate("curriculum");
-                          }}
-                          style={{
-                            background: S.accent,
-                            border: "none",
-                            color: "#FFFFFF",
-                            padding: "5px 12px",
-                            borderRadius: "6px",
-                            fontSize: "11.5px",
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                          }}
-                        >
-                          {al.action || "Take Action"} ↗
-                        </button>
-                      </div>
+                      P{period.period}
                     </div>
-                  );
-                })
-              ) : (
-                <div style={{ padding: "20px", textAlign: "center", color: S.greenTxt, background: S.greenBg, borderRadius: "8px", border: `1px solid ${S.greenBdr}`, fontSize: "12.5px" }}>
-                  ✓ All grading and registers up to date. No pending actions recorded.
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Real-Time Teacher Activity Feed */}
-          <div style={{ background: S.bg, border: `1px solid ${S.border}`, borderRadius: "12px", padding: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: S.ink }}>Real-Time Teaching Activity Feed</h3>
-                <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.faint }}>Live auditable actions logged across attendance, lessons, and grading</p>
-              </div>
-              <button
-                onClick={() => onNavigate("activity")}
-                style={{ background: "transparent", border: "none", color: S.ink, fontWeight: 700, fontSize: "12px", cursor: "pointer" }}
-              >
-                Full Log ↗
-              </button>
-            </div>
-
-            <div style={{ display: "grid", gap: "8px" }}>
-              {activityLogs.length > 0 ? (
-                activityLogs.map((item: any, idx: number) => (
-                  <div key={idx} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 12px", background: S.cardRowBg, borderRadius: "6px", fontSize: "12.5px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: S.ink }} />
-                      <div>
-                        <b style={{ color: S.ink }}>{item.category || "Instructional"}</b> · <span style={{ color: "#334155" }}>{item.text || item.action}</span>
-                      </div>
+                    <div>
+                      <p style={{ margin: 0, fontSize: "13.5px", fontWeight: 700, color: S.navy }}>
+                        {period.classSection} · {period.subject}
+                      </p>
+                      <p style={{ margin: "2px 0 0", fontSize: "11.5px", color: S.slate }}>
+                        {period.time} • Room {period.room}
+                      </p>
                     </div>
-                    <span style={{ fontSize: "11px", color: S.faint, fontWeight: 600 }}>{item.time}</span>
                   </div>
-                ))
-              ) : (
-                <div style={{ padding: "16px", textAlign: "center", color: S.faint, fontSize: "12px" }}>
-                  No recent teaching actions recorded today.
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span
+                      style={{
+                        padding: "3px 8px",
+                        borderRadius: "100px",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        background: isDone ? S.greenBg : "#FFFAEB",
+                        color: isDone ? S.greenDk : "#B54708",
+                        border: isDone ? "none" : "1px solid #FEDF89",
+                      }}
+                    >
+                      {isDone ? "Register Taken" : "Pending Attendance"}
+                    </span>
+                    {!isDone && (
+                      <button
+                        onClick={() => onTakeAttendance(undefined, period.period, period.classSection)}
+                        style={{
+                          background: S.navy,
+                          color: "#fff",
+                          border: "none",
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          fontSize: "11.5px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        Roll Call
+                      </button>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
+              );
+            })}
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          7. RECENT FACULTY ACTIVITY LOG
+      ═══════════════════════════════════════════════ */}
+      {activityLogs.length > 0 && (
+        <section
+          style={{
+            background: "#fff",
+            border: `1px solid ${S.border}`,
+            borderRadius: "10px",
+            padding: "20px 24px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+          }}
+        >
+          <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: S.navy }}>
+            Recent Activity &amp; Logs
+          </h2>
+          <div style={{ display: "grid", gap: "8px" }}>
+            {activityLogs.map((log: any, idx: number) => (
+              <div
+                key={idx}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "10px 14px",
+                  borderRadius: "6px",
+                  background: S.chip,
+                  fontSize: "12.5px",
+                  color: S.slate,
+                }}
+              >
+                <span>{log.text}</span>
+                <span style={{ fontSize: "11px", color: S.faint }}>{log.time}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
-}
+};

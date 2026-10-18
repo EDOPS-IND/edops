@@ -1,21 +1,53 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   MessageSquare,
   Send,
   Users,
-  ShieldAlert,
-  Plus,
-  X,
-  GraduationCap,
-  Building2,
-  Sparkles,
-  Inbox,
   Search,
-  CheckCheck
+  Plus,
+  Clock,
+  ShieldCheck,
+  CheckCircle2,
+  Mail,
+  User,
+  Paperclip,
+  Check,
+  ChevronRight,
+  X,
+  Award,
+  Bell,
 } from "lucide-react";
-import { getTeacherMessages, sendTeacherMessage } from "../../edops-api";
+import {
+  getTeacherCommunicationInbox,
+  getTeacherConversationThread,
+  sendTeacherChatMessage,
+  startTeacherConversation,
+} from "../../edops-api";
+
+const T = {
+  navy: "#0c1e33",
+  slate: "#495d72",
+  muted: "#a6abb5",
+  faint: "#b3b3b3",
+  pageBg: "#f4f6f7",
+  white: "#ffffff",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  chip: "#f5f6f8",
+  blue: "#17a1fa",
+  greenBg: "#ccefbf",
+  greenDark: "#1a5c0a",
+  skyBg: "#d0e6ff",
+  skyDark: "#0a3a7a",
+  amberBg: "#fde1ac",
+  amberDark: "#614400",
+  roseBg: "#ffd6d6",
+  roseDark: "#7a1a1a",
+  violetBg: "#e1d2ff",
+  violetDark: "#4a0e8f",
+};
 
 interface CommunicationPaneProps {
   organizationId: string;
@@ -24,184 +56,73 @@ interface CommunicationPaneProps {
 export function CommunicationPane({ organizationId }: CommunicationPaneProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "parents" | "students" | "principal" | "school_admin">("all");
-  const [activeContactId, setActiveContactId] = useState<string>("");
-  const [chatInput, setChatInput] = useState("");
-  const [sending, setSending] = useState(false);
+  const [activeTab, setActiveTab] = useState<"all" | "students" | "parents" | "principal" | "school_admin">("all");
+  const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
+  const [activeThread, setActiveThread] = useState<any>(null);
+  const [threadLoading, setThreadLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [replyMessage, setReplyMessage] = useState("");
+  const [isSending, setIsSending] = useState(false);
 
-  // Compose Modal State (for starting brand new conversation)
+  // Compose Modal State
   const [showComposeModal, setShowComposeModal] = useState(false);
-  const [composeChannel, setComposeChannel] = useState<"parents" | "students" | "principal" | "school_admin">("students");
-  const [composeRecipientId, setComposeRecipientId] = useState("");
+  const [composeChannel, setComposeChannel] = useState<"students" | "parents" | "principal" | "school_admin">("parents");
+  const [composeRecipientId, setComposeRecipientId] = useState<string>("");
   const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
-  const [composePriority, setComposePriority] = useState<"normal" | "urgent">("normal");
   const [isSubmittingNew, setIsSubmittingNew] = useState(false);
 
-  const chatContainerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
-    loadMessages();
+    loadInbox();
   }, [organizationId]);
 
-  async function loadMessages(preserveContactId?: string) {
-    try {
-      const res = await getTeacherMessages(organizationId);
-      setData(res);
+  useEffect(() => {
+    if (selectedThreadId) {
+      loadThread(selectedThreadId);
+    }
+  }, [selectedThreadId]);
 
-      const msgs = res?.messages || [];
-      if (preserveContactId) {
-        setActiveContactId(preserveContactId);
-      } else if (!activeContactId && msgs.length > 0) {
-        setActiveContactId(msgs[0].otherPartyId || msgs[0].recipientId || "");
+  async function loadInbox() {
+    setLoading(true);
+    try {
+      const res = await getTeacherCommunicationInbox(organizationId);
+      setData(res);
+      if (res?.threads?.length > 0 && !selectedThreadId) {
+        setSelectedThreadId(res.threads[0].id);
       }
     } catch {
-      setData({ messages: [], announcements: [], directory: {} });
+      setData({ threads: [], directory: {} });
     } finally {
       setLoading(false);
     }
   }
 
-  // Pre-fill recipient when channel changes in compose modal
-  useEffect(() => {
-    if (data?.directory?.[composeChannel]?.length > 0) {
-      setComposeRecipientId(data.directory[composeChannel][0].id);
-    } else {
-      setComposeRecipientId(`${composeChannel}-desk`);
-    }
-  }, [composeChannel, data]);
-
-  const rawMessages: any[] = data?.messages || [];
-
-  // Group messages into WhatsApp-style conversation threads by otherPartyId
-  const threadsMap: Record<
-    string,
-    {
-      contactId: string;
-      contactName: string;
-      contactRole: string;
-      category: string;
-      messages: any[];
-      lastMessage: any;
-      unreadCount: number;
-    }
-  > = {};
-
-  for (const m of rawMessages) {
-    const key = m.otherPartyId || m.recipientId;
-    if (!key) continue;
-
-    if (!threadsMap[key]) {
-      threadsMap[key] = {
-        contactId: key,
-        contactName: m.otherPartyName || m.recipientName || "Academic Contact",
-        contactRole: m.category || "students",
-        category: m.category || "students",
-        messages: [],
-        lastMessage: null,
-        unreadCount: 0,
-      };
-    }
-
-    threadsMap[key].messages.push(m);
-    if (
-      !threadsMap[key].lastMessage ||
-      new Date(m.created_at || m.timestamp).getTime() >
-        new Date(threadsMap[key].lastMessage.created_at || threadsMap[key].lastMessage.timestamp).getTime()
-    ) {
-      threadsMap[key].lastMessage = m;
-    }
-    if (!m.isRead && !m.isOutgoing) {
-      threadsMap[key].unreadCount += 1;
+  async function loadThread(threadId: string) {
+    setThreadLoading(true);
+    try {
+      const res = await getTeacherConversationThread(organizationId, threadId);
+      setActiveThread(res);
+    } catch {
+      setActiveThread(null);
+    } finally {
+      setThreadLoading(false);
     }
   }
 
-  // Sort threads: most recent message at the top
-  const allThreads = Object.values(threadsMap).sort((a, b) => {
-    if (a.lastMessage && b.lastMessage) {
-      return (
-        new Date(b.lastMessage.created_at || b.lastMessage.timestamp).getTime() -
-        new Date(a.lastMessage.created_at || a.lastMessage.timestamp).getTime()
-      );
-    }
-    return 0;
-  });
-
-  // Filter threads by active tab & search query
-  const filteredThreads = allThreads.filter((t) => {
-    const matchesTab = activeTab === "all" || t.category === activeTab;
-    const matchesSearch =
-      !searchQuery.trim() ||
-      t.contactName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      t.messages.some((m) => m.body.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesTab && matchesSearch;
-  });
-
-  const activeThread =
-    threadsMap[activeContactId] ||
-    filteredThreads[0] ||
-    allThreads[0];
-
-  // Auto-scroll chat stream to bottom when activeThread messages change
-  useEffect(() => {
-    if (chatContainerRef.current) {
-      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
-    }
-  }, [activeContactId, activeThread?.messages?.length]);
-
-  const handleSendChatMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!chatInput.trim() || !activeThread || sending) return;
+    if (!replyMessage.trim() || !selectedThreadId) return;
 
-    const messageText = chatInput.trim();
-    setChatInput("");
-    setSending(true);
-
+    setIsSending(true);
     try {
-      const targetRole =
-        activeThread.category === "students"
-          ? "student"
-          : activeThread.category === "parents"
-          ? "parent"
-          : activeThread.category === "principal"
-          ? "principal"
-          : "school_admin";
-
-      const subject =
-        activeThread.messages.length > 0
-          ? activeThread.messages[0].subjectLine
-          : "Direct Academic Message";
-
-      await sendTeacherMessage(organizationId, {
-        recipientId: activeThread.contactId,
-        recipientRole: targetRole,
-        subjectLine: subject?.startsWith("Re:") ? subject : `Re: ${subject}`,
-        body: messageText,
-        priority: "normal",
-      });
-
-      await loadMessages(activeThread.contactId);
-    } catch (err) {
-      console.error("Failed to send message:", err);
-      setChatInput(messageText);
+      await sendTeacherChatMessage(organizationId, selectedThreadId, replyMessage);
+      setReplyMessage("");
+      await loadThread(selectedThreadId);
+      await loadInbox();
+    } catch {
     } finally {
-      setSending(false);
+      setIsSending(false);
     }
-  };
-
-  const handleOpenCompose = (channel?: "parents" | "students" | "principal" | "school_admin") => {
-    const targetChannel = channel || (activeTab === "all" ? "students" : activeTab);
-    setComposeChannel(targetChannel);
-    if (data?.directory?.[targetChannel]?.length > 0) {
-      setComposeRecipientId(data.directory[targetChannel][0].id);
-    } else {
-      setComposeRecipientId(`${targetChannel}-desk`);
-    }
-    setComposeSubject("");
-    setComposeBody("");
-    setComposePriority("normal");
-    setShowComposeModal(true);
   };
 
   const handleSendNewMessage = async (e: React.FormEvent) => {
@@ -210,206 +131,338 @@ export function CommunicationPane({ organizationId }: CommunicationPaneProps) {
 
     setIsSubmittingNew(true);
     try {
-      const roleMap: Record<string, "student" | "parent" | "principal" | "school_admin"> = {
-        students: "student",
-        parents: "parent",
-        principal: "principal",
-        school_admin: "school_admin",
-      };
-
-      const res = await sendTeacherMessage(organizationId, {
-        recipientId: composeRecipientId || `${composeChannel}-desk`,
-        recipientRole: roleMap[composeChannel] || "student",
-        subjectLine: composeSubject,
+      const res = await startTeacherConversation(organizationId, {
+        channel: composeChannel,
+        recipientId: composeRecipientId || undefined,
+        subject: composeSubject,
         body: composeBody,
-        priority: composePriority,
       });
-
       setShowComposeModal(false);
       setComposeSubject("");
       setComposeBody("");
-      const newContactId = res?.message?.recipientId || composeRecipientId;
-      await loadMessages(newContactId);
-      if (newContactId) setActiveContactId(newContactId);
-    } catch (err) {
-      console.error("Failed to send message:", err);
+      await loadInbox();
+      if (res?.thread?.id) {
+        setSelectedThreadId(res.thread.id);
+      }
+    } catch {
     } finally {
       setIsSubmittingNew(false);
     }
   };
 
-  const countAll = allThreads.length;
-  const countParents = allThreads.filter((t) => t.category === "parents").length;
-  const countStudents = allThreads.filter((t) => t.category === "students").length;
-  const countPrincipal = allThreads.filter((t) => t.category === "principal").length;
-  const countSchoolAdmin = allThreads.filter((t) => t.category === "school_admin").length;
+  const threads = data?.threads || [];
 
-  const tabsConfig = [
-    { id: "all", label: "All Chats", count: countAll, icon: Inbox },
-    { id: "students", label: "Students", count: countStudents, icon: GraduationCap },
-    { id: "parents", label: "Parents", count: countParents, icon: Users },
-    { id: "principal", label: "Principal Directives", count: countPrincipal, icon: ShieldAlert },
-    { id: "school_admin", label: "School Admin (SO)", count: countSchoolAdmin, icon: Building2 },
-  ];
-
-  const getCategoryBadge = (cat: string) => {
-    switch (cat) {
-      case "students":
-        return { label: "Student", bg: "bg-indigo-50 text-indigo-700 border-indigo-200" };
-      case "parents":
-        return { label: "Parent", bg: "bg-emerald-50 text-emerald-700 border-emerald-200" };
-      case "principal":
-        return { label: "Principal", bg: "bg-purple-50 text-purple-700 border-purple-200" };
-      case "school_admin":
-      default:
-        return { label: "School Office", bg: "bg-amber-50 text-amber-700 border-amber-200" };
+  const filteredThreads = threads.filter((th: any) => {
+    if (activeTab !== "all" && th.channel !== activeTab) return false;
+    if (
+      searchQuery &&
+      !th.senderName?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      !th.subject?.toLowerCase().includes(searchQuery.toLowerCase()) &&
+      !th.lastMessage?.toLowerCase().includes(searchQuery.toLowerCase())
+    ) {
+      return false;
     }
-  };
+    return true;
+  });
+
+  const parentThreads = threads.filter((t: any) => t.channel === "parents").length;
+  const studentThreads = threads.filter((t: any) => t.channel === "students").length;
+  const adminThreads = threads.filter((t: any) => t.channel === "principal" || t.channel === "school_admin").length;
+
+  if (loading) {
+    return (
+      <div style={{ padding: "48px 0", textAlign: "center", color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
+        <div
+          style={{
+            width: "28px",
+            height: "28px",
+            border: `3px solid ${T.line}`,
+            borderTopColor: T.navy,
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 12px",
+          }}
+        />
+        <p style={{ fontSize: "13px", fontWeight: 600, color: T.slate, margin: 0 }}>
+          Loading academic inbox &amp; directives...
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <MessageSquare className="w-6 h-6 text-indigo-600" />
-            Academic Chat Desk & In-App Messaging
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "24px",
+        fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+    >
+      {/* 1. Header Row */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 600,
+              color: T.slate,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+            }}
+          >
+            Communication &amp; Messages
+          </span>
+          <h2
+            style={{
+              margin: 0,
+              fontSize: "18px",
+              fontWeight: 600,
+              color: T.navy,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            Academic Inbox &amp; Directives Desk
           </h2>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Continuous chat session threads with enrolled students, parents, principal, and school admin
+          <p style={{ margin: 0, fontSize: "13px", color: T.slate, lineHeight: 1.5 }}>
+            Coordinated communication channels across parents, enrolled students, school administration, and faculty.
           </p>
         </div>
 
         <button
-          onClick={() => handleOpenCompose()}
-          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-sm self-start sm:self-auto transition"
+          type="button"
+          onClick={() => setShowComposeModal(true)}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "8px 16px",
+            borderRadius: "8px",
+            background: T.navy,
+            color: T.white,
+            fontSize: "12px",
+            fontWeight: 600,
+            cursor: "pointer",
+            border: "none",
+            boxShadow: "0 2px 6px rgba(12, 30, 51, 0.2)",
+          }}
         >
-          <Plus className="w-4 h-4" />
-          <span>New Chat</span>
+          <Plus size={14} />
+          <span>New Conversation</span>
         </button>
       </div>
 
-      {/* Official Broadcast Announcements Banner (if any) */}
-      {data?.announcements?.length > 0 && (
-        <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-amber-50 border border-indigo-100 rounded-xl p-3 flex items-start gap-3">
-          <Sparkles className="w-4 h-4 text-indigo-600 mt-0.5 shrink-0" />
-          <div className="space-y-0.5">
-            <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 bg-indigo-600 text-white rounded">
-                Official Broadcast
-              </span>
-              <span className="text-xs font-semibold text-gray-800">
-                {data.announcements[0].title}
-              </span>
-            </div>
-            <p className="text-xs text-gray-600 line-clamp-1">{data.announcements[0].message}</p>
+      {/* 2. Top 4 Metric Cards - Strict DESIGN.md Section 2.1 Palettes */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "12px",
+        }}
+      >
+        {/* Total Conversations (Pastel Sky) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.skyBg,
+            border: `1px solid ${T.skyBg}`,
+            borderRadius: "10px",
+            color: T.skyDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Total Threads
+            </span>
+            <MessageSquare size={18} />
           </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.skyDark }}>
+            {threads.length}
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.skyDark }}>
+            Active conversations in inbox
+          </p>
         </div>
-      )}
 
-      {/* 5 Filter Tabs with Live Thread Counts */}
-      <div className="flex border-b border-gray-200 gap-2 sm:gap-6 text-xs font-bold overflow-x-auto">
-        {tabsConfig.map((t) => {
-          const Icon = t.icon;
-          const isActive = activeTab === t.id;
-          return (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id as any)}
-              className={`py-3 px-1 border-b-2 flex items-center gap-2 transition whitespace-nowrap ${
-                isActive
-                  ? "border-indigo-600 text-indigo-600"
-                  : "border-transparent text-gray-500 hover:text-gray-900"
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              <span>{t.label}</span>
-              <span
-                className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
-                  isActive ? "bg-indigo-100 text-indigo-700" : "bg-gray-100 text-gray-500"
-                }`}
-              >
-                {t.count}
-              </span>
-            </button>
-          );
-        })}
+        {/* Parent Inquiries (Pastel Mint) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.greenBg,
+            border: `1px solid ${T.greenBg}`,
+            borderRadius: "10px",
+            color: T.greenDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Parent Queries
+            </span>
+            <Users size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.greenDark }}>
+            {parentThreads}
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.greenDark }}>
+            Guardian updates &amp; feedback
+          </p>
+        </div>
+
+        {/* Student Inquiries (Pastel Violet) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.violetBg,
+            border: `1px solid ${T.violetBg}`,
+            borderRadius: "10px",
+            color: T.violetDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Student Inquiries
+            </span>
+            <Mail size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.violetDark }}>
+            {studentThreads}
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.violetDark }}>
+            Doubts &amp; homework questions
+          </p>
+        </div>
+
+        {/* Directives from Admin (Pastel Warm Amber) */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: T.amberBg,
+            border: `1px solid ${T.amberBg}`,
+            borderRadius: "10px",
+            color: T.amberDark,
+            boxSizing: "border-box",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Official Directives
+            </span>
+            <Bell size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: T.amberDark }}>
+            {adminThreads}
+          </p>
+          <p style={{ margin: 0, fontSize: "11px", color: T.amberDark }}>
+            Administrative circulars &amp; notices
+          </p>
+        </div>
       </div>
 
-      {/* WhatsApp-Style Continuous Chat Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden h-[620px] max-h-[620px]">
-        {/* Left Column: Conversation Threads List */}
-        <div className="border-r border-gray-200 flex flex-col h-full min-h-0 bg-gray-50/40 overflow-hidden">
-          {/* Search Box */}
-          <div className="p-3 border-b border-gray-200 bg-white shrink-0">
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-2.5" />
+      {/* 3. Chat Hub Layout */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "320px 1fr",
+          background: T.white,
+          borderRadius: "10px",
+          border: `1px solid ${T.border}`,
+          height: "640px",
+          overflow: "hidden",
+        }}
+      >
+        {/* Left Column: Thread List */}
+        <div style={{ borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", height: "100%" }}>
+          <div style={{ padding: "14px", borderBottom: `1px solid ${T.border}`, display: "flex", flexDirection: "column", gap: "10px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", background: T.chip, border: `1px solid ${T.border}`, padding: "6px 10px", borderRadius: "8px" }}>
+              <Search size={14} color={T.slate} />
               <input
                 type="text"
                 placeholder="Search conversations..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                style={{ border: "none", outline: "none", background: "transparent", fontSize: "12px", width: "100%", color: T.navy }}
               />
+            </div>
+
+            {/* Filter Pills */}
+            <div style={{ display: "flex", gap: "4px", overflowX: "auto" }}>
+              {(["all", "students", "parents", "principal", "school_admin"] as const).map((tab) => {
+                const active = activeTab === tab;
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    onClick={() => setActiveTab(tab)}
+                    style={{
+                      padding: "4px 8px",
+                      borderRadius: "6px",
+                      fontSize: "11px",
+                      fontWeight: active ? 600 : 500,
+                      border: "none",
+                      background: active ? T.navy : T.chip,
+                      color: active ? T.white : T.slate,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {tab === "all" ? "All" : tab === "school_admin" ? "Admin" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          {/* Threads List */}
-          <div className="flex-1 min-h-0 overflow-y-auto divide-y divide-gray-100">
+          {/* Thread List Items */}
+          <div style={{ flex: 1, overflowY: "auto" }}>
             {filteredThreads.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 text-xs space-y-3">
-                <p>No chat conversations in this category.</p>
-                <button
-                  onClick={() =>
-                    handleOpenCompose(activeTab === "all" ? "students" : (activeTab as any))
-                  }
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 text-xs font-semibold hover:bg-indigo-100 transition"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Start New Conversation</span>
-                </button>
+              <div style={{ padding: "32px 16px", textAlign: "center", color: T.slate, fontSize: "12px" }}>
+                No conversations found in this filter.
               </div>
             ) : (
-              filteredThreads.map((thread) => {
-                const isSelected = activeThread?.contactId === thread.contactId;
-                const badge = getCategoryBadge(thread.category);
-                const lastMsg = thread.lastMessage;
-
+              filteredThreads.map((th: any) => {
+                const isSelected = th.id === selectedThreadId;
                 return (
                   <div
-                    key={thread.contactId}
-                    onClick={() => setActiveContactId(thread.contactId)}
-                    className={`p-3.5 cursor-pointer transition flex items-start gap-3 ${
-                      isSelected
-                        ? "bg-indigo-50/80 border-l-4 border-indigo-600"
-                        : "hover:bg-gray-100/60"
-                    }`}
+                    key={th.id}
+                    onClick={() => setSelectedThreadId(th.id)}
+                    style={{
+                      padding: "14px 16px",
+                      borderBottom: `1px solid ${T.border}`,
+                      background: isSelected ? "#f0f4f9" : T.white,
+                      borderLeft: isSelected ? `3px solid ${T.navy}` : "3px solid transparent",
+                      cursor: "pointer",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "4px",
+                    }}
                   >
-                    <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center shrink-0 mt-0.5">
-                      {(thread.contactName || "U").charAt(0).toUpperCase()}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <span style={{ fontWeight: 600, color: T.navy, fontSize: "13px" }}>{th.senderName}</span>
+                      <span style={{ fontSize: "10.5px", color: T.slate }}>{th.timestamp || "Today"}</span>
                     </div>
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-gray-900 truncate">
-                          {thread.contactName}
-                        </span>
-                        {lastMsg && (
-                          <span className="text-[10px] text-gray-400 shrink-0">
-                            {lastMsg.timestamp}
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`text-[9px] font-bold uppercase px-1.5 py-0.2 rounded border ${badge.bg}`}
-                        >
-                          {badge.label}
-                        </span>
-                        <p className="text-[11px] text-gray-500 truncate flex-1">
-                          {lastMsg ? (lastMsg.isOutgoing ? `You: ${lastMsg.body}` : lastMsg.body) : "No messages yet"}
-                        </p>
-                      </div>
-                    </div>
+                    <div style={{ fontSize: "11.5px", fontWeight: 600, color: T.blue }}>{th.subject}</div>
+                    <p style={{ margin: 0, fontSize: "12px", color: T.slate, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {th.lastMessage}
+                    </p>
                   </div>
                 );
               })
@@ -417,159 +470,210 @@ export function CommunicationPane({ organizationId }: CommunicationPaneProps) {
           </div>
         </div>
 
-        {/* Right Column: Active Conversation Stream & Input */}
-        <div className="lg:col-span-2 flex flex-col h-full min-h-0 bg-gray-50/30 overflow-hidden">
-          {activeThread ? (
+        {/* Right Column: Chat Stream */}
+        <div style={{ display: "flex", flexDirection: "column", height: "100%", background: T.white }}>
+          {selectedThreadId && activeThread ? (
             <>
-              {/* Chat Thread Header */}
-              <div className="p-3.5 border-b border-gray-200 bg-white flex items-center justify-between shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
-                    {(activeThread.contactName || "U").charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-gray-900">
-                      {activeThread.contactName}
-                    </h3>
-                    <p className="text-[10px] text-gray-500">
-                      {getCategoryBadge(activeThread.category).label} · Continuous Active Session
-                    </p>
-                  </div>
+              {/* Thread Header */}
+              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: T.white }}>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: T.navy }}>
+                    {activeThread.subject || "Academic Discussion"}
+                  </h3>
+                  <span style={{ fontSize: "12px", color: T.slate }}>
+                    Channel: {activeThread.channel} • Participant: {activeThread.participantName}
+                  </span>
                 </div>
-                <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">
-                  Connected
+                <span style={{ fontSize: "10.5px", padding: "2px 8px", borderRadius: "100px", background: T.greenBg, color: T.greenDark, fontWeight: 600 }}>
+                  Active Stream
                 </span>
               </div>
 
-              {/* Chat Messages Stream (Oldest to Newest, like WhatsApp) */}
-              <div ref={chatContainerRef} className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
-                {activeThread.messages.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center p-8 text-gray-400 space-y-2">
-                    <MessageSquare className="w-8 h-8 text-gray-300" />
-                    <p className="text-xs">
-                      No messages with {activeThread.contactName} yet.
-                    </p>
-                    <p className="text-[11px] text-gray-400">
-                      Type your message below to start this conversation!
-                    </p>
+              {/* Message Stream */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "20px", display: "flex", flexDirection: "column", gap: "12px", background: T.pageBg }}>
+                {threadLoading ? (
+                  <div style={{ textAlign: "center", color: T.slate, padding: "24px", fontSize: "12px" }}>
+                    Loading conversation messages...
                   </div>
                 ) : (
-                  activeThread.messages
-                    .slice()
-                    .sort(
-                      (a: any, b: any) =>
-                        new Date(a.created_at || a.timestamp).getTime() -
-                        new Date(b.created_at || b.timestamp).getTime()
-                    )
-                    .map((msg: any) => {
-                      const isMe = msg.isOutgoing;
-                      return (
+                  activeThread.messages?.map((msg: any, i: number) => {
+                    const isMe = msg.isTeacher || msg.senderRole === "teacher";
+                    return (
+                      <div
+                        key={msg.id || i}
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignSelf: isMe ? "flex-end" : "flex-start",
+                          maxWidth: "75%",
+                        }}
+                      >
                         <div
-                          key={msg.id}
-                          className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
+                          style={{
+                            padding: "10px 14px",
+                            borderRadius: "10px",
+                            background: isMe ? T.navy : T.white,
+                            color: isMe ? T.white : T.navy,
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                            border: isMe ? "none" : `1px solid ${T.border}`,
+                            fontSize: "12.5px",
+                            lineHeight: 1.5,
+                          }}
                         >
-                          <div
-                            className={`max-w-[78%] px-4 py-2.5 rounded-2xl text-xs leading-relaxed shadow-xs ${
-                              isMe
-                                ? "bg-indigo-600 text-white rounded-tr-xs"
-                                : "bg-white text-gray-800 border border-gray-200 rounded-tl-xs"
-                            }`}
-                          >
-                            {msg.subjectLine && !msg.subjectLine.startsWith("Re:") && (
-                              <div
-                                className={`text-[10px] font-bold mb-1 pb-1 border-b ${
-                                  isMe
-                                    ? "border-indigo-500/60 text-indigo-100"
-                                    : "border-gray-100 text-indigo-600"
-                                }`}
-                              >
-                                {msg.subjectLine}
-                              </div>
-                            )}
-                            <p className="whitespace-pre-wrap">{msg.body}</p>
-                          </div>
-                          <span className="text-[9px] text-gray-400 mt-1 px-1">
-                            {msg.timestamp}
-                          </span>
+                          {msg.content}
                         </div>
-                      );
-                    })
+                        <span style={{ fontSize: "10px", color: T.slate, marginTop: "2px", alignSelf: isMe ? "flex-end" : "flex-start" }}>
+                          {msg.timestamp || "Just now"}
+                        </span>
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
-              {/* Chat Input Bar (WhatsApp-style) */}
-              <div className="p-3 bg-white border-t border-gray-200 shrink-0">
-                <form onSubmit={handleSendChatMessage} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    placeholder={`Message ${activeThread.contactName}... (Press Enter to send)`}
-                    value={chatInput}
-                    onChange={(e) => setChatInput(e.target.value)}
-                    className="flex-1 px-4 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl text-gray-900 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
-                  />
-                  <button
-                    type="submit"
-                    disabled={sending || !chatInput.trim()}
-                    className="p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs disabled:opacity-40 transition shrink-0"
-                    title="Send Message"
-                  >
-                    <Send className="w-4 h-4" />
-                  </button>
-                </form>
-              </div>
+              {/* Message Input Footer */}
+              <form onSubmit={handleSendMessage} style={{ padding: "14px 20px", borderTop: `1px solid ${T.border}`, display: "flex", gap: "10px", background: T.white }}>
+                <input
+                  type="text"
+                  placeholder="Type your response to this thread..."
+                  value={replyMessage}
+                  onChange={(e) => setReplyMessage(e.target.value)}
+                  style={{
+                    flex: 1,
+                    padding: "10px 14px",
+                    border: `1px solid ${T.line}`,
+                    borderRadius: "8px",
+                    fontSize: "12.5px",
+                    color: T.navy,
+                    outline: "none",
+                  }}
+                />
+                <button
+                  type="submit"
+                  disabled={isSending || !replyMessage.trim()}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    padding: "10px 18px",
+                    borderRadius: "8px",
+                    background: T.navy,
+                    color: T.white,
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    border: "none",
+                    opacity: isSending || !replyMessage.trim() ? 0.6 : 1,
+                  }}
+                >
+                  <Send size={14} />
+                  <span>Send</span>
+                </button>
+              </form>
             </>
           ) : (
-            <div className="h-full flex items-center justify-center text-gray-400 text-xs">
-              Select a conversation to start chatting
+            <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: T.slate, fontSize: "13px" }}>
+              Select a conversation from the left to read messages.
             </div>
           )}
         </div>
       </div>
 
-      {/* Compose Brand New Message Modal */}
+      {/* 4. Redesigned Compose Message Modal */}
       {showComposeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
-          <div className="bg-white rounded-2xl border border-gray-200 shadow-xl max-w-lg w-full p-6 space-y-4">
-            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-indigo-600" />
-                Start New Chat Conversation
-              </h3>
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(12, 30, 51, 0.45)",
+            backdropFilter: "blur(2px)",
+            padding: "16px",
+            boxSizing: "border-box",
+            fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowComposeModal(false);
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: "520px",
+              background: T.white,
+              border: `1px solid ${T.border}`,
+              borderRadius: "14px",
+              boxShadow: "0 20px 40px rgba(12, 30, 51, 0.15)",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              gap: "16px",
+              padding: "24px",
+              boxSizing: "border-box",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", borderBottom: `1px solid ${T.line}`, paddingBottom: "14px" }}>
+              <div>
+                <span style={{ fontSize: "11px", fontWeight: 700, color: T.navy, textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "4px" }}>
+                  Compose Directive
+                </span>
+                <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: T.navy }}>
+                  Start New Chat Conversation
+                </h3>
+              </div>
               <button
+                type="button"
                 onClick={() => setShowComposeModal(false)}
-                className="text-gray-400 hover:text-gray-600"
+                aria-label="Close"
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  color: T.slate,
+                  cursor: "pointer",
+                  padding: "4px",
+                  borderRadius: "6px",
+                }}
               >
-                <X className="w-5 h-5" />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSendNewMessage} className="space-y-4">
+            <form onSubmit={handleSendNewMessage} style={{ display: "flex", flexDirection: "column", gap: "12px", fontSize: "12px" }}>
               <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1.5">
-                  Recipient Channel
+                <label style={{ display: "block", fontWeight: 600, color: T.navy, marginBottom: "6px" }}>
+                  Recipient Channel *
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "6px" }}>
                   {[
-                    { id: "students", label: "Students", icon: GraduationCap },
-                    { id: "parents", label: "Parents", icon: Users },
-                    { id: "principal", label: "Principal", icon: ShieldAlert },
-                    { id: "school_admin", label: "School Admin", icon: Building2 },
+                    { id: "students", label: "Students" },
+                    { id: "parents", label: "Parents" },
+                    { id: "principal", label: "Principal" },
+                    { id: "school_admin", label: "Admin" },
                   ].map((c) => {
-                    const Icon = c.icon;
-                    const isSelected = composeChannel === c.id;
+                    const active = composeChannel === c.id;
                     return (
                       <button
                         type="button"
                         key={c.id}
                         onClick={() => setComposeChannel(c.id as any)}
-                        className={`p-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 border transition ${
-                          isSelected
-                            ? "bg-indigo-50 border-indigo-600 text-indigo-700"
-                            : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"
-                        }`}
+                        style={{
+                          padding: "6px",
+                          textAlign: "center",
+                          borderRadius: "6px",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          border: active ? `1px solid ${T.navy}` : `1px solid ${T.line}`,
+                          background: active ? T.navy : T.white,
+                          color: active ? T.white : T.slate,
+                        }}
                       >
-                        <Icon className="w-3.5 h-3.5" />
-                        <span>{c.label}</span>
+                        {c.label}
                       </button>
                     );
                   })}
@@ -577,14 +681,24 @@ export function CommunicationPane({ organizationId }: CommunicationPaneProps) {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1">
-                  Recipient
+                <label style={{ display: "block", fontWeight: 600, color: T.navy, marginBottom: "6px" }}>
+                  Specific Recipient
                 </label>
                 {data?.directory?.[composeChannel]?.length > 0 ? (
                   <select
                     value={composeRecipientId}
                     onChange={(e) => setComposeRecipientId(e.target.value)}
-                    className="w-full p-2.5 text-xs bg-gray-50 border border-gray-300 rounded-xl text-gray-900"
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      border: `1px solid ${T.line}`,
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                      color: T.navy,
+                      background: T.white,
+                      outline: "none",
+                      boxSizing: "border-box",
+                    }}
                   >
                     {data.directory[composeChannel].map((contact: any) => (
                       <option key={contact.id} value={contact.id}>
@@ -597,54 +711,103 @@ export function CommunicationPane({ organizationId }: CommunicationPaneProps) {
                     type="text"
                     disabled
                     value={`Designated ${composeChannel.toUpperCase()} Channel Desk`}
-                    className="w-full p-2.5 text-xs bg-gray-100 border border-gray-200 rounded-xl text-gray-600 cursor-not-allowed"
+                    style={{
+                      width: "100%",
+                      padding: "8px 12px",
+                      border: `1px solid ${T.line}`,
+                      borderRadius: "8px",
+                      fontSize: "12px",
+                      color: T.slate,
+                      background: T.chip,
+                      boxSizing: "border-box",
+                    }}
                   />
                 )}
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1">
-                  Subject Line
+                <label style={{ display: "block", fontWeight: 600, color: T.navy, marginBottom: "6px" }}>
+                  Subject Line *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Mathematics Session Review"
+                  placeholder="e.g. Mathematics Session Review & Homework Question"
                   value={composeSubject}
                   onChange={(e) => setComposeSubject(e.target.value)}
-                  className="w-full p-2.5 text-xs bg-gray-50 border border-gray-300 rounded-xl text-gray-900 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    border: `1px solid ${T.line}`,
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    color: T.navy,
+                    background: T.white,
+                    outline: "none",
+                    boxSizing: "border-box",
+                  }}
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-gray-700 block mb-1">
-                  Message
+                <label style={{ display: "block", fontWeight: 600, color: T.navy, marginBottom: "6px" }}>
+                  Message Content *
                 </label>
                 <textarea
                   rows={3}
                   required
-                  placeholder="Type your message to start this chat..."
+                  placeholder="State your directive, update, or academic observation..."
                   value={composeBody}
                   onChange={(e) => setComposeBody(e.target.value)}
-                  className="w-full p-2.5 text-xs bg-gray-50 border border-gray-300 rounded-xl text-gray-900 focus:outline-hidden focus:ring-1 focus:ring-indigo-500"
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px",
+                    border: `1px solid ${T.line}`,
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    color: T.navy,
+                    background: T.white,
+                    outline: "none",
+                    resize: "vertical",
+                    boxSizing: "border-box",
+                  }}
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "10px", paddingTop: "8px", borderTop: `1px solid ${T.line}` }}>
                 <button
                   type="button"
                   onClick={() => setShowComposeModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition"
+                  style={{
+                    padding: "8px 16px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: T.slate,
+                    background: "transparent",
+                    border: `1px solid ${T.line}`,
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmittingNew || !composeSubject.trim() || !composeBody.trim()}
-                  className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs disabled:opacity-50 transition flex items-center gap-1.5"
+                  style={{
+                    padding: "8px 18px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    color: T.white,
+                    background: T.navy,
+                    border: "none",
+                    borderRadius: "8px",
+                    cursor: isSubmittingNew ? "not-allowed" : "pointer",
+                    opacity: isSubmittingNew ? 0.6 : 1,
+                    boxShadow: "0 2px 6px rgba(12, 30, 51, 0.2)",
+                  }}
                 >
-                  <Send className="w-3.5 h-3.5" />
-                  <span>{isSubmittingNew ? "Starting..." : "Start Chat"}</span>
+                  {isSubmittingNew ? "Sending..." : "Start Chat"}
                 </button>
               </div>
             </form>
