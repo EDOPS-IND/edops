@@ -824,7 +824,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                         onClick={() => {
                           if (al.type === "finance" || al.id?.includes("fee") || al.id?.includes("fees")) onNavigate("finance");
                           else if (al.type === "staffing" || al.id?.includes("leave")) onNavigate("attendance");
-                          else if (al.id?.includes("invite") || al.id?.includes("invites")) onNavigate("people");
+                          else if (al.id?.includes("invite") || al.id?.includes("invites")) onNavigate("staff");
                           else onNavigate("academics");
                         }}
                         style={{
