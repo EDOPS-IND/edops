@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Users,
@@ -18,22 +18,30 @@ import {
   Menu,
   X,
   Plus,
-} from 'lucide-react';
-import { loadRoleWorkspace, getParentChildDetails, createParentLeave, createParentQuery, OrganizationSummary } from '../edops-api';
-import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from './types';
+  ShieldCheck,
+} from "lucide-react";
+import {
+  loadRoleWorkspace,
+  getParentChildDetails,
+  createParentLeave,
+  createParentQuery,
+  OrganizationSummary,
+  getStudentAvatarUrl,
+} from "../edops-api";
+import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from "./types";
 
 // Panes
-import { OverviewPane } from './panes/overview-pane';
-import { AcademicsPane } from './panes/academics-pane';
-import { AttendancePane } from './panes/attendance-pane';
-import { FeesPane } from './panes/fees-pane';
-import { PtmPane } from './panes/ptm-pane';
-import { NoticesPane } from './panes/notices-pane';
+import { OverviewPane } from "./panes/overview-pane";
+import { AcademicsPane } from "./panes/academics-pane";
+import { AttendancePane } from "./panes/attendance-pane";
+import { FeesPane } from "./panes/fees-pane";
+import { PtmPane } from "./panes/ptm-pane";
+import { NoticesPane } from "./panes/notices-pane";
 
 // Modals
-import { ApplyLeaveModal } from './components/apply-leave-modal';
-import { ParentQueryModal } from './components/parent-query-modal';
-import { ReportCardModal } from './components/report-card-modal';
+import { ApplyLeaveModal } from "./components/apply-leave-modal";
+import { ParentQueryModal } from "./components/parent-query-modal";
+import { ReportCardModal } from "./components/report-card-modal";
 
 interface ParentWorkspaceProps {
   organization: OrganizationSummary;
@@ -50,157 +58,595 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
   organizations,
   initialWardId,
 }) => {
-  const [activeTab, setActiveTab] = useState<ParentTab>('overview');
+  const [activeTab, setActiveTab] = useState<ParentTab>("overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const [wards,setWards] = useState<WardInfo[]>([]);
-  const [loading,setLoading] = useState(true);
-  const [error,setError] = useState('');
-  const [selectedWardId,setSelectedWardId] = useState(initialWardId || '');
-  const [details,setDetails] = useState<any>(null);
-  const [detailLoading,setDetailLoading] = useState(false);
-  const selected = wards.find(w=>w.studentUserId===selectedWardId) || wards[0];
+  const [wards, setWards] = useState<WardInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedWardId, setSelectedWardId] = useState(initialWardId || "");
+  const [details, setDetails] = useState<any>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const selected = wards.find((w) => w.studentUserId === selectedWardId) || wards[0];
+
   const refreshDetails = async () => {
     if (!selected) return;
-    const data=await getParentChildDetails(organization.id,selected.studentUserId);
-    setDetails(data);setLeavesList(data.leaves);setQueriesList(data.queries);
+    const data = await getParentChildDetails(organization.id, selected.studentUserId);
+    setDetails(data);
+    setLeavesList(data.leaves || []);
+    setQueriesList(data.queries || []);
   };
+
   const loadWards = async () => {
-    setLoading(true);setError('');
+    setLoading(true);
+    setError("");
     try {
-      const data=await loadRoleWorkspace(organization.id);
-      if (data.role!=='parent') throw new Error('Parent workspace required');
-      setWards(data.children as WardInfo[]);
-    } catch(e) { setError(e instanceof Error?e.message:'Unable to load children'); }
-    finally { setLoading(false); }
+      const data = await loadRoleWorkspace(organization.id);
+      if (data.role !== "parent") throw new Error("Parent workspace required");
+      const children = (data.children as WardInfo[]) || [];
+      setWards(children);
+      if (children.length > 0 && !selectedWardId) {
+        setSelectedWardId(children[0].studentUserId);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Unable to load children");
+    } finally {
+      setLoading(false);
+    }
   };
-  useEffect(()=>{ loadWards(); },[organization.id]);
-  useEffect(()=>{
-    let active=true;
-    setDetails(null);setLeavesList([]);setQueriesList([]);
+
+  useEffect(() => {
+    loadWards();
+  }, [organization.id]);
+
+  useEffect(() => {
+    let active = true;
+    setDetails(null);
+    setLeavesList([]);
+    setQueriesList([]);
     if (!selected) return;
-    setDetailLoading(true);setError('');
-    getParentChildDetails(organization.id,selected.studentUserId).then(data=>{
-      if(active) { setDetails(data);setLeavesList(data.leaves);setQueriesList(data.queries); }
-    }).catch(e=>{ if(active) setError(e.message); }).finally(()=>{ if(active)setDetailLoading(false); });
-  return ()=>{ active=false; };
-  },[organization.id,selected?.studentUserId]);
-  const selectedWard = selected ? { ...selected,data:details,organizationId:organization.id,refresh:refreshDetails } : undefined;
+    setDetailLoading(true);
+    setError("");
+    getParentChildDetails(organization.id, selected.studentUserId)
+      .then((data) => {
+        if (active) {
+          setDetails(data);
+          setLeavesList(data.leaves || []);
+          setQueriesList(data.queries || []);
+        }
+      })
+      .catch((e) => {
+        if (active) setError(e.message);
+      })
+      .finally(() => {
+        if (active) setDetailLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [organization.id, selected?.studentUserId]);
+
+  const selectedWard = selected
+    ? { ...selected, data: details, organizationId: organization.id, refresh: refreshDetails }
+    : undefined;
 
   // Modals state
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [queryModalOpen, setQueryModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
 
-  const [leavesList,setLeavesList] = useState<LeaveApplication[]>([]);
-  const [queriesList,setQueriesList] = useState<ParentQuery[]>([]);
-  const handleApplyLeave = async (leave: Pick<LeaveApplication,'leaveType'|'startDate'|'endDate'|'reason'>) => {
-    if (!selectedWard) throw new Error('Select a linked child');
-    await createParentLeave(organization.id,selectedWard.studentUserId,leave);
+  const [leavesList, setLeavesList] = useState<LeaveApplication[]>([]);
+  const [queriesList, setQueriesList] = useState<ParentQuery[]>([]);
+
+  const handleApplyLeave = async (leave: Pick<LeaveApplication, "leaveType" | "startDate" | "endDate" | "reason">) => {
+    if (!selectedWard) throw new Error("Select a linked child");
+    await createParentLeave(organization.id, selectedWard.studentUserId, leave);
     await refreshDetails();
   };
-  const handlePostQuery = async (query: Pick<ParentQuery,'subject'|'queryText'>) => {
-    if (!selectedWard) throw new Error('Select a linked child');
-    await createParentQuery(organization.id,selectedWard.studentUserId,query);
+
+  const handlePostQuery = async (query: Pick<ParentQuery, "subject" | "queryText">) => {
+    if (!selectedWard) throw new Error("Select a linked child");
+    await createParentQuery(organization.id, selectedWard.studentUserId, query);
     await refreshDetails();
   };
 
   const navItems = [
-    { id: 'overview', label: 'Family Overview', icon: LayoutDashboard, tab: 'overview' as ParentTab },
-    { id: 'academics', label: 'Children & Academics', icon: BookOpen, tab: 'academics' as ParentTab },
-    { id: 'attendance', label: 'Attendance & Leaves', icon: CheckCircle2, tab: 'attendance' as ParentTab },
-    { id: 'fees', label: 'Fee Invoicing & Receipts', icon: CreditCard, tab: 'fees' as ParentTab },
-    { id: 'ptm', label: 'PTM Slot Scheduling', icon: CalendarDays, tab: 'ptm' as ParentTab },
-    { id: 'notices', label: 'School Notices & Grievance', icon: Bell, tab: 'notices' as ParentTab },
+    { id: "overview", label: "Family Overview", icon: LayoutDashboard, tab: "overview" as ParentTab },
+    { id: "academics", label: "Children & Academics", icon: BookOpen, tab: "academics" as ParentTab },
+    { id: "attendance", label: "Attendance & Leaves", icon: CheckCircle2, tab: "attendance" as ParentTab },
+    { id: "fees", label: "Fee Invoicing & Dues", icon: CreditCard, tab: "fees" as ParentTab },
+    { id: "ptm", label: "PTM Appointments", icon: CalendarDays, tab: "ptm" as ParentTab },
+    { id: "notices", label: "Notices & Grievances", icon: Bell, tab: "notices" as ParentTab },
   ];
 
-    if (loading) return <div className="p-8">Loading linked children…</div>;
-  if (!selectedWard) return <div className="p-8 space-y-4"><h1>Parent portal</h1><p>{error || 'No verified children are linked to your account.'}</p><button onClick={loadWards}>Retry</button><button onClick={onLogout}>Sign out</button></div>;
+  if (loading) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f6f7", fontFamily: "sans-serif" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: "40px", height: "40px", borderRadius: "50%", border: "3px solid #cbd5e1", borderTopColor: "#0c1e33", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
+          <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#1e293b", margin: 0 }}>Connecting to Guardian Portal…</h2>
+          <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>Verifying linked student relationships</p>
+        </div>
+      </div>
+    );
+  }
 
-  return (
-    <div className="min-h-screen bg-slate-50 flex flex-col antialiased text-slate-800">
-      {/* 1. TOP HEADER */}
-      <header className="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 sm:px-6 py-2.5 flex items-center justify-between shadow-xs">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-          >
-            {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-[#090D16] text-white flex items-center justify-center font-bold text-base shadow-sm border border-[#1A243D]">
-              <Sparkles className="w-4 h-4 text-indigo-400" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-bold text-slate-900 text-sm tracking-tight leading-none">
-                  EdOps
-                </h1>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#090D16] font-semibold text-slate-200 border border-[#1A243D] uppercase tracking-wider">
-                  Parent Guardian Portal
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 mt-0.5 font-medium">
-                {organization.name}
-              </p>
-            </div>
+  if (!selectedWard) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f6f7", padding: "20px" }}>
+        <div style={{ background: "#ffffff", padding: "32px", borderRadius: "12px", border: "1px solid #e4e6e9", maxWidth: "440px", textAlign: "center" }}>
+          <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0c1e33", margin: "0 0 8px" }}>Parent Portal</h2>
+          <p style={{ fontSize: "13px", color: "#64748b", margin: "0 0 20px" }}>
+            {error || "No verified children are currently linked to your guardian account."}
+          </p>
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+            <button
+              onClick={loadWards}
+              style={{ padding: "8px 16px", borderRadius: "6px", background: "#0c1e33", color: "#ffffff", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer" }}
+            >
+              Retry
+            </button>
+            <button
+              onClick={onLogout}
+              style={{ padding: "8px 16px", borderRadius: "6px", background: "#ffffff", border: "1px solid #e4e6e9", color: "#475569", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+            >
+              Sign Out
+            </button>
           </div>
         </div>
+      </div>
+    );
+  }
 
-        {/* Header Right: Ward Switcher & Quick Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Quick Ward Switcher in Header */}
-          <div className="hidden lg:flex items-center gap-1.5 bg-slate-100/80 p-1 rounded-xl border border-slate-200">
-            <span className="text-[11px] font-semibold text-slate-500 px-2">Ward:</span>
-            {wards.map((w) => {
-              const isSelected = w.studentUserId === selectedWardId;
+  return (
+    <div style={{ display: "flex", minHeight: "100vh", background: "#f4f6f7", fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif' }}>
+      {/* 1. UNIVERSAL MIDNIGHT OBSIDIAN SIDEBAR (#0b0f19) */}
+      <aside
+        id="parent-sidebar"
+        aria-label="Parent Portal Navigation"
+        style={{
+          width: "240px",
+          flexShrink: 0,
+          background: "#0b0f19",
+          borderRight: "1px solid rgba(255, 255, 255, 0.06)",
+          display: "flex",
+          flexDirection: "column",
+          height: "100vh",
+          position: "sticky",
+          top: 0,
+          overflow: "hidden",
+          zIndex: 40,
+        }}
+      >
+        {/* Brand Header & Official Logo */}
+        <div
+          style={{
+            height: "68px",
+            display: "flex",
+            alignItems: "center",
+            padding: "0 18px",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            boxSizing: "border-box",
+            flexShrink: 0,
+            cursor: "pointer",
+            gap: "10px",
+          }}
+          onClick={() => setActiveTab("overview")}
+          title="EDOPS Guardian Portal"
+        >
+          <img
+            src="/logo.svg"
+            alt="edops"
+            style={{
+              height: "32px",
+              width: "auto",
+              display: "block",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
+              transition: "transform 0.15s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+          />
+          <span
+            style={{
+              fontSize: "9.5px",
+              fontWeight: 700,
+              padding: "2px 7px",
+              borderRadius: "5px",
+              background: "rgba(129, 140, 248, 0.16)",
+              color: "#a5b4fc",
+              border: "1px solid rgba(129, 140, 248, 0.3)",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            PARENT
+          </span>
+        </div>
+
+        {/* Scrollable Navigation Body */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            padding: "14px 12px",
+            overflowY: "auto",
+            overflowX: "hidden",
+            scrollbarWidth: "none",
+            gap: "16px",
+          }}
+        >
+          {/* Active Ward Profile Card */}
+          <div
+            style={{
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid rgba(255, 255, 255, 0.08)",
+              borderRadius: "10px",
+              padding: "10px 12px",
+            }}
+          >
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: "rgba(255, 255, 255, 0.38)",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                marginBottom: "8px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span>ACTIVE STUDENT</span>
+              <span style={{ fontSize: "9px", color: "#10b981", fontWeight: 700 }}>VERIFIED</span>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <img
+                src={getStudentAvatarUrl(selectedWard.name, selectedWard.studentUserId)}
+                alt={selectedWard.name}
+                style={{
+                  width: "34px",
+                  height: "34px",
+                  borderRadius: "50%",
+                  background: "#1c2337",
+                  flexShrink: 0,
+                  border: "1.5px solid #818cf8",
+                }}
+              />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div
+                  style={{
+                    fontSize: "13px",
+                    fontWeight: 700,
+                    color: "#ffffff",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {selectedWard.name}
+                </div>
+                <div style={{ fontSize: "11px", color: "#8a92a6" }}>
+                  Class {selectedWard.sectionName || "Enrolled"}
+                </div>
+              </div>
+            </div>
+
+            {/* Multi-ward switcher if guardian has more than 1 student */}
+            {wards.length > 1 && (
+              <div
+                style={{
+                  marginTop: "10px",
+                  paddingTop: "8px",
+                  borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "5px",
+                }}
+              >
+                <span style={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.4)", fontWeight: 600 }}>
+                  Switch Child:
+                </span>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                  {wards.map((w) => {
+                    const isCur = w.studentUserId === selectedWard.studentUserId;
+                    return (
+                      <button
+                        key={w.studentUserId}
+                        onClick={() => setSelectedWardId(w.studentUserId)}
+                        style={{
+                          all: "unset",
+                          padding: "3px 8px",
+                          borderRadius: "6px",
+                          fontSize: "11px",
+                          fontWeight: isCur ? 700 : 500,
+                          background: isCur ? "#818cf8" : "rgba(255, 255, 255, 0.06)",
+                          color: isCur ? "#ffffff" : "#cbd5e1",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        {w.name.split(" ")[0]}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Navigation Links */}
+          <nav style={{ display: "flex", flexDirection: "column", gap: "3px" }} aria-label="Guardian navigation">
+            <div
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                color: "rgba(255, 255, 255, 0.38)",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                padding: "8px 12px 4px",
+                userSelect: "none",
+              }}
+            >
+              GUARDIAN WORKSPACE
+            </div>
+
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.tab;
               return (
                 <button
-                  key={w.studentUserId}
-                  onClick={() => setSelectedWardId(w.studentUserId)}
-                  className={`px-3 py-1 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                    isSelected
-                      ? 'bg-[#090D16] text-white shadow-xs'
-                      : 'text-slate-700 hover:bg-slate-200/70'
-                  }`}
+                  key={item.id}
+                  id={`nav-${item.id}`}
+                  onClick={() => {
+                    setActiveTab(item.tab);
+                    setMobileMenuOpen(false);
+                  }}
+                  style={{
+                    all: "unset",
+                    boxSizing: "border-box",
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "11px",
+                    height: "40px",
+                    padding: "0 12px",
+                    borderRadius: "10px",
+                    fontSize: "13.5px",
+                    cursor: "pointer",
+                    transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+                    background: isActive ? "#1c2337" : "transparent",
+                    color: isActive ? "#ffffff" : "#8a92a6",
+                    fontWeight: isActive ? 600 : 450,
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = "#ffffff";
+                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = "#8a92a6";
+                      e.currentTarget.style.background = "transparent";
+                    }
+                  }}
                 >
-                  <span>{w.name}</span>
-                  <span
-                    className={`text-[9px] px-1.5 py-0.2 rounded font-mono ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
-                    }`}
-                  >
-                    {w.sectionName}
+                  <Icon
+                    size={18}
+                    strokeWidth={isActive ? 2 : 1.75}
+                    style={{
+                      flexShrink: 0,
+                      color: isActive ? "#ffffff" : "#8a92a6",
+                      transition: "color 0.15s ease",
+                    }}
+                  />
+                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {item.label}
                   </span>
                 </button>
               );
             })}
+          </nav>
+        </div>
+
+        {/* Sidebar Footer: Guardian Account Badge & Logout */}
+        <div style={{ marginTop: "auto", padding: "14px 12px", borderTop: "1px solid rgba(255, 255, 255, 0.06)", flexShrink: 0 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "10px 12px",
+              borderRadius: "10px",
+              background: "rgba(255, 255, 255, 0.03)",
+              border: "1px solid rgba(255, 255, 255, 0.06)",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+              <img
+                src={getStudentAvatarUrl("Guardian", organization.id)}
+                alt=""
+                style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#1c2337", flexShrink: 0 }}
+              />
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  Verified Guardian
+                </div>
+                <div style={{ fontSize: "10px", color: "#8a92a6" }}>{wards.length} linked child profile(s)</div>
+              </div>
+            </div>
+
+            <button
+              onClick={onLogout}
+              title="Sign Out"
+              style={{
+                background: "none",
+                border: "none",
+                color: "#8a92a6",
+                cursor: "pointer",
+                padding: "4px",
+                display: "flex",
+                alignItems: "center",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
+              onMouseLeave={(e) => (e.currentTarget.style.color = "#8a92a6")}
+            >
+              <LogOut size={16} />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* 2. RIGHT SIDE CONTENT AREA (Sticky Header + Canvas) */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+        {/* Top Header Bar */}
+        <header
+          style={{
+            height: "68px",
+            position: "sticky",
+            top: 0,
+            zIndex: 30,
+            background: "#ffffff",
+            borderBottom: "1px solid #e4e6e9",
+            padding: "0 28px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            boxSizing: "border-box",
+          }}
+        >
+          {/* Header Left: School & Ward Context */}
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <h1 style={{ fontSize: "16px", fontWeight: 800, color: "#0c1e33", margin: 0 }}>
+                  {organization.name}
+                </h1>
+                <span
+                  style={{
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    padding: "2px 6px",
+                    borderRadius: "4px",
+                    background: "#0c1e33",
+                    color: "#ffffff",
+                    letterSpacing: "0.5px",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  Guardian Session
+                </span>
+              </div>
+              <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 500 }}>
+                Active Profile: <b>{selectedWard.name}</b> (Class {selectedWard.sectionName || "Enrolled"})
+              </div>
+            </div>
           </div>
 
-          <button
-            onClick={() => setLeaveModalOpen(true)}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-800 text-xs font-semibold rounded-lg transition-colors border border-slate-200 shadow-2xs"
-          >
-            <Plus className="w-3.5 h-3.5 text-slate-600" />
-            <span>Apply Leave</span>
-          </button>
+          {/* Header Right: Ward Switcher & Actions */}
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {/* Quick Ward Switcher in Header */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "#f8fafc",
+                padding: "4px 8px",
+                borderRadius: "8px",
+                border: "1px solid #e4e6e9",
+              }}
+            >
+              <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", paddingLeft: "4px" }}>Ward:</span>
+              {wards.map((w) => {
+                const isSelected = w.studentUserId === selectedWard.studentUserId;
+                return (
+                  <button
+                    key={w.studentUserId}
+                    onClick={() => setSelectedWardId(w.studentUserId)}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "4px 10px",
+                      borderRadius: "6px",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      border: "none",
+                      background: isSelected ? "#0c1e33" : "transparent",
+                      color: isSelected ? "#ffffff" : "#475569",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <img
+                      src={getStudentAvatarUrl(w.name, w.studentUserId)}
+                      alt=""
+                      style={{ width: "18px", height: "18px", borderRadius: "50%", background: "#eaedf2" }}
+                    />
+                    <span>{w.name}</span>
+                  </button>
+                );
+              })}
+            </div>
 
-          <button
-            onClick={() => setActiveTab('ptm')}
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#090D16] hover:bg-[#1E293B] text-white text-xs font-semibold rounded-lg transition-colors shadow-xs border border-[#2A3756]"
-          >
-            <CalendarDays className="w-3.5 h-3.5 text-indigo-300" />
-            <span className="text-slate-100">Book PTM</span>
-          </button>
+            <button
+              onClick={() => setLeaveModalOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "7px 14px",
+                borderRadius: "8px",
+                background: "#ffffff",
+                border: "1px solid #e4e6e9",
+                color: "#0c1e33",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <Plus size={14} /> Apply Leave
+            </button>
 
-          {/* Org Selector */}
-          {organizations.length > 1 && (
-            <div className="relative hidden xl:block">
+            <button
+              onClick={() => setActiveTab("ptm")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "7px 14px",
+                borderRadius: "8px",
+                background: "#0c1e33",
+                border: "none",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <CalendarDays size={14} color="#818cf8" /> Book PTM
+            </button>
+
+            {/* Org Switcher */}
+            {organizations.length > 1 && (
               <select
                 value={organization.id}
                 onChange={(e) => onSwitchOrganization(e.target.value)}
-                className="text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                style={{
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  background: "#f8fafc",
+                  border: "1px solid #e4e6e9",
+                  borderRadius: "8px",
+                  padding: "6px 10px",
+                  color: "#334155",
+                }}
               >
                 {organizations.map((org) => (
                   <option key={org.id} value={org.id}>
@@ -208,153 +654,53 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                   </option>
                 ))}
               </select>
-            </div>
-          )}
-
-          {/* Parent Profile Avatar & Logout */}
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-            <div
-              className="w-8 h-8 rounded-full bg-[#090D16] text-white flex items-center justify-center font-bold text-xs border border-[#1A243D]"
-              title="Parent account"
-            >
-              P
-            </div>
-            <button
-              onClick={onLogout}
-              title="Sign Out"
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
+            )}
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* 2. PERSISTENT WARD SWITCHER BAR (Mobile/Tablet & Quick Access) */}
-      <div className="bg-white border-b border-slate-200 px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3 lg:hidden">
-        <div className="flex items-center gap-2">
-          <Users size={16} className="text-slate-500" />
-          <span className="text-xs font-bold text-slate-700">Select Ward:</span>
-        </div>
-        <div className="flex items-center gap-2">
-          {wards.map((w) => {
-            const isSelected = w.studentUserId === selectedWardId;
-            return (
-              <button
-                key={w.studentUserId}
-                onClick={() => setSelectedWardId(w.studentUserId)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                  isSelected
-                    ? 'bg-[#090D16] text-white shadow-xs'
-                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200/70'
-                }`}
+        {/* Main Canvas */}
+        <main style={{ flex: 1, overflowY: "auto", padding: "28px 36px", background: "#f4f6f7" }}>
+          <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
+            {error && (
+              <div
+                role="alert"
+                style={{
+                  padding: "12px 16px",
+                  borderRadius: "8px",
+                  background: "#fef2f2",
+                  border: "1px solid #fee2e2",
+                  color: "#991b1b",
+                  fontSize: "13px",
+                  marginBottom: "20px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
               >
-                <span>{w.name}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.2 rounded font-mono ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'
-                  }`}
-                >
-                  {w.sectionName}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 3. WORKSPACE BODY */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Mobile menu backdrop overlay */}
-        {mobileMenuOpen && (
-          <div
-            onClick={() => setMobileMenuOpen(false)}
-            className="fixed inset-0 z-10 bg-[#070A10]/60 backdrop-blur-xs md:hidden"
-          />
-        )}
-
-        {/* Universal Midnight Obsidian Sidebar */}
-        <aside
-          className={`fixed inset-y-0 left-0 z-20 w-64 bg-[#090D16] border-r border-[#1A243D] transform transition-transform duration-200 ease-in-out md:static md:translate-x-0 overflow-y-auto ${
-            mobileMenuOpen ? 'translate-x-0' : '-translate-x-0 max-md:-translate-x-full'
-          }`}
-        >
-          {/* Ward Selector in Sidebar for direct mobile access */}
-          <div className="p-3 border-b border-[#1A243D]">
-            <p className="px-2 text-[10px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Active Ward</p>
-            <div className="space-y-1">
-              {wards.map((w) => {
-                const isSelected = w.studentUserId === selectedWardId;
-                return (
-                  <button
-                    key={w.studentUserId}
-                    onClick={() => {
-                      setSelectedWardId(w.studentUserId);
-                      setMobileMenuOpen(false);
-                    }}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
-                      isSelected
-                        ? 'bg-slate-700 text-white shadow-sm border border-slate-600/40'
-                        : 'text-slate-300 hover:bg-[#131C31]'
-                    }`}
-                  >
-                    <div className="text-left truncate">
-                      <div className="truncate">{w.name}</div>
-                      <div className="text-[10px] text-slate-400 font-normal">{w.sectionName}</div>
-                    </div>
-                    {isSelected && <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block shrink-0" />}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Navigation Links */}
-          <div className="p-3 space-y-1">
-            <p className="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">Navigation</p>
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.tab;
-              return (
+                <span>{error}</span>
                 <button
-                  key={item.id}
-                  onClick={() => {
-                    setActiveTab(item.tab);
-                    setMobileMenuOpen(false);
+                  onClick={() => refreshDetails().then(() => setError("")).catch((e) => setError(e.message))}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    fontWeight: 700,
+                    color: "#991b1b",
+                    cursor: "pointer",
+                    textDecoration: "underline",
                   }}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition-colors ${
-                    isActive
-                      ? 'bg-slate-700 font-bold shadow-sm border border-slate-600/40'
-                      : 'hover:bg-[#131C31]'
-                  }`}
-                  style={{ color: isActive ? '#FFFFFF' : '#CBD5E1' }}
                 >
-                  <Icon
-                    className="w-4 h-4 shrink-0"
-                    style={{ color: isActive ? '#FFFFFF' : '#94A3B8' }}
-                  />
-                  <span className="truncate">{item.label}</span>
+                  Retry
                 </button>
-              );
-            })}
-          </div>
+              </div>
+            )}
 
-          {/* Guardian Account Badge */}
-          <div className="p-3 m-3 bg-[#0D1322] border border-[#1A243D] rounded-xl text-[11px] text-slate-400 space-y-1">
-            <div className="font-semibold text-slate-200 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
-              <span>Verified Guardian Session</span>
-            </div>
-            <p className="text-slate-300">{wards.length} linked children</p>
-          </div>
-        </aside>
+            {detailLoading && (
+              <div style={{ padding: "10px 14px", background: "#e0e7ff", color: "#3730a3", borderRadius: "6px", fontSize: "12px", fontWeight: 600, marginBottom: "16px" }}>
+                Updating child records…
+              </div>
+            )}
 
-        {/* 4. MAIN CONTENT CANVASES */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
-            {error && <div role="alert" className="p-4 mb-4 bg-red-50 text-red-800">{error} <button onClick={()=>refreshDetails().then(()=>setError('')).catch(e=>setError(e.message))}>Retry</button></div>}
-            {detailLoading && <p>Loading child records…</p>}
-            {activeTab === 'overview' && (
+            {activeTab === "overview" && (
               <OverviewPane
                 selectedWard={selectedWard}
                 onNavigateTab={setActiveTab}
@@ -364,14 +710,14 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
               />
             )}
 
-            {activeTab === 'academics' && (
+            {activeTab === "academics" && (
               <AcademicsPane
                 selectedWard={selectedWard}
                 onOpenReportModal={() => setReportModalOpen(true)}
               />
             )}
 
-            {activeTab === 'attendance' && (
+            {activeTab === "attendance" && (
               <AttendancePane
                 selectedWard={selectedWard}
                 leavesList={leavesList}
@@ -379,15 +725,11 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
               />
             )}
 
-            {activeTab === 'fees' && (
-              <FeesPane selectedWard={selectedWard} />
-            )}
+            {activeTab === "fees" && <FeesPane selectedWard={selectedWard} />}
 
-            {activeTab === 'ptm' && (
-              <PtmPane selectedWard={selectedWard} />
-            )}
+            {activeTab === "ptm" && <PtmPane selectedWard={selectedWard} />}
 
-            {activeTab === 'notices' && (
+            {activeTab === "notices" && (
               <NoticesPane
                 selectedWard={selectedWard}
                 queriesList={queriesList}
@@ -398,7 +740,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
         </main>
       </div>
 
-      {/* 5. GLOBAL PARENT MODALS */}
+      {/* 3. GLOBAL PARENT MODALS */}
       <ApplyLeaveModal
         isOpen={leaveModalOpen}
         onClose={() => setLeaveModalOpen(false)}

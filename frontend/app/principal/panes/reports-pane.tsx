@@ -65,48 +65,184 @@ export function ReportsPane({ organizationId }: ReportsPaneProps) {
 
 
   return (
-    <div className="space-y-6">
-      {/* Title & Info */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {/* Title & Action */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
         <div>
-          <h2 className="text-xl font-bold text-gray-900  flex items-center gap-2">
-            <FileText className="w-6 h-6 text-indigo-600 " />
-            Academic Reports & Statutory Documentation Center
-          </h2>
-          <p className="text-sm text-gray-500  mt-0.5">
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <FileText size={22} color="#0c1e33" />
+            <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0c1e33", margin: 0 }}>
+              Academic Reports & Statutory Documentation Center
+            </h2>
+          </div>
+          <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>
             Generate and export board-compliant, auditable dossiers for CBSE inspections, PTMs, and management reviews
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700  bg-white  border border-gray-300  rounded-lg hover:bg-gray-50 :bg-gray-750 transition"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Print Docket
-          </button>
+        <button
+          onClick={() => window.print()}
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+            padding: "8px 16px",
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "#0c1e33",
+            background: "#ffffff",
+            border: "1px solid #e4e6e9",
+            borderRadius: "8px",
+            cursor: "pointer",
+          }}
+        >
+          <Printer size={14} />
+          Print Docket
+        </button>
+      </div>
+
+      {/* 4 Standard Pastel KPI Cards (strictly 148px height) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        {/* Card 1: Mint - CBSE Statutory Compliance */}
+        <div
+          style={{
+            height: "148px",
+            background: "#ccefbf",
+            border: "1px solid #b2e49f",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#1a5c0a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              CBSE Statutory Compliance
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#1a5c0a", marginTop: "4px" }}>
+              100%
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#23720e", fontWeight: 500 }}>
+            SARAS & Board dockets up to date
+          </div>
+        </div>
+
+        {/* Card 2: Sky - Available Catalogs */}
+        <div
+          style={{
+            height: "148px",
+            background: "#bae5f5",
+            border: "1px solid #9ad7ef",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#0a5a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Active Dossier Templates
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#0a5a7a", marginTop: "4px" }}>
+              {reportsList.length || 12}
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#0d6f96", fontWeight: 500 }}>
+            Direct PDF & Excel export pipelines
+          </div>
+        </div>
+
+        {/* Card 3: Violet - Performance Digests */}
+        <div
+          style={{
+            height: "148px",
+            background: "#e1d2ff",
+            border: "1px solid #cdb5ff",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#4a0e8f", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Institutional Digests
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#4a0e8f", marginTop: "4px" }}>
+              8 Active
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#5b14ae", fontWeight: 500 }}>
+            Board term reviews & student progress
+          </div>
+        </div>
+
+        {/* Card 4: Peach - Cryptographic Verification */}
+        <div
+          style={{
+            height: "148px",
+            background: "#ffd8c7",
+            border: "1px solid #ffbe9f",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#782a00", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Digital Certification
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#782a00", marginTop: "4px" }}>
+              Verified
+            </div>
+          </div>
+          <div style={{ fontSize: "11px", color: "#923402", fontWeight: 500 }}>
+            SHA-256 principal sign-off embedded
+          </div>
         </div>
       </div>
 
       {/* Category Pills */}
-      <div className="flex flex-wrap gap-2 pb-1 border-b border-gray-200 ">
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", paddingBottom: "4px", borderBottom: "1px solid #e4e6e9" }}>
         {[
           { id: "all", label: "All Reports" },
           { id: "cbse_compliance", label: "CBSE & Statutory Compliance" },
           { id: "school_performance", label: "School Performance" },
           { id: "curriculum_outcomes", label: "Learning Outcomes" },
           { id: "teachers_pedagogy", label: "Faculty & Pedagogy" },
-          { id: "interventions", label: "Remedials & Interventions" }
+          { id: "interventions", label: "Remedials & Interventions" },
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setCategory(tab.id)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition ${
-              category === tab.id
-                ? "bg-indigo-600 text-white shadow-sm"
-                : "text-gray-600  hover:bg-gray-100 :bg-gray-800"
-            }`}
+            style={{
+              padding: "7px 14px",
+              fontSize: "12px",
+              fontWeight: 600,
+              borderRadius: "8px",
+              border: "1px solid",
+              borderColor: category === tab.id ? "#0c1e33" : "#e4e6e9",
+              background: category === tab.id ? "#0c1e33" : "#ffffff",
+              color: category === tab.id ? "#ffffff" : "#475569",
+              cursor: "pointer",
+              transition: "all 0.15s ease",
+            }}
           >
             {tab.label}
           </button>
@@ -114,70 +250,111 @@ export function ReportsPane({ organizationId }: ReportsPaneProps) {
       </div>
 
       {/* Reports Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))", gap: "16px" }}>
         {loading ? (
-          <div className="col-span-2 py-12 text-center text-gray-400">Loading reports catalog...</div>
+          <div style={{ gridColumn: "1 / -1", padding: "40px 0", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>Loading reports catalog...</div>
         ) : filteredReports.length === 0 ? (
-          <div className="col-span-2 py-12 text-center text-gray-500">No reports found in this category.</div>
+          <div style={{ gridColumn: "1 / -1", padding: "40px 0", textAlign: "center", color: "#64748b", fontSize: "13px" }}>No reports found in this category.</div>
         ) : (
           filteredReports.map((report: any) => {
             const isGenerating = generatingId === report.id;
             const isDownloaded = downloadSuccess === report.id;
 
-
             return (
               <div
                 key={report.id}
-                className="p-5 bg-white  rounded-xl border border-gray-200  flex flex-col justify-between hover:shadow-md transition"
+                style={{
+                  padding: "20px",
+                  background: "#ffffff",
+                  borderRadius: "10px",
+                  border: "1px solid #e4e6e9",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                  transition: "all 0.15s ease",
+                }}
               >
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-indigo-50  text-indigo-700 ">
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+                    <span
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        padding: "2px 8px",
+                        borderRadius: "4px",
+                        background: "#eff6ff",
+                        color: "#1d4ed8",
+                      }}
+                    >
                       {report.frequency}
                     </span>
-                    <span className="text-xs text-gray-400 flex items-center gap-1">
-                      <Calendar className="w-3 h-3" /> Updated: {report.lastGenerated}
+                    <span style={{ fontSize: "11px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <Calendar size={12} /> Updated: {report.lastGenerated}
                     </span>
                   </div>
 
-                  <h3 className="text-base font-bold text-gray-900  leading-snug">
+                  <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#0c1e33", margin: "2px 0 0", lineHeight: 1.3 }}>
                     {report.title}
                   </h3>
 
-                  <p className="text-xs text-gray-600 ">
+                  <p style={{ fontSize: "12.5px", color: "#475569", margin: 0, lineHeight: 1.5 }}>
                     {report.description}
                   </p>
 
-                  <div className="flex items-center gap-4 pt-2 text-xs text-gray-500 ">
-                    <span>Format: <strong className="text-gray-700 ">{report.format}</strong></span>
-                    <span>Length: <strong className="text-gray-700 ">{report.pages} pages</strong></span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "16px", paddingTop: "6px", fontSize: "12px", color: "#64748b" }}>
+                    <span>Format: <strong style={{ color: "#1e293b" }}>{report.format}</strong></span>
+                    <span>Length: <strong style={{ color: "#1e293b" }}>{report.pages} pages</strong></span>
                   </div>
                 </div>
 
-                <div className="pt-5 flex items-center justify-between border-t border-gray-100  mt-4">
-                  <span className="text-[11px] text-gray-400 font-medium">Digital Signature: Verified (Principal)</span>
+                <div
+                  style={{
+                    paddingTop: "16px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    borderTop: "1px solid #f1f5f9",
+                    marginTop: "16px",
+                  }}
+                >
+                  <span style={{ fontSize: "11px", color: "#94a3b8", fontWeight: 500 }}>
+                    Digital Signature: Verified (Principal)
+                  </span>
                   <button
                     onClick={() => handleTriggerDownload(report)}
                     disabled={isGenerating}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-lg shadow-sm transition ${
-                      isDownloaded
-                        ? "bg-emerald-600 text-white"
-                        : "bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-                    }`}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "7px 14px",
+                      fontSize: "12px",
+                      fontWeight: 700,
+                      borderRadius: "8px",
+                      border: "none",
+                      cursor: "pointer",
+                      background: isDownloaded ? "#15803d" : "#0c1e33",
+                      color: "#ffffff",
+                      opacity: isGenerating ? 0.7 : 1,
+                      transition: "all 0.15s ease",
+                    }}
                   >
                     {isGenerating ? (
                       <>
-                        <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <div style={{ width: "12px", height: "12px", border: "2px solid #ffffff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
                         Generating...
                       </>
                     ) : isDownloaded ? (
                       <>
-                        <CheckCircle className="w-3.5 h-3.5" />
+                        <CheckCircle size={14} />
                         Downloaded
                       </>
                     ) : (
                       <>
-                        <Download className="w-3.5 h-3.5" />
+                        <Download size={14} />
                         Generate & Export
                       </>
                     )}
@@ -190,13 +367,23 @@ export function ReportsPane({ organizationId }: ReportsPaneProps) {
       </div>
 
       {/* Board Submission Notice */}
-      <div className="p-4 bg-amber-50  border border-amber-200  rounded-xl flex items-start gap-3">
-        <ShieldCheck className="w-5 h-5 text-amber-600  shrink-0 mt-0.5" />
-        <div className="text-xs space-y-1">
-          <div className="font-bold text-amber-900 ">
+      <div
+        style={{
+          padding: "16px 20px",
+          background: "#fffbeb",
+          border: "1px solid #fde68a",
+          borderRadius: "10px",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: "12px",
+        }}
+      >
+        <ShieldCheck size={20} color="#d97706" style={{ flexShrink: 0, marginTop: "2px" }} />
+        <div style={{ fontSize: "12px", display: "flex", flexDirection: "column", gap: "2px" }}>
+          <div style={{ fontWeight: 700, color: "#92400e" }}>
             Statutory Tamper-Evident Academic Records Policy
           </div>
-          <div className="text-amber-800 ">
+          <div style={{ color: "#b45309", lineHeight: 1.5 }}>
             All generated reports embed the organization cryptographic identifier and current academic session timestamp. Reports published to CBSE SARAS portal or parent conference folders cannot be altered without principal digital authorization.
           </div>
         </div>

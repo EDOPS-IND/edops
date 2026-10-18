@@ -18,8 +18,32 @@ import {
   ClipboardList,
   Activity,
   Plus,
+  Sparkles,
+  HeartPulse,
 } from "lucide-react";
 import { PrincipalSchoolKpis, TodayAcademicOperations } from "../types";
+
+// Unified design tokens strictly matching Student & Teacher Dashboard specification
+const S = {
+  navy: "#0c1e33",
+  slate: "#495d72",
+  muted: "#a6abb5",
+  faint: "#b3b3b3",
+  bg: "#f4f6f7",
+  white: "#ffffff",
+  border: "#e4e6e9",
+  line: "#ced8e5",
+  chip: "#f5f6f8",
+  blue: "#17a1fa",
+  greenBg: "#ccefbf",
+  greenDk: "#1a5c0a",
+  violetBg: "#e1d2ff",
+  violetDk: "#4a0e8f",
+  skyBg: "#bae5f5",
+  skyDk: "#0a5a7a",
+  peachBg: "#ffd8c7",
+  peachDk: "#782a00",
+};
 
 export function DashboardPane({
   schoolKpis,
@@ -58,10 +82,16 @@ export function DashboardPane({
     let cancelled = false;
     import("../../edops-api").then(({ getPrincipalDashboard }) => {
       getPrincipalDashboard(organizationId)
-        .then((data) => { if (!cancelled) setLiveData(data); })
-        .catch(() => { if (!cancelled) setLoadError(true); });
+        .then((data) => {
+          if (!cancelled) setLiveData(data);
+        })
+        .catch(() => {
+          if (!cancelled) setLoadError(true);
+        });
     });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [organizationId]);
 
   const kpis = liveData?.schoolKpis || schoolKpis || {
@@ -80,335 +110,838 @@ export function DashboardPane({
   const execution = liveData?.teachingExecution || teachingExecution;
   const exams = liveData?.examinationStatus || examinationStatus;
   const activities = liveData?.recentActivity ?? recentActivity;
-  const metric = (value: number | null | undefined, suffix = "") => value == null ? "—" : `${value}${suffix}`;
+  const metric = (value: number | null | undefined, suffix = "") =>
+    value == null ? "—" : `${value}${suffix}`;
+
+  const nav = (tab: string) => {
+    if (onNavigateTab) onNavigateTab(tab);
+    else if (onNavigate) onNavigate(tab);
+  };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {loadError && <div role="alert">Dashboard data could not be loaded. Please try again.</div>}
-      {/* 1. School Academic Header KPI Strip (Admin Style) */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px" }}>
-        {[
-          { label: "Enrolled Students", value: kpis.totalStudents, icon: GraduationCap },
-          { label: "Teaching Faculty", value: kpis.totalTeachers, icon: Users },
-          { label: "Active Grades", value: kpis.totalClasses, icon: Layers },
-          { label: "Class Sections", value: kpis.totalSections, icon: ClipboardList },
-          { label: "Academic Subjects", value: kpis.totalSubjects, icon: BookOpen },
-          { label: "Academic Session", value: kpis.activeAcademicYear, icon: Calendar },
-        ].map((item, idx) => (
-          <div
-            key={idx}
-            style={{
-              background: "#FFFFFF",
-              border: "1px solid #E2DDD5",
-              borderRadius: "12px",
-              padding: "20px",
-              display: "flex",
-              flexDirection: "column",
-              justifyContent: "space-between",
-              boxShadow: "0 1px 2px rgba(16,24,40,0.02)",
-              transition: "transform 0.15s ease, box-shadow 0.15s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
-              e.currentTarget.style.boxShadow = "0 6px 16px rgba(16,24,40,0.06)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <span style={{ fontSize: "12px", fontWeight: 650, color: "#475467", textTransform: "uppercase", letterSpacing: "0.03em" }}>{item.label}</span>
-              <div style={{ width: "32px", height: "32px", borderRadius: "8px", background: "#FDF9F0", display: "grid", placeItems: "center", color: "#101828" }}>
-                <item.icon size={16} />
-              </div>
-            </div>
-            <div style={{ margin: "14px 0 6px" }}>
-              <span style={{ fontSize: "28px", fontWeight: 800, color: "#101828", letterSpacing: "-0.03em" }}>{item.value ?? "—"}</span>
-            </div>
-            <div style={{ fontSize: "11.5px", color: "#667085" }}>
-              Academic session verified
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 2. Top Row: Explainable Academic Health Score & Today's Academic Operations */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-        {/* Explainable Academic Health Score Card (Clickable per Section 7 & 80) */}
+      {loadError && (
         <div
-          onClick={onOpenHealthModal}
+          role="alert"
           style={{
-            background: "#FFFFFF",
-            border: "1px solid #BBF7D0",
-            borderRadius: "12px",
-            padding: "20px 24px",
-            boxShadow: "0 4px 12px rgba(16, 185, 129, 0.08)",
-            cursor: "pointer",
-            transition: "transform 0.15s, box-shadow 0.15s",
+            padding: "12px 16px",
+            background: "#FEF2F2",
+            border: "1px solid #FCA5A5",
+            borderRadius: "8px",
+            color: "#991B1B",
+            fontSize: "13px",
+            fontWeight: 500,
+          }}
+        >
+          Dashboard data could not be loaded. Please try again or verify backend connectivity.
+        </div>
+      )}
+
+      {/* ═══════════════════════════════════════════════
+          1. HERO BANNER WITH PRINCIPAL SVG ARTWORK
+      ═══════════════════════════════════════════════ */}
+      <section
+        aria-labelledby="principal-greeting"
+        style={{
+          display: "flex",
+          minHeight: "180px",
+          overflow: "hidden",
+          background: "#eaedf2",
+          border: "1px solid #d8dee6",
+          borderRadius: "12px",
+          boxSizing: "border-box",
+        }}
+      >
+        <div
+          style={{
+            flex: 1,
+            padding: "24px 28px",
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 8px 20px rgba(16, 185, 129, 0.15)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(16, 185, 129, 0.08)";
+            minWidth: 0,
           }}
         >
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div style={{ width: "40px", height: "40px", borderRadius: "10px", background: "#DCFCE7", color: "#15803D", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <ShieldCheck size={22} />
-                </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1E293B" }}>Academic Health Score</h3>
-                  <span style={{ fontSize: "11px", color: "#166534", fontWeight: 600 }}>Click for explainable factor breakdown & underlying actions</span>
-                </div>
-              </div>
-              <span style={{ background: "#DCFCE7", color: "#166534", fontSize: "11px", fontWeight: 700, padding: "4px 8px", borderRadius: "6px" }}>
-                {healthScore === null ? "Awaiting data" : "Calculated Index"}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 700,
+                  padding: "3px 9px",
+                  borderRadius: "6px",
+                  background: "#ffffff",
+                  color: S.navy,
+                  border: "1px solid #ced8e5",
+                  letterSpacing: "0.04em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Executive Command
+              </span>
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  padding: "3px 9px",
+                  borderRadius: "6px",
+                  background: S.greenBg,
+                  color: S.greenDk,
+                }}
+              >
+                Academic Year {kpis.activeAcademicYear || "2026–2027"}
+              </span>
+              <span style={{ fontSize: "12px", color: S.slate, fontWeight: 500 }}>
+                • Connected Campus Telemetry
               </span>
             </div>
 
-            <div style={{ display: "flex", alignItems: "baseline", gap: "10px", margin: "16px 0 12px" }}>
-              <div style={{ fontSize: "44px", fontWeight: 900, color: "#15803D" }}>{metric(healthScore)}</div>
-              <div style={{ fontSize: "20px", fontWeight: 600, color: "#166534" }}>/ 100</div>
-              <span style={{ marginLeft: "auto", fontSize: "12px", color: "#15803D", fontWeight: 700, background: "#F0FDF4", padding: "4px 10px", borderRadius: "100px", border: "1px solid #BBF7D0" }}>
-                {healthScore === null ? "Insufficient data" : healthScore >= 80 ? "Optimal Academic Health" : "Intervention Indicated"}
-              </span>
-            </div>
+            <h1
+              id="principal-greeting"
+              style={{
+                margin: 0,
+                fontSize: "24px",
+                fontWeight: 700,
+                color: S.navy,
+                letterSpacing: "-0.02em",
+                lineHeight: 1.25,
+              }}
+            >
+              Principal Academic Command Center
+            </h1>
 
-            {/* Metric progress bars */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", fontSize: "12px", color: "#475569" }}>
-              <div>• Curriculum Execution: <b>{metric(healthBreakdown?.curriculumExecution, "%")}</b></div>
-              <div>• Papers Published: <b>{metric(healthBreakdown?.assessmentCompletion, "%")}</b></div>
-              <div>• Published Exam Average: <b>{metric(healthBreakdown?.studentPerformance, "%")}</b></div>
-              <div>• Lesson Plan Completion: <b>{metric(healthBreakdown?.teacherAcademicActivity, "%")}</b></div>
-              <div>• Campus Attendance: <b>{metric(healthBreakdown?.attendanceRate, "%")}</b></div>
-              <div>• Interventions Completed: <b>{metric(healthBreakdown?.interventionCompletion, "%")}</b></div>
-            </div>
+            <p
+              style={{
+                margin: "8px 0 0",
+                fontSize: "13px",
+                lineHeight: 1.5,
+                color: S.slate,
+                maxWidth: "680px",
+              }}
+            >
+              Institutional pedagogical oversight, faculty workload balancing, syllabus progress, and real-time student outcomes across all active classes.
+            </p>
           </div>
 
-          <div style={{ marginTop: "18px", paddingTop: "12px", borderTop: "1px dashed #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", color: "#15803D", fontWeight: 600 }}>
-            <span>Drill down to classes, teachers & students</span>
-            <span style={{ display: "flex", alignItems: "center", gap: "4px" }}>Open Dossier <ArrowRight size={14} /></span>
+          <div style={{ display: "flex", gap: "10px", marginTop: "16px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={onOpenHealthModal}
+              style={{
+                all: "unset",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 14px",
+                borderRadius: "7px",
+                background: S.navy,
+                color: "#ffffff",
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                boxShadow: "0 1px 2px rgba(12, 30, 51, 0.12)",
+                transition: "background 0.15s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#1a365d")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
+            >
+              <HeartPulse size={14} />
+              <span>Academic Health Dossier</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => nav("timetable")}
+              style={{
+                all: "unset",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 14px",
+                borderRadius: "7px",
+                background: "#ffffff",
+                border: "1px solid #ced8e5",
+                color: S.navy,
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "background 0.15s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+            >
+              <Clock size={14} />
+              <span>Live Campus Timetable</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => nav("planning")}
+              style={{
+                all: "unset",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 14px",
+                borderRadius: "7px",
+                background: "#ffffff",
+                border: "1px solid #ced8e5",
+                color: S.navy,
+                fontSize: "12.5px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "background 0.15s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+            >
+              <Calendar size={14} />
+              <span>Annual Academic Plan</span>
+            </button>
           </div>
         </div>
 
-        {/* Today's Academic Snapshot (Section 77) */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "12px", padding: "20px 24px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1E293B" }}>Today’s Academic Operations</h3>
-              <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748B" }}>Real-time instructional delivery & campus coverage snapshot</p>
-            </div>
-            <span style={{ background: "#F1F5F9", color: "#475569", padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 600 }}>
-              Current Timetable
+        {/* Stylized SVG Administrative Artwork Illustration */}
+        <div
+          aria-hidden="true"
+          style={{
+            width: "280px",
+            flexShrink: 0,
+            display: "none",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "16px 24px",
+            background: "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(206,216,229,0.3) 100%)",
+            borderLeft: "1px solid #d8dee6",
+          }}
+          className="lg-artwork"
+        >
+          <svg width="220" height="150" viewBox="0 0 220 150" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="20" y="25" width="180" height="105" rx="10" fill="#ffffff" stroke="#ced8e5" strokeWidth="2" />
+            <rect x="35" y="40" width="50" height="8" rx="4" fill="#0c1e33" />
+            <rect x="35" y="55" width="150" height="4" rx="2" fill="#e4e6e9" />
+            <rect x="35" y="65" width="120" height="4" rx="2" fill="#e4e6e9" />
+            <rect x="35" y="75" width="90" height="4" rx="2" fill="#e4e6e9" />
+            <circle cx="160" cy="44" r="14" fill="#ccefbf" stroke="#1a5c0a" strokeWidth="1.5" />
+            <path d="M155 44L158 47L166 40" stroke="#1a5c0a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <rect x="35" y="92" width="60" height="24" rx="6" fill="#e1d2ff" />
+            <rect x="42" y="100" width="46" height="8" rx="3" fill="#4a0e8f" />
+            <rect x="105" y="92" width="75" height="24" rx="6" fill="#bae5f5" />
+            <rect x="115" y="100" width="55" height="8" rx="3" fill="#0a5a7a" />
+          </svg>
+        </div>
+      </section>
+
+      {/* ═══════════════════════════════════════════════
+          2. TOP 4 PASTEL METRIC CARDS (STRICTLY 148PX)
+      ═══════════════════════════════════════════════ */}
+      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+        {/* Card 1: Academic Health Index (Pastel Mint) */}
+        <article
+          onClick={onOpenHealthModal}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: S.greenBg,
+            border: `1px solid ${S.greenBg}`,
+            borderRadius: "10px",
+            color: S.greenDk,
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Academic Health Score
+            </span>
+            <ShieldCheck size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: S.greenDk }}>
+            {metric(healthScore, "/100")}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>
+              {healthScore === null ? "Awaiting evaluation" : healthScore >= 80 ? "Optimal Academic Health" : "Intervention Indicated"}
+            </span>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+              Dossier <ArrowRight size={13} />
             </span>
           </div>
+        </article>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
-            {[
-              { label: "Classes Active", value: operations?.classesRunning, sub: "Current period", color: "#1E293B" },
-              { label: "Faculty Teaching", value: operations?.teachersTeaching, sub: "Current period", color: "#065F46" },
-              { label: "Pending Reviews", value: operations?.pendingReviews, sub: "Awaiting review", color: "#7C3AED" },
-              { label: "Open Alerts", value: operations?.openAlerts, sub: "Action items", color: "#0F766E" },
-            ].map((stat, idx) => (
-              <div key={idx} style={{ background: "#F8FAFC", border: "1px solid #F1F5F9", borderRadius: "8px", padding: "10px 12px" }}>
-                <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 600 }}>{stat.label}</div>
-                <div style={{ fontSize: "20px", fontWeight: 800, color: stat.color, margin: "2px 0" }}>{stat.value ?? "—"}</div>
-                <div style={{ fontSize: "10px", color: "#94A3B8" }}>{stat.sub}</div>
+        {/* Card 2: Enrolled Students (Pastel Violet) */}
+        <article
+          onClick={() => nav("students")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: S.violetBg,
+            border: `1px solid ${S.violetBg}`,
+            borderRadius: "10px",
+            color: S.violetDk,
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Total Students
+            </span>
+            <GraduationCap size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: S.violetDk }}>
+            {metric(kpis.totalStudents)}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>Across {kpis.totalClasses ?? 0} grades &amp; {kpis.totalSections ?? 0} sections</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+              Roster <ArrowRight size={13} />
+            </span>
+          </div>
+        </article>
+
+        {/* Card 3: Teaching Faculty (Pastel Sky) */}
+        <article
+          onClick={() => nav("people")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: S.skyBg,
+            border: `1px solid ${S.skyBg}`,
+            borderRadius: "10px",
+            color: S.skyDk,
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Faculty Members
+            </span>
+            <Users size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: S.skyDk }}>
+            {metric(kpis.totalTeachers)}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>{operations?.teachersTeaching ?? 0} active teaching this period</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+              Faculty <ArrowRight size={13} />
+            </span>
+          </div>
+        </article>
+
+        {/* Card 4: Syllabus & Curriculum Delivery (Pastel Peach) */}
+        <article
+          onClick={() => nav("academics")}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "148px",
+            padding: "20px",
+            background: S.peachBg,
+            border: `1px solid ${S.peachBg}`,
+            borderRadius: "10px",
+            color: S.peachDk,
+            cursor: "pointer",
+            transition: "transform 0.15s ease",
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-2px)")}
+          onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+        >
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Syllabus Completion
+            </span>
+            <BookOpen size={18} />
+          </div>
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: S.peachDk }}>
+            {metric(execution?.syllabusCompletion, "%")}
+          </p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span style={{ fontSize: "11px" }}>{execution?.lessonPlansCompleted ?? 0} lesson plans delivered</span>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
+              Curriculum <ArrowRight size={13} />
+            </span>
+          </div>
+        </article>
+      </section>
+
+      {/* ═══════════════════════════════════════════════
+          3. DUAL STATUS: HEALTH PILLARS & TODAY'S OPERATIONS
+      ═══════════════════════════════════════════════ */}
+      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "20px" }}>
+        {/* Left: Explainable Academic Health Pillars Card */}
+        <div
+          style={{
+            background: S.white,
+            border: `1px solid ${S.border}`,
+            borderRadius: "12px",
+            padding: "22px 24px",
+            boxShadow: "0 1px 2px rgba(12, 30, 51, 0.04)",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <div
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "8px",
+                  background: S.greenBg,
+                  color: S.greenDk,
+                  display: "grid",
+                  placeItems: "center",
+                }}
+              >
+                <ShieldCheck size={20} />
               </div>
-            ))}
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: S.navy }}>
+                  Academic Health Index Pillars
+                </h3>
+                <span style={{ fontSize: "12px", color: S.slate }}>
+                  6-dimensional verifiable pedagogical performance index
+                </span>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenHealthModal}
+              style={{
+                all: "unset",
+                cursor: "pointer",
+                fontSize: "12px",
+                fontWeight: 600,
+                color: S.navy,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                background: S.chip,
+                border: `1px solid ${S.border}`,
+              }}
+            >
+              Open Dossier <ArrowRight size={12} />
+            </button>
           </div>
 
-          <div style={{ marginTop: "14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", color: "#B45309", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
-              <AlertTriangle size={14} /> Based on the current timetable
+          {/* Pillars List with visual percentage progress */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {[
+              { label: "Curriculum Execution", value: healthBreakdown?.curriculumExecution, target: "90% target" },
+              { label: "Assessment Papers Published", value: healthBreakdown?.assessmentCompletion, target: "Term completion" },
+              { label: "Exam Average Score", value: healthBreakdown?.studentPerformance, target: "Cohort average" },
+              { label: "Teacher Academic Activity", value: healthBreakdown?.teacherAcademicActivity, target: "Daily log compliance" },
+              { label: "Campus Student Attendance", value: healthBreakdown?.attendanceRate, target: "Statutory 75% minimum" },
+              { label: "Academic Interventions Completed", value: healthBreakdown?.interventionCompletion, target: "Remedial closure" },
+            ].map((p, idx) => {
+              const val = typeof p.value === "number" ? Math.min(100, Math.max(0, p.value)) : 0;
+              return (
+                <div key={idx} style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
+                    <span style={{ fontWeight: 600, color: S.navy }}>{p.label}</span>
+                    <span style={{ fontWeight: 700, color: S.navy, fontVariantNumeric: "tabular-nums" }}>
+                      {metric(p.value, "%")}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      height: "6px",
+                      width: "100%",
+                      background: "#eef1f6",
+                      borderRadius: "3px",
+                      overflow: "hidden",
+                    }}
+                  >
+                    <div
+                      style={{
+                        height: "100%",
+                        width: `${val}%`,
+                        background: val >= 75 ? S.greenDk : val >= 50 ? "#D97706" : "#DC2626",
+                        borderRadius: "3px",
+                        transition: "width 0.4s ease",
+                      }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Right: Today's Academic Operations */}
+        <div
+          style={{
+            background: S.white,
+            border: `1px solid ${S.border}`,
+            borderRadius: "12px",
+            padding: "22px 24px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            boxShadow: "0 1px 2px rgba(12, 30, 51, 0.04)",
+          }}
+        >
+          <div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: S.navy }}>
+                  Today’s Academic Operations
+                </h3>
+                <p style={{ margin: "2px 0 0", fontSize: "12px", color: S.slate }}>
+                  Instructional delivery &amp; real-time classroom telemetry
+                </p>
+              </div>
+              <span
+                style={{
+                  background: S.chip,
+                  border: `1px solid ${S.border}`,
+                  color: S.navy,
+                  padding: "3px 8px",
+                  borderRadius: "6px",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                }}
+              >
+                Current Schedule
+              </span>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              {[
+                { label: "Classes Active", value: operations?.classesRunning, sub: "In-session periods", color: S.navy, bg: S.chip },
+                { label: "Faculty Teaching", value: operations?.teachersTeaching, sub: "Teaching roster", color: S.greenDk, bg: "#f0fdf4" },
+                { label: "Pending Reviews", value: operations?.pendingReviews, sub: "Lesson plans", color: S.violetDk, bg: "#faf5ff" },
+                { label: "Open Alerts", value: operations?.openAlerts, sub: "Requires attention", color: S.peachDk, bg: "#fff7ed" },
+              ].map((stat, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    background: stat.bg,
+                    border: `1px solid ${S.border}`,
+                    borderRadius: "8px",
+                    padding: "12px",
+                  }}
+                >
+                  <div style={{ fontSize: "11px", color: S.slate, fontWeight: 600 }}>{stat.label}</div>
+                  <div style={{ fontSize: "22px", fontWeight: 800, color: stat.color, margin: "4px 0 2px" }}>
+                    {stat.value ?? "—"}
+                  </div>
+                  <div style={{ fontSize: "10.5px", color: S.faint }}>{stat.sub}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div
+            style={{
+              marginTop: "16px",
+              paddingTop: "12px",
+              borderTop: `1px solid ${S.border}`,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+            }}
+          >
+            <span style={{ fontSize: "12px", color: S.slate, fontWeight: 500 }}>
+              Synchronized with master timetable
             </span>
             <button
               type="button"
-              onClick={() => onNavigateTab ? onNavigateTab("timetable") : (onNavigate ? onNavigate("timetable") : null)}
-              style={{ background: "transparent", border: "none", color: "#1D4ED8", fontSize: "12px", fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+              onClick={() => nav("timetable")}
+              style={{
+                all: "unset",
+                color: S.navy,
+                fontSize: "12px",
+                fontWeight: 650,
+                cursor: "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "4px",
+              }}
             >
-              Timetable View <ArrowRight size={12} />
+              Master Timetable <ArrowRight size={13} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* 3. Core Academic Domains: Performance, Teaching Execution, Examinations */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px" }}>
-        {/* Academic Performance Overview */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "12px", padding: "18px 20px" }}>
+      {/* ═══════════════════════════════════════════════
+          4. CORE DOMAINS: PERFORMANCE, EXECUTION, EXAMINATIONS
+      ═══════════════════════════════════════════════ */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+        {/* Domain 1: Academic Performance */}
+        <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: "10px", padding: "18px 20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#1E293B" }}>School Academic Performance</h4>
-            <button onClick={() => onNavigateTab ? onNavigateTab("academics") : (onNavigate ? onNavigate("academics") : null)} style={{ background: "none", border: "none", color: "#2563EB", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>Details</button>
+            <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: S.navy }}>School Academic Performance</h4>
+            <button
+              type="button"
+              onClick={() => nav("academics")}
+              style={{ all: "unset", cursor: "pointer", color: S.navy, fontSize: "11.5px", fontWeight: 650 }}
+            >
+              Details ↗
+            </button>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12.5px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Overall Average:</span>
-              <span style={{ fontWeight: 700, color: "#1E293B" }}>{metric(performance?.overallSchoolAverage, "%")}</span>
+              <span style={{ color: S.slate }}>Overall Average:</span>
+              <span style={{ fontWeight: 700, color: S.navy }}>{metric(performance?.overallSchoolAverage, "%")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Average Graded Submission:</span>
-              <span style={{ fontWeight: 700, color: "#1E293B" }}>{metric(performance?.averageAssessmentScore, "%")}</span>
+              <span style={{ color: S.slate }}>Average Assessment Score:</span>
+              <span style={{ fontWeight: 700, color: S.navy }}>{metric(performance?.averageAssessmentScore, "%")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Learning Outcome Progress:</span>
-              <span style={{ fontWeight: 700, color: "#065F46" }}>{metric(performance?.learningOutcomeAchievement, "%")}</span>
+              <span style={{ color: S.slate }}>Learning Outcome Progress:</span>
+              <span style={{ fontWeight: 700, color: S.greenDk }}>{metric(performance?.learningOutcomeAchievement, "%")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Curriculum Completion:</span>
-              <span style={{ fontWeight: 700, color: "#1E293B" }}>{metric(performance?.curriculumCompletion, "%")}</span>
+              <span style={{ color: S.slate }}>Curriculum Completion:</span>
+              <span style={{ fontWeight: 700, color: S.navy }}>{metric(performance?.curriculumCompletion, "%")}</span>
             </div>
           </div>
         </div>
 
-        {/* Teaching Execution */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "12px", padding: "18px 20px" }}>
+        {/* Domain 2: Teaching Execution */}
+        <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: "10px", padding: "18px 20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#1E293B" }}>Teaching-Learning Execution</h4>
-            <button onClick={() => onNavigateTab ? onNavigateTab("learning") : (onNavigate ? onNavigate("learning") : null)} style={{ background: "none", border: "none", color: "#2563EB", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>Details</button>
+            <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: S.navy }}>Teaching-Learning Execution</h4>
+            <button
+              type="button"
+              onClick={() => nav("learning")}
+              style={{ all: "unset", cursor: "pointer", color: S.navy, fontSize: "11.5px", fontWeight: 650 }}
+            >
+              Details ↗
+            </button>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12.5px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Lesson Plans Completed:</span>
-              <span style={{ fontWeight: 700, color: "#15803D" }}>{metric(execution?.lessonPlansCompleted)}</span>
+              <span style={{ color: S.slate }}>Lesson Plans Completed:</span>
+              <span style={{ fontWeight: 700, color: S.greenDk }}>{metric(execution?.lessonPlansCompleted)}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Lessons Delivered:</span>
-              <span style={{ fontWeight: 700, color: "#1E293B" }}>{metric(execution?.lessonsDelivered)}</span>
+              <span style={{ color: S.slate }}>Lessons Delivered:</span>
+              <span style={{ fontWeight: 700, color: S.navy }}>{metric(execution?.lessonsDelivered)}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Syllabus Completion:</span>
-              <span style={{ fontWeight: 700, color: "#065F46" }}>{metric(execution?.syllabusCompletion, "%")}</span>
+              <span style={{ color: S.slate }}>Syllabus Completion:</span>
+              <span style={{ fontWeight: 700, color: S.navy }}>{metric(execution?.syllabusCompletion, "%")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Pending Lesson Plans:</span>
-              <span style={{ fontWeight: 700, color: "#B45309" }}>{metric(execution?.pendingLessonPlans, " awaiting review")}</span>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Pending Evaluations:</span>
-              <span style={{ fontWeight: 700, color: (execution?.pendingEvaluations ?? 0) > 0 ? "#DC2626" : "#15803D" }}>{metric(execution?.pendingEvaluations, " items")}</span>
+              <span style={{ color: S.slate }}>Pending Lesson Reviews:</span>
+              <span style={{ fontWeight: 700, color: (execution?.pendingLessonPlans ?? 0) > 0 ? "#B45309" : S.greenDk }}>
+                {metric(execution?.pendingLessonPlans, " awaiting")}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Examination & Board Projections */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "12px", padding: "18px 20px" }}>
+        {/* Domain 3: Examinations & Results */}
+        <div style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: "10px", padding: "18px 20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#1E293B" }}>Examinations & Results</h4>
-            <button onClick={() => onNavigateTab ? onNavigateTab("examinations") : (onNavigate ? onNavigate("examinations") : null)} style={{ background: "none", border: "none", color: "#2563EB", fontSize: "11px", fontWeight: 600, cursor: "pointer" }}>Details</button>
+            <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: S.navy }}>Examinations &amp; Results</h4>
+            <button
+              type="button"
+              onClick={() => nav("examinations")}
+              style={{ all: "unset", cursor: "pointer", color: S.navy, fontSize: "11.5px", fontWeight: 650 }}
+            >
+              Details ↗
+            </button>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "13px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12.5px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Published Results:</span>
-              <span style={{ fontWeight: 700, color: "#065F46" }}>{metric(exams?.resultsPublished, " published")}</span>
+              <span style={{ color: S.slate }}>Published Results:</span>
+              <span style={{ fontWeight: 700, color: S.greenDk }}>{metric(exams?.resultsPublished, " published")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Results Published & Locked:</span>
-              <span style={{ fontWeight: 700, color: "#15803D" }}>{metric(exams?.resultsLocked, " locked")}</span>
+              <span style={{ color: S.slate }}>Results Finalized &amp; Locked:</span>
+              <span style={{ fontWeight: 700, color: S.navy }}>{metric(exams?.resultsLocked, " locked")}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Pending Principal Approval:</span>
-              <span style={{ fontWeight: 700, color: "#B45309" }}>{metric(exams?.resultsPending, " records")}</span>
+              <span style={{ color: S.slate }}>Pending Principal Approval:</span>
+              <span style={{ fontWeight: 700, color: (exams?.resultsPending ?? 0) > 0 ? "#DC2626" : S.greenDk }}>
+                {metric(exams?.resultsPending, " records")}
+              </span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <span style={{ color: "#64748B" }}>Exam Evaluations:</span>
-              <span style={{ fontWeight: 700, color: "#1E293B" }}>{metric(exams?.papersEvaluated, " evaluations")}</span>
+              <span style={{ color: S.slate }}>Papers Evaluated:</span>
+              <span style={{ fontWeight: 700, color: S.navy }}>{metric(exams?.papersEvaluated, " evaluated")}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* 4. Attention Required & Recent Academic Activity */}
+      {/* ═══════════════════════════════════════════════
+          5. ATTENTION ENGINE & LIVE AUDIT TRAIL
+      ═══════════════════════════════════════════════ */}
       <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "20px" }}>
-        {/* Academic Action Triggers */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "12px", padding: "20px" }}>
+        {/* Attention Engine */}
+        <div
+          style={{
+            background: S.white,
+            border: `1px solid ${S.border}`,
+            borderRadius: "12px",
+            padding: "20px 22px",
+            boxShadow: "0 1px 2px rgba(12, 30, 51, 0.04)",
+          }}
+        >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <AlertTriangle size={18} color="#D97706" />
-              <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>
-                Academic Attention Triggers (Action Engine)
+              <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: S.navy }}>
+                Academic Action Engine &amp; Attention Triggers
               </h3>
             </div>
             <button
-              onClick={() => onNavigateTab ? onNavigateTab("alerts") : (onNavigate ? onNavigate("alerts") : null)}
-              style={{ background: "none", border: "none", color: "#2563EB", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+              type="button"
+              onClick={() => nav("alerts")}
+              style={{ all: "unset", cursor: "pointer", color: S.navy, fontSize: "12px", fontWeight: 650 }}
             >
-              View All Alerts
+              All Alerts <ArrowRight size={12} />
             </button>
           </div>
 
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {operations?.openAlerts === 0 && <div style={{ fontSize: "12px", color: "#64748B" }}>No open academic alerts.</div>}
-            {(operations?.openAlerts ?? 0) > 0 && [{
-              title: "Open Academic Alerts",
-              desc: `${operations.openAlerts} alerts require review.`,
-              action: "View Alerts",
-              actionType: "alerts",
-            }].map((alert) => (
+            {(!operations?.openAlerts || operations?.openAlerts === 0) ? (
               <div
-                key={alert.actionType}
                 style={{
-                  border: "1px solid #FEF3C7",
-                  background: "#FFFBEB",
+                  padding: "20px",
+                  textAlign: "center",
+                  background: S.chip,
                   borderRadius: "8px",
-                  padding: "12px 14px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  border: `1px dashed ${S.border}`,
+                  fontSize: "12.5px",
+                  color: S.slate,
                 }}
               >
-                <div>
-                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#92400E" }}>{alert.title}</div>
-                  <div style={{ fontSize: "12px", color: "#B45309", marginTop: "2px" }}>{alert.desc}</div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => onTriggerAction ? onTriggerAction(alert.actionType) : (onNavigate ? onNavigate(alert.actionType) : null)}
+                ✓ All academic registers in good standing. No open alerts require principal action.
+              </div>
+            ) : (
+              [{
+                title: "Academic Intervention Triggers",
+                desc: `${operations.openAlerts} alerts require executive administrative sign-off.`,
+                action: "Review Alerts",
+                actionType: "alerts",
+              }].map((alert) => (
+                <div
+                  key={alert.actionType}
                   style={{
-                    background: "#064E3B",
-                    color: "#F8E7C9",
-                    border: "none",
-                    borderRadius: "6px",
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    cursor: "pointer",
-                    whiteSpace: "nowrap",
-                    marginLeft: "12px",
+                    border: "1px solid #FEF3C7",
+                    background: "#FFFBEB",
+                    borderRadius: "8px",
+                    padding: "12px 16px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
                   }}
                 >
-                  {alert.action}
-                </button>
-              </div>
-            ))}
+                  <div>
+                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#92400E" }}>{alert.title}</div>
+                    <div style={{ fontSize: "12px", color: "#B45309", marginTop: "2px" }}>{alert.desc}</div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => (onTriggerAction ? onTriggerAction(alert.actionType) : nav(alert.actionType))}
+                    style={{
+                      background: S.navy,
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "7px 14px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      marginLeft: "12px",
+                    }}
+                  >
+                    {alert.action} ↗
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </div>
 
-        {/* Recent Academic Activity Log */}
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "12px", padding: "20px" }}>
+        {/* Live Academic Activity Log */}
+        <div
+          style={{
+            background: S.white,
+            border: `1px solid ${S.border}`,
+            borderRadius: "12px",
+            padding: "20px 22px",
+            boxShadow: "0 1px 2px rgba(12, 30, 51, 0.04)",
+          }}
+        >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>Recent Academic Activity</h3>
-            <button onClick={() => onNavigateTab ? onNavigateTab("activity") : (onNavigate ? onNavigate("activity") : null)} style={{ background: "none", border: "none", color: "#2563EB", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>Audit Log</button>
+            <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: S.navy }}>
+              Recent Academic Activity
+            </h3>
+            <button
+              type="button"
+              onClick={() => nav("activity")}
+              style={{ all: "unset", cursor: "pointer", color: S.navy, fontSize: "12px", fontWeight: 650 }}
+            >
+              Full Ledger <ArrowRight size={12} />
+            </button>
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {activities.length === 0 ? (
-              <div style={{ fontSize: "12px", color: "#94A3B8", textAlign: "center", padding: "16px 0" }}>{liveData || loadError ? "No recent audit events logged." : "Loading recent activity…"}</div>
+              <div style={{ fontSize: "12px", color: S.slate, textAlign: "center", padding: "20px 0" }}>
+                {liveData || loadError ? "No recent academic audit events recorded." : "Connecting to audit ledger…"}
+              </div>
             ) : (
-              activities.map((act: any) => (
-                <div key={act.id} style={{ display: "flex", alignItems: "flex-start", gap: "10px", fontSize: "12px" }}>
-                  <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "#065F46", marginTop: "5px", flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontWeight: 600, color: "#1E293B" }}>{act.title}</div>
-                    <div style={{ color: "#64748B", fontSize: "11px" }}>{act.author} · {act.time}</div>
+              activities.slice(0, 6).map((act: any, idx: number) => (
+                <div
+                  key={act.id || idx}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "10px",
+                    fontSize: "12px",
+                    padding: "6px 8px",
+                    borderRadius: "6px",
+                    background: S.chip,
+                    border: `1px solid ${S.border}`,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: S.greenDk,
+                      marginTop: "5px",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontWeight: 600, color: S.navy, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {act.title}
+                    </div>
+                    <div style={{ color: S.slate, fontSize: "11px", marginTop: "1px" }}>
+                      {act.author || "Faculty"} • {act.time || "Recently"}
+                    </div>
                   </div>
                 </div>
               ))
@@ -419,4 +952,3 @@ export function DashboardPane({
     </div>
   );
 }
-

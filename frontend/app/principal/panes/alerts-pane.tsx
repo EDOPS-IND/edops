@@ -88,99 +88,211 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
   });
 
   return (
-    <div className="space-y-6">
-      {/* Header & Metric Strip */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      {/* Header & Action Strip */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
         <div>
-          <h2 className="text-xl font-bold text-gray-900  flex items-center gap-2">
-            <ShieldAlert className="w-6 h-6 text-red-600 " />
-            Academic Alert Center
-          </h2>
-          <p className="text-sm text-gray-500  mt-0.5">
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <ShieldAlert size={22} color="#dc2626" />
+            <h2 style={{ fontSize: "18px", fontWeight: 800, color: "#0c1e33", margin: 0 }}>
+              Academic Alert Center
+            </h2>
+          </div>
+          <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>
             Real-time proactive breach monitors across syllabus deadlines, attendance thresholds, and assessment dips
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => loadAlerts()}
-            className="px-3 py-1.5 text-xs font-medium text-gray-700  bg-white  border border-gray-300  rounded-lg hover:bg-gray-50 :bg-gray-750 transition"
-          >
-            Refresh Alerts
-          </button>
-        </div>
+        <button
+          onClick={() => loadAlerts()}
+          style={{
+            padding: "8px 16px",
+            fontSize: "12px",
+            fontWeight: 600,
+            color: "#0c1e33",
+            background: "#ffffff",
+            border: "1px solid #e4e6e9",
+            borderRadius: "8px",
+            cursor: "pointer",
+            transition: "all 0.15s ease",
+          }}
+        >
+          Refresh Alerts
+        </button>
       </div>
 
-      {/* KPI Highlights */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 bg-red-50  border border-red-200  rounded-xl">
-          <div className="text-xs font-semibold uppercase tracking-wider text-red-600 ">
-            Critical Action Req.
+      {/* 4 Standard Pastel KPI Cards (strictly 148px height) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        {/* Card 1: Mint - Resolved */}
+        <div
+          style={{
+            height: "148px",
+            background: "#ccefbf",
+            border: "1px solid #b2e49f",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#1a5c0a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Resolved This Week
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#1a5c0a", marginTop: "4px" }}>
+              {data?.stats?.resolvedThisWeek ?? 0}
+            </div>
           </div>
-          <div className="text-2xl font-black text-red-700  mt-1">
-            {data?.stats?.criticalCount ?? 0}
+          <div style={{ fontSize: "11px", color: "#23720e", fontWeight: 500 }}>
+            Closed with corrective directives
           </div>
-          <div className="text-xs text-red-600/80  mt-1">Immediate intervention needed</div>
         </div>
 
-        <div className="p-4 bg-amber-50  border border-amber-200  rounded-xl">
-          <div className="text-xs font-semibold uppercase tracking-wider text-amber-600 ">
-            Warning Signals
+        {/* Card 2: Sky - Info */}
+        <div
+          style={{
+            height: "148px",
+            background: "#bae5f5",
+            border: "1px solid #9ad7ef",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#0a5a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Informational Notices
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#0a5a7a", marginTop: "4px" }}>
+              {data?.stats?.infoCount ?? 0}
+            </div>
           </div>
-          <div className="text-2xl font-black text-amber-700  mt-1">
-            {data?.stats?.warningCount ?? 0}
+          <div style={{ fontSize: "11px", color: "#0d6f96", fontWeight: 500 }}>
+            Milestones and audit logs
           </div>
-          <div className="text-xs text-amber-600/80  mt-1">Monitor next assessment cycle</div>
         </div>
 
-        <div className="p-4 bg-blue-50  border border-blue-200  rounded-xl">
-          <div className="text-xs font-semibold uppercase tracking-wider text-blue-600 ">
-            Informational Notices
+        {/* Card 3: Violet - Warning */}
+        <div
+          style={{
+            height: "148px",
+            background: "#e1d2ff",
+            border: "1px solid #cdb5ff",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#4a0e8f", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Warning Signals
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#4a0e8f", marginTop: "4px" }}>
+              {data?.stats?.warningCount ?? 0}
+            </div>
           </div>
-          <div className="text-2xl font-black text-blue-700  mt-1">
-            {data?.stats?.infoCount ?? 0}
+          <div style={{ fontSize: "11px", color: "#5b14ae", fontWeight: 500 }}>
+            Monitor next assessment cycle
           </div>
-          <div className="text-xs text-blue-600/80  mt-1">Milestones and logs</div>
         </div>
 
-        <div className="p-4 bg-emerald-50  border border-emerald-200  rounded-xl">
-          <div className="text-xs font-semibold uppercase tracking-wider text-emerald-600 ">
-            Resolved This Week
+        {/* Card 4: Peach - Critical */}
+        <div
+          style={{
+            height: "148px",
+            background: "#ffd8c7",
+            border: "1px solid #ffbe9f",
+            borderRadius: "10px",
+            padding: "20px",
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: "11px", fontWeight: 700, color: "#782a00", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+              Critical Action Req.
+            </div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#782a00", marginTop: "4px" }}>
+              {data?.stats?.criticalCount ?? 0}
+            </div>
           </div>
-          <div className="text-2xl font-black text-emerald-700  mt-1">
-            {data?.stats?.resolvedThisWeek ?? 0}
+          <div style={{ fontSize: "11px", color: "#923402", fontWeight: 500 }}>
+            Immediate leadership intervention
           </div>
-          <div className="text-xs text-emerald-600/80  mt-1">Closed with corrective notes</div>
         </div>
       </div>
 
       {/* Filter Controls */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-white  rounded-xl border border-gray-200 ">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-semibold text-gray-500 uppercase flex items-center gap-1">
-            <Filter className="w-3.5 h-3.5" /> Severity:
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          padding: "12px 16px",
+          background: "#ffffff",
+          borderRadius: "10px",
+          border: "1px solid #e4e6e9",
+        }}
+      >
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "4px" }}>
+            <Filter size={13} /> Severity:
           </span>
           {["all", "critical", "warning", "info"].map((sev) => (
             <button
               key={sev}
               onClick={() => setSeverityFilter(sev)}
-              className={`px-3 py-1 text-xs rounded-full font-medium capitalize transition ${
-                severityFilter === sev
-                  ? "bg-indigo-600 text-white shadow-sm"
-                  : "bg-gray-100  text-gray-700  hover:bg-gray-200 :bg-gray-650"
-              }`}
+              style={{
+                padding: "5px 12px",
+                fontSize: "11.5px",
+                borderRadius: "20px",
+                fontWeight: 600,
+                textTransform: "capitalize",
+                border: "1px solid",
+                borderColor: severityFilter === sev ? "#0c1e33" : "#e4e6e9",
+                background: severityFilter === sev ? "#0c1e33" : "#f8fafc",
+                color: severityFilter === sev ? "#ffffff" : "#475569",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
             >
               {sev}
             </button>
           ))}
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-gray-500 uppercase">Category:</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>Category:</span>
           <select
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
-            className="text-xs bg-gray-50  border border-gray-300  rounded-lg px-2.5 py-1 text-gray-800 "
+            style={{
+              fontSize: "12px",
+              fontWeight: 500,
+              background: "#f8fafc",
+              border: "1px solid #e4e6e9",
+              borderRadius: "8px",
+              padding: "6px 10px",
+              color: "#334155",
+            }}
           >
             <option value="all">All Categories</option>
             <option value="curriculum_lag">Syllabus Lag</option>
@@ -193,118 +305,167 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
       </div>
 
       {/* Alerts Feed */}
-      <div className="space-y-3">
+      <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {loading ? (
-          <div className="py-12 text-center text-gray-400">Loading academic alert radar...</div>
+          <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>Loading academic alert radar...</div>
         ) : filteredAlerts.length === 0 ? (
-          <div className="p-8 text-center bg-white  rounded-xl border border-gray-200 ">
-            <CheckCircle2 className="w-10 h-10 text-emerald-500 mx-auto mb-2" />
-            <p className="text-sm font-semibold text-gray-800 ">No active alerts matching filter</p>
-            <p className="text-xs text-gray-500  mt-1">All academic streams are operating within acceptable thresholds.</p>
+          <div style={{ padding: "40px 20px", textAlign: "center", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9" }}>
+            <CheckCircle2 size={36} color="#10b981" style={{ margin: "0 auto 8px" }} />
+            <p style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b", margin: 0 }}>No active alerts matching filter</p>
+            <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>All academic streams are operating within acceptable thresholds.</p>
           </div>
         ) : (
           filteredAlerts.map((item: any) => (
             <div
               key={item.id}
-              className={`p-4 rounded-xl border transition ${
-                item.resolved
-                  ? "bg-gray-50/70  border-gray-200  opacity-75"
+              style={{
+                padding: "16px 20px",
+                borderRadius: "10px",
+                border: "1px solid",
+                borderColor: item.resolved
+                  ? "#e4e6e9"
                   : item.severity === "critical"
-                  ? "bg-red-50/50  border-red-200 "
+                  ? "#fca5a5"
                   : item.severity === "warning"
-                  ? "bg-amber-50/50  border-amber-200 "
-                  : "bg-blue-50/40  border-blue-200 "
-              }`}
+                  ? "#fde68a"
+                  : "#bfdbfe",
+                background: item.resolved
+                  ? "#fafbfc"
+                  : item.severity === "critical"
+                  ? "#fff5f5"
+                  : item.severity === "warning"
+                  ? "#fffdf5"
+                  : "#f8fbff",
+                transition: "all 0.15s ease",
+              }}
             >
-              <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                     <span
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                        item.severity === "critical"
-                          ? "bg-red-600 text-white"
-                          : item.severity === "warning"
-                          ? "bg-amber-500 text-white"
-                          : "bg-blue-600 text-white"
-                      }`}
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.06em",
+                        padding: "2px 8px",
+                        borderRadius: "20px",
+                        background:
+                          item.severity === "critical"
+                            ? "#ef4444"
+                            : item.severity === "warning"
+                            ? "#f59e0b"
+                            : "#3b82f6",
+                        color: "#ffffff",
+                      }}
                     >
                       {item.severity}
                     </span>
-                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-gray-100  text-gray-700 ">
+                    <span style={{ fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "4px", background: "#f1f5f9", color: "#334155" }}>
                       {item.classSection}
                     </span>
                     {item.subject && (
-                      <span className="text-xs font-medium text-gray-600 ">
+                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748b" }}>
                         {item.subject}
                       </span>
                     )}
-                    <span className="text-xs text-gray-400 flex items-center gap-1">
-                      <Clock className="w-3 h-3" /> {item.createdAt}
+                    <span style={{ fontSize: "11px", color: "#94a3b8", display: "flex", alignItems: "center", gap: "4px" }}>
+                      <Clock size={12} /> {item.createdAt}
                     </span>
                     {item.resolved && (
-                      <span className="text-xs font-bold text-emerald-600  flex items-center gap-1 bg-emerald-50  px-2 py-0.5 rounded-full">
-                        <Check className="w-3 h-3" /> Resolved
+                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#15803d", display: "flex", alignItems: "center", gap: "4px", background: "#dcfce7", padding: "2px 8px", borderRadius: "20px" }}>
+                        <Check size={12} /> Resolved
                       </span>
                     )}
                   </div>
 
-                  <h3 className="text-base font-bold text-gray-900 ">
-                    {item.title}
-                  </h3>
-                  <p className="text-xs text-gray-700 ">
-                    {item.details}
-                  </p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-1 text-xs">
-                    <div className="bg-white/80  p-2 rounded-lg border border-gray-100 ">
-                      <span className="font-semibold text-gray-600  block">Academic Impact:</span>
-                      <span className="text-gray-800 ">{item.impact}</span>
-                    </div>
-                    <div className="bg-white/80  p-2 rounded-lg border border-gray-100 ">
-                      <span className="font-semibold text-gray-600  block">Suggested Interventional Action:</span>
-                      <span className="text-indigo-600  font-medium">{item.suggestedAction}</span>
-                    </div>
-                  </div>
-
-                  {item.teacher && (
-                    <div className="text-xs text-gray-500  pt-1 flex items-center gap-1.5">
-                      <User className="w-3.5 h-3.5 text-gray-400" />
-                      Responsible Faculty: <span className="font-semibold text-gray-700 ">{item.teacher}</span>
-                    </div>
-                  )}
-
-                  {item.resolutionNote && (
-                    <div className="text-xs p-2.5 bg-emerald-50  border border-emerald-200  rounded-lg text-emerald-900  mt-2">
-                      <span className="font-bold">Resolution Recorded:</span> {item.resolutionNote}
-                      {item.actionAssigned && <div className="mt-0.5 font-medium">Action Assigned: {item.actionAssigned}</div>}
+                  {!item.resolved && (
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <button
+                        onClick={() => setSelectedAlert(item)}
+                        style={{
+                          padding: "6px 14px",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          color: "#ffffff",
+                          background: "#0c1e33",
+                          border: "none",
+                          borderRadius: "6px",
+                          cursor: "pointer",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        Intervene & Resolve
+                      </button>
+                      {onNavigate && item.category === "curriculum_lag" && (
+                        <button
+                          onClick={() => onNavigate("academics", "curriculum")}
+                          style={{
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "#0c1e33",
+                            background: "#ffffff",
+                            border: "1px solid #e4e6e9",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Inspect Curriculum
+                        </button>
+                      )}
+                      {onNavigate && item.category === "attendance_drop" && (
+                        <button
+                          onClick={() => onNavigate("attendance", "low")}
+                          style={{
+                            padding: "6px 12px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: "#0c1e33",
+                            background: "#ffffff",
+                            border: "1px solid #e4e6e9",
+                            borderRadius: "6px",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Inspect Defaulters
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
 
-                {!item.resolved && (
-                  <div className="flex flex-row lg:flex-col gap-2 shrink-0">
-                    <button
-                      onClick={() => setSelectedAlert(item)}
-                      className="px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition"
-                    >
-                      Intervene & Resolve
-                    </button>
-                    {onNavigate && item.category === "curriculum_lag" && (
-                      <button
-                        onClick={() => onNavigate("academics", "curriculum")}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-700  bg-white  border border-gray-300  hover:bg-gray-50 :bg-gray-750 rounded-lg transition"
-                      >
-                        Inspect Curriculum
-                      </button>
-                    )}
-                    {onNavigate && item.category === "attendance_drop" && (
-                      <button
-                        onClick={() => onNavigate("attendance", "low")}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-700  bg-white  border border-gray-300  hover:bg-gray-50 :bg-gray-750 rounded-lg transition"
-                      >
-                        Inspect Defaulters
-                      </button>
-                    )}
+                <div>
+                  <h3 style={{ fontSize: "15px", fontWeight: 700, color: "#0c1e33", margin: "0 0 4px" }}>
+                    {item.title}
+                  </h3>
+                  <p style={{ fontSize: "12.5px", color: "#475569", margin: 0, lineHeight: 1.5 }}>
+                    {item.details}
+                  </p>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "8px", paddingTop: "4px" }}>
+                  <div style={{ background: "rgba(255, 255, 255, 0.7)", padding: "8px 12px", borderRadius: "8px", border: "1px solid #e4e6e9", fontSize: "12px" }}>
+                    <span style={{ fontWeight: 700, color: "#64748b", display: "block", marginBottom: "2px" }}>Academic Impact:</span>
+                    <span style={{ color: "#1e293b" }}>{item.impact}</span>
+                  </div>
+                  <div style={{ background: "rgba(255, 255, 255, 0.7)", padding: "8px 12px", borderRadius: "8px", border: "1px solid #e4e6e9", fontSize: "12px" }}>
+                    <span style={{ fontWeight: 700, color: "#64748b", display: "block", marginBottom: "2px" }}>Suggested Interventional Action:</span>
+                    <span style={{ color: "#0c1e33", fontWeight: 600 }}>{item.suggestedAction}</span>
+                  </div>
+                </div>
+
+                {item.teacher && (
+                  <div style={{ fontSize: "11.5px", color: "#64748b", display: "flex", alignItems: "center", gap: "6px", paddingTop: "2px" }}>
+                    <User size={13} color="#94a3b8" />
+                    Responsible Faculty: <span style={{ fontWeight: 700, color: "#1e293b" }}>{item.teacher}</span>
+                  </div>
+                )}
+
+                {item.resolutionNote && (
+                  <div style={{ fontSize: "12px", padding: "10px 14px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px", color: "#166534", marginTop: "4px" }}>
+                    <span style={{ fontWeight: 700 }}>Resolution Recorded:</span> {item.resolutionNote}
+                    {item.actionAssigned && <div style={{ marginTop: "2px", fontWeight: 600 }}>Action Assigned: {item.actionAssigned}</div>}
                   </div>
                 )}
               </div>
@@ -315,41 +476,41 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
 
       {/* Resolve / Action Plan Modal */}
       {selectedAlert && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-white  rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-200  space-y-4">
+        <div style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px", background: "rgba(11, 15, 25, 0.6)", backdropFilter: "blur(4px)" }}>
+          <div style={{ background: "#ffffff", borderRadius: "12px", maxWidth: "500px", width: "100%", padding: "24px", boxShadow: "0 20px 40px rgba(0,0,0,0.2)", border: "1px solid #e4e6e9", display: "flex", flexDirection: "column", gap: "16px" }}>
             <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-700  ">
+              <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", padding: "2px 8px", borderRadius: "20px", background: "#fee2e2", color: "#991b1b" }}>
                 {selectedAlert.severity}
               </span>
-              <h3 className="text-lg font-bold text-gray-900  mt-1">
+              <h3 style={{ fontSize: "17px", fontWeight: 800, color: "#0c1e33", margin: "6px 0 2px" }}>
                 {selectedAlert.title}
               </h3>
-              <p className="text-xs text-gray-500  mt-0.5">
+              <p style={{ fontSize: "12px", color: "#64748b", margin: 0 }}>
                 Target: {selectedAlert.classSection} • {selectedAlert.subject}
               </p>
             </div>
 
-            <div className="p-3 bg-gray-50  rounded-xl text-xs space-y-1 text-gray-700 ">
-              <p><strong>Impact:</strong> {selectedAlert.impact}</p>
-              <p><strong>Suggested:</strong> {selectedAlert.suggestedAction}</p>
+            <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", fontSize: "12px", display: "flex", flexDirection: "column", gap: "4px", color: "#475569" }}>
+              <p style={{ margin: 0 }}><strong>Impact:</strong> {selectedAlert.impact}</p>
+              <p style={{ margin: 0 }}><strong>Suggested:</strong> {selectedAlert.suggestedAction}</p>
             </div>
 
-            <div className="space-y-3">
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
               <div>
-                <label className="text-xs font-bold text-gray-700  block mb-1">
+                <label style={{ fontSize: "12px", fontWeight: 700, color: "#0c1e33", display: "block", marginBottom: "4px" }}>
                   Assign Corrective Action
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g., Mandatory 3-session remedial batch with Dr. Sunita"
+                  placeholder="e.g., Mandatory 3-session remedial batch with faculty"
                   value={actionAssigned}
                   onChange={(e) => setActionAssigned(e.target.value)}
-                  className="w-full text-xs px-3 py-2 bg-white  border border-gray-300  rounded-lg text-gray-900  focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  style={{ width: "100%", boxSizing: "border-box", fontSize: "12px", padding: "8px 12px", background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "8px", color: "#0c1e33" }}
                 />
               </div>
 
               <div>
-                <label className="text-xs font-bold text-gray-700  block mb-1">
+                <label style={{ fontSize: "12px", fontWeight: 700, color: "#0c1e33", display: "block", marginBottom: "4px" }}>
                   Resolution Notes / Principal Directives
                 </label>
                 <textarea
@@ -357,22 +518,22 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
                   placeholder="Document the corrective directive issued to the department head or class coordinator..."
                   value={resolutionNote}
                   onChange={(e) => setResolutionNote(e.target.value)}
-                  className="w-full text-xs px-3 py-2 bg-white  border border-gray-300  rounded-lg text-gray-900  focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  style={{ width: "100%", boxSizing: "border-box", fontSize: "12px", padding: "8px 12px", background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "8px", color: "#0c1e33" }}
                 />
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: "8px", paddingTop: "8px" }}>
               <button
                 onClick={() => setSelectedAlert(null)}
-                className="px-4 py-2 text-xs font-medium text-gray-700  bg-gray-150  hover:bg-gray-200 rounded-lg transition"
+                style={{ padding: "8px 16px", fontSize: "12px", fontWeight: 600, color: "#64748b", background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "8px", cursor: "pointer" }}
               >
                 Cancel
               </button>
               <button
                 onClick={handleResolveAlert}
                 disabled={submitting || !resolutionNote}
-                className="px-4 py-2 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 rounded-lg shadow-sm transition"
+                style={{ padding: "8px 18px", fontSize: "12px", fontWeight: 700, color: "#ffffff", background: "#0c1e33", border: "none", borderRadius: "8px", cursor: "pointer", opacity: submitting || !resolutionNote ? 0.5 : 1 }}
               >
                 {submitting ? "Closing Alert..." : "Commit Action & Resolve"}
               </button>

@@ -510,7 +510,7 @@ export async function getPrincipalAcademics(orgId: string) {
 }
 
 export async function getPrincipalTimetable(orgId: string) {
-  return getSchoolAdminTimetable(orgId);
+  return api<any>(`/organizations/${orgId}/principal/timetable`);
 }
 
 export function createPrincipalTimetableEntry(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/timetable`, { method: "POST", body: data }); }
