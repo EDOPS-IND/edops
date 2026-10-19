@@ -30,10 +30,12 @@ export function GovernancePane({
   organizationId,
   initialTab = "alerts",
   activeTab,
+  onTabChange,
 }: {
   organizationId?: string;
   initialTab?: "discipline" | "documents" | "reports" | "alerts" | "settings" | "audit";
   activeTab?: "discipline" | "documents" | "reports" | "alerts" | "settings" | "audit";
+  onTabChange?: (tab: "discipline" | "documents" | "reports" | "alerts" | "settings" | "audit") => void;
 }) {
   const [subtab, setSubtab] = useState<"discipline" | "documents" | "reports" | "alerts" | "settings" | "audit">(activeTab || initialTab);
 
@@ -214,7 +216,10 @@ export function GovernancePane({
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
         {/* 1. Alerts (Pastel Coral) */}
         <article
-          onClick={() => setSubtab("alerts")}
+          onClick={() => {
+            setSubtab("alerts");
+            if (onTabChange) onTabChange("alerts");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -248,7 +253,10 @@ export function GovernancePane({
 
         {/* 2. Discipline Incidents (Pastel Warm Amber) */}
         <article
-          onClick={() => setSubtab("discipline")}
+          onClick={() => {
+            setSubtab("discipline");
+            if (onTabChange) onTabChange("discipline");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -282,7 +290,10 @@ export function GovernancePane({
 
         {/* 3. School Policy Documents (Pastel Sky) */}
         <article
-          onClick={() => setSubtab("documents")}
+          onClick={() => {
+            setSubtab("documents");
+            if (onTabChange) onTabChange("documents");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -316,7 +327,10 @@ export function GovernancePane({
 
         {/* 4. Audit Activity Trail (Pastel Mint) */}
         <article
-          onClick={() => setSubtab("audit")}
+          onClick={() => {
+            setSubtab("audit");
+            if (onTabChange) onTabChange("audit");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -365,6 +379,7 @@ export function GovernancePane({
               onClick={() => {
                 setSubtab(tab.id as any);
                 setConfigFeedback(null);
+                if (onTabChange) onTabChange(tab.id as any);
               }}
               style={{
                 padding: "8px 16px",

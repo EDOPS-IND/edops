@@ -15,8 +15,22 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-export function OperationsPane({ organizationId }: { organizationId?: string }) {
-  const [subtab, setSubtab] = useState<"transport" | "library" | "inventory" | "ptm">("transport");
+export function OperationsPane({
+  organizationId,
+  activeTab,
+  onTabChange,
+}: {
+  organizationId?: string;
+  activeTab?: "transport" | "library" | "inventory" | "ptm";
+  onTabChange?: (tab: "transport" | "library" | "inventory" | "ptm") => void;
+}) {
+  const [subtab, setSubtab] = useState<"transport" | "library" | "inventory" | "ptm">(activeTab || "transport");
+
+  useEffect(() => {
+    if (activeTab && activeTab !== subtab) {
+      setSubtab(activeTab);
+    }
+  }, [activeTab]);
 
   const [vehicles, setVehicles] = useState<TransportVehicle[]>(([] as any[]));
 
@@ -81,7 +95,10 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
         {/* 1. Fleet Vehicles (Pastel Violet) */}
         <article
-          onClick={() => setSubtab("transport")}
+          onClick={() => {
+            setSubtab("transport");
+            if (onTabChange) onTabChange("transport");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -115,7 +132,10 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
 
         {/* 2. Library Circulation (Pastel Mint) */}
         <article
-          onClick={() => setSubtab("library")}
+          onClick={() => {
+            setSubtab("library");
+            if (onTabChange) onTabChange("library");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -149,7 +169,10 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
 
         {/* 3. Tracked Assets (Pastel Sky) */}
         <article
-          onClick={() => setSubtab("inventory")}
+          onClick={() => {
+            setSubtab("inventory");
+            if (onTabChange) onTabChange("inventory");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -183,7 +206,10 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
 
         {/* 4. Events & PTM (Pastel Coral) */}
         <article
-          onClick={() => setSubtab("ptm")}
+          onClick={() => {
+            setSubtab("ptm");
+            if (onTabChange) onTabChange("ptm");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -227,7 +253,10 @@ export function OperationsPane({ organizationId }: { organizationId?: string }) 
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setSubtab(tab.id as any)}
+              onClick={() => {
+                setSubtab(tab.id as any);
+                if (onTabChange) onTabChange(tab.id as any);
+              }}
               style={{
                 padding: "8px 16px",
                 borderRadius: "8px",

@@ -15,6 +15,13 @@ import { TeacherWorkspace } from "./teacher";
 import { StudentWorkspace } from "./student";
 import { SchoolAdminWorkspace } from "./school-admin";
 import { BarChart3, Bell, BookOpen, CalendarCheck2, CalendarDays, ClipboardCheck, CreditCard, Database, Eye, EyeOff, GraduationCap, Home as HomeIcon, LayoutDashboard, LogOut, Network, Settings as SettingsIcon, ShieldCheck, Sliders, Sparkles, Trophy, UserRound, Users, Video, Building2 } from "lucide-react";
+import {
+  parseDashboardRoute,
+  updateDashboardUrl,
+  resolveOrgFromRoute,
+  slugify,
+  useDashboardRoute,
+} from "./dashboard-routing";
 
 type Panel = "overview" | "principal" | "parent" | "academics" | "people" | "assignments" | "attendance" | "updates" | "recordings" | "arena" | "progress" | "billing" | "settings";
 type Action = "year" | "program" | "subject" | "section" | "teacherAssignment" | "enrollment" | "invite" | "school" | null;
@@ -73,31 +80,86 @@ export default function Home() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
+  const { route, navigate } = useDashboardRoute();
+
   const membership = profile?.organizations.find((item) => item.id === workspace);
   const schoolId = membership?.role === "school_admin" ? membership.id : "";
 
   function selectInitialWorkspace(current: Profile) {
-    return current.organizations.find((item) => (item.role === "school_admin" || item.role === "principal") && item.status === "active")?.id
-      ?? current.organizations.find((item) => item.status === "active")?.id
-      ?? (current.user.isPlatformAdmin ? "platform" : current.organizations[0]?.id ?? "");
+    const initialRoute = parseDashboardRoute();
+    if (initialRoute.role === "platform" && current.user.isPlatformAdmin) {
+      return "platform";
+    }
+
+    if (initialRoute.orgSlug && initialRoute.orgSlug !== "login") {
+      const matched = resolveOrgFromRoute(current.organizations, initialRoute.orgSlug);
+      if (matched) {
+        if (initialRoute.role) {
+          const roleMatch = current.organizations.find(
+            (o) =>
+              (slugify(o.slug) === slugify(initialRoute.orgSlug) ||
+                slugify(o.name) === slugify(initialRoute.orgSlug) ||
+                o.id === initialRoute.orgSlug) &&
+              o.role === initialRoute.role
+          );
+          if (roleMatch) return roleMatch.id;
+        }
+        return matched.id;
+      }
+    }
+
+    return (
+      current.organizations.find((item) => (item.role === "school_admin" || item.role === "principal") && item.status === "active")?.id ??
+      current.organizations.find((item) => item.status === "active")?.id ??
+      (current.user.isPlatformAdmin ? "platform" : current.organizations[0]?.id ?? "")
+    );
   }
+
   async function refresh(id = schoolId) {
     if (!id) return;
     setSchool(await loadSchool(id));
   }
 
   useEffect(() => {
-    const invite = new URLSearchParams(window.location.search).get("invite");
-    if (invite) setInviteMode(true);
-    const reset = new URLSearchParams(window.location.search).get("reset");
-    if (reset) {
-      setResetToken(reset);
+    const initialRoute = parseDashboardRoute();
+    if (initialRoute.isInvite) setInviteMode(true);
+    if (initialRoute.isResetPassword) {
+      setResetToken(initialRoute.queryParams.reset || "token");
       setResetMode(true);
     }
-    getProfile().then((current) => {
-      setProfile(current);
-      setWorkspace(selectInitialWorkspace(current));
-    }).catch(() => undefined).finally(() => setLoading(false));
+    getProfile()
+      .then((current) => {
+        setProfile(current);
+        const chosen = selectInitialWorkspace(current);
+        setWorkspace(chosen);
+
+        // If path is root or empty or /login, sync URL with chosen workspace
+        if (
+          initialRoute.pathname === "/" ||
+          initialRoute.pathname === "" ||
+          initialRoute.pathname === "/login" ||
+          initialRoute.pathname === "/login/"
+        ) {
+          if (chosen === "platform") {
+            updateDashboardUrl({ role: "platform", section: "overview" }, true);
+          } else {
+            const org = current.organizations.find((o) => o.id === chosen);
+            if (org) {
+              const defaultSection = org.role === "parent" ? "overview" : "dashboard";
+              updateDashboardUrl(
+                {
+                  orgSlug: org.slug || org.name,
+                  role: org.role,
+                  section: defaultSection,
+                },
+                true
+              );
+            }
+          }
+        }
+      })
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -148,7 +210,27 @@ export default function Home() {
     return (
       <>
         <LoginScreen
-          onLogin={(current) => { setProfile(current); setWorkspace(selectInitialWorkspace(current)); }}
+          onLogin={(current) => {
+            setProfile(current);
+            const chosen = selectInitialWorkspace(current);
+            setWorkspace(chosen);
+            if (chosen === "platform") {
+              updateDashboardUrl({ role: "platform", section: "overview" }, true);
+            } else {
+              const org = current.organizations.find((o) => o.id === chosen);
+              if (org) {
+                const defaultSection = org.role === "parent" ? "overview" : "dashboard";
+                updateDashboardUrl(
+                  {
+                    orgSlug: org.slug || org.name,
+                    role: org.role,
+                    section: defaultSection,
+                  },
+                  true
+                );
+              }
+            }
+          }}
           onInvite={() => setInviteMode(true)}
           onForgotPassword={() => setForgotMode(true)}
         />
@@ -170,10 +252,42 @@ export default function Home() {
     setProfile(null);
     setSchool(null);
     setWorkspace("");
+    if (typeof window !== "undefined") {
+      window.history.pushState(null, "", "/login");
+      window.dispatchEvent(new CustomEvent("edops-route-change", { detail: { url: "/login" } }));
+    }
   };
-  const switchWorkspace = (value: string) => { setWorkspace(value); setPanel("overview"); };
+  const switchWorkspace = (value: string) => {
+    setWorkspace(value);
+    setPanel("overview");
+    if (value === "platform") {
+      updateDashboardUrl({ role: "platform", section: "overview" });
+    } else {
+      const targetOrg = profile?.organizations.find((o) => o.id === value);
+      if (targetOrg) {
+        const defaultSection = targetOrg.role === "parent" ? "overview" : "dashboard";
+        updateDashboardUrl({
+          orgSlug: targetOrg.slug || targetOrg.name,
+          role: targetOrg.role,
+          section: defaultSection,
+        });
+      }
+    }
+  };
+
   if (workspace === "platform" || !membership) return <PlatformScreen profile={profile} workspace={workspace} onWorkspace={switchWorkspace} onLogout={signOut} />;
+
   if (membership.role === "principal") {
+    const validPrincipalPanes = [
+      "dashboard", "planning", "people", "teachers", "academics",
+      "timetable", "attendance", "learning", "assessment", "assessments",
+      "examinations", "students", "communication", "analytics", "alerts",
+      "reports", "activity"
+    ];
+    const principalPane = validPrincipalPanes.includes(route.section)
+      ? (route.section === "teachers" ? "people" : route.section === "assessments" ? "assessment" : route.section)
+      : "dashboard";
+
     return (
       <PrincipalWorkspace
         key={workspace}
@@ -181,10 +295,35 @@ export default function Home() {
         onLogout={signOut}
         onSwitchOrganization={switchWorkspace}
         organizations={profile.organizations}
+        activePane={principalPane}
+        activeSubTab={route.tab || ""}
+        initialModal={route.modal}
+        initialTeacherId={route.teacherId}
+        initialStudentId={route.studentId}
+        onNavigate={(pane, subTab) => {
+          updateDashboardUrl({
+            orgSlug: membership.slug || membership.name,
+            role: "principal",
+            section: pane,
+            tab: subTab,
+            academicYear: route.academicYear,
+          });
+        }}
       />
     );
   }
+
   if (membership.role === "teacher") {
+    const validTeacherTabs = [
+      "dashboard", "classes", "timetable", "attendance", "learning",
+      "assignments", "arena", "assessment", "assessments", "exams",
+      "students", "curriculum", "workload", "calendar", "reports",
+      "activity", "communication"
+    ];
+    const teacherTab = validTeacherTabs.includes(route.section)
+      ? (route.section === "assessments" ? "assessment" : route.section)
+      : "dashboard";
+
     return (
       <TeacherWorkspace
         key={workspace}
@@ -193,10 +332,34 @@ export default function Home() {
         onSwitchOrganization={switchWorkspace}
         organizations={profile.organizations}
         userProfile={profile.user}
+        activeTab={teacherTab as any}
+        activeSubTab={route.tab || ""}
+        initialModal={route.modal}
+        initialStudentId={route.studentId}
+        onNavigate={(tab, subTab) => {
+          updateDashboardUrl({
+            orgSlug: membership.slug || membership.name,
+            role: "teacher",
+            section: tab,
+            tab: subTab || "",
+            academicYear: route.academicYear,
+          });
+        }}
       />
     );
   }
+
   if (membership.role === "student") {
+    const validStudentTabs = [
+      "dashboard", "class", "subjects", "timetable", "assignments",
+      "arena", "assessments", "exams", "attendance", "performance",
+      "curriculum", "resources", "calendar", "communication", "progress",
+      "profile"
+    ];
+    const studentTab = validStudentTabs.includes(route.section)
+      ? route.section
+      : "dashboard";
+
     return (
       <StudentWorkspace
         key={workspace}
@@ -205,10 +368,28 @@ export default function Home() {
         onSwitchOrganization={switchWorkspace}
         organizations={profile.organizations}
         userProfile={profile.user}
+        activeTab={studentTab as any}
+        activeSubTab={route.tab || ""}
+        initialModal={route.modal}
+        onNavigate={(tab, subTab) => {
+          updateDashboardUrl({
+            orgSlug: membership.slug || membership.name,
+            role: "student",
+            section: tab,
+            tab: subTab || "",
+            academicYear: route.academicYear,
+          });
+        }}
       />
     );
   }
+
   if (membership.role === "parent") {
+    const validParentTabs = ["overview", "academics", "attendance", "fees", "ptm", "notices", "communication"];
+    const parentTab = validParentTabs.includes(route.section)
+      ? (route.section === "communication" ? "notices" : route.section)
+      : "overview";
+
     return (
       <ParentWorkspace
         key={workspace}
@@ -216,14 +397,38 @@ export default function Home() {
         onLogout={signOut}
         onSwitchOrganization={switchWorkspace}
         organizations={profile.organizations}
+        activeTab={parentTab as any}
+        initialWardId={route.studentId || ""}
+        initialModal={route.modal}
+        onNavigate={(tab, wardId) => {
+          updateDashboardUrl({
+            orgSlug: membership.slug || membership.name,
+            role: "parent",
+            section: tab,
+            studentId: wardId,
+            academicYear: route.academicYear,
+          });
+        }}
       />
     );
   }
+
   if (isMemberWorkspace(membership)) return <RoleWorkspace key={workspace} profile={profile} membership={membership} workspace={workspace} onWorkspace={switchWorkspace} onLogout={signOut} />;
 
   const memberCounts = school?.members.items.reduce((counts, member) => ({ ...counts, [member.role]: (counts[member.role] ?? 0) + (member.status === "active" ? 1 : 0) }), {} as Record<string, number>) ?? {};
   const currentYear = school?.years.items.find((item) => item.isCurrent);
   const activeEnrollments = school?.enrollments.items.filter((item) => item.status === "active").length ?? 0;
+
+  const validSchoolAdminTabs = [
+    "dashboard", "students", "teachers", "staff", "parents", "departments",
+    "academics", "timetable", "attendance", "learning", "examinations",
+    "assignments", "exams", "results",
+    "finance", "communication", "operations", "discipline", "documents",
+    "reports", "alerts", "settings", "audit"
+  ];
+  const schoolAdminTab = validSchoolAdminTabs.includes(route.section)
+    ? route.section
+    : "dashboard";
 
   return (
     <div className="app-shell" style={{ minHeight: "100vh" }}>
@@ -238,6 +443,25 @@ export default function Home() {
         <SchoolAdminWorkspace
           schoolName={school?.organization?.name || membership.name}
           organizationId={schoolId}
+          activeTab={schoolAdminTab as any}
+          activeSubTab={route.tab || ""}
+          onTabChange={(tab) => {
+            updateDashboardUrl({
+              orgSlug: membership.slug || membership.name,
+              role: "school_admin",
+              section: tab,
+              academicYear: route.academicYear,
+            });
+          }}
+          onSubTabChange={(tab, subTab) => {
+            updateDashboardUrl({
+              orgSlug: membership.slug || membership.name,
+              role: "school_admin",
+              section: tab,
+              tab: subTab,
+              academicYear: route.academicYear,
+            });
+          }}
           onOpenAction={(act) => setAction(act as Action)}
           onLogout={signOut}
         />
@@ -319,25 +543,63 @@ function ProfileMenu({ email, role, onLogout }: { email: string; role: string; o
 }
 function LoadingScreen() {
   return (
-    <div className="loading-screen h-screen w-full flex flex-col items-center justify-center bg-[#020617] text-white">
-      <img
-        src="/EDOPSLogo.png"
-        alt="EDOPS"
-        className="animate-pulse"
-        style={{
-          height: "56px",
-          width: "auto",
-          maxWidth: "220px",
-          objectFit: "contain",
-          filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.5))",
-        }}
-      />
-      <span className="loading-wordmark sr-only">EDOPS</span>
-      <div className="mt-8 flex gap-2 items-center">
-        <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: "0ms" }}></div>
-        <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: "150ms" }}></div>
-        <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: "300ms" }}></div>
+    <div
+      className="loading-screen"
+      style={{
+        height: "100vh",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#0b0f19",
+      }}
+      role="status"
+      aria-label="Loading..."
+    >
+      <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+        <div
+          style={{
+            width: "10px",
+            height: "10px",
+            borderRadius: "50%",
+            backgroundColor: "#6366f1",
+            animation: "edops-dots 1.3s infinite ease-in-out both",
+            animationDelay: "0ms",
+          }}
+        />
+        <div
+          style={{
+            width: "10px",
+            height: "10px",
+            borderRadius: "50%",
+            backgroundColor: "#818cf8",
+            animation: "edops-dots 1.3s infinite ease-in-out both",
+            animationDelay: "180ms",
+          }}
+        />
+        <div
+          style={{
+            width: "10px",
+            height: "10px",
+            borderRadius: "50%",
+            backgroundColor: "#a5b4fc",
+            animation: "edops-dots 1.3s infinite ease-in-out both",
+            animationDelay: "360ms",
+          }}
+        />
       </div>
+      <style>{`
+        @keyframes edops-dots {
+          0%, 80%, 100% {
+            transform: scale(0.65);
+            opacity: 0.3;
+          }
+          40% {
+            transform: scale(1.15);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -1174,38 +1436,6 @@ function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }
             })
           )}
         </nav>
-
-        {/* Identity & Sign out */}
-        <div style={{ borderTop: "1px solid #1E2128", padding: "12px 14px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-            <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#22C55E", display: "inline-block" }} />
-            <span style={{ fontSize: "11px", fontWeight: 600, color: "#8C909A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-              {membership.name}
-            </span>
-          </div>
-
-          <button
-            onClick={onLogout}
-            style={{
-              all: "unset",
-              boxSizing: "border-box",
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: "9px",
-              padding: "7px 12px",
-              borderRadius: "7px",
-              cursor: "pointer",
-              fontSize: "13px",
-              fontWeight: 400,
-              color: "#8C909A",
-              transition: "background 0.12s, color 0.12s",
-            }}
-          >
-            <LogOut size={14} strokeWidth={1.75} style={{ flexShrink: 0 }} />
-            Sign out
-          </button>
-        </div>
       </aside>
 
       {/* ─── Main Content Canvas ─────────────────────────────────── */}

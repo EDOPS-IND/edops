@@ -19,10 +19,12 @@ export function LearningExamsPane({
   organizationId,
   initialTab = "assignments",
   activeTab,
+  onTabChange,
 }: {
   organizationId?: string;
   initialTab?: "assignments" | "exams" | "results";
   activeTab?: "assignments" | "exams" | "results";
+  onTabChange?: (tab: "assignments" | "exams" | "results") => void;
 }) {
   const [subtab, setSubtab] = useState<"assignments" | "exams" | "results">(activeTab || initialTab);
 
@@ -161,7 +163,12 @@ export function LearningExamsPane({
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
         {/* 1. Active Coursework (Pastel Violet) */}
         <article
-          onClick={() => setSubtab("assignments")}
+          onClick={() => {
+            setSubtab("assignments");
+            setNotice("");
+            setError("");
+            if (onTabChange) onTabChange("assignments");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -197,7 +204,12 @@ export function LearningExamsPane({
 
         {/* 2. Submission Rate (Pastel Mint) */}
         <article
-          onClick={() => setSubtab("assignments")}
+          onClick={() => {
+            setSubtab("assignments");
+            setNotice("");
+            setError("");
+            if (onTabChange) onTabChange("assignments");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -233,7 +245,12 @@ export function LearningExamsPane({
 
         {/* 3. Term Exams (Pastel Sky) */}
         <article
-          onClick={() => setSubtab("exams")}
+          onClick={() => {
+            setSubtab("exams");
+            setNotice("");
+            setError("");
+            if (onTabChange) onTabChange("exams");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -269,7 +286,12 @@ export function LearningExamsPane({
 
         {/* 4. Results Published (Pastel Coral) */}
         <article
-          onClick={() => setSubtab("results")}
+          onClick={() => {
+            setSubtab("results");
+            setNotice("");
+            setError("");
+            if (onTabChange) onTabChange("results");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -314,7 +336,12 @@ export function LearningExamsPane({
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => { setSubtab(tab.id as any); setNotice(""); setError(""); }}
+              onClick={() => {
+                setSubtab(tab.id as any);
+                setNotice("");
+                setError("");
+                if (onTabChange) onTabChange(tab.id as any);
+              }}
               style={{
                 padding: "8px 16px",
                 borderRadius: "8px",

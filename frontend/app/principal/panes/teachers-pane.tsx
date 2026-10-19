@@ -53,10 +53,12 @@ export function TeachersPane({
   organizationId,
   view = "workload",
   onOpenProfile,
+  onTabChange,
 }: {
   organizationId: string;
   view?: View;
   onOpenProfile: (teacherId: string) => void;
+  onTabChange?: (tab: string) => void;
 }) {
   const [data, setData] = useState<PeopleData | null>(null);
   const [error, setError] = useState("");
@@ -346,7 +348,10 @@ export function TeachersPane({
             return (
               <button
                 key={item.id}
-                onClick={() => setCurrentView(item.id as View)}
+                onClick={() => {
+                  setCurrentView(item.id as View);
+                  onTabChange?.(item.id);
+                }}
                 style={{
                   padding: "8px 16px",
                   borderRadius: "8px",

@@ -24,12 +24,29 @@ const T = {
 interface ResourcesPaneProps {
   organizationId: string;
   onOpenLecture: (lecture: any) => void;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export const ResourcesPane: React.FC<ResourcesPaneProps> = ({ organizationId, onOpenLecture }) => {
+export const ResourcesPane: React.FC<ResourcesPaneProps> = ({
+  organizationId,
+  onOpenLecture,
+  initialTab,
+  onTabChange,
+}) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'materials' | 'lectures' | 'bookmarks'>('materials');
+  const [activeTab, setActiveTab] = useState<'materials' | 'lectures' | 'bookmarks'>(
+    initialTab && ['materials', 'lectures', 'bookmarks'].includes(initialTab)
+      ? (initialTab as any)
+      : 'materials'
+  );
+
+  useEffect(() => {
+    if (initialTab && ['materials', 'lectures', 'bookmarks'].includes(initialTab)) {
+      setActiveTab(initialTab as any);
+    }
+  }, [initialTab]);
 
   useEffect(() => {
     loadResources();
@@ -151,7 +168,10 @@ export const ResourcesPane: React.FC<ResourcesPaneProps> = ({ organizationId, on
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                onTabChange?.(tab.id);
+              }}
               style={{
                 all: 'unset',
                 boxSizing: 'border-box',

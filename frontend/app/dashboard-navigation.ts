@@ -204,6 +204,7 @@ export function useDashboardNavigation(organizationId: string, role: Organizatio
       // If sections has items, check them; otherwise always allow standard items
       if (sections.length > 0) {
         return sections.some(section =>
+          section.key === key ||
           section.items.some(item =>
             item.key === key ||
             item.key.endsWith(`.${key}`) ||

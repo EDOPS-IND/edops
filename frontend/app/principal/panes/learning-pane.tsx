@@ -61,9 +61,11 @@ const showDate = (value: string | null) => (value ? new Date(value).toLocaleDate
 export function LearningPane({
   organizationId,
   initialTab = "assignments",
+  onTabChange,
 }: {
   organizationId: string;
   initialTab?: View;
+  onTabChange?: (tab: string) => void;
 }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
@@ -247,7 +249,10 @@ export function LearningPane({
           return (
             <button
               key={t.id}
-              onClick={() => setCurrentTab(t.id as View)}
+              onClick={() => {
+                setCurrentTab(t.id as View);
+                onTabChange?.(t.id);
+              }}
               style={{
                 padding: "8px 16px",
                 borderRadius: "8px",
