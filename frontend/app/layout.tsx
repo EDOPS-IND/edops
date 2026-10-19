@@ -11,9 +11,9 @@ const spaceGrotesk = Space_Grotesk({ variable: "--font-space-grotesk", subsets: 
 export const metadata: Metadata = {
   title: "EDOPS — Connected school operations",
   description: "Manage school setup, academic structure and roster from one connected workspace.",
-  icons: { icon: "/favicon.png", shortcut: "/favicon.png", apple: "/logo.png" },
-  openGraph: { title: "EDOPS", description: "School operations, properly connected.", images: ["/og-api.png"] },
-  twitter: { card: "summary_large_image", title: "EDOPS", description: "School operations, properly connected.", images: ["/og-api.png"] },
+  icons: { icon: "/favicon.png", shortcut: "/favicon.png", apple: "/EDOPSLogo.png" },
+  openGraph: { title: "EDOPS", description: "School operations, properly connected.", images: ["/EDOPSLogo.png"] },
+  twitter: { card: "summary_large_image", title: "EDOPS", description: "School operations, properly connected.", images: ["/EDOPSLogo.png"] },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

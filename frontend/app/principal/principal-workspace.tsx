@@ -350,21 +350,36 @@ export function PrincipalWorkspace({
           zIndex: 40,
         }}
       >
-        {/* Brand / Logo */}
+        {/* Brand / Logo - Exactly 68px height matching Student & Teacher Command Centers */}
         <div
           style={{
-            height: "58px",
+            height: "68px",
             display: "flex",
             alignItems: "center",
-            padding: "0 16px",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
-            gap: "10px",
+            padding: "0 18px",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            boxSizing: "border-box",
             flexShrink: 0,
+            cursor: "pointer",
           }}
+          onClick={() => setActivePane("overview")}
+          title="EDOPS Principal Command Center"
         >
-          <div style={{ height: "28px", display: "flex", alignItems: "center" }}>
-            <img src="/logo.svg" alt="EDOPS" style={{ height: "100%", width: "auto", display: "block" }} />
-          </div>
+          <img
+            src="/EDOPSLogo.png"
+            alt="EDOPS Principal Command Center"
+            style={{
+              height: "36px",
+              width: "auto",
+              maxWidth: "140px",
+              display: "block",
+              objectFit: "contain",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
+              transition: "transform 0.15s ease",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+          />
         </div>
 
         {/* Scrollable Navigation Items */}

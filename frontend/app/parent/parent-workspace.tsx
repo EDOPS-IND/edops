@@ -236,12 +236,14 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
           title="EDOPS Guardian Portal"
         >
           <img
-            src="/logo.svg"
-            alt="edops"
+            src="/EDOPSLogo.png"
+            alt="EDOPS Guardian Portal"
             style={{
-              height: "32px",
+              height: "34px",
               width: "auto",
+              maxWidth: "115px",
               display: "block",
+              objectFit: "contain",
               filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
               transition: "transform 0.15s ease",
             }}
