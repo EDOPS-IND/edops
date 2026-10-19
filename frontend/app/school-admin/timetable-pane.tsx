@@ -25,8 +25,22 @@ import {
   BookOpen,
 } from "lucide-react";
 
-export function TimetablePane({ organizationId }: { organizationId?: string }) {
-  const [viewMode, setViewMode] = useState<"class" | "teacher" | "room">("class");
+export function TimetablePane({
+  organizationId,
+  activeViewMode,
+  onViewModeChange,
+}: {
+  organizationId?: string;
+  activeViewMode?: "class" | "teacher" | "room";
+  onViewModeChange?: (mode: "class" | "teacher" | "room") => void;
+}) {
+  const [viewMode, setViewMode] = useState<"class" | "teacher" | "room">(activeViewMode || "class");
+
+  useEffect(() => {
+    if (activeViewMode && activeViewMode !== viewMode) {
+      setViewMode(activeViewMode);
+    }
+  }, [activeViewMode]);
   const [selectedSectionId, setSelectedSectionId] = useState("");
   const [selectedTeacherId, setSelectedTeacherId] = useState("");
   const [selectedRoom, setSelectedRoom] = useState("");
@@ -358,19 +372,28 @@ export function TimetablePane({ organizationId }: { organizationId?: string }) {
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <div style={{ display: "flex", background: "#f8fafc", border: "1px solid #e4e6e9", borderRadius: "6px", padding: "2px" }}>
               <button
-                onClick={() => setViewMode("class")}
+                onClick={() => {
+                  setViewMode("class");
+                  if (onViewModeChange) onViewModeChange("class");
+                }}
                 style={{ padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer", background: viewMode === "class" ? "#0c1e33" : "transparent", color: viewMode === "class" ? "#ffffff" : "#4a5568" }}
               >
                 Class View
               </button>
               <button
-                onClick={() => setViewMode("teacher")}
+                onClick={() => {
+                  setViewMode("teacher");
+                  if (onViewModeChange) onViewModeChange("teacher");
+                }}
                 style={{ padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer", background: viewMode === "teacher" ? "#0c1e33" : "transparent", color: viewMode === "teacher" ? "#ffffff" : "#4a5568" }}
               >
                 Teacher View
               </button>
               <button
-                onClick={() => setViewMode("room")}
+                onClick={() => {
+                  setViewMode("room");
+                  if (onViewModeChange) onViewModeChange("room");
+                }}
                 style={{ padding: "6px 12px", borderRadius: "4px", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer", background: viewMode === "room" ? "#0c1e33" : "transparent", color: viewMode === "room" ? "#ffffff" : "#4a5568" }}
               >
                 Room View

@@ -11,6 +11,7 @@ export function CommunicationPane({
   onTriggerAnnouncement,
   organizationId,
   initialTab,
+  onTabChange,
 }: {
   inbox?: any[];
   parentQueries?: any[];
@@ -19,10 +20,17 @@ export function CommunicationPane({
   onTriggerAnnouncement?: () => void;
   organizationId?: string;
   initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }) {
   const [liveData, setLiveData] = useState<any>(null);
   const [subTab, setSubTab] = useState<"inbox" | "parent_queries" | "ptm">((initialTab as any) || "inbox");
   const [resolutionInput, setResolutionInput] = useState<{ [key: string]: string }>({});
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setSubTab(initialTab as any);
+    }
+  }, [initialTab]);
 
   React.useEffect(() => {
     if (!organizationId) return;
@@ -209,7 +217,10 @@ export function CommunicationPane({
         ].map((t) => (
           <button
             key={t.id}
-            onClick={() => setSubTab(t.id as any)}
+            onClick={() => {
+              setSubTab(t.id as any);
+              onTabChange?.(t.id);
+            }}
             style={{
               padding: "8px 16px",
               borderRadius: "8px",

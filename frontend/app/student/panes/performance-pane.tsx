@@ -23,12 +23,28 @@ const T = {
 
 interface PerformancePaneProps {
   organizationId: string;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export const PerformancePane: React.FC<PerformancePaneProps> = ({ organizationId }) => {
+export const PerformancePane: React.FC<PerformancePaneProps> = ({
+  organizationId,
+  initialTab,
+  onTabChange,
+}) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'trends' | 'outcomes' | 'competencies' | 'holistic'>('trends');
+  const [activeTab, setActiveTab] = useState<'trends' | 'outcomes' | 'competencies' | 'holistic'>(
+    initialTab && ['trends', 'outcomes', 'competencies', 'holistic'].includes(initialTab)
+      ? (initialTab as any)
+      : 'trends'
+  );
+
+  useEffect(() => {
+    if (initialTab && ['trends', 'outcomes', 'competencies', 'holistic'].includes(initialTab)) {
+      setActiveTab(initialTab as any);
+    }
+  }, [initialTab]);
 
   useEffect(() => {
     loadPerformance();
@@ -186,7 +202,10 @@ export const PerformancePane: React.FC<PerformancePaneProps> = ({ organizationId
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => {
+                setActiveTab(tab.id as any);
+                onTabChange?.(tab.id);
+              }}
               style={{
                 all: 'unset',
                 boxSizing: 'border-box',

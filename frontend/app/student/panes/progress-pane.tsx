@@ -8,16 +8,28 @@ interface ProgressPaneProps {
   organizationId: string;
   onOpenGoalModal: () => void;
   onOpenSupportModal: () => void;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
 export const ProgressPane: React.FC<ProgressPaneProps> = ({
   organizationId,
   onOpenGoalModal,
   onOpenSupportModal,
+  initialTab,
+  onTabChange,
 }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'analytics' | 'hpc'>('analytics');
+  const [activeTab, setActiveTab] = useState<'analytics' | 'hpc'>(
+    initialTab === 'hpc' ? 'hpc' : 'analytics'
+  );
+
+  useEffect(() => {
+    if (initialTab === 'analytics' || initialTab === 'hpc') {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // CBSE HPC Self-Reflection State
   const [hpcRatings, setHpcRatings] = useState({
@@ -164,7 +176,10 @@ export const ProgressPane: React.FC<ProgressPaneProps> = ({
       <div className="flex border-b border-[#e4e6e9] gap-6">
         <button
           type="button"
-          onClick={() => setActiveTab('analytics')}
+          onClick={() => {
+            setActiveTab('analytics');
+            onTabChange?.('analytics');
+          }}
           className={`pb-3 text-[13px] font-semibold transition-colors border-b-2 ${
             activeTab === 'analytics'
               ? 'border-[#0c1e33] text-[#0c1e33]'
@@ -175,7 +190,10 @@ export const ProgressPane: React.FC<ProgressPaneProps> = ({
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab('hpc')}
+          onClick={() => {
+            setActiveTab('hpc');
+            onTabChange?.('hpc');
+          }}
           className={`pb-3 text-[13px] font-semibold transition-colors border-b-2 ${
             activeTab === 'hpc'
               ? 'border-[#0c1e33] text-[#0c1e33]'

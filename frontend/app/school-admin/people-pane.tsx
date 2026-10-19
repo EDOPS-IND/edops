@@ -51,11 +51,13 @@ export function PeoplePane({
   initialSubtab = "students",
   activeTab,
   onOpenQuickAction,
+  onTabChange,
 }: {
   organizationId?: string;
   initialSubtab?: "students" | "teachers" | "staff" | "parents" | "departments";
   activeTab?: "students" | "teachers" | "staff" | "parents" | "departments";
   onOpenQuickAction: (action: string) => void;
+  onTabChange?: (tab: "students" | "teachers" | "staff" | "parents" | "departments") => void;
 }) {
   const [subtab, setSubtab] = useState<"students" | "teachers" | "staff" | "parents" | "departments">(activeTab || initialSubtab);
 
@@ -244,7 +246,10 @@ export function PeoplePane({
             return (
               <button
                 key={tab.id}
-                onClick={() => setSubtab(tab.id as any)}
+                onClick={() => {
+                  setSubtab(tab.id as any);
+                  if (onTabChange) onTabChange(tab.id as any);
+                }}
                 style={{
                   display: "flex",
                   alignItems: "center",

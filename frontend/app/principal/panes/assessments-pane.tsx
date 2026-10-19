@@ -29,6 +29,7 @@ interface AssessmentsPaneProps {
   organizationId?: string;
   initialTab?: "assessments" | "analysis";
   onNavigate?: (pane: string, sub?: string) => void;
+  onTabChange?: (tab: string) => void;
 }
 
 export function AssessmentsPane({
@@ -38,8 +39,15 @@ export function AssessmentsPane({
   organizationId,
   initialTab = "assessments",
   onNavigate,
+  onTabChange,
 }: AssessmentsPaneProps) {
   const [tab, setTab] = useState<"assessments" | "analysis">(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setTab(initialTab);
+    }
+  }, [initialTab]);
   const [liveData, setLiveData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [commentsInput, setCommentsInput] = useState<{ [key: string]: string }>({});
@@ -168,7 +176,10 @@ export function AssessmentsPane({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E2E8F0", paddingBottom: "12px", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", gap: "8px" }}>
           <button
-            onClick={() => setTab("assessments")}
+            onClick={() => {
+              setTab("assessments");
+              onTabChange?.("assessments");
+            }}
             style={{
               padding: "8px 16px",
               borderRadius: "8px",
@@ -185,7 +196,10 @@ export function AssessmentsPane({
             Assessments & Question Papers
           </button>
           <button
-            onClick={() => setTab("analysis")}
+            onClick={() => {
+              setTab("analysis");
+              onTabChange?.("analysis");
+            }}
             style={{
               padding: "8px 16px",
               borderRadius: "8px",

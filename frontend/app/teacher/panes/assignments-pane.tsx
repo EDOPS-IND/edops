@@ -46,16 +46,26 @@ const T = {
 interface AssignmentsPaneProps {
   organizationId: string;
   onCreateAssignment: () => void;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
 export function AssignmentsPane({
   organizationId,
   onCreateAssignment,
+  initialTab,
+  onTabChange,
 }: AssignmentsPaneProps) {
   const [data, setData] = useState<any>(null);
   const [queueData, setQueueData] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<"assignments" | "queue">("assignments");
+  const [activeTab, setActiveTab] = useState<"assignments" | "queue">(initialTab === "queue" ? "queue" : "assignments");
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (initialTab === "assignments" || initialTab === "queue") {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Inline grading modal
   const [gradingSubmission, setGradingSubmission] = useState<any>(null);
@@ -326,7 +336,10 @@ export function AssignmentsPane({
       <div style={{ display: "flex", background: T.chip, padding: "4px", borderRadius: "8px", border: `1px solid ${T.border}`, gap: "4px", width: "fit-content" }}>
         <button
           type="button"
-          onClick={() => setActiveTab("assignments")}
+          onClick={() => {
+            setActiveTab("assignments");
+            onTabChange?.("assignments");
+          }}
           style={{
             padding: "6px 14px",
             borderRadius: "6px",
@@ -343,7 +356,10 @@ export function AssignmentsPane({
         </button>
         <button
           type="button"
-          onClick={() => setActiveTab("queue")}
+          onClick={() => {
+            setActiveTab("queue");
+            onTabChange?.("queue");
+          }}
           style={{
             padding: "6px 14px",
             borderRadius: "6px",

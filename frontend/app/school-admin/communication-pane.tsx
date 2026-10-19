@@ -16,8 +16,22 @@ import {
   Search,
 } from "lucide-react";
 
-export function CommunicationPane({ organizationId }: { organizationId?: string }) {
-  const [subtab, setSubtab] = useState<"broadcast" | "inbox" | "newBroadcast">("broadcast");
+export function CommunicationPane({
+  organizationId,
+  activeTab,
+  onTabChange,
+}: {
+  organizationId?: string;
+  activeTab?: "broadcast" | "inbox" | "newBroadcast";
+  onTabChange?: (tab: "broadcast" | "inbox" | "newBroadcast") => void;
+}) {
+  const [subtab, setSubtab] = useState<"broadcast" | "inbox" | "newBroadcast">(activeTab || "broadcast");
+
+  useEffect(() => {
+    if (activeTab && activeTab !== subtab) {
+      setSubtab(activeTab);
+    }
+  }, [activeTab]);
   const [loading, setLoading] = useState(false);
 
   // Broadcasts history
@@ -92,7 +106,10 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
         {/* 1. Broadcast Dispatches (Pastel Violet) */}
         <article
-          onClick={() => setSubtab("broadcast")}
+          onClick={() => {
+            setSubtab("broadcast");
+            if (onTabChange) onTabChange("broadcast");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -126,7 +143,10 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
 
         {/* 2. Parent Audience Reach (Pastel Mint) */}
         <article
-          onClick={() => setSubtab("broadcast")}
+          onClick={() => {
+            setSubtab("broadcast");
+            if (onTabChange) onTabChange("broadcast");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -160,7 +180,10 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
 
         {/* 3. Open Inquiries Inbox (Pastel Sky) */}
         <article
-          onClick={() => setSubtab("inbox")}
+          onClick={() => {
+            setSubtab("inbox");
+            if (onTabChange) onTabChange("inbox");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -194,7 +217,10 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
 
         {/* 4. Active Channels (Pastel Coral) */}
         <article
-          onClick={() => setSubtab("newBroadcast")}
+          onClick={() => {
+            setSubtab("newBroadcast");
+            if (onTabChange) onTabChange("newBroadcast");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -237,7 +263,10 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setSubtab(tab.id as any)}
+              onClick={() => {
+                setSubtab(tab.id as any);
+                if (onTabChange) onTabChange(tab.id as any);
+              }}
               style={{
                 padding: "8px 16px",
                 borderRadius: "8px",
@@ -265,7 +294,10 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>In-App announcements, WhatsApp notifications, and SMS alerts dispatch ledger</p>
             </div>
             <button
-              onClick={() => setSubtab("newBroadcast")}
+              onClick={() => {
+                setSubtab("newBroadcast");
+                if (onTabChange) onTabChange("newBroadcast");
+              }}
               style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
             >
               <Send size={14} /> Compose Broadcast
@@ -432,7 +464,10 @@ export function CommunicationPane({ organizationId }: { organizationId?: string 
               </button>
               <button
                 type="button"
-                onClick={() => setSubtab("broadcast")}
+                onClick={() => {
+                  setSubtab("broadcast");
+                  if (onTabChange) onTabChange("broadcast");
+                }}
                 style={{ padding: "10px 16px", background: "#f8fafc", border: "1px solid #e4e6e9", color: "#0c1e33", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}
               >
                 Cancel

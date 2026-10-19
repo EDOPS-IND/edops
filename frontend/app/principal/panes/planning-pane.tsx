@@ -62,9 +62,11 @@ const date = (value: string) => value?.slice(0, 10) || "—";
 export function PlanningPane({
   organizationId,
   initialTab = "annual_plan",
+  onTabChange,
 }: {
   organizationId: string;
   initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }) {
   const [data, setData] = useState<PlanningData | null>(null);
   const [error, setError] = useState("");
@@ -73,7 +75,13 @@ export function PlanningPane({
   const [saving, setSaving] = useState(false);
   const [showActions, setShowActions] = useState(false);
   const [selectedTargetId, setSelectedTargetId] = useState("");
-  const view = initialTab;
+  const [currentTab, setCurrentTab] = useState(initialTab || "annual_plan");
+
+  useEffect(() => {
+    if (initialTab) setCurrentTab(initialTab);
+  }, [initialTab]);
+
+  const view = currentTab;
 
   const reload = () => getPrincipalPlanning(organizationId).then(setData);
 
@@ -376,6 +384,44 @@ export function PlanningPane({
               : "Create Target"}
           </button>
         </div>
+      </div>
+
+      {/* Subtab Navigation Strip */}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px" }}>
+        {[
+          { id: "annual_plan", label: "Annual Academic Plan" },
+          { id: "calendar", label: "Academic Calendar" },
+          { id: "learning_goals", label: "Learning Goals & Targets" },
+          { id: "school_targets", label: "School Academic Targets" },
+          { id: "action_plans", label: "Action Plans" },
+        ].map((t) => {
+          const active = view === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              onClick={() => {
+                setCurrentTab(t.id);
+                onTabChange?.(t.id);
+              }}
+              style={{
+                all: "unset",
+                boxSizing: "border-box",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                fontSize: "12px",
+                fontWeight: active ? 700 : 500,
+                cursor: "pointer",
+                border: active ? "1px solid #0c1e33" : "1px solid #e4e6e9",
+                background: active ? "#0c1e33" : "#ffffff",
+                color: active ? "#ffffff" : "#475569",
+                transition: "all 0.15s ease",
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Main Panes Content */}

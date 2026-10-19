@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { SchoolAdminTab } from "./types";
 import { useDashboardNavigation } from "../dashboard-navigation";
+import { FeatureUnavailableCard, ThreeDotsLoading } from "../components/feature-unavailable-card";
 import { DashboardPane } from "./dashboard-pane";
 import { PeoplePane } from "./people-pane";
 import { AcademicsPane } from "./academics-pane";
@@ -155,22 +156,46 @@ export function SchoolAdminWorkspace({
   schoolName = "School Workspace",
   organizationId,
   activeTab = "dashboard",
+  activeSubTab = "",
   onTabChange,
+  onSubTabChange,
   onOpenAction,
   onLogout,
 }: {
   schoolName?: string;
   organizationId?: string;
   activeTab?: SchoolAdminTab;
+  activeSubTab?: string;
   onTabChange?: (tab: SchoolAdminTab) => void;
+  onSubTabChange?: (tab: SchoolAdminTab, subTab: string) => void;
   onOpenAction?: (action: string) => void;
   onLogout?: () => void;
 }) {
   const [currentTab, setCurrentTab] = useState<SchoolAdminTab>(activeTab);
+  const [currentSubTab, setCurrentSubTab] = useState<string>(activeSubTab);
+
+  React.useEffect(() => {
+    if (activeTab && activeTab !== currentTab) {
+      setCurrentTab(activeTab);
+    }
+  }, [activeTab]);
+
+  React.useEffect(() => {
+    if (activeSubTab !== undefined && activeSubTab !== currentSubTab) {
+      setCurrentSubTab(activeSubTab);
+    }
+  }, [activeSubTab]);
+
   const navigation = useDashboardNavigation(organizationId ?? "", "school_admin");
   const available = (tab: SchoolAdminTab) => {
+    if (tab === "dashboard") return true;
+    if (tab === "assignments" || tab === "exams" || tab === "results") {
+      const parentKey = tab === "assignments" ? "learning" : "examinations";
+      return available(parentKey as SchoolAdminTab);
+    }
     if (!navigation.sections || navigation.sections.length === 0) return true;
     return navigation.sections.some(section =>
+      section.key === tab ||
       section.items.some(item =>
         item.key === tab ||
         item.key.endsWith(`.${tab}`) ||
@@ -183,7 +208,8 @@ export function SchoolAdminWorkspace({
   const navIcons: Record<SchoolAdminTab, React.ElementType> = {
     dashboard: LayoutDashboard, students: GraduationCap, teachers: Users, staff: Briefcase, parents: HeartHandshake,
     departments: Building2, academics: BookOpen, timetable: CalendarDays, attendance: CalendarCheck2,
-    learning: BookOpen, examinations: Award, finance: CreditCard, communication: MessageSquare,
+    learning: BookOpen, examinations: Award, assignments: BookOpen, exams: Award, results: Award,
+    finance: CreditCard, communication: MessageSquare,
     operations: Bus, alerts: ShieldAlert, discipline: FileText, documents: FileText,
     reports: BarChart3, settings: Sliders, audit: History,
   };
@@ -229,10 +255,41 @@ export function SchoolAdminWorkspace({
   const [searchFocused, setSearchFocused] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
-  const go = (tab: SchoolAdminTab) => {
+  const go = (tab: SchoolAdminTab, subTab?: string) => {
+    if (tab === "assignments") {
+      if (!available("learning")) return;
+      setCurrentTab("learning");
+      setCurrentSubTab("assignments");
+      if (onSubTabChange) onSubTabChange("learning", "assignments");
+      else if (onTabChange) onTabChange("assignments");
+      return;
+    }
+    if (tab === "exams") {
+      if (!available("examinations")) return;
+      setCurrentTab("examinations");
+      setCurrentSubTab("exams");
+      if (onSubTabChange) onSubTabChange("examinations", "exams");
+      else if (onTabChange) onTabChange("exams");
+      return;
+    }
+    if (tab === "results") {
+      if (!available("examinations")) return;
+      setCurrentTab("examinations");
+      setCurrentSubTab("results");
+      if (onSubTabChange) onSubTabChange("examinations", "results");
+      else if (onTabChange) onTabChange("results");
+      return;
+    }
+
     if (!available(tab)) return;
     setCurrentTab(tab);
-    if (onTabChange) onTabChange(tab);
+    if (subTab) {
+      setCurrentSubTab(subTab);
+      if (onSubTabChange) onSubTabChange(tab, subTab);
+      else if (onTabChange) onTabChange(tab);
+    } else {
+      if (onTabChange) onTabChange(tab);
+    }
   };
 
   const handleDeptNameChange = (val: string) => {
@@ -651,98 +708,6 @@ export function SchoolAdminWorkspace({
               </React.Fragment>
             ))}
           </nav>
-
-          {/* Profile Footer - Matching Unified Command Center Spec */}
-          <div style={{ marginTop: "auto", paddingTop: "14px" }}>
-            <div
-              style={{
-                height: "1px",
-                background: "rgba(255, 255, 255, 0.06)",
-                marginBottom: "12px",
-              }}
-            />
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "10px",
-                padding: "8px 10px",
-                borderRadius: "12px",
-                background: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.05)",
-                transition: "all 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.07)";
-                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
-                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.05)";
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
-                <div
-                  style={{
-                    width: "36px",
-                    height: "36px",
-                    borderRadius: "10px",
-                    overflow: "hidden",
-                    flexShrink: 0,
-                    background: "rgba(255, 255, 255, 0.08)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    border: "1px solid rgba(255, 255, 255, 0.12)",
-                  }}
-                >
-                  <img
-                    src={adminAvatarUrl}
-                    alt={schoolName}
-                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                  />
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "2px", whiteSpace: "nowrap", overflow: "hidden", minWidth: 0 }}>
-                  <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#ffffff", textOverflow: "ellipsis", overflow: "hidden" }}>
-                    {schoolName}
-                  </p>
-                  <p style={{ margin: 0, fontSize: "11px", color: S.itemInactiveText, textOverflow: "ellipsis", overflow: "hidden" }}>
-                    School Administrator
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => (onLogout ? onLogout() : window.location.reload())}
-                title="Sign out of school administrator console"
-                style={{
-                  all: "unset",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: "28px",
-                  height: "28px",
-                  borderRadius: "6px",
-                  cursor: "pointer",
-                  color: "rgba(255, 255, 255, 0.45)",
-                  flexShrink: 0,
-                  transition: "all 0.15s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = "#f43f5e";
-                  e.currentTarget.style.background = "rgba(244, 63, 94, 0.15)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = "rgba(255, 255, 255, 0.45)";
-                  e.currentTarget.style.background = "transparent";
-                }}
-              >
-                <LogOut size={14} strokeWidth={1.75} />
-              </button>
-            </div>
-          </div>
         </div>
       </aside>
 
@@ -986,27 +951,93 @@ export function SchoolAdminWorkspace({
 
         {/* ── Page content Canvas ────────────────────────── */}
         <div style={{ flex: 1, padding: "32px 32px 64px", background: S.canvasBg }}>
-          {!available(currentTab) ? (
-            <p role="status">{navigation.loading ? "Loading dashboard navigation…" : "This dashboard feature is unavailable for this school."}</p>
+          {navigation.loading ? (
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "360px" }}>
+              <ThreeDotsLoading size={10} color="#0c1e33" />
+            </div>
+          ) : !available(currentTab) && currentTab !== "dashboard" ? (
+            <FeatureUnavailableCard
+              title="This dashboard feature is unavailable for this school"
+              featureName={currentTab ? currentTab.charAt(0).toUpperCase() + currentTab.slice(1) : undefined}
+              onBackToDashboard={() => go("dashboard")}
+              dashboardLabel="Return to Dashboard"
+            />
           ) : (
             <>
               {currentTab === "dashboard" && (
                 <DashboardPane key={`dashboard-${refreshKey}`} organizationId={organizationId} onNavigate={go} onOpenQuickAction={triggerAction} />
               )}
               {["students", "teachers", "staff", "parents", "departments"].includes(currentTab) && (
-                <PeoplePane key={`people-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} onOpenQuickAction={triggerAction} />
+                <PeoplePane key={`people-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} onOpenQuickAction={triggerAction} onTabChange={go} />
               )}
-              {currentTab === "academics" && <AcademicsPane organizationId={organizationId} onOpenQuickAction={triggerAction} />}
-              {currentTab === "timetable" && <TimetablePane organizationId={organizationId} />}
-              {currentTab === "attendance" && <AttendanceLeavePane organizationId={organizationId} />}
-              {["learning", "examinations"].includes(currentTab) && (
-                <LearningExamsPane key={`learning-${refreshKey}`} organizationId={organizationId} activeTab={currentTab === "examinations" ? "exams" : "assignments"} />
+              {currentTab === "academics" && (
+                <AcademicsPane
+                  key={`academics-${refreshKey}`}
+                  organizationId={organizationId}
+                  activeTab={currentSubTab as any}
+                  onTabChange={(st) => go("academics", st)}
+                  onOpenQuickAction={triggerAction}
+                />
               )}
-              {currentTab === "finance" && <FinancePane organizationId={organizationId} />}
-              {currentTab === "communication" && <CommunicationPane organizationId={organizationId} />}
-              {currentTab === "operations" && <OperationsPane organizationId={organizationId} />}
+              {currentTab === "timetable" && (
+                <TimetablePane
+                  key={`timetable-${refreshKey}`}
+                  organizationId={organizationId}
+                  activeViewMode={currentSubTab as any}
+                  onViewModeChange={(vm) => go("timetable", vm)}
+                />
+              )}
+              {currentTab === "attendance" && (
+                <AttendanceLeavePane
+                  key={`attendance-${refreshKey}`}
+                  organizationId={organizationId}
+                  activeTab={currentSubTab as any}
+                  onTabChange={(st) => go("attendance", st)}
+                />
+              )}
+              {["learning", "examinations", "assignments", "exams", "results"].includes(currentTab) && (
+                <LearningExamsPane
+                  key={`learning-${refreshKey}`}
+                  organizationId={organizationId}
+                  activeTab={
+                    currentTab === "results" || currentSubTab === "results"
+                      ? "results"
+                      : currentTab === "exams" || currentSubTab === "exams" || currentTab === "examinations"
+                      ? "exams"
+                      : "assignments"
+                  }
+                  onTabChange={(subTab) => {
+                    const parent = subTab === "assignments" ? "learning" : "examinations";
+                    go(parent as SchoolAdminTab, subTab);
+                  }}
+                />
+              )}
+              {currentTab === "finance" && (
+                <FinancePane
+                  key={`finance-${refreshKey}`}
+                  organizationId={organizationId}
+                  activeTab={currentSubTab as any}
+                  onTabChange={(st) => go("finance", st)}
+                />
+              )}
+              {currentTab === "communication" && (
+                <CommunicationPane
+                  key={`communication-${refreshKey}`}
+                  organizationId={organizationId}
+                  activeTab={currentSubTab as any}
+                  onTabChange={(st) => go("communication", st)}
+                />
+              )}
+              {currentTab === "operations" && (
+                <OperationsPane
+                  key={`operations-${refreshKey}`}
+                  organizationId={organizationId}
+                  activeTab={currentSubTab as any}
+                  onTabChange={(st) => go("operations", st)}
+                />
+              )}
               {["discipline", "documents", "reports", "alerts", "settings", "audit"].includes(currentTab) && (
-                <GovernancePane key={`governance-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} />
+                <GovernancePane key={`governance-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} onTabChange={go} />
               )}
             </>
           )}

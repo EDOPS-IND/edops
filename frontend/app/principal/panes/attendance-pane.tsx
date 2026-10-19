@@ -30,9 +30,11 @@ type View = "students" | "trends" | "teachers";
 export function AttendancePane({
   organizationId,
   initialTab = "students",
+  onTabChange,
 }: {
   organizationId: string;
   initialTab?: View;
+  onTabChange?: (tab: string) => void;
 }) {
   const [data, setData] = useState<Attendance | null>(null);
   const [error, setError] = useState("");
@@ -214,7 +216,10 @@ export function AttendancePane({
           return (
             <button
               key={t.id}
-              onClick={() => setCurrentView(t.id as View)}
+              onClick={() => {
+                setCurrentView(t.id as View);
+                onTabChange?.(t.id);
+              }}
               style={{
                 padding: "8px 16px",
                 borderRadius: "8px",

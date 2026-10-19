@@ -51,12 +51,28 @@ const T = {
 
 interface CommunicationPaneProps {
   organizationId: string;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export function CommunicationPane({ organizationId }: CommunicationPaneProps) {
+export function CommunicationPane({
+  organizationId,
+  initialTab,
+  onTabChange,
+}: CommunicationPaneProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "students" | "parents" | "principal" | "school_admin">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "students" | "parents" | "principal" | "school_admin">(
+    initialTab && ["all", "students", "parents", "principal", "school_admin"].includes(initialTab)
+      ? (initialTab as any)
+      : "all"
+  );
+
+  useEffect(() => {
+    if (initialTab && ["all", "students", "parents", "principal", "school_admin"].includes(initialTab)) {
+      setActiveTab(initialTab as any);
+    }
+  }, [initialTab]);
   const [selectedThreadId, setSelectedThreadId] = useState<string | null>(null);
   const [activeThread, setActiveThread] = useState<any>(null);
   const [threadLoading, setThreadLoading] = useState(false);
@@ -411,7 +427,10 @@ export function CommunicationPane({ organizationId }: CommunicationPaneProps) {
                   <button
                     key={tab}
                     type="button"
-                    onClick={() => setActiveTab(tab)}
+                    onClick={() => {
+                      setActiveTab(tab);
+                      onTabChange?.(tab);
+                    }}
                     style={{
                       padding: "4px 8px",
                       borderRadius: "6px",
