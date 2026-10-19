@@ -43,17 +43,29 @@ interface StudentsPaneProps {
   organizationId: string;
   onOpenDossier: (studentId: string) => void;
   onOpenIntervention: (studentId?: string) => void;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
 export function StudentsPane({
   organizationId,
   onOpenDossier,
   onOpenIntervention,
+  initialTab,
+  onTabChange,
 }: StudentsPaneProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"all" | "at_risk" | "improving" | "top">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "at_risk" | "improving" | "top">(
+    initialTab === "at_risk" || initialTab === "improving" || initialTab === "top" ? initialTab : "all"
+  );
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (initialTab === "all" || initialTab === "at_risk" || initialTab === "improving" || initialTab === "top") {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   useEffect(() => {
     loadStudents();
@@ -335,7 +347,10 @@ export function StudentsPane({
               <button
                 key={tab.id}
                 type="button"
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => {
+                  setActiveTab(tab.id as any);
+                  onTabChange?.(tab.id);
+                }}
                 style={{
                   padding: "6px 14px",
                   borderRadius: "6px",

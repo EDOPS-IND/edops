@@ -82,9 +82,11 @@ type Data = {
 export function ExaminationsPane({
   organizationId,
   initialTab = "schedule",
+  onTabChange,
 }: {
   organizationId: string;
   initialTab?: View;
+  onTabChange?: (tab: string) => void;
 }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
@@ -337,7 +339,10 @@ export function ExaminationsPane({
             return (
               <button
                 key={t.id}
-                onClick={() => setCurrentTab(t.id as View)}
+                onClick={() => {
+                  setCurrentTab(t.id as View);
+                  onTabChange?.(t.id);
+                }}
                 style={{
                   padding: "8px 16px",
                   borderRadius: "8px",

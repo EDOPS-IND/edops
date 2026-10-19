@@ -23,8 +23,22 @@ import {
   X,
 } from "lucide-react";
 
-export function FinancePane({ organizationId }: { organizationId?: string }) {
-  const [subtab, setSubtab] = useState<"dashboard" | "defaulters" | "structure">("dashboard");
+export function FinancePane({
+  organizationId,
+  activeTab,
+  onTabChange,
+}: {
+  organizationId?: string;
+  activeTab?: "dashboard" | "defaulters" | "structure";
+  onTabChange?: (tab: "dashboard" | "defaulters" | "structure") => void;
+}) {
+  const [subtab, setSubtab] = useState<"dashboard" | "defaulters" | "structure">(activeTab || "dashboard");
+
+  useEffect(() => {
+    if (activeTab && activeTab !== subtab) {
+      setSubtab(activeTab);
+    }
+  }, [activeTab]);
   const [loading, setLoading] = useState(false);
   const [financeData, setFinanceData] = useState<any>(null);
 
@@ -309,7 +323,10 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setSubtab(tab.id as any)}
+              onClick={() => {
+                setSubtab(tab.id as any);
+                if (onTabChange) onTabChange(tab.id as any);
+              }}
               style={{
                 padding: "8px 16px",
                 borderRadius: "8px",
@@ -411,7 +428,10 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
 
             {/* 3. Overdue Balance (Pastel Coral) */}
             <article
-              onClick={() => setSubtab("defaulters")}
+              onClick={() => {
+                setSubtab("defaulters");
+                if (onTabChange) onTabChange("defaulters");
+              }}
               style={{
                 display: "flex",
                 flexDirection: "column",
@@ -447,7 +467,10 @@ export function FinancePane({ organizationId }: { organizationId?: string }) {
 
             {/* 4. Active Fee Structures (Pastel Sky) */}
             <article
-              onClick={() => setSubtab("structure")}
+              onClick={() => {
+                setSubtab("structure");
+                if (onTabChange) onTabChange("structure");
+              }}
               style={{
                 display: "flex",
                 flexDirection: "column",

@@ -29,6 +29,7 @@ import {
 
 import { OrganizationSummary, api, getStudentAvatarUrl } from '../edops-api';
 import { useDashboardNavigation } from '../dashboard-navigation';
+import { FeatureUnavailableCard, ThreeDotsLoading } from '../components/feature-unavailable-card';
 import { StudentTab } from './types';
 
 // Panes
@@ -83,6 +84,10 @@ interface StudentWorkspaceProps {
   onSwitchOrganization: (orgId: string) => void;
   organizations: OrganizationSummary[];
   userProfile?: { id: string; email: string; name?: string; phone?: string | null; isPlatformAdmin?: boolean };
+  activeTab?: StudentTab;
+  onNavigate?: (tab: StudentTab, subTab?: string) => void;
+  initialModal?: string;
+  activeSubTab?: string;
 }
 
 export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
@@ -91,14 +96,31 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   onSwitchOrganization,
   organizations,
   userProfile,
+  activeTab: activeTabProp,
+  onNavigate,
+  initialModal,
+  activeSubTab: activeSubTabProp,
 }) => {
-  const [activeTab, setActiveTab] = useState<StudentTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<StudentTab>(activeTabProp || 'dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<string>(activeSubTabProp || "");
   const [refreshKey, setRefreshKey] = useState(0);
   const navigation = useDashboardNavigation(organization.id, 'student');
   const [searchQuery, setSearchQuery] = useState("");
   const [showMoreAcademics, setShowMoreAcademics] = useState(false);
   const [studentProfile, setStudentProfile] = useState<any>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (activeTabProp && activeTabProp !== activeTab) {
+      setActiveTab(activeTabProp);
+    }
+  }, [activeTabProp]);
+
+  useEffect(() => {
+    if (activeSubTabProp !== undefined && activeSubTabProp !== activeSubTab) {
+      setActiveSubTab(activeSubTabProp);
+    }
+  }, [activeSubTabProp]);
 
   useEffect(() => {
     let active = true;
@@ -116,17 +138,29 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const avatarUrl = studentProfile?.avatarUrl || getStudentAvatarUrl(studentName, studentEmail);
 
   // Modals state
-  const [submitModalOpen, setSubmitModalOpen] = useState(false);
+  const [submitModalOpen, setSubmitModalOpen] = useState(initialModal === "submit");
   const [selectedAssignment, setSelectedAssignment] = useState<any>(null);
-  const [arenaModalOpen, setArenaModalOpen] = useState(false);
+  const [arenaModalOpen, setArenaModalOpen] = useState(initialModal === "arena");
   const [selectedArenaActivity, setSelectedArenaActivity] = useState<any>(null);
-  const [lectureModalOpen, setLectureModalOpen] = useState(false);
+  const [lectureModalOpen, setLectureModalOpen] = useState(initialModal === "lecture");
   const [selectedLecture, setSelectedLecture] = useState<any>(null);
-  const [supportModalOpen, setSupportModalOpen] = useState(false);
-  const [goalModalOpen, setGoalModalOpen] = useState(false);
+  const [supportModalOpen, setSupportModalOpen] = useState(initialModal === "support");
+  const [goalModalOpen, setGoalModalOpen] = useState(initialModal === "goal");
 
-  const navigateTo = (tab: StudentTab) => {
+  useEffect(() => {
+    if (initialModal === "submit") setSubmitModalOpen(true);
+    if (initialModal === "arena") setArenaModalOpen(true);
+    if (initialModal === "lecture") setLectureModalOpen(true);
+    if (initialModal === "support") setSupportModalOpen(true);
+    if (initialModal === "goal") setGoalModalOpen(true);
+  }, [initialModal]);
+
+  const navigateTo = (tab: StudentTab, subTab: string = "") => {
     setActiveTab(tab);
+    setActiveSubTab(subTab);
+    if (onNavigate) {
+      onNavigate(tab, subTab);
+    }
   };
 
   const handleOpenSubmit = (assignment?: any) => {
@@ -499,113 +533,6 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               icon: Settings,
             })}
           </nav>
-
-          {/* Profile Footer */}
-          <div style={{ marginTop: "auto", paddingTop: "14px" }}>
-            <div
-              style={{
-                height: "1px",
-                background: "rgba(255, 255, 255, 0.06)",
-                marginBottom: "12px",
-              }}
-            />
-
-            <div
-              onClick={() => navigateTo('profile')}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                cursor: "pointer",
-                padding: "8px 10px",
-                borderRadius: "12px",
-                background: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.05)",
-                transition: "all 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.07)";
-                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
-                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.05)";
-              }}
-              title="Account Settings & Profile"
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  width: "100%",
-                  gap: "8px",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
-                  <div
-                    style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "10px",
-                      overflow: "hidden",
-                      flexShrink: 0,
-                      background: "rgba(255, 255, 255, 0.08)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "1px solid rgba(255, 255, 255, 0.12)",
-                    }}
-                  >
-                    <img
-                      src={avatarUrl}
-                      alt={studentName}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                    />
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "2px", whiteSpace: "nowrap", overflow: "hidden", minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#ffffff", textOverflow: "ellipsis", overflow: "hidden" }}>
-                      {studentName}
-                    </p>
-                    <p style={{ margin: 0, fontSize: "11px", color: S.itemInactiveText, textOverflow: "ellipsis", overflow: "hidden" }}>
-                      {studentClass}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLogout();
-                  }}
-                  title="Log out of student account"
-                  style={{
-                    all: "unset",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "28px",
-                    height: "28px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    color: "rgba(255, 255, 255, 0.45)",
-                    flexShrink: 0,
-                    transition: "all 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "#f43f5e";
-                    e.currentTarget.style.background = "rgba(244, 63, 94, 0.15)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "rgba(255, 255, 255, 0.45)";
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  <LogOut size={14} strokeWidth={1.75} />
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </aside>
 
@@ -663,7 +590,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           </div>
 
           {/* Header Actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {/* Search Box */}
             <div
               style={{
@@ -904,9 +831,16 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           }}
         >
           {navigation.loading ? (
-            <div style={{ padding: "48px 0", textAlign: "center", color: S.slate }}>
-              <p>Loading student workspace...</p>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "360px" }}>
+              <ThreeDotsLoading size={10} color="#0c1e33" />
             </div>
+          ) : !navigation.has(activeTab) && activeTab !== "dashboard" ? (
+            <FeatureUnavailableCard
+              title="This dashboard feature is unavailable for this school"
+              featureName={pageTitles[activeTab] || activeTab}
+              onBackToDashboard={() => navigateTo("dashboard")}
+              dashboardLabel="Return to Command Center"
+            />
           ) : (
             <>
               {activeTab === 'dashboard' && (
@@ -935,7 +869,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
 
               {activeTab === 'assignments' && (
                 <AssignmentsPane
+                  key={`assignments-${activeSubTab}`}
                   organizationId={organization.id}
+                  initialStatus={activeSubTab}
+                  onStatusChange={(status) => navigateTo('assignments', status)}
                   onSubmitAssignment={handleOpenSubmit}
                 />
               )}
@@ -960,7 +897,12 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               )}
 
               {activeTab === 'performance' && (
-                <PerformancePane organizationId={organization.id} />
+                <PerformancePane
+                  key={`perf-${activeSubTab}`}
+                  organizationId={organization.id}
+                  initialTab={activeSubTab}
+                  onTabChange={(tab) => navigateTo('performance', tab)}
+                />
               )}
 
               {activeTab === 'curriculum' && (
@@ -969,7 +911,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
 
               {activeTab === 'resources' && (
                 <ResourcesPane
+                  key={`resources-${activeSubTab}`}
                   organizationId={organization.id}
+                  initialTab={activeSubTab}
+                  onTabChange={(tab) => navigateTo('resources', tab)}
                   onOpenLecture={handleOpenLecture}
                 />
               )}
@@ -987,7 +932,10 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
 
               {activeTab === 'progress' && (
                 <ProgressPane
+                  key={`progress-${activeSubTab}`}
                   organizationId={organization.id}
+                  initialTab={activeSubTab}
+                  onTabChange={(tab) => navigateTo('progress', tab)}
                   onOpenGoalModal={() => setGoalModalOpen(true)}
                   onOpenSupportModal={() => setSupportModalOpen(true)}
                 />

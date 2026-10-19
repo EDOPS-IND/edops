@@ -49,6 +49,8 @@ interface LearningPaneProps {
   onRecordLesson?: () => void;
   onLogLesson?: () => void;
   onUploadMaterial?: () => void;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
 export function LearningPane({
@@ -56,11 +58,21 @@ export function LearningPane({
   onRecordLesson,
   onLogLesson,
   onUploadMaterial,
+  initialTab,
+  onTabChange,
 }: LearningPaneProps) {
   const [data, setData] = useState<any>(null);
   const [classesList, setClassesList] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"plans" | "materials" | "reflections">("plans");
+  const [activeTab, setActiveTab] = useState<"plans" | "materials" | "reflections">(
+    initialTab === "materials" || initialTab === "reflections" ? initialTab : "plans"
+  );
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (initialTab === "plans" || initialTab === "materials" || initialTab === "reflections") {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Upload modal state
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
@@ -353,7 +365,10 @@ export function LearningPane({
             <button
               key={t.id}
               type="button"
-              onClick={() => setActiveTab(t.id as any)}
+              onClick={() => {
+                setActiveTab(t.id as any);
+                onTabChange?.(t.id);
+              }}
               style={{
                 padding: "6px 14px",
                 borderRadius: "6px",

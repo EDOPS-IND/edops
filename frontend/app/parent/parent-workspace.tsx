@@ -29,6 +29,7 @@ import {
   getStudentAvatarUrl,
 } from "../edops-api";
 import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from "./types";
+import { ThreeDotsLoading } from "../components/feature-unavailable-card";
 
 // Panes
 import { OverviewPane } from "./panes/overview-pane";
@@ -49,6 +50,9 @@ interface ParentWorkspaceProps {
   onSwitchOrganization: (orgId: string) => void;
   organizations: OrganizationSummary[];
   initialWardId?: string;
+  activeTab?: ParentTab;
+  onNavigate?: (tab: ParentTab, wardId?: string) => void;
+  initialModal?: string;
 }
 
 export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
@@ -57,8 +61,11 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
   onSwitchOrganization,
   organizations,
   initialWardId,
+  activeTab: activeTabProp,
+  onNavigate,
+  initialModal,
 }) => {
-  const [activeTab, setActiveTab] = useState<ParentTab>("overview");
+  const [activeTab, setActiveTab] = useState<ParentTab>(activeTabProp || "overview");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [wards, setWards] = useState<WardInfo[]>([]);
@@ -67,6 +74,18 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
   const [selectedWardId, setSelectedWardId] = useState(initialWardId || "");
   const [details, setDetails] = useState<any>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTabProp && activeTabProp !== activeTab) {
+      setActiveTab(activeTabProp);
+    }
+  }, [activeTabProp]);
+
+  useEffect(() => {
+    if (initialWardId && initialWardId !== selectedWardId) {
+      setSelectedWardId(initialWardId);
+    }
+  }, [initialWardId]);
 
   const selected = wards.find((w) => w.studentUserId === selectedWardId) || wards[0];
 
@@ -132,9 +151,25 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
     : undefined;
 
   // Modals state
-  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
-  const [queryModalOpen, setQueryModalOpen] = useState(false);
-  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [leaveModalOpen, setLeaveModalOpen] = useState(initialModal === "leave" || initialModal === "apply-leave");
+  const [queryModalOpen, setQueryModalOpen] = useState(initialModal === "query" || initialModal === "grievance");
+  const [reportModalOpen, setReportModalOpen] = useState(initialModal === "report-card");
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (initialModal === "leave" || initialModal === "apply-leave") setLeaveModalOpen(true);
+    if (initialModal === "query" || initialModal === "grievance") setQueryModalOpen(true);
+    if (initialModal === "report-card") setReportModalOpen(true);
+  }, [initialModal]);
+
+
+  const navigateTo = (tab: ParentTab, wardId?: string) => {
+    setActiveTab(tab);
+    setMobileMenuOpen(false);
+    if (onNavigate) {
+      onNavigate(tab, wardId || selectedWardId);
+    }
+  };
 
   const [leavesList, setLeavesList] = useState<LeaveApplication[]>([]);
   const [queriesList, setQueriesList] = useState<ParentQuery[]>([]);
@@ -232,7 +267,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
             cursor: "pointer",
             gap: "10px",
           }}
-          onClick={() => setActiveTab("overview")}
+          onClick={() => navigateTo("overview")}
           title="EDOPS Guardian Portal"
         >
           <img
@@ -405,8 +440,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                   key={item.id}
                   id={`nav-${item.id}`}
                   onClick={() => {
-                    setActiveTab(item.tab);
-                    setMobileMenuOpen(false);
+                    navigateTo(item.tab);
                   }}
                   style={{
                     all: "unset",
@@ -454,53 +488,6 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
               );
             })}
           </nav>
-        </div>
-
-        {/* Sidebar Footer: Guardian Account Badge & Logout */}
-        <div style={{ marginTop: "auto", padding: "14px 12px", borderTop: "1px solid rgba(255, 255, 255, 0.06)", flexShrink: 0 }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "10px 12px",
-              borderRadius: "10px",
-              background: "rgba(255, 255, 255, 0.03)",
-              border: "1px solid rgba(255, 255, 255, 0.06)",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
-              <img
-                src={getStudentAvatarUrl("Guardian", organization.id)}
-                alt=""
-                style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#1c2337", flexShrink: 0 }}
-              />
-              <div style={{ minWidth: 0 }}>
-                <div style={{ fontSize: "12px", fontWeight: 700, color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  Verified Guardian
-                </div>
-                <div style={{ fontSize: "10px", color: "#8a92a6" }}>{wards.length} linked child profile(s)</div>
-              </div>
-            </div>
-
-            <button
-              onClick={onLogout}
-              title="Sign Out"
-              style={{
-                background: "none",
-                border: "none",
-                color: "#8a92a6",
-                cursor: "pointer",
-                padding: "4px",
-                display: "flex",
-                alignItems: "center",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "#ef4444")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "#8a92a6")}
-            >
-              <LogOut size={16} />
-            </button>
-          </div>
         </div>
       </aside>
 
@@ -617,7 +604,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
             </button>
 
             <button
-              onClick={() => setActiveTab("ptm")}
+              onClick={() => navigateTo("ptm")}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -657,13 +644,123 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                 ))}
               </select>
             )}
+
+            {/* Guardian Profile Avatar & Dropdown */}
+            <div style={{ position: "relative" }}>
+              <div
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                title="Guardian Profile & Account"
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  border: profileMenuOpen ? "2px solid #0c1e33" : "1px solid #ced8e5",
+                  background: "#f0f4f8",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  boxShadow: profileMenuOpen ? "0 0 0 3px rgba(12, 30, 51, 0.1)" : "none",
+                  transition: "all 0.15s ease",
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src={getStudentAvatarUrl("Guardian", organization.id)}
+                  alt="Guardian"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+              </div>
+
+              {profileMenuOpen && (
+                <>
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 90 }}
+                    onClick={() => setProfileMenuOpen(false)}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 8px)",
+                      right: 0,
+                      zIndex: 100,
+                      width: "240px",
+                      background: "#ffffff",
+                      border: "1px solid #EAECF0",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 25px -5px rgba(12, 30, 51, 0.15), 0 8px 10px -6px rgba(12, 30, 51, 0.1)",
+                      padding: "8px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "4px",
+                    }}
+                  >
+                    <div style={{ padding: "10px 12px", borderBottom: "1px solid #EAECF0", marginBottom: "4px" }}>
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#0c1e33" }}>
+                        Verified Guardian
+                      </p>
+                      <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#64748b" }}>
+                        {organization.name}
+                      </p>
+                      <span
+                        style={{
+                          display: "inline-block",
+                          marginTop: "6px",
+                          padding: "2px 8px",
+                          borderRadius: "100px",
+                          background: "#e0f2fe",
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          color: "#0369a1",
+                        }}
+                      >
+                        {wards.length} linked child profile(s)
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        onLogout();
+                      }}
+                      style={{
+                        all: "unset",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "9px 12px",
+                        borderRadius: "8px",
+                        fontSize: "12.5px",
+                        fontWeight: 600,
+                        color: "#f43f5e",
+                        cursor: "pointer",
+                        transition: "background 0.12s ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#fff1f2")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <LogOut size={14} strokeWidth={2} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </header>
 
         {/* Main Canvas */}
         <main style={{ flex: 1, overflowY: "auto", padding: "28px 36px", background: "#f4f6f7" }}>
           <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
-            {error && (
+            {loading ? (
+              <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "360px" }}>
+                <ThreeDotsLoading size={10} color="#0c1e33" />
+              </div>
+            ) : (
+              <>
+                {error && (
               <div
                 role="alert"
                 style={{
@@ -738,6 +835,8 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                 onOpenQueryModal={() => setQueryModalOpen(true)}
               />
             )}
+            </>
+          )}
           </div>
         </main>
       </div>

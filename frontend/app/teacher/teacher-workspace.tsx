@@ -31,6 +31,7 @@ import {
 
 import { OrganizationSummary, getTeacherClasses, getStudentAvatarUrl } from '../edops-api';
 import { useDashboardNavigation } from '../dashboard-navigation';
+import { FeatureUnavailableCard, ThreeDotsLoading } from '../components/feature-unavailable-card';
 import { TeacherTab } from './types';
 
 // Panes
@@ -85,6 +86,11 @@ interface TeacherWorkspaceProps {
   onSwitchOrganization: (orgId: string) => void;
   organizations: OrganizationSummary[];
   userProfile?: { id: string; email: string; name?: string; phone?: string | null; isPlatformAdmin?: boolean };
+  activeTab?: TeacherTab;
+  onNavigate?: (tab: TeacherTab, subTab?: string) => void;
+  initialModal?: string;
+  initialStudentId?: string;
+  activeSubTab?: string;
 }
 
 export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
@@ -93,19 +99,45 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
   onSwitchOrganization,
   organizations,
   userProfile,
+  activeTab: activeTabProp,
+  onNavigate,
+  initialModal,
+  initialStudentId,
+  activeSubTab: activeSubTabProp,
 }) => {
-  const [activeTab, setActiveTab] = useState<TeacherTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<TeacherTab>(activeTabProp || 'dashboard');
+  const [activeSubTab, setActiveSubTab] = useState<string>(activeSubTabProp || "");
   const [searchQuery, setSearchQuery] = useState("");
   const [showMoreModules, setShowMoreModules] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
   // Global Modals State
-  const [attendanceModalOpen, setAttendanceModalOpen] = useState(false);
+  const [attendanceModalOpen, setAttendanceModalOpen] = useState(initialModal === "attendance");
   const [attendancePeriod, setAttendancePeriod] = useState(1);
-  const [assignmentModalOpen, setAssignmentModalOpen] = useState(false);
-  const [lessonModalOpen, setLessonModalOpen] = useState(false);
-  const [interventionModalOpen, setInterventionModalOpen] = useState(false);
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [assignmentModalOpen, setAssignmentModalOpen] = useState(initialModal === "assignment" || initialModal === "create-assignment");
+  const [lessonModalOpen, setLessonModalOpen] = useState(initialModal === "lesson");
+  const [interventionModalOpen, setInterventionModalOpen] = useState(initialModal === "intervention");
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudentId || null);
+
+  useEffect(() => {
+    if (activeTabProp && activeTabProp !== activeTab) {
+      setActiveTab(activeTabProp);
+    }
+  }, [activeTabProp]);
+
+  useEffect(() => {
+    if (activeSubTabProp !== undefined && activeSubTabProp !== activeSubTab) {
+      setActiveSubTab(activeSubTabProp);
+    }
+  }, [activeSubTabProp]);
+
+  useEffect(() => {
+    if (initialModal === "attendance") setAttendanceModalOpen(true);
+    if (initialModal === "assignment" || initialModal === "create-assignment") setAssignmentModalOpen(true);
+    if (initialModal === "lesson") setLessonModalOpen(true);
+    if (initialModal === "intervention") setInterventionModalOpen(true);
+    if (initialStudentId) setSelectedStudentId(initialStudentId);
+  }, [initialModal, initialStudentId]);
   const [attendanceRefreshKey, setAttendanceRefreshKey] = useState(0);
   const [assignmentRefreshKey, setAssignmentRefreshKey] = useState(0);
   const [lessonRefreshKey, setLessonRefreshKey] = useState(0);
@@ -140,8 +172,12 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
   const teacherSubtitle = organization.name ? `${organization.name} · Senior Faculty` : "Senior Faculty";
   const avatarUrl = getStudentAvatarUrl(teacherName, teacherEmail);
 
-  const navigateTo = (tab: TeacherTab) => {
+  const navigateTo = (tab: TeacherTab, subTab: string = "") => {
     setActiveTab(tab);
+    setActiveSubTab(subTab);
+    if (onNavigate) {
+      onNavigate(tab, subTab);
+    }
   };
 
   const handleOpenAttendance = (sectionId?: string, period = 1, classSection?: string) => {
@@ -519,113 +555,6 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
               icon: Settings,
             })}
           </nav>
-
-          {/* Profile Footer */}
-          <div style={{ marginTop: "auto", paddingTop: "14px" }}>
-            <div
-              style={{
-                height: "1px",
-                background: "rgba(255, 255, 255, 0.06)",
-                marginBottom: "12px",
-              }}
-            />
-
-            <div
-              onClick={() => navigateTo('workload')}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "12px",
-                cursor: "pointer",
-                padding: "8px 10px",
-                borderRadius: "12px",
-                background: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.05)",
-                transition: "all 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.07)";
-                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.1)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255, 255, 255, 0.03)";
-                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.05)";
-              }}
-              title="Faculty Account & Settings"
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  width: "100%",
-                  gap: "8px",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
-                  <div
-                    style={{
-                      width: "36px",
-                      height: "36px",
-                      borderRadius: "10px",
-                      overflow: "hidden",
-                      flexShrink: 0,
-                      background: "rgba(255, 255, 255, 0.08)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      border: "1px solid rgba(255, 255, 255, 0.12)",
-                    }}
-                  >
-                    <img
-                      src={avatarUrl}
-                      alt={teacherName}
-                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                    />
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: "2px", whiteSpace: "nowrap", overflow: "hidden", minWidth: 0 }}>
-                    <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#ffffff", textOverflow: "ellipsis", overflow: "hidden" }}>
-                      {teacherName}
-                    </p>
-                    <p style={{ margin: 0, fontSize: "11px", color: S.itemInactiveText, textOverflow: "ellipsis", overflow: "hidden" }}>
-                      {teacherSubtitle}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onLogout();
-                  }}
-                  title="Log out of faculty account"
-                  style={{
-                    all: "unset",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    width: "28px",
-                    height: "28px",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                    color: "rgba(255, 255, 255, 0.45)",
-                    flexShrink: 0,
-                    transition: "all 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = "#f43f5e";
-                    e.currentTarget.style.background = "rgba(244, 63, 94, 0.15)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = "rgba(255, 255, 255, 0.45)";
-                    e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  <LogOut size={14} strokeWidth={1.75} />
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </aside>
 
@@ -686,7 +615,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
           </div>
 
           {/* Header Actions (Preserving Teacher Action Buttons with Student Styling) */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             {/* Quick Action Button 1: Mark Attendance */}
             <button
               type="button"
@@ -1006,9 +935,16 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
           }}
         >
           {navigation.loading ? (
-            <div style={{ padding: "48px 0", textAlign: "center", color: S.slate }}>
-              <p>Loading teacher workspace...</p>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "360px" }}>
+              <ThreeDotsLoading size={10} color="#0c1e33" />
             </div>
+          ) : !navigation.has(activeTab) && activeTab !== "dashboard" ? (
+            <FeatureUnavailableCard
+              title="This dashboard feature is unavailable for this school"
+              featureName={pageTitles[activeTab] || activeTab}
+              onBackToDashboard={() => navigateTo("dashboard")}
+              dashboardLabel="Return to Command Center"
+            />
           ) : (
             <>
               {activeTab === 'dashboard' && (
@@ -1050,8 +986,10 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
 
               {activeTab === 'learning' && (
                 <LearningPane
-                  key={`learning-${lessonRefreshKey}`}
+                  key={`learning-${lessonRefreshKey}-${activeSubTab}`}
                   organizationId={organization.id}
+                  initialTab={activeSubTab}
+                  onTabChange={(sub) => navigateTo('learning', sub)}
                   onRecordLesson={() => handleOpenLesson()}
                   onLogLesson={handleOpenLesson}
                 />
@@ -1059,8 +997,10 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
 
               {activeTab === 'assignments' && (
                 <AssignmentsPane
-                  key={`assign-${assignmentRefreshKey}`}
+                  key={`assign-${assignmentRefreshKey}-${activeSubTab}`}
                   organizationId={organization.id}
+                  initialTab={activeSubTab}
+                  onTabChange={(sub) => navigateTo('assignments', sub)}
                   onCreateAssignment={() => setAssignmentModalOpen(true)}
                 />
               )}
@@ -1079,8 +1019,10 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
 
               {activeTab === 'students' && (
                 <StudentsPane
-                  key={`students-${studentsRefreshKey}`}
+                  key={`students-${studentsRefreshKey}-${activeSubTab}`}
                   organizationId={organization.id}
+                  initialTab={activeSubTab}
+                  onTabChange={(sub) => navigateTo('students', sub)}
                   onOpenDossier={handleViewStudent}
                   onOpenIntervention={(studentId?: string) => {
                     setSelectedStudentId(studentId || null);
@@ -1094,7 +1036,12 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
               )}
 
               {activeTab === 'communication' && (
-                <CommunicationPane organizationId={organization.id} />
+                <CommunicationPane
+                  key={`comm-${activeSubTab}`}
+                  organizationId={organization.id}
+                  initialTab={activeSubTab}
+                  onTabChange={(sub) => navigateTo('communication', sub)}
+                />
               )}
 
               {activeTab === 'workload' && (

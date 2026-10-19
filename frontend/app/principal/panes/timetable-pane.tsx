@@ -133,9 +133,11 @@ function ConflictMatrix({ entries }: { entries: Entry[] }) {
 export function TimetablePane({
   organizationId,
   initialTab = "academic",
+  onTabChange,
 }: {
   organizationId: string;
   initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }) {
   const [currentView, setCurrentView] = useState<View>(initialTab as View);
   const [data, setData] = useState<Data | null>(null);
@@ -429,7 +431,10 @@ export function TimetablePane({
             return (
               <button
                 key={t.id}
-                onClick={() => setCurrentView(t.id as View)}
+                onClick={() => {
+                  setCurrentView(t.id as View);
+                  onTabChange?.(t.id);
+                }}
                 style={{
                   padding: "8px 16px",
                   borderRadius: "8px",

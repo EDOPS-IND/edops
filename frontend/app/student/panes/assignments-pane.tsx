@@ -24,15 +24,29 @@ const T = {
 interface AssignmentsPaneProps {
   organizationId: string;
   onSubmitAssignment: (assignment: any) => void;
+  initialStatus?: string;
+  onStatusChange?: (status: string) => void;
 }
 
 export const AssignmentsPane: React.FC<AssignmentsPaneProps> = ({
   organizationId,
   onSubmitAssignment,
+  initialStatus,
+  onStatusChange,
 }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(
+    initialStatus && ['all', 'pending', 'submitted', 'evaluated'].includes(initialStatus)
+      ? initialStatus
+      : 'all'
+  );
+
+  useEffect(() => {
+    if (initialStatus && ['all', 'pending', 'submitted', 'evaluated'].includes(initialStatus)) {
+      setStatusFilter(initialStatus);
+    }
+  }, [initialStatus]);
 
   useEffect(() => {
     loadAssignments();
@@ -267,7 +281,10 @@ export const AssignmentsPane: React.FC<AssignmentsPaneProps> = ({
             <button
               key={t.id}
               type="button"
-              onClick={() => setStatusFilter(t.id)}
+              onClick={() => {
+                setStatusFilter(t.id);
+                onStatusChange?.(t.id);
+              }}
               style={{
                 all: 'unset',
                 boxSizing: 'border-box',

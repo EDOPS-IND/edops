@@ -14,6 +14,7 @@ export function AcademicsPane({
   onNavigateClass,
   organizationId,
   initialTab,
+  onTabChange,
 }: {
   classes?: ClassPerformanceItem[];
   subjects?: SubjectPerformanceItem[];
@@ -24,6 +25,7 @@ export function AcademicsPane({
   organizationId?: string;
   initialTab?: string;
   onOpenTeacherProfile?: (id: string) => void;
+  onTabChange?: (tab: string) => void;
 }) {
   const [liveData, setLiveData] = useState<any>(null);
   const [loadError, setLoadError] = useState(false);
@@ -31,6 +33,12 @@ export function AcademicsPane({
     (initialTab as any) || "classes"
   );
   const [feedbackInput, setFeedbackInput] = useState<{ [key: string]: string }>({});
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setSubTab(initialTab as any);
+    }
+  }, [initialTab]);
 
   React.useEffect(() => {
     if (!organizationId) return;
@@ -219,7 +227,10 @@ export function AcademicsPane({
           return (
             <button
               key={t.id}
-              onClick={() => setSubTab(t.id as any)}
+              onClick={() => {
+                setSubTab(t.id as any);
+                onTabChange?.(t.id);
+              }}
               style={{
                 padding: "8px 16px",
                 borderRadius: "8px",

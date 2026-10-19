@@ -40,11 +40,22 @@ const S = {
 export function AcademicsPane({
   organizationId,
   onOpenQuickAction,
+  activeTab,
+  onTabChange,
 }: {
   organizationId?: string;
   onOpenQuickAction: (action: string) => void;
+  activeTab?: 'structure' | 'sections' | 'subjects' | 'curriculum' | 'calendar' | 'promotions';
+  onTabChange?: (tab: 'structure' | 'sections' | 'subjects' | 'curriculum' | 'calendar' | 'promotions') => void;
 }) {
-  const [tab, setTab] = useState<'structure' | 'sections' | 'subjects' | 'curriculum' | 'calendar' | 'promotions'>('structure');
+  const [tab, setTab] = useState<'structure' | 'sections' | 'subjects' | 'curriculum' | 'calendar' | 'promotions'>(activeTab || 'structure');
+
+  useEffect(() => {
+    if (activeTab && activeTab !== tab) {
+      setTab(activeTab);
+    }
+  }, [activeTab]);
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -278,7 +289,7 @@ export function AcademicsPane({
       >
         {/* Card 1: Sections */}
         <article
-          onClick={() => setTab('sections')}
+          onClick={() => { setTab('sections'); setNotice(''); if (onTabChange) onTabChange('sections'); }}
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -314,7 +325,7 @@ export function AcademicsPane({
 
         {/* Card 2: Subjects */}
         <article
-          onClick={() => setTab('subjects')}
+          onClick={() => { setTab('subjects'); setNotice(''); if (onTabChange) onTabChange('subjects'); }}
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -350,7 +361,7 @@ export function AcademicsPane({
 
         {/* Card 3: Academic Years */}
         <article
-          onClick={() => setTab('structure')}
+          onClick={() => { setTab('structure'); setNotice(''); if (onTabChange) onTabChange('structure'); }}
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -386,7 +397,7 @@ export function AcademicsPane({
 
         {/* Card 4: Curriculum Progress */}
         <article
-          onClick={() => setTab('curriculum')}
+          onClick={() => { setTab('curriculum'); setNotice(''); if (onTabChange) onTabChange('curriculum'); }}
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -435,7 +446,7 @@ export function AcademicsPane({
           return (
             <button
               key={item.id}
-              onClick={() => { setTab(item.id as any); setNotice(''); }}
+              onClick={() => { setTab(item.id as any); setNotice(''); if (onTabChange) onTabChange(item.id as any); }}
               style={{
                 all: 'unset',
                 padding: '8px 16px',

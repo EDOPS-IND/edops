@@ -22,7 +22,7 @@ import {
   LogOut,
   Menu,
   X,
-  HeartPulse
+  HeartPulse,
 } from "lucide-react";
 
 // Panes
@@ -50,6 +50,7 @@ import { Student360Modal } from "./panes/student-360-modal";
 
 import { OrganizationSummary, getStudentAvatarUrl } from "../edops-api";
 import { useDashboardNavigation } from "../dashboard-navigation";
+import { FeatureUnavailableCard, ThreeDotsLoading } from "../components/feature-unavailable-card";
 
 type PrincipalNavItem = { id: string; label: string; icon: ReactNode; paneId?: string; subItems?: { id: string; label: string; paneId?: string }[] };
 
@@ -58,15 +59,27 @@ interface PrincipalWorkspaceProps {
   onLogout: () => Promise<void>;
   onSwitchOrganization: (orgId: string) => void;
   organizations: OrganizationSummary[];
+  activePane?: string;
+  activeSubTab?: string;
+  onNavigate?: (pane: string, subTab?: string) => void;
+  initialModal?: string;
+  initialTeacherId?: string;
+  initialStudentId?: string;
 }
 
 export function PrincipalWorkspace({
   organization,
   onLogout,
+  activePane: activePaneProp,
+  activeSubTab: activeSubTabProp,
+  onNavigate,
+  initialModal,
+  initialTeacherId,
+  initialStudentId,
 }: PrincipalWorkspaceProps) {
   // Navigation State
-  const [activePane, setActivePane] = useState<string>("dashboard");
-  const [activeSubTab, setActiveSubTab] = useState<string>("");
+  const [activePane, setActivePane] = useState<string>(activePaneProp || "dashboard");
+  const [activeSubTab, setActiveSubTab] = useState<string>(activeSubTabProp || "");
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     planning: true,
     people: false,
@@ -84,14 +97,34 @@ export function PrincipalWorkspace({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Global Dialog States
-  const [healthModalOpen, setHealthModalOpen] = useState(false);
-  const [searchModalOpen, setSearchModalOpen] = useState(false);
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
-  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [healthModalOpen, setHealthModalOpen] = useState(initialModal === "health");
+  const [searchModalOpen, setSearchModalOpen] = useState(initialModal === "search");
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(initialTeacherId || null);
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudentId || null);
   const [healthScore, setHealthScore] = useState<number | null>(null);
   const [academicYear, setAcademicYear] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (activePaneProp && activePaneProp !== activePane) {
+      setActivePane(activePaneProp);
+    }
+  }, [activePaneProp]);
+
+  useEffect(() => {
+    if (activeSubTabProp !== undefined && activeSubTabProp !== activeSubTab) {
+      setActiveSubTab(activeSubTabProp);
+    }
+  }, [activeSubTabProp]);
+
+  useEffect(() => {
+    if (initialModal === "health") setHealthModalOpen(true);
+    if (initialModal === "search") setSearchModalOpen(true);
+    if (initialTeacherId) setSelectedTeacherId(initialTeacherId);
+    if (initialStudentId) setSelectedStudentId(initialStudentId);
+  }, [initialModal, initialTeacherId, initialStudentId]);
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -130,8 +163,12 @@ export function PrincipalWorkspace({
 
   const navigateTo = (pane: string, subTab: string = "") => {
     setActivePane(pane);
-    setActiveSubTab(pane === "people" && !subTab ? "workload" : subTab);
+    const targetSubTab = pane === "people" && !subTab ? "workload" : subTab;
+    setActiveSubTab(targetSubTab);
     setMobileMenuOpen(false);
+    if (onNavigate) {
+      onNavigate(pane, targetSubTab);
+    }
   };
 
   const navigation = useDashboardNavigation(organization.id, "principal");
@@ -304,22 +341,121 @@ export function PrincipalWorkspace({
       subItems: entries.map(entry => ({ id: entry.source.subId ?? entry.key, label: entry.label, paneId: entry.source.paneId })) }];
   });
 
-  // Sidebar IDs differ from a few pane tab IDs. Only open views the panes actually provide.
+  // Comprehensive mapping of all alias, slug, and direct IDs so every subtab works seamlessly.
   const paneTabs: Record<string, Record<string, string>> = {
-    planning: { app: "annual_plan", calendar: "calendar", targets: "learning_goals", school_targets: "school_targets", action_plans: "action_plans" },
-    people: { hods: "hods", coordinators: "coordinators", assignments: "assignments", workload: "workload", development: "development" },
-    academics: { classes: "classes", sections: "classes", subjects: "subjects", curriculum: "curriculum", outcomes: "competencies", lesson_plans: "lesson_plans", progress: "curriculum" },
-    timetable: { academic_tt: "academic", teacher_tt: "teacher", class_tt: "class", substitution: "substitutions" },
-    attendance: { student_att: "students", trends: "trends", faculty_att: "teachers" },
-    learning: { assignments: "assignments", submissions: "submissions", study_material: "materials", classroom: "activities" },
-    assessment: { assessments: "assessments", analysis: "analysis" },
-    examinations: { exam_planning: "planning", schedule: "schedule", marks: "marks", report_cards: "report_cards" },
-    students: { performance: "all", at_risk: "at_risk", remedial: "remedial", enrichment: "enrichment" },
-    communication: { inbox: "inbox", parent_msgs: "parent_queries", ptm: "ptm" },
-    analytics: { school: "school_analytics", class: "classes", subject: "school_analytics", teacher: "teachers", audit: "classes" },
+    planning: {
+      app: "annual_plan",
+      "annual-plan": "annual_plan",
+      annual_plan: "annual_plan",
+      calendar: "calendar",
+      targets: "learning_goals",
+      "learning-goals": "learning_goals",
+      learning_goals: "learning_goals",
+      school_targets: "school_targets",
+      "school-targets": "school_targets",
+      action_plans: "action_plans",
+      "action-plans": "action_plans",
+    },
+    people: {
+      hods: "hods",
+      coordinators: "coordinators",
+      assignments: "assignments",
+      workload: "workload",
+      development: "development",
+    },
+    academics: {
+      classes: "classes",
+      sections: "classes",
+      subjects: "subjects",
+      curriculum: "curriculum",
+      outcomes: "competencies",
+      competencies: "competencies",
+      lesson_plans: "lesson_plans",
+      "lesson-plans": "lesson_plans",
+      progress: "curriculum",
+    },
+    timetable: {
+      academic_tt: "academic",
+      academic: "academic",
+      teacher_tt: "teacher",
+      teacher: "teacher",
+      class_tt: "class",
+      class: "class",
+      substitution: "substitutions",
+      substitutions: "substitutions",
+    },
+    attendance: {
+      student_att: "students",
+      students: "students",
+      trends: "trends",
+      faculty_att: "teachers",
+      faculty: "teachers",
+      teachers: "teachers",
+    },
+    learning: {
+      assignments: "assignments",
+      submissions: "submissions",
+      study_material: "materials",
+      "study-material": "materials",
+      materials: "materials",
+      classroom: "activities",
+      "classroom-activities": "activities",
+      activities: "activities",
+    },
+    assessment: {
+      assessments: "assessments",
+      "question-papers": "assessments",
+      analysis: "analysis",
+      review: "analysis",
+    },
+    examinations: {
+      exam_planning: "planning",
+      planning: "planning",
+      schedule: "schedule",
+      marks: "marks",
+      report_cards: "report_cards",
+      "report-cards": "report_cards",
+    },
+    students: {
+      performance: "all",
+      all: "all",
+      "360": "all",
+      at_risk: "at_risk",
+      "at-risk": "at_risk",
+      remedial: "remedial",
+      enrichment: "enrichment",
+    },
+    communication: {
+      inbox: "inbox",
+      teacher_msgs: "inbox",
+      "teacher-directives": "inbox",
+      parent_msgs: "parent_queries",
+      "parent-grievances": "parent_queries",
+      parent_queries: "parent_queries",
+      student_msgs: "inbox",
+      "student-messages": "inbox",
+      announcements: "inbox",
+      ptm: "ptm",
+    },
+    analytics: {
+      school: "school_analytics",
+      "school-performance": "school_analytics",
+      school_analytics: "school_analytics",
+      class: "classes",
+      "class-performance": "classes",
+      classes: "classes",
+      subject: "school_analytics",
+      "subject-performance": "school_analytics",
+      teacher: "teachers",
+      "teacher-performance": "teachers",
+      teachers: "teachers",
+      curriculum: "classes",
+      "curriculum-progress": "classes",
+      audit: "classes",
+    },
   };
   const selectedSubItem = baseNavItems.find((item) => item.id === activePane)?.subItems?.find((sub) => sub.id === activeSubTab);
-  const activeView = paneTabs[activePane]?.[activeSubTab];
+  const activeView = paneTabs[activePane]?.[activeSubTab] || activeSubTab || Object.values(paneTabs[activePane] || {})[0] || "";
   const activeKey = activePane === "dashboard" ? "overview.dashboard" : ["alerts", "reports", "activity"].includes(activePane) ? `management.${activePane}` : activePane === "planning" && activeSubTab === "action_plans" ? "planning.app" : `${activePane}.${activeSubTab}`;
 
   return (
@@ -387,7 +523,7 @@ export function PrincipalWorkspace({
           {navItems.map((item) => {
             const hasSub = item.subItems && item.subItems.length > 0;
             const isSelected = activePane === item.paneId || item.subItems?.some(sub => sub.paneId === activePane) === true;
-            const isExpanded = expandedSections[item.id];
+            const isExpanded = expandedSections[item.id] !== undefined ? expandedSections[item.id] : isSelected;
 
             return (
               <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
@@ -470,7 +606,8 @@ export function PrincipalWorkspace({
                 {hasSub && isExpanded && (
                   <div style={{ paddingLeft: "26px", display: "flex", flexDirection: "column", gap: "1px", borderLeft: "1px solid rgba(255, 255, 255, 0.08)", marginLeft: "18px", margin: "2px 0 4px 18px" }}>
                     {item.subItems!.map((sub) => {
-                      const isSubActive = activePane === sub.paneId && activeSubTab === sub.id;
+                      const isSubActive = (activePane === sub.paneId || (!sub.paneId && activePane === item.id)) &&
+                        (activeSubTab === sub.id || activeView === sub.id || paneTabs[activePane]?.[sub.id] === activeView || (!activeSubTab && sub === item.subItems![0]));
                       return (
                         <button
                           key={sub.id}
@@ -504,70 +641,6 @@ export function PrincipalWorkspace({
             );
           })}
         </nav>
-
-        {/* Identity & User Avatar Card */}
-        <div style={{ borderTop: "1px solid rgba(255, 255, 255, 0.06)", padding: "14px 14px", flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-            <div
-              style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "8px",
-                overflow: "hidden",
-                background: "#1c2337",
-                border: "1px solid rgba(255, 255, 255, 0.12)",
-                flexShrink: 0,
-              }}
-            >
-              <img
-                src={getStudentAvatarUrl("Principal", organization.id)}
-                alt="Principal"
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-              />
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ fontSize: "12.5px", fontWeight: 650, color: "#ffffff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                {organization.name || "Principal Office"}
-              </div>
-              <div style={{ fontSize: "10.5px", color: "#8a92a6", textTransform: "uppercase", letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: "5px" }}>
-                <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#22C55E" }} />
-                Executive OS
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={handleSignOut}
-            disabled={signingOut}
-            style={{
-              all: "unset",
-              boxSizing: "border-box",
-              width: "100%",
-              display: "flex",
-              alignItems: "center",
-              gap: "9px",
-              padding: "7px 10px",
-              borderRadius: "6px",
-              cursor: "pointer",
-              fontSize: "12.5px",
-              fontWeight: 500,
-              color: "#8a92a6",
-              background: "rgba(255, 255, 255, 0.04)",
-              transition: "background 0.12s, color 0.12s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.08)";
-              e.currentTarget.style.color = "#ffffff";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
-              e.currentTarget.style.color = "#8a92a6";
-            }}
-          >
-            <LogOut size={13} strokeWidth={1.75} style={{ flexShrink: 0 }} />
-            {signingOut ? "Signing out…" : "Sign out"}
-          </button>
-        </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
@@ -703,25 +776,112 @@ export function PrincipalWorkspace({
               <span style={{ position: "absolute", top: "7px", right: "7px", width: "6px", height: "6px", borderRadius: "50%", background: "#E84040" }} />
             </button>
 
-            {/* Principal Circular Avatar */}
-            <div
-              style={{
-                width: "36px",
-                height: "36px",
-                borderRadius: "50%",
-                overflow: "hidden",
-                border: "2px solid #0c1e33",
-                boxShadow: "0 2px 6px rgba(12, 30, 51, 0.15)",
-                background: "#F5F6F8",
-                flexShrink: 0,
-              }}
-              title="Principal Executive Profile"
-            >
-              <img
-                src={getStudentAvatarUrl("Principal", organization.id)}
-                alt="Principal"
-                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-              />
+            {/* Principal Profile Avatar & Dropdown */}
+            <div style={{ position: "relative" }}>
+              <div
+                onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+                title="Principal Executive Profile & Options"
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  overflow: "hidden",
+                  cursor: "pointer",
+                  border: profileMenuOpen ? "2px solid #0c1e33" : "1px solid #ced8e5",
+                  boxShadow: profileMenuOpen ? "0 0 0 3px rgba(12, 30, 51, 0.1)" : "0 1px 3px rgba(12, 30, 51, 0.08)",
+                  background: "#F5F6F8",
+                  flexShrink: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <img
+                  src={getStudentAvatarUrl("Principal", organization.id)}
+                  alt="Principal"
+                  style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                />
+              </div>
+
+              {profileMenuOpen && (
+                <>
+                  <div
+                    style={{ position: "fixed", inset: 0, zIndex: 90 }}
+                    onClick={() => setProfileMenuOpen(false)}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      top: "calc(100% + 8px)",
+                      right: 0,
+                      zIndex: 100,
+                      width: "240px",
+                      background: "#ffffff",
+                      border: "1px solid #EAECF0",
+                      borderRadius: "12px",
+                      boxShadow: "0 10px 25px -5px rgba(12, 30, 51, 0.15), 0 8px 10px -6px rgba(12, 30, 51, 0.1)",
+                      padding: "8px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "4px",
+                    }}
+                  >
+                    <div style={{ padding: "10px 12px", borderBottom: "1px solid #EAECF0", marginBottom: "4px" }}>
+                      <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#101828" }}>
+                        {organization.name || "Principal Office"}
+                      </p>
+                      <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#64748b" }}>
+                        Head of Institution
+                      </p>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          marginTop: "6px",
+                          padding: "2px 8px",
+                          borderRadius: "100px",
+                          background: "#dcfce7",
+                          fontSize: "10px",
+                          fontWeight: 700,
+                          color: "#15803d",
+                        }}
+                      >
+                        <span style={{ width: "5px", height: "5px", borderRadius: "50%", background: "#22c55e" }} />
+                        Executive OS
+                      </span>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={signingOut}
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        handleSignOut();
+                      }}
+                      style={{
+                        all: "unset",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        padding: "9px 12px",
+                        borderRadius: "8px",
+                        fontSize: "12.5px",
+                        fontWeight: 600,
+                        color: "#f43f5e",
+                        cursor: "pointer",
+                        transition: "background 0.12s ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#fff1f2")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <LogOut size={14} strokeWidth={2} />
+                      <span>{signingOut ? "Signing out…" : "Sign out"}</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
@@ -735,18 +895,18 @@ export function PrincipalWorkspace({
         {/* WORKSPACE BODY VIEW */}
         <div style={{ padding: "24px 28px", flex: 1 }}>
           {navigation.loading ? (
-            <div style={{ padding: "48px 0", textAlign: "center", color: "#475467" }}>
-              <p>Loading dashboard navigation…</p>
+            <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "360px" }}>
+              <ThreeDotsLoading size={10} color="#101828" />
             </div>
           ) : navigation.error ? (
             <p role="alert" style={{ color: "#B42318" }}>{navigation.error}</p>
-          ) : !navigation.has(activeKey) ? (
-            <p style={{ color: "#475467" }}>This feature is unavailable for this school or role.</p>
-          ) : selectedSubItem && !activeView ? (
-            <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "12px", padding: "24px" }}>
-              <h2 style={{ fontSize: "18px", fontWeight: 700, margin: 0 }}>{selectedSubItem.label}</h2>
-              <p style={{ color: "#475467", marginTop: "8px" }}>This view is not available yet.</p>
-            </div>
+          ) : !navigation.has(activePane) && !navigation.has(activeKey) && activePane !== "dashboard" ? (
+            <FeatureUnavailableCard
+              title="This dashboard feature is unavailable for this school"
+              featureName={selectedSubItem?.label || baseNavItems.find((item) => item.id === activePane)?.label || activePane}
+              onBackToDashboard={() => navigateTo("dashboard")}
+              dashboardLabel="Return to Dashboard"
+            />
           ) : <>
           {activePane === "dashboard" && (
             <DashboardPane
@@ -764,6 +924,7 @@ export function PrincipalWorkspace({
               key={activeView}
               organizationId={organization.id}
               initialTab={activeView}
+              onTabChange={(tab) => navigateTo("planning", tab)}
             />
           )}
 
@@ -773,6 +934,7 @@ export function PrincipalWorkspace({
               organizationId={organization.id}
               view={activeView as "hods" | "coordinators" | "assignments" | "workload" | "development"}
               onOpenProfile={(id) => setSelectedTeacherId(id)}
+              onTabChange={(tab) => navigateTo("people", tab)}
             />
           )}
 
@@ -782,6 +944,7 @@ export function PrincipalWorkspace({
               organizationId={organization.id}
               initialTab={activeView}
               onOpenTeacherProfile={(id) => setSelectedTeacherId(id)}
+              onTabChange={(tab) => navigateTo("academics", tab)}
             />
           )}
 
@@ -790,6 +953,7 @@ export function PrincipalWorkspace({
               key={activeView}
               organizationId={organization.id}
               initialTab={activeView}
+              onTabChange={(tab) => navigateTo("timetable", tab)}
             />
           )}
 
@@ -798,6 +962,7 @@ export function PrincipalWorkspace({
               key={activeView}
               organizationId={organization.id}
               initialTab={activeView as "students" | "trends" | "teachers"}
+              onTabChange={(tab) => navigateTo("attendance", tab)}
             />
           )}
 
@@ -806,6 +971,7 @@ export function PrincipalWorkspace({
               key={activeView}
               organizationId={organization.id}
               initialTab={activeView as "assignments" | "submissions" | "materials" | "activities"}
+              onTabChange={(tab) => navigateTo("learning", tab)}
             />
           )}
 
@@ -823,6 +989,7 @@ export function PrincipalWorkspace({
                 organizationId={organization.id}
                 initialTab={(activeView as "assessments" | "analysis") || "assessments"}
                 onNavigate={navigateTo}
+                onTabChange={(tab) => navigateTo("assessment", tab)}
               />
             )
           )}
@@ -833,6 +1000,7 @@ export function PrincipalWorkspace({
                 key={activeView}
                 organizationId={organization.id}
                 initialTab={activeView as "planning" | "schedule" | "marks" | "report_cards"}
+                onTabChange={(tab) => navigateTo("examinations", tab)}
               />
             ) : (
               <div className="m-5 rounded-lg border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900">
@@ -847,6 +1015,7 @@ export function PrincipalWorkspace({
               organizationId={organization.id}
               onOpenStudent360={(id) => setSelectedStudentId(id)}
               initialTab={activeView}
+              onTabChange={(tab) => navigateTo("students", tab)}
             />
           )}
 
@@ -855,6 +1024,7 @@ export function PrincipalWorkspace({
               key={activeView}
               organizationId={organization.id}
               initialTab={activeView}
+              onTabChange={(tab) => navigateTo("communication", tab)}
             />
           )}
 
@@ -864,6 +1034,7 @@ export function PrincipalWorkspace({
               organizationId={organization.id}
               initialTab={activeView}
               onNavigate={navigateTo}
+              onTabChange={(tab) => navigateTo("analytics", tab)}
             />
           )}
 

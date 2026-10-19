@@ -9,14 +9,22 @@ export function AnalyticsAuditPane({
   organizationId,
   initialTab,
   onNavigate,
+  onTabChange,
 }: {
   auditData?: any;
   organizationId?: string;
   initialTab?: string;
   onNavigate?: (pane: string) => void;
+  onTabChange?: (tab: string) => void;
 }) {
   const [liveData, setLiveData] = useState<any>(null);
   const [auditSubTab, setAuditSubTab] = useState<"classes" | "teachers" | "school_analytics">(initialTab === "teachers" || initialTab === "school_analytics" ? initialTab : "classes");
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setAuditSubTab(initialTab === "teachers" || initialTab === "school_analytics" ? initialTab : "classes");
+    }
+  }, [initialTab]);
 
   React.useEffect(() => {
     if (!organizationId) return;
@@ -190,7 +198,10 @@ export function AnalyticsAuditPane({
         ].map((t) => (
           <button
             key={t.id}
-            onClick={() => setAuditSubTab(t.id as any)}
+            onClick={() => {
+              setAuditSubTab(t.id as any);
+              onTabChange?.(t.id);
+            }}
             style={{
               padding: "8px 16px",
               borderRadius: "8px",

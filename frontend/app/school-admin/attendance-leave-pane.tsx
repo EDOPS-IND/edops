@@ -20,8 +20,22 @@ import {
   Send,
 } from "lucide-react";
 
-export function AttendanceLeavePane({ organizationId }: { organizationId?: string }) {
-  const [subtab, setSubtab] = useState<"register" | "defaulters" | "leave">("register");
+export function AttendanceLeavePane({
+  organizationId,
+  activeTab,
+  onTabChange,
+}: {
+  organizationId?: string;
+  activeTab?: "register" | "defaulters" | "leave";
+  onTabChange?: (tab: "register" | "defaulters" | "leave") => void;
+}) {
+  const [subtab, setSubtab] = useState<"register" | "defaulters" | "leave">(activeTab || "register");
+
+  useEffect(() => {
+    if (activeTab && activeTab !== subtab) {
+      setSubtab(activeTab);
+    }
+  }, [activeTab]);
 
   const [loading, setLoading] = useState(false);
   const [attendanceData, setAttendanceData] = useState<any>(null);
@@ -93,7 +107,10 @@ export function AttendanceLeavePane({ organizationId }: { organizationId?: strin
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setSubtab(tab.id as any)}
+              onClick={() => {
+                setSubtab(tab.id as any);
+                if (onTabChange) onTabChange(tab.id as any);
+              }}
               style={{
                 padding: "8px 16px",
                 borderRadius: "8px",

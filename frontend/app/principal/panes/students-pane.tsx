@@ -46,6 +46,7 @@ export function StudentsPane({
   onTriggerEnrichment,
   organizationId,
   initialTab,
+  onTabChange,
 }: {
   students?: StudentListItem[];
   atRiskData?: any;
@@ -55,10 +56,17 @@ export function StudentsPane({
   onTriggerEnrichment?: () => void;
   organizationId?: string;
   initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }) {
   const [liveData, setLiveData] = useState<any>(null);
   const [subTab, setSubTab] = useState<"all" | "at_risk" | "remedial" | "enrichment">((initialTab as any) || "all");
   const [searchTerm, setSearchTerm] = useState("");
+
+  React.useEffect(() => {
+    if (initialTab) {
+      setSubTab(initialTab as any);
+    }
+  }, [initialTab]);
 
   React.useEffect(() => {
     if (!organizationId) return;
@@ -96,7 +104,10 @@ export function StudentsPane({
       <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
         {/* Card 1: Total Students (Pastel Mint) */}
         <article
-          onClick={() => setSubTab("all")}
+          onClick={() => {
+            setSubTab("all");
+            onTabChange?.("all");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -190,7 +201,10 @@ export function StudentsPane({
 
         {/* Card 4: Attention Category (Pastel Coral) */}
         <article
-          onClick={() => setSubTab("at_risk")}
+          onClick={() => {
+            setSubTab("at_risk");
+            onTabChange?.("at_risk");
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -238,7 +252,10 @@ export function StudentsPane({
           ].map((t) => (
             <button
               key={t.id}
-              onClick={() => setSubTab(t.id as any)}
+              onClick={() => {
+                setSubTab(t.id as any);
+                onTabChange?.(t.id);
+              }}
               style={{
                 all: "unset",
                 boxSizing: "border-box",
