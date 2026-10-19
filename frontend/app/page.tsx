@@ -77,6 +77,15 @@ export default function Home() {
   const schoolId = membership?.role === "school_admin" ? membership.id : "";
 
   function selectInitialWorkspace(current: Profile) {
+    if (typeof window !== "undefined") {
+      const slug = window.location.pathname.split("/").filter(Boolean)[0];
+      if (slug && slug !== "platform") {
+        const found = current.organizations.find(
+          (o) => o.slug === slug || o.id === slug || o.name.toLowerCase().replace(/[\s_]+/g, "-") === slug.toLowerCase(),
+        );
+        if (found) return found.id;
+      }
+    }
     return current.organizations.find((item) => (item.role === "school_admin" || item.role === "principal") && item.status === "active")?.id
       ?? current.organizations.find((item) => item.status === "active")?.id
       ?? (current.user.isPlatformAdmin ? "platform" : current.organizations[0]?.id ?? "");

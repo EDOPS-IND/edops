@@ -6,8 +6,8 @@
       "destination": "https://edops.onrender.com/api/:path*"
     },
     {
-      "source": "/((?!.*\\..*).*)",
-      "destination": "/index.html"
+      "source": "/:path*",
+      "destination": "/"
     }
   ]
 }
