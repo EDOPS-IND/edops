@@ -331,13 +331,15 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
           title="EDOPS Teacher Command Center"
         >
           <img
-            src="/logo.svg"
-            alt="edops"
+            src="/EDOPSLogo.png"
+            alt="EDOPS Teacher Portal"
             style={{
-              height: "32px",
+              height: "36px",
               width: "auto",
+              maxWidth: "140px",
               display: "block",
-              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.3))",
+              objectFit: "contain",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
               transition: "transform 0.15s ease",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}

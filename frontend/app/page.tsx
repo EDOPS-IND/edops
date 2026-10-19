@@ -291,9 +291,21 @@ export default function Home() {
 }
 
 export function EdopsLogo({ size = "sm", className = "", style }: { size?: "sm" | "md" | "lg"; className?: string; style?: React.CSSProperties }) {
+  const heights = { sm: "24px", md: "32px", lg: "42px" };
   return (
     <div className={`edops-pill-logo ${size} ${className}`.trim()} style={style} aria-label="EDOPS">
-      <img src="/logo.svg" alt="EDOPS" style={{ height: "100%", width: "auto", display: "block" }} />
+      <img
+        src="/EDOPSLogo.png"
+        alt="EDOPS"
+        style={{
+          height: heights[size] || "24px",
+          width: "auto",
+          maxWidth: "150px",
+          objectFit: "contain",
+          display: "block",
+          filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.25))",
+        }}
+      />
     </div>
   );
 }
@@ -308,7 +320,18 @@ function ProfileMenu({ email, role, onLogout }: { email: string; role: string; o
 function LoadingScreen() {
   return (
     <div className="loading-screen h-screen w-full flex flex-col items-center justify-center bg-[#020617] text-white">
-      <img src="/logo.svg" alt="EDOPS" className="h-16 w-auto animate-pulse" />
+      <img
+        src="/EDOPSLogo.png"
+        alt="EDOPS"
+        className="animate-pulse"
+        style={{
+          height: "56px",
+          width: "auto",
+          maxWidth: "220px",
+          objectFit: "contain",
+          filter: "drop-shadow(0 4px 16px rgba(0,0,0,0.5))",
+        }}
+      />
       <span className="loading-wordmark sr-only">EDOPS</span>
       <div className="mt-8 flex gap-2 items-center">
         <div className="w-2 h-2 rounded-full bg-slate-500 animate-bounce" style={{ animationDelay: "0ms" }}></div>
@@ -344,8 +367,19 @@ function LoginScreen({ onLogin, onInvite, onForgotPassword }: { onLogin: (profil
     <main className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden" style={{ fontFamily: '"Space Grotesk", Inter, system-ui, sans-serif' }}>
       <section className="bg-[#020617] text-white flex flex-col justify-between p-12 lg:p-24 lg:w-1/2 h-full overflow-hidden">
         <div className="block">
-          <img src="/logo.svg" alt="EDOPS" className="block h-12 w-auto -ml-2" />
-          <span className="block text-sm font-medium mt-1 uppercase tracking-[0.1em] text-[#94a3b8]">Management Console</span>
+          <img
+            src="/EDOPSLogo.png"
+            alt="EDOPS"
+            className="block"
+            style={{
+              height: "44px",
+              width: "auto",
+              maxWidth: "180px",
+              objectFit: "contain",
+              filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))",
+            }}
+          />
+          <span className="block text-sm font-medium mt-2 uppercase tracking-[0.1em] text-[#94a3b8]">Management Console</span>
         </div>
 
         <div className="my-24 lg:my-auto">
@@ -757,8 +791,19 @@ function InviteScreen({ signedIn, onDone }: { signedIn: boolean; onDone: () => v
     <main className="h-screen flex flex-col lg:flex-row bg-white overflow-hidden" style={{ fontFamily: '"Space Grotesk", Inter, system-ui, sans-serif' }}>
       <section className="bg-[#020617] text-white flex flex-col justify-between p-12 lg:p-24 lg:w-1/2 h-full overflow-hidden">
         <div className="block">
-          <img src="/logo.svg" alt="EDOPS" className="block h-12 w-auto -ml-2" />
-          <span className="block text-sm font-medium mt-1 uppercase tracking-[0.1em] text-[#94a3b8]">Management Console</span>
+          <img
+            src="/EDOPSLogo.png"
+            alt="EDOPS"
+            className="block"
+            style={{
+              height: "44px",
+              width: "auto",
+              maxWidth: "180px",
+              objectFit: "contain",
+              filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.4))",
+            }}
+          />
+          <span className="block text-sm font-medium mt-2 uppercase tracking-[0.1em] text-[#94a3b8]">Management Console</span>
         </div>
 
         <div className="my-24 lg:my-auto">
@@ -1001,21 +1046,31 @@ function RoleWorkspace({ profile, membership, workspace, onWorkspace, onLogout }
           zIndex: 40,
         }}
       >
-        {/* Brand Logo */}
+        {/* Brand Logo - 68px height matching design standards */}
         <div
           style={{
-            height: "58px",
+            height: "68px",
             display: "flex",
             alignItems: "center",
-            padding: "0 16px",
-            borderBottom: "1px solid #1E2128",
+            padding: "0 18px",
+            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+            boxSizing: "border-box",
             gap: "10px",
             flexShrink: 0,
           }}
         >
-          <div style={{ height: "28px", display: "flex", alignItems: "center" }}>
-            <img src="/logo.svg" alt="EDOPS" style={{ height: "100%", width: "auto", display: "block" }} />
-          </div>
+          <img
+            src="/EDOPSLogo.png"
+            alt="EDOPS"
+            style={{
+              height: "36px",
+              width: "auto",
+              maxWidth: "140px",
+              display: "block",
+              objectFit: "contain",
+              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
+            }}
+          />
         </div>
 
         {/* Navigation Items */}

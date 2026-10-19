@@ -32,16 +32,26 @@ svg { flex-shrink: 0; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #064E3B 0%, #0B6B52 55%, #F8E7C9 100%);
-  box-shadow: 0 2px 8px rgba(6, 78, 59, 0.18);
+  background: linear-gradient(135deg, #0b0f19 0%, #172554 50%, #0b0f19 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   user-select: none;
   text-decoration: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
   flex-shrink: 0;
+  box-sizing: border-box;
 }
 .edops-pill-logo:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 14px rgba(6, 78, 59, 0.25);
+  border-color: rgba(255, 255, 255, 0.22);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+.edops-pill-logo img {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  display: block;
 }
 .edops-logo-inner {
   display: flex;
@@ -66,45 +76,19 @@ svg { flex-shrink: 0; }
 
 .edops-pill-logo.sm {
   height: 38px;
-  padding: 3px 14px 4px;
+  padding: 4px 14px;
   border-radius: 9px;
 }
-.edops-pill-logo.sm .edops-logo-wing {
-  width: 52px;
-  height: 14px;
-  margin-bottom: -2px;
-}
-.edops-pill-logo.sm .edops-logo-text {
-  font-size: 19px;
-}
-
 .edops-pill-logo.md {
   height: 48px;
-  padding: 4px 20px 6px;
+  padding: 6px 18px;
   border-radius: 12px;
 }
-.edops-pill-logo.md .edops-logo-wing {
-  width: 68px;
-  height: 18px;
-  margin-bottom: -3px;
-}
-.edops-pill-logo.md .edops-logo-text {
-  font-size: 25px;
-}
-
 .edops-pill-logo.lg {
   height: 58px;
-  padding: 6px 26px 8px;
+  padding: 8px 22px;
   border-radius: 14px;
   margin-bottom: 24px;
-}
-.edops-pill-logo.lg .edops-logo-wing {
-  width: 82px;
-  height: 22px;
-  margin-bottom: -4px;
-}
-.edops-pill-logo.lg .edops-logo-text {
-  font-size: 30px;
 }
 .api-status { color: var(--muted); font-size: 12px; font-weight: 500; }
 .school-select { height: 40px; max-width: 310px; border-radius: 7px; font-size: 13px; font-weight: 500; }
