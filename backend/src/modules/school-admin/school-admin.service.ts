@@ -287,10 +287,39 @@ export class SchoolAdminService {
   }
 
   // 2. PEOPLE — STUDENTS & 360 PROFILE
-  async getStudents(orgId: string, actor: User, query?: { search?: string; sectionId?: string }) {
+  async getStudents(
+    orgId: string,
+    actor: User,
+    query?: { search?: string; sectionId?: string; limit?: number; offset?: number },
+  ) {
+    const limit = Math.min(Math.max(Number(query?.limit) || 50, 1), 100);
+    const offset = Math.max(Number(query?.offset) || 0, 0);
+    const search = query?.search?.trim() ? `%${query.search.trim()}%` : null;
+    const sectionId = query?.sectionId?.trim() || null;
+
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
-      const rows = await manager.query(
+
+      const [countRow] = await manager.query(
+        `SELECT (
+          (SELECT count(*)::int FROM memberships m
+           JOIN users u ON u.id = m.user_id
+           LEFT JOIN enrollments e ON e.student_user_id = u.id AND e.organization_id = m.organization_id
+           LEFT JOIN student_profiles sp ON sp.student_user_id = u.id AND sp.organization_id = m.organization_id
+           WHERE m.organization_id = $1 AND m.role = 'student'
+             AND ($2::text IS NULL OR u.name ILIKE $2 OR u.email ILIKE $2 OR sp.admission_number ILIKE $2)
+             AND ($3::uuid IS NULL OR e.section_id = $3))
+          +
+          (SELECT count(*)::int FROM invitations i
+           WHERE i.organization_id = $1 AND i.role = 'student' AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
+             AND ($2::text IS NULL OR i.name ILIKE $2 OR i.email ILIKE $2)
+             AND ($3::uuid IS NULL OR i.section_id = $3))
+        ) as total`,
+        [orgId, search, sectionId],
+      );
+      const total = Number(countRow?.total ?? 0);
+
+      const items = await manager.query(
         `SELECT
           u.id,
           u.id as "userId",
@@ -327,6 +356,8 @@ export class SchoolAdminService {
          LEFT JOIN programs p ON p.id = s.program_id
          LEFT JOIN student_profiles sp ON sp.student_user_id = u.id AND sp.organization_id = m.organization_id
          WHERE m.organization_id = $1 AND m.role = 'student'
+           AND ($2::text IS NULL OR u.name ILIKE $2 OR u.email ILIKE $2 OR sp.admission_number ILIKE $2)
+           AND ($3::uuid IS NULL OR e.section_id = $3)
 
          UNION ALL
 
@@ -363,12 +394,14 @@ export class SchoolAdminService {
          LEFT JOIN sections sec ON sec.id = i.section_id
          LEFT JOIN programs prog ON prog.id = sec.program_id
          WHERE i.organization_id = $1 AND i.role = 'student' AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
+           AND ($2::text IS NULL OR i.name ILIKE $2 OR i.email ILIKE $2)
+           AND ($3::uuid IS NULL OR i.section_id = $3)
 
          ORDER BY "name"
-         LIMIT 100`,
-        [orgId],
+         LIMIT $4 OFFSET $5`,
+        [orgId, search, sectionId, limit, offset],
       );
-      return rows;
+      return { items, total, limit, offset };
     });
   }
 
@@ -554,10 +587,34 @@ export class SchoolAdminService {
   }
 
   // PEOPLE — PARENTS
-  async getParents(orgId: string, actor: User) {
+  async getParents(
+    orgId: string,
+    actor: User,
+    query?: { search?: string; limit?: number; offset?: number },
+  ) {
+    const limit = Math.min(Math.max(Number(query?.limit) || 50, 1), 100);
+    const offset = Math.max(Number(query?.offset) || 0, 0);
+    const search = query?.search?.trim() ? `%${query.search.trim()}%` : null;
+
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
-      const rows = await manager.query(
+
+      const [countRow] = await manager.query(
+        `SELECT (
+          (SELECT count(*)::int FROM memberships m
+           JOIN users u ON u.id = m.user_id
+           WHERE m.organization_id = $1 AND m.role = 'parent'
+             AND ($2::text IS NULL OR u.name ILIKE $2 OR u.email ILIKE $2 OR u.phone ILIKE $2))
+          +
+          (SELECT count(*)::int FROM invitations i
+           WHERE i.organization_id = $1 AND i.role = 'parent' AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
+             AND ($2::text IS NULL OR i.name ILIKE $2 OR i.email ILIKE $2 OR i.phone ILIKE $2))
+        ) as total`,
+        [orgId, search],
+      );
+      const total = Number(countRow?.total ?? 0);
+
+      const items = await manager.query(
         `SELECT
           u.id,
           COALESCE(NULLIF(u.name, ''), split_part(u.email, '@', 1)) as "name",
@@ -592,6 +649,7 @@ export class SchoolAdminService {
          FROM memberships m
          JOIN users u ON u.id = m.user_id
          WHERE m.organization_id = $1 AND m.role = 'parent'
+           AND ($2::text IS NULL OR u.name ILIKE $2 OR u.email ILIKE $2 OR u.phone ILIKE $2)
 
          UNION ALL
 
@@ -627,11 +685,13 @@ export class SchoolAdminService {
           i.expires_at as "inviteExpiresAt"
          FROM invitations i
          WHERE i.organization_id = $1 AND i.role = 'parent' AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
+           AND ($2::text IS NULL OR i.name ILIKE $2 OR i.email ILIKE $2 OR i.phone ILIKE $2)
 
-         ORDER BY "name"`,
-        [orgId],
+         ORDER BY "name"
+         LIMIT $3 OFFSET $4`,
+        [orgId, search, limit, offset],
       );
-      return rows;
+      return { items, total, limit, offset };
     });
   }
 

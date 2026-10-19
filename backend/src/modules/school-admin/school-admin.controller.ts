@@ -41,8 +41,20 @@ export class SchoolAdminController {
 
   @Get('people/students')
   @ApiOperation({ summary: 'List enrolled students with profile summaries' })
-  students(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
-    return this.service.getStudents(orgId, req.user);
+  students(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Query('limit') limit = '50',
+    @Query('offset') offset = '0',
+    @Query('search') search?: string,
+    @Query('sectionId') sectionId?: string,
+  ) {
+    return this.service.getStudents(orgId, req.user, {
+      limit: Math.min(Math.max(Number(limit) || 50, 1), 100),
+      offset: Math.max(Number(offset) || 0, 0),
+      search,
+      sectionId,
+    });
   }
 
   @Get('people/students/:studentId/360')
@@ -81,8 +93,18 @@ export class SchoolAdminController {
 
   @Get('people/parents')
   @ApiOperation({ summary: 'List registered parents with ward mappings' })
-  parents(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
-    return this.service.getParents(orgId, req.user);
+  parents(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Query('limit') limit = '50',
+    @Query('offset') offset = '0',
+    @Query('search') search?: string,
+  ) {
+    return this.service.getParents(orgId, req.user, {
+      limit: Math.min(Math.max(Number(limit) || 50, 1), 100),
+      offset: Math.max(Number(offset) || 0, 0),
+      search,
+    });
   }
 
   @Put('people/parents/:parentId/children')

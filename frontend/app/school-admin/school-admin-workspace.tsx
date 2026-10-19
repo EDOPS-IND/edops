@@ -768,32 +768,7 @@ export function SchoolAdminWorkspace({
           </div>
 
           {/* Right: Actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
-            {/* Quick Action Primary Button */}
-            <button
-              type="button"
-              onClick={() => triggerAction("addTeacher")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "7px",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                background: S.navy,
-                color: "#ffffff",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                cursor: "pointer",
-                border: "none",
-                boxShadow: "0 1px 2px rgba(12, 30, 51, 0.08)",
-                transition: "background 0.15s ease",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
-            >
-              <Users size={14} />
-              <span>+ Invite Member</span>
-            </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
 
             {/* Search Input */}
             <div

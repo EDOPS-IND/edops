@@ -248,8 +248,24 @@ export async function getSchoolAdminDashboard(orgId: string) {
   return api<any>(`/organizations/${orgId}/school-admin/dashboard`);
 }
 
-export async function getSchoolAdminStudents(orgId: string) {
-  return api<any[]>(`/organizations/${orgId}/school-admin/people/students`);
+export async function getSchoolAdminStudents(
+  orgId: string,
+  params?: { limit?: number; offset?: number; search?: string; sectionId?: string },
+) {
+  const q = new URLSearchParams();
+  if (params?.limit != null) q.set("limit", String(params.limit));
+  if (params?.offset != null) q.set("offset", String(params.offset));
+  if (params?.search) q.set("search", params.search);
+  if (params?.sectionId) q.set("sectionId", params.sectionId);
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  const res = await api<any>(`/organizations/${orgId}/school-admin/people/students${qs}`);
+  const items = Array.isArray(res) ? res : res?.items || [];
+  if (res && typeof res === "object" && !Array.isArray(res)) {
+    (items as any).total = res.total;
+    (items as any).limit = res.limit;
+    (items as any).offset = res.offset;
+  }
+  return items;
 }
 
 export async function getSchoolAdminStudent360(orgId: string, studentId: string) {
@@ -264,8 +280,23 @@ export async function getSchoolAdminStaff(orgId: string) {
   return api<any[]>(`/organizations/${orgId}/school-admin/people/staff`);
 }
 
-export async function getSchoolAdminParents(orgId: string) {
-  return api<any[]>(`/organizations/${orgId}/school-admin/people/parents`);
+export async function getSchoolAdminParents(
+  orgId: string,
+  params?: { limit?: number; offset?: number; search?: string },
+) {
+  const q = new URLSearchParams();
+  if (params?.limit != null) q.set("limit", String(params.limit));
+  if (params?.offset != null) q.set("offset", String(params.offset));
+  if (params?.search) q.set("search", params.search);
+  const qs = q.toString() ? `?${q.toString()}` : "";
+  const res = await api<any>(`/organizations/${orgId}/school-admin/people/parents${qs}`);
+  const items = Array.isArray(res) ? res : res?.items || [];
+  if (res && typeof res === "object" && !Array.isArray(res)) {
+    (items as any).total = res.total;
+    (items as any).limit = res.limit;
+    (items as any).offset = res.offset;
+  }
+  return items;
 }
 
 export async function updateParentChildren(orgId: string, parentId: string, studentUserIds: string[]) {
