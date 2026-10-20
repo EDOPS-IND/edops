@@ -34,7 +34,8 @@ import {
   Award,
 } from "lucide-react";
 import { SchoolAdminTab } from "./types";
-import { getSchoolAdminDashboard } from "../edops-api";
+import { getSchoolAdminDashboard, getSchoolAdminAcademics } from "../edops-api";
+import { formatAuditMessage, formatAuditBadge } from "../components/audit-formatter";
 
 // ─── Design Tokens strictly matching Student & Teacher Dashboard specification ──
 const S = {
@@ -75,6 +76,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 }) => {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [activeAcademicYear, setActiveAcademicYear] = useState<string | null>(null);
   const [showHealthExplainer, setShowHealthExplainer] = useState(false);
   const [alertFilter, setAlertFilter] = useState<"all" | "academics" | "finance" | "staffing">("all");
 
@@ -85,9 +87,24 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
     }
     setLoading(true);
     getSchoolAdminDashboard(organizationId)
-      .then((res) => setData(res))
+      .then((res) => {
+        setData(res);
+        if (res?.academicYear) {
+          setActiveAcademicYear(res.academicYear);
+        }
+      })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
+
+    // Fetch live academic year from academics register
+    getSchoolAdminAcademics(organizationId)
+      .then((acad) => {
+        const cur = acad?.currentYear || acad?.academicYears?.find((y: any) => y.is_current || y.isCurrent) || acad?.academicYears?.[0];
+        if (cur?.name) {
+          setActiveAcademicYear(cur.name);
+        }
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -129,6 +146,11 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
   const feeCollected = metrics?.feeCollected ?? 0;
   const feePending = metrics?.feePending ?? 0;
   const feeDefaulters = metrics?.feeDefaulters ?? 0;
+
+  const currentAcademicYear = activeAcademicYear || data?.academicYear;
+  const academicYearBadge = currentAcademicYear
+    ? (currentAcademicYear.toUpperCase().startsWith("AY") ? currentAcademicYear : `AY ${currentAcademicYear}`)
+    : "No Academic Year Set";
 
   const studentTeacherRatio =
     totalTeachers > 0 ? `1:${Math.round(totalStudents / totalTeachers)}` : "N/A";
@@ -221,7 +243,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
               School Administration Console
             </span>
             <span style={{ color: "#5c6b80" }}>/</span>
-            <span>Academic Year 2026–2027</span>
+            <span>Academic Year {currentAcademicYear || "Not Set"}</span>
             <span
               style={{
                 padding: "4px 8px",
@@ -361,7 +383,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
               whiteSpace: "nowrap",
             }}
           >
-            AY 2026–2027 · Term 2
+            {academicYearBadge}
           </span>
         </div>
         <p style={{ margin: 0, fontSize: "11px", color: S.faint, whiteSpace: "nowrap" }}>
@@ -688,7 +710,13 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                   color: S.navy,
                 }}
               >
-                Tier A · Recorded institutional health
+                {healthScore >= 80
+                  ? "Tier A · Excellent Health"
+                  : healthScore >= 60
+                  ? "Tier B · Good Standing"
+                  : healthScore > 0
+                  ? "Tier C · Attention Needed"
+                  : "Setup Required · No Data Yet"}
               </span>
               <p style={{ margin: 0, fontSize: "11px", lineHeight: 1.6, color: S.slate }}>
                 Verified attendance ({attendanceRate}%), term fee realization ({feeCollectionRate}%), and curriculum pacing ({syllabusCompletion}%) live in campus registers.
@@ -1173,10 +1201,10 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                       color: S.navy,
                     }}
                   >
-                    {log.category || "Admin"}
+                    {formatAuditBadge(log.action || log.category)}
                   </span>
                   <span style={{ fontSize: "13px", color: S.navy, fontWeight: 500 }}>
-                    {log.detail || log.text || log.action || "Administrative action executed"}
+                    {formatAuditMessage(log.action, log.detail, log.actor)}
                   </span>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>

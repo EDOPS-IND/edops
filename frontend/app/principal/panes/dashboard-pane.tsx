@@ -22,6 +22,7 @@ import {
   HeartPulse,
 } from "lucide-react";
 import { PrincipalSchoolKpis, TodayAcademicOperations } from "../types";
+import { formatAuditMessage } from "../../components/audit-formatter";
 
 // Unified design tokens strictly matching Student & Teacher Dashboard specification
 const S = {
@@ -937,7 +938,7 @@ export function DashboardPane({
                   />
                   <div style={{ minWidth: 0, flex: 1 }}>
                     <div style={{ fontWeight: 600, color: S.navy, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {act.title}
+                      {formatAuditMessage(act.title || act.action, act.details, act.author)}
                     </div>
                     <div style={{ color: S.slate, fontSize: "11px", marginTop: "1px" }}>
                       {act.author || "Faculty"} • {act.time || "Recently"}

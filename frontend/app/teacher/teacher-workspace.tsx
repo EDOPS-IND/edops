@@ -58,6 +58,7 @@ import { CreateAssignmentModal } from './components/create-assignment-modal';
 import { StudentDossierDrawer } from './components/student-dossier-drawer';
 import { LessonCompletionModal } from './components/lesson-completion-modal';
 import { CreateInterventionModal } from './components/create-intervention-modal';
+import { GlobalPortalSearch } from '../components/global-portal-search';
 
 // Exact design tokens matching Student Dashboard specification
 const S = {
@@ -107,7 +108,6 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<TeacherTab>(activeTabProp || 'dashboard');
   const [activeSubTab, setActiveSubTab] = useState<string>(activeSubTabProp || "");
-  const [searchQuery, setSearchQuery] = useState("");
   const [showMoreModules, setShowMoreModules] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
 
@@ -118,6 +118,18 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
   const [lessonModalOpen, setLessonModalOpen] = useState(initialModal === "lesson");
   const [interventionModalOpen, setInterventionModalOpen] = useState(initialModal === "intervention");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudentId || null);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, []);
 
   useEffect(() => {
     if (activeTabProp && activeTabProp !== activeTab) {
@@ -677,8 +689,12 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
             </button>
 
             {/* Search Box */}
-            <div
+            <button
+              type="button"
+              onClick={() => setSearchModalOpen(true)}
               style={{
+                all: "unset",
+                boxSizing: "border-box",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
@@ -688,28 +704,18 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
                 border: "1px solid #ebedf2",
                 borderRadius: "6px",
                 color: S.slate,
+                cursor: "pointer",
+                transition: "border-color 0.15s ease",
               }}
             >
               <Search size={14} style={{ flexShrink: 0, color: S.slate }} />
-              <input
-                type="text"
-                placeholder="Search..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  border: "none",
-                  outline: "none",
-                  background: "transparent",
-                  fontSize: "12.5px",
-                  color: S.navy,
-                  width: "100%",
-                  fontFamily: "inherit",
-                }}
-              />
+              <span style={{ fontSize: "12.5px", color: S.slate, width: "100%", textAlign: "left" }}>
+                Search...
+              </span>
               <span style={{ fontSize: "10.5px", color: S.faint, whiteSpace: "nowrap", flexShrink: 0 }}>
                 ⌘ K
               </span>
-            </div>
+            </button>
 
             {/* Action Icon Group */}
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1108,6 +1114,14 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
           organizationId={organization.id}
         />
       )}
+
+      {/* Global Navigation Search Modal (Cmd+K) */}
+      <GlobalPortalSearch
+        isOpen={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        role="teacher"
+        onNavigate={(tab, sub) => navigateTo(tab as TeacherTab, sub)}
+      />
     </div>
   );
 };

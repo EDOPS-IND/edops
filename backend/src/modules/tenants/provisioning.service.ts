@@ -95,7 +95,9 @@ export class ProvisioningService {
           ]
         );
         invitations.push({ id: invitation.id, email: invitation.email, role: invitation.role, token, expiresAt });
-        this.mail.sendInvitationEmail(record.email, token, record.role, orgData?.name, record.name).catch(() => {});
+        this.mail.sendInvitationEmail(record.email, token, record.role, orgData?.name, record.name).catch((err) => {
+          console.error(`[INVITATION EMAIL FAILED] Could not dispatch email to ${record.email}:`, err?.message || err);
+        });
       }
       await this.audit.record(manager, { organizationId: org, actorId: actor.id, action: 'invitations.created', details: { batchId: batch.id, count: records.length } });
       return { batchId: batch.id as string, invitations };

@@ -2,6 +2,7 @@
 
 import { Building2, Users, DollarSign, HardDrive, AlertTriangle, Sparkles, CheckCircle2 } from "lucide-react";
 import { School } from "./types";
+import { formatAuditMessage } from "../components/audit-formatter";
 
 export function OverviewPane({
   schools,
@@ -103,7 +104,7 @@ export function OverviewPane({
                 <div key={act.id} style={{ display: "flex", alignItems: "flex-start", gap: "10px", padding: "10px 12px", background: "#FDF9F0", borderRadius: "8px", border: "1px solid #E5CCA2" }}>
                   <Sparkles size={16} color="#064E3B" style={{ marginTop: "2px", flexShrink: 0 }} />
                   <div style={{ fontSize: "12.5px", color: "#064E3B" }}>
-                    <b>{act.schoolName}:</b> {act.action.replace(/\./g, " ")} by <i>{act.actorEmail}</i>
+                    <b>{act.schoolName}:</b> {formatAuditMessage(act.action, act.details, act.actorEmail)}
                     <span style={{ fontSize: "11px", color: "#6B7280", marginLeft: "6px" }}>
                       ({new Date(act.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})
                     </span>

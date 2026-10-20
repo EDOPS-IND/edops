@@ -30,6 +30,7 @@ import {
 import { OrganizationSummary, api, getStudentAvatarUrl } from '../edops-api';
 import { useDashboardNavigation } from '../dashboard-navigation';
 import { FeatureUnavailableCard, ThreeDotsLoading } from '../components/feature-unavailable-card';
+import { GlobalPortalSearch } from '../components/global-portal-search';
 import { StudentTab } from './types';
 
 // Panes
@@ -105,7 +106,6 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const [activeSubTab, setActiveSubTab] = useState<string>(activeSubTabProp || "");
   const [refreshKey, setRefreshKey] = useState(0);
   const navigation = useDashboardNavigation(organization.id, 'student');
-  const [searchQuery, setSearchQuery] = useState("");
   const [showMoreAcademics, setShowMoreAcademics] = useState(false);
   const [studentProfile, setStudentProfile] = useState<any>(null);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -146,6 +146,18 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const [selectedLecture, setSelectedLecture] = useState<any>(null);
   const [supportModalOpen, setSupportModalOpen] = useState(initialModal === "support");
   const [goalModalOpen, setGoalModalOpen] = useState(initialModal === "goal");
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, []);
 
   useEffect(() => {
     if (initialModal === "submit") setSubmitModalOpen(true);
@@ -592,8 +604,12 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           {/* Header Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {/* Search Box */}
-            <div
+            <button
+              type="button"
+              onClick={() => setSearchModalOpen(true)}
               style={{
+                all: "unset",
+                boxSizing: "border-box",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
@@ -603,28 +619,18 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                 border: "1px solid #ebedf2",
                 borderRadius: "6px",
                 color: S.slate,
+                cursor: "pointer",
+                transition: "border-color 0.15s ease",
               }}
             >
               <Search size={15} style={{ flexShrink: 0, color: S.slate }} />
-              <input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  border: "none",
-                  outline: "none",
-                  background: "transparent",
-                  fontSize: "13px",
-                  color: S.navy,
-                  width: "100%",
-                  fontFamily: "inherit",
-                }}
-              />
+              <span style={{ fontSize: "13px", color: S.slate, width: "100%", textAlign: "left" }}>
+                Search...
+              </span>
               <span style={{ fontSize: "11px", color: S.faint, whiteSpace: "nowrap", flexShrink: 0 }}>
                 ⌘ K
               </span>
-            </div>
+            </button>
 
             {/* Action Icon Group */}
             <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
@@ -986,6 +992,14 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
         onClose={() => setGoalModalOpen(false)}
         organizationId={organization.id}
         onSuccess={() => setRefreshKey(k => k + 1)}
+      />
+
+      {/* Global Navigation Search Modal (Cmd+K) */}
+      <GlobalPortalSearch
+        isOpen={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        role="student"
+        onNavigate={(tab, sub) => navigateTo(tab as StudentTab, sub)}
       />
     </div>
   );

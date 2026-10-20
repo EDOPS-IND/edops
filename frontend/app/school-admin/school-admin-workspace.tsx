@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { SchoolAdminTab } from "./types";
 import { useDashboardNavigation } from "../dashboard-navigation";
 import { FeatureUnavailableCard, ThreeDotsLoading } from "../components/feature-unavailable-card";
+import { GlobalPortalSearch } from "../components/global-portal-search";
 import { DashboardPane } from "./dashboard-pane";
 import { PeoplePane } from "./people-pane";
 import { AcademicsPane } from "./academics-pane";
@@ -251,9 +252,19 @@ export function SchoolAdminWorkspace({
   const [actionError, setActionError] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchFocused, setSearchFocused] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  React.useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, []);
 
   const go = (tab: SchoolAdminTab, subTab?: string) => {
     if (tab === "assignments") {
@@ -771,38 +782,44 @@ export function SchoolAdminWorkspace({
           <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
 
             {/* Search Input */}
-            <div
+            <button
+              type="button"
+              onClick={() => setSearchModalOpen(true)}
               style={{
+                all: "unset",
+                boxSizing: "border-box",
                 display: "flex",
                 alignItems: "center",
                 gap: "8px",
                 height: "38px",
                 padding: "0 12px",
-                border: `1px solid ${searchFocused ? S.navy : S.line}`,
+                border: `1px solid ${S.line}`,
                 borderRadius: "8px",
                 background: S.inputBg,
+                cursor: "pointer",
                 transition: "border-color 0.15s ease",
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.borderColor = S.navy; }}
+              onMouseLeave={(e) => { e.currentTarget.style.borderColor = S.line; }}
             >
               <Search size={14} strokeWidth={2} style={{ color: S.slate, flexShrink: 0 }} />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
-                placeholder="Search portal..."
+              <span style={{ fontSize: "13px", color: S.slate, width: "130px", textAlign: "left" }}>
+                Search portal...
+              </span>
+              <kbd
                 style={{
-                  border: "none",
-                  outline: "none",
-                  background: "transparent",
-                  fontSize: "13px",
-                  color: S.navy,
-                  width: "160px",
-                  fontFamily: "inherit",
+                  fontSize: "10px",
+                  fontWeight: 600,
+                  color: S.slate,
+                  background: "#ECEEF3",
+                  padding: "2px 5px",
+                  borderRadius: "4px",
+                  border: "1px solid #E2E8F0",
                 }}
-              />
-            </div>
+              >
+                ⌘K
+              </kbd>
+            </button>
 
             {/* Notification Bell */}
             <button
@@ -2385,6 +2402,15 @@ export function SchoolAdminWorkspace({
           </section>
         </div>
       )}
+
+      {/* Global Navigation Search Modal (Cmd+K / Settings Search) */}
+      <GlobalPortalSearch
+        isOpen={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        role="school_admin"
+        onNavigate={(section, subTab) => go(section as SchoolAdminTab, subTab)}
+        onOpenAction={(action) => setQuickActionModal(action)}
+      />
     </div>
   );
 }

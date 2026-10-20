@@ -32,7 +32,9 @@ export class TenantsService {
          VALUES ($1, $2, $3, $4, $5)`,
         [organization.id, dto.adminEmail, tokenHash(token), actor.id, expiresAt]
       );
-      this.mail.sendInvitationEmail(dto.adminEmail, token, 'school_admin', organization.name).catch(() => {});
+      this.mail.sendInvitationEmail(dto.adminEmail, token, 'school_admin', organization.name).catch((err) => {
+        console.error(`[ADMIN INVITATION EMAIL FAILED] Could not dispatch to ${dto.adminEmail}:`, err?.message || err);
+      });
       await this.audit.record(manager, { organizationId: organization.id, actorId: actor.id, action: 'organization.created' });
       return { organization, invitation: { token, email: dto.adminEmail, expiresAt } };
     });

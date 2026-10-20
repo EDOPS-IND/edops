@@ -8,6 +8,7 @@ import {
   createSchoolAdminDiscipline,
   getSchoolAdminAcademics,
 } from "../edops-api";
+import { formatAuditMessage, formatAuditAction } from "../components/audit-formatter";
 import {
   ShieldAlert,
   FileText,
@@ -113,14 +114,14 @@ export function GovernancePane({
           setAuditLogs(
             data.auditLogs.map((a: any) => ({
               id: a.id,
-              actor: a.actorEmail ? a.actorEmail.split("@")[0] : "Admin",
+              actor: a.actorEmail ? a.actorEmail.split("@")[0] : (a.actor || "Admin"),
               role: "School Staff",
-              action: a.action,
+              action: formatAuditAction(a.action),
               resource: "System",
               resourceId: String(a.id).slice(0, 8),
               timestamp: new Date(a.createdAt || a.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
               ip: a.ip || "—",
-              newValue: typeof a.details === "object" ? JSON.stringify(a.details).slice(0, 60) : "Operational Record",
+              newValue: formatAuditMessage(a.action, a.details, a.actorEmail || a.actor),
             }))
           );
         }
