@@ -45,12 +45,14 @@ import { ActivityPane } from "./panes/activity-pane";
 // Modals & Drawers
 import { AcademicHealthModal } from "./components/academic-health-modal";
 import { GlobalSearchModal } from "./components/global-search-modal";
+import { GlobalPortalSearch } from "../components/global-portal-search";
 import { TeacherProfileDrawer } from "./panes/teacher-profile-drawer";
 import { Student360Modal } from "./panes/student-360-modal";
 
 import { OrganizationSummary, getStudentAvatarUrl } from "../edops-api";
 import { useDashboardNavigation } from "../dashboard-navigation";
 import { FeatureUnavailableCard, ThreeDotsLoading } from "../components/feature-unavailable-card";
+import { PrincipalTab } from "./types";
 
 type PrincipalNavItem = { id: string; label: string; icon: ReactNode; paneId?: string; subItems?: { id: string; label: string; paneId?: string }[] };
 
@@ -99,6 +101,7 @@ export function PrincipalWorkspace({
   // Global Dialog States
   const [healthModalOpen, setHealthModalOpen] = useState(initialModal === "health");
   const [searchModalOpen, setSearchModalOpen] = useState(initialModal === "search");
+  const [entitySearchModalOpen, setEntitySearchModalOpen] = useState(false);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(initialTeacherId || null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudentId || null);
   const [healthScore, setHealthScore] = useState<number | null>(null);
@@ -106,6 +109,17 @@ export function PrincipalWorkspace({
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, []);
 
   useEffect(() => {
     if (activePaneProp && activePaneProp !== activePane) {
@@ -1106,9 +1120,22 @@ export function PrincipalWorkspace({
         onNavigate={navigateTo}
       />
 
-      <GlobalSearchModal
+      {/* Global Navigation & Settings Search (Cmd+K) */}
+      <GlobalPortalSearch
         isOpen={searchModalOpen}
         onClose={() => setSearchModalOpen(false)}
+        role="principal"
+        onNavigate={(tab, sub) => navigateTo(tab as PrincipalTab, sub)}
+        onOpenAction={(action) => {
+          if (action === "health") setHealthModalOpen(true);
+          else if (action === "entity_search") setEntitySearchModalOpen(true);
+        }}
+      />
+
+      {/* Directory Entity Search (Specific Student/Teacher/Class by Name) */}
+      <GlobalSearchModal
+        isOpen={entitySearchModalOpen}
+        onClose={() => setEntitySearchModalOpen(false)}
         organizationId={organization.id}
         onSelectTeacher={(id) => setSelectedTeacherId(id)}
         onSelectStudent={(id) => setSelectedStudentId(id)}

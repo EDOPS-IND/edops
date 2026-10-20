@@ -37,30 +37,24 @@ export class SchoolAdminService {
   ) {}
 
   private async authorize(manager: Queryable, orgId: string, actor: User, principalTimetable = false): Promise<Organization> {
-    if (actor.isPlatformAdmin) {
-      const [org] = await manager.query('SELECT * FROM organizations WHERE id = $1 LIMIT 1', [orgId]);
-      if (!org) throw new NotFoundException('Organization not found');
-      return org;
+    const [row] = await manager.query(
+      `SELECT o.*, m.role AS "memberRole"
+       FROM organizations o
+       LEFT JOIN memberships m ON m.organization_id = o.id AND m.user_id = $2 AND m.status = 'active'
+       WHERE o.id = $1 LIMIT 1`,
+      [orgId, actor.id],
+    );
+
+    if (!row) throw new NotFoundException('Organization not found');
+    if (row.status !== 'active') throw new ForbiddenException('School is suspended');
+    if (actor.isPlatformAdmin) return row;
+
+    const role = (actor as any).roles?.[orgId] || row.memberRole;
+    if (!role) throw new NotFoundException('Organization not found');
+    if (role !== 'school_admin' && !(principalTimetable && role === 'principal')) {
+      throw new ForbiddenException('School administrator access required');
     }
-    const tokenRole = (actor as any).roles?.[orgId];
-    if (tokenRole) {
-      if (tokenRole !== 'school_admin' && !(principalTimetable && tokenRole === 'principal')) {
-        throw new ForbiddenException('School administrator access required');
-      }
-    } else {
-      const [membership] = await manager.query(
-        "SELECT * FROM memberships WHERE organization_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1",
-        [orgId, actor.id],
-      );
-      if (!membership) throw new NotFoundException('Organization not found');
-      if (membership.role !== 'school_admin' && !(principalTimetable && membership.role === 'principal')) {
-        throw new ForbiddenException('School administrator access required');
-      }
-    }
-    const [org] = await manager.query('SELECT * FROM organizations WHERE id = $1 LIMIT 1', [orgId]);
-    if (!org) throw new NotFoundException('Organization not found');
-    if (org.status !== 'active') throw new ForbiddenException('School is suspended');
-    return org;
+    return row;
   }
 
   // 1. DASHBOARD & HEALTH SCORE
@@ -264,8 +258,18 @@ export class SchoolAdminService {
         `SELECT id, title, message, type, priority, created_at AS "createdAt" FROM platform_announcements WHERE ${audienceCond} AND status = 'published' ORDER BY created_at DESC LIMIT 5`
       );
 
+      const [curYear] = await manager.query(
+        `SELECT name, is_current AS "isCurrent"
+         FROM academic_years
+         WHERE organization_id = $1
+         ORDER BY is_current DESC, start_date DESC
+         LIMIT 1`,
+        [orgId],
+      );
+
       return {
         platformAnnouncements,
+        academicYear: curYear?.name ?? null,
         metrics: {
           totalStudents,
           activeStudents,
@@ -283,13 +287,31 @@ export class SchoolAdminService {
         health: healthMetrics,
         attentionItems,
         dailyTimeline,
-        recentActivity: recentActivity.map((r: any) => ({
-          id: r.id,
-          actor: r.actor,
-          action: String(r.action || 'system.event').replace(/\./g, ' '),
-          detail: typeof r.details === 'object' && r.details ? JSON.stringify(r.details).slice(0, 80) : 'Administrative operational record',
-          time: new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        })),
+        recentActivity: recentActivity.map((r: any) => {
+          const act = String(r.action || 'system.event').toLowerCase();
+          const d = (typeof r.details === 'object' && r.details) ? r.details : {};
+          let humanDetail = 'Administrative operational record';
+          if (act.includes('invitation.accepted')) humanDetail = `${r.actor} accepted onboarding invitation`;
+          else if (act.includes('invitations.created')) humanDetail = `Issued ${d.count || 1} member onboarding invitation${(d.count || 1) > 1 ? 's' : ''}`;
+          else if (act.includes('school.onboarded_complete')) humanDetail = d.slug ? `Completed school onboarding for ${d.slug}` : 'Completed school onboarding';
+          else if (act.includes('organization.created')) humanDetail = 'Campus organization created';
+          else if (act.includes('organization.updated')) humanDetail = 'Updated school configuration and details';
+          else if (act.includes('auth.login')) humanDetail = `${r.actor} signed in to campus portal`;
+          else if (act.includes('department.created')) humanDetail = d.name ? `Created department: ${d.name}` : 'Created academic department';
+          else if (act.includes('timetable.created')) humanDetail = 'Created new timetable period schedule';
+          else if (act.includes('fee.payment_recorded')) humanDetail = 'Recorded student fee payment';
+          else if (act.includes('attendance.finalized')) humanDetail = 'Finalized daily classroom attendance';
+          else if (act.includes('assignment.published')) humanDetail = 'Published coursework assignment to students';
+          else humanDetail = String(r.action || 'Administrative action recorded').replace(/[._]/g, ' ');
+
+          return {
+            id: r.id,
+            actor: r.actor,
+            action: String(r.action || 'system.event').replace(/\./g, ' '),
+            detail: humanDetail,
+            time: new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          };
+        }),
       };
   }
 

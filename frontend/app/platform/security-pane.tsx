@@ -1,6 +1,7 @@
 "use client";
 
 import { AuditLog } from "./types";
+import { formatAuditMessage, formatAuditAction } from "../components/audit-formatter";
 
 export function SecurityPane({
   auditLogs,
@@ -118,11 +119,11 @@ export function SecurityPane({
               auditLogs.slice(0, 15).map(l => (
                 <tr key={l.id} style={{ borderBottom: "1px solid #F3F4F6" }}>
                   <td style={{ padding: "8px", color: "#6B7280" }}>{new Date(l.createdAt).toLocaleTimeString()}</td>
-                  <td style={{ padding: "8px" }}><b>{l.action}</b></td>
+                  <td style={{ padding: "8px" }}><b>{formatAuditAction(l.action)}</b></td>
                   <td style={{ padding: "8px" }}>{l.schoolName || "Platform"}</td>
                   <td style={{ padding: "8px" }}>{l.actorEmail || "Platform Admin"}</td>
-                  <td style={{ padding: "8px", fontFamily: "monospace", fontSize: "11px", color: "#4B5563" }}>
-                    {JSON.stringify(l.details || {}).slice(0, 60)}...
+                  <td style={{ padding: "8px", fontSize: "12px", color: "#374151" }}>
+                    {formatAuditMessage(l.action, l.details, l.actorEmail)}
                   </td>
                 </tr>
               ))

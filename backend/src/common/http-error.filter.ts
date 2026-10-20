@@ -31,7 +31,11 @@ export class HttpErrorFilter implements ExceptionFilter {
       status = 413;
       message = 'Request body too large';
     }
-    if (status === 500) this.logger.error(`Request failed`, error instanceof Error ? error.stack : String(error));
+    if (status === 500) {
+      this.logger.error(`Request failed [500]`, error instanceof Error ? error.stack : String(error));
+    } else if (status >= 400) {
+      console.warn(`[HTTP ${status}] ${typeof message === 'object' ? JSON.stringify(message) : message}`);
+    }
     const response = host.switchToHttp().getResponse<Response>();
     if (response.headersSent) return;
     if (status === 429) {

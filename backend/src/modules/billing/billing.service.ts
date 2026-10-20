@@ -719,7 +719,9 @@ export class BillingService {
         VALUES ($1, $2, $3, $4, $5, 'school_admin', $6, $7, $8)`,
         [org.id, adminEmail, tokenHash(token), token, actor.id, dto.adminName, adminPhone || null, expiresAt]);
 
-      this.mail.sendInvitationEmail(adminEmail, token, 'school_admin', org.name, dto.adminName).catch(() => {});
+      this.mail.sendInvitationEmail(adminEmail, token, 'school_admin', org.name, dto.adminName).catch((err) => {
+        console.error(`[ONBOARDING EMAIL FAILED] Could not dispatch to ${adminEmail}:`, err?.message || err);
+      });
 
       // 8. Assign Plan & Subscription
       let [plan] = await m.query(`SELECT id, name FROM plans WHERE id=$1`, [dto.planId]);

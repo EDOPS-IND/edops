@@ -53,6 +53,14 @@ export async function createApp(config: AppConfig) {
     }
     next();
   });
+  app.use((request: Request, response: Response, next: NextFunction) => {
+    const start = Date.now();
+    response.on('finish', () => {
+      if (request.originalUrl === '/api/health') return;
+      console.log(`[HTTP] ${request.method} ${request.originalUrl} ${response.statusCode} (${Date.now() - start}ms)`);
+    });
+    next();
+  });
   app.use(express.json({ limit: '16kb' }));
   app.use((_request: Request, response: Response, next: NextFunction) => {
     response.setHeader('Cache-Control', 'no-store');
@@ -100,7 +108,7 @@ export async function createApp(config: AppConfig) {
       .addTag('Arena', 'Class-scoped objective question bank, private attempts and deterministic auto-grading. No LLM. See backend/docs/MILESTONE-5.md.')
       .addTag('Platform Billing', 'Platform-only plans, subscription ledger, entitlements and aggregate statistics. See backend/docs/MILESTONE-6.md.')
       .addTag('School Billing', 'Read-only billing information for the active school administrator.')
-      .addCookieAuth(config.cookieName, { type: 'apiKey', in: 'cookie', description: 'HTTP-only session cookie managed by the browser. Can be anonymous for login/invite acceptance; protected operations require a signed-in user.' })
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'JWT', description: 'Stateless JWT Bearer Token' }, 'bearer')
       .addApiKey({ type: 'apiKey', in: 'header', name: 'X-CSRF-Token' }, 'csrf')
       .build());
     SwaggerModule.setup('api/docs', app, document, { swaggerOptions: { withCredentials: true, persistAuthorization: false } });

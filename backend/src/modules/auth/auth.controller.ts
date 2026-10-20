@@ -156,7 +156,7 @@ export class AuthController {
 
   @Get('me')
   @ApiOperation({
-    summary: 'Get the current user and school memberships', security: [{ cookie: [] }],
+    summary: 'Get the current user and school memberships', security: [{ bearer: [] }],
     description: 'Checks the current session and active user, then joins organizations with active memberships. Returns only this user, not a user directory. Suspended schools remain listed with their status; inactive memberships are omitted. Platform admins may have an empty organizations array. No database changes or audit event. Limit: 120 requests/minute per IP.',
   })
   @ApiOkResponse({ description: 'Profile without passwords or tokens.', schema: profileSchema })
@@ -169,7 +169,7 @@ export class AuthController {
   @Post('logout')
   @HttpCode(204)
   @ApiOperation({
-    summary: 'Sign out of the current session', security: [{ cookie: [], csrf: [] }],
+    summary: 'Sign out of the current session', security: [{ bearer: [] }],
     description: 'Revokes the supplied refresh token, clears its cookie and records auth.logout. Other devices and school memberships are unchanged. Limit: 120 requests/minute per IP.',
   })
   async logout(@Body() body: LogoutDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {

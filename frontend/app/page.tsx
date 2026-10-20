@@ -943,6 +943,7 @@ function ResetPasswordScreen({ token, onDone, onCancel }: { token: string; onDon
                     <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
                       <input
                         type={showPassword ? "text" : "password"}
+                        autoComplete="new-password"
                         required
                         minLength={8}
                         maxLength={128}
@@ -966,6 +967,7 @@ function ResetPasswordScreen({ token, onDone, onCancel }: { token: string; onDon
                     <label style={{ fontSize: "13px", fontWeight: 500, color: "#0f172a" }}>Confirm New Password</label>
                     <input
                       type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
                       required
                       minLength={8}
                       maxLength={128}

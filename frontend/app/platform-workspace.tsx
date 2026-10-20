@@ -7,7 +7,7 @@ import {
   removeSchoolDetailedOverride, onboardSchool,
   updateSchoolLifecycle, getSupportTickets, createSupportTicket,
   updateSupportTicketStatus, startSupportSession, getAnnouncements,
-  createAnnouncement, getPayments, refundPayment, globalSearch,
+  createAnnouncement, getPayments, refundPayment,
   getDetailedHealth, getAuditLogs, getPlatformDashboard, getPlatformStaff
 } from "./edops-api";
 import {
@@ -23,6 +23,7 @@ import {
   SupportSessionModal, CreatePlanModal,
   BroadcastAnnouncementModal, CreateTicketModal
 } from "./platform";
+import { GlobalPortalSearch } from "./components/global-portal-search";
 
 export function PlatformWorkspace({
   activePanel = "overview",
@@ -58,12 +59,21 @@ export function PlatformWorkspace({
     active: boolean; schoolId: string; schoolName: string; expiresAt: string; sessionToken: string;
   } | null>(null);
 
-  // Search & Global state
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, []);
 
   useEffect(() => {
     if (activePanel) setTab(activePanel);
@@ -151,23 +161,6 @@ export function PlatformWorkspace({
       setSchoolOverrides([]);
     }
   }
-
-  // Global search debounced
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setSearchResults([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      try {
-        const res = await globalSearch(searchQuery);
-        setSearchResults(res.results || []);
-      } catch {
-        setSearchResults([]);
-      }
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
 
   // Actions
   async function handleCompleteOnboarding(onboardData: any) {
@@ -344,45 +337,29 @@ export function PlatformWorkspace({
 
         {/* Global Spotlight Search & Quick Action Buttons */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-          <div style={{ position: "relative", minWidth: "280px" }}>
-            <Search size={15} style={{ position: "absolute", left: "10px", top: "10px", color: "#9CA3AF" }} />
-            <input
-              type="text"
-              placeholder="Search schools, codes, tickets, invoices..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ width: "100%", padding: "7px 12px 7px 32px", fontSize: "12.5px", borderRadius: "7px", border: "1px solid #D1D5DB", outline: "none", background: "#F9FAFB" }}
-            />
-            {searchResults.length > 0 && (
-              <div style={{ position: "absolute", top: "38px", left: 0, right: 0, background: "#FFF", border: "1px solid #D1D5DB", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)", zIndex: 100, maxHeight: "250px", overflowY: "auto", padding: "6px 0" }}>
-                {searchResults.map((item, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => {
-                      if (item.type === "school") {
-                        const s = schools.find(sc => sc.id === item.id);
-                        if (s) { handleSelectSchool(s); setTab("schools"); }
-                      } else if (item.type === "ticket") {
-                        setTab("support");
-                      } else if (item.type === "invoice") {
-                        setTab("billing");
-                      }
-                      setSearchQuery("");
-                    }}
-                    style={{ padding: "8px 14px", fontSize: "12px", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", borderBottom: "1px solid #F3F4F6" }}
-                  >
-                    <div>
-                      <b>{item.name || item.subject || item.ticketCode || item.paymentReference}</b>
-                      <span style={{ fontSize: "11px", color: "#6B7280", marginLeft: "8px" }}>{item.code || item.status}</span>
-                    </div>
-                    <span style={{ textTransform: "uppercase", fontSize: "10px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px", background: "#F8E7C9", color: "#064E3B" }}>
-                      {item.type}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => setSearchModalOpen(true)}
+            style={{
+              all: "unset",
+              boxSizing: "border-box",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              minWidth: "280px",
+              padding: "7px 12px",
+              borderRadius: "7px",
+              border: "1px solid #D1D5DB",
+              background: "#F9FAFB",
+              cursor: "pointer",
+            }}
+          >
+            <Search size={15} style={{ color: "#9CA3AF", flexShrink: 0 }} />
+            <span style={{ fontSize: "12.5px", color: "#6B7280", flex: 1, textAlign: "left" }}>
+              Search platform &amp; settings...
+            </span>
+            <kbd style={{ fontSize: "10px", color: "#9CA3AF", background: "#E5E7EB", padding: "2px 5px", borderRadius: "3px" }}>⌘K</kbd>
+          </button>
 
           <button
             onClick={() => setTab("onboarding")}
@@ -581,6 +558,17 @@ export function PlatformWorkspace({
           onSubmit={handleCreateTicket}
         />
       )}
+
+      {/* Global Navigation Search Modal (Cmd+K) */}
+      <GlobalPortalSearch
+        isOpen={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        role="platform"
+        onNavigate={(panel) => {
+          setTab(panel);
+          if (onSelectPanel) onSelectPanel(panel);
+        }}
+      />
 
     </div>
   );

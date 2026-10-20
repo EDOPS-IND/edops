@@ -19,7 +19,9 @@ import {
   X,
   Plus,
   ShieldCheck,
+  Search,
 } from "lucide-react";
+import { GlobalPortalSearch } from "../components/global-portal-search";
 import {
   loadRoleWorkspace,
   getParentChildDetails,
@@ -155,6 +157,18 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
   const [queryModalOpen, setQueryModalOpen] = useState(initialModal === "query" || initialModal === "grievance");
   const [reportModalOpen, setReportModalOpen] = useState(initialModal === "report-card");
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [searchModalOpen, setSearchModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, []);
 
   useEffect(() => {
     if (initialModal === "leave" || initialModal === "apply-leave") setLeaveModalOpen(true);
@@ -539,6 +553,29 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
 
           {/* Header Right: Ward Switcher & Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            {/* Quick Spotlight Search */}
+            <button
+              type="button"
+              onClick={() => setSearchModalOpen(true)}
+              style={{
+                all: "unset",
+                boxSizing: "border-box",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "6px 12px",
+                background: "#f8fafc",
+                border: "1px solid #e4e6e9",
+                borderRadius: "8px",
+                color: "#64748b",
+                cursor: "pointer",
+                transition: "border-color 0.15s ease",
+              }}
+            >
+              <Search size={14} style={{ color: "#64748b" }} />
+              <span style={{ fontSize: "12px", color: "#64748b" }}>Search portal...</span>
+              <kbd style={{ fontSize: "10px", color: "#94a3b8", background: "#f1f5f9", padding: "1px 4px", borderRadius: "3px" }}>⌘K</kbd>
+            </button>
             {/* Quick Ward Switcher in Header */}
             <div
               style={{
@@ -860,6 +897,14 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
         isOpen={reportModalOpen}
         onClose={() => setReportModalOpen(false)}
         selectedWard={selectedWard}
+      />
+
+      {/* Global Navigation Search Modal (Cmd+K) */}
+      <GlobalPortalSearch
+        isOpen={searchModalOpen}
+        onClose={() => setSearchModalOpen(false)}
+        role="parent"
+        onNavigate={(tab) => navigateTo(tab as ParentTab)}
       />
     </div>
   );
