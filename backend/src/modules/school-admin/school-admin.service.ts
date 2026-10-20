@@ -42,13 +42,20 @@ export class SchoolAdminService {
       if (!org) throw new NotFoundException('Organization not found');
       return org;
     }
-    const [membership] = await manager.query(
-      "SELECT * FROM memberships WHERE organization_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1",
-      [orgId, actor.id],
-    );
-    if (!membership) throw new NotFoundException('Organization not found');
-    if (membership.role !== 'school_admin' && !(principalTimetable && membership.role === 'principal')) {
-      throw new ForbiddenException('School administrator access required');
+    const tokenRole = (actor as any).roles?.[orgId];
+    if (tokenRole) {
+      if (tokenRole !== 'school_admin' && !(principalTimetable && tokenRole === 'principal')) {
+        throw new ForbiddenException('School administrator access required');
+      }
+    } else {
+      const [membership] = await manager.query(
+        "SELECT * FROM memberships WHERE organization_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1",
+        [orgId, actor.id],
+      );
+      if (!membership) throw new NotFoundException('Organization not found');
+      if (membership.role !== 'school_admin' && !(principalTimetable && membership.role === 'principal')) {
+        throw new ForbiddenException('School administrator access required');
+      }
     }
     const [org] = await manager.query('SELECT * FROM organizations WHERE id = $1 LIMIT 1', [orgId]);
     if (!org) throw new NotFoundException('Organization not found');

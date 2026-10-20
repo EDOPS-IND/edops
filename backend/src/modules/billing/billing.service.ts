@@ -797,7 +797,7 @@ export class BillingService {
       const latencyMs = Date.now() - start;
       const [storage] = await m.query(`SELECT COALESCE(SUM(size_bytes), 0)/1073741824.0 AS used FROM recorded_sessions`);
       const [events] = await m.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE failed_at IS NOT NULL)::int AS failed FROM domain_events`);
-      const [sess] = await m.query(`SELECT COUNT(*)::int AS count FROM sessions WHERE expire > now()`);
+      const [sess] = await m.query(`SELECT COUNT(DISTINCT user_id)::int AS count FROM user_refresh_tokens WHERE expires_at > now() AND revoked_at IS NULL`);
       const [dau] = await m.query(`SELECT COUNT(DISTINCT actor_id)::int AS count FROM audit_events WHERE created_at >= now() - INTERVAL '24 hours' AND actor_id IS NOT NULL`);
       const errorRateNum = events.total ? Number(((events.failed / events.total) * 100).toFixed(2)) : 0;
       const isHealthy = errorRateNum < 5 && latencyMs < 1000;

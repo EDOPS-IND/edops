@@ -83,6 +83,8 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
         );
         CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_lookup ON password_reset_tokens(token_hash);
       `);
+      // Cleanup legacy session table: authentication is now fully stateless JWT
+      await this.pool.query('DROP TABLE IF EXISTS sessions CASCADE;');
     } catch {
       // Non-blocking schema guard
     }

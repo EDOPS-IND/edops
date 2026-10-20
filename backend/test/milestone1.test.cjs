@@ -24,7 +24,7 @@ test('configuration rejects unsafe or malformed values', () => {
     { SESSION_SECRET: 'short' }, { DATABASE_URL: 'https://example.com' },
     { DATABASE_SCHEMA: 'public;drop schema public' }, { PORT: '0' },
     { NODE_ENV: 'invalid' }, { CORS_ORIGINS: '*' }, { CORS_ORIGINS: `${origin}/path` },
-    { NODE_ENV: 'production' }, { TRUST_PROXY: 'true' }, { TRUST_PROXY: '1' }, { DATABASE_SSL: 'maybe' },
+    { NODE_ENV: 'production', CORS_ORIGINS: 'http://insecure-domain.com' }, { TRUST_PROXY: 'true' }, { TRUST_PROXY: '1' }, { DATABASE_SSL: 'maybe' },
   ]) assert.throws(() => loadConfig({ ...baseEnv, ...override }));
 });
 

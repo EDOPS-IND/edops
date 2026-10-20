@@ -4,9 +4,11 @@ import crypto from "node:crypto";
 export interface JwtPayload {
   sub: string; // userId
   email: string;
+  name?: string;
   isPlatformAdmin: boolean;
   schoolId?: string;
   role?: string;
+  roles?: Record<string, string>;
 }
 
 const JWT_SECRET =

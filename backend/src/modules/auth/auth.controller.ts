@@ -48,13 +48,21 @@ export class AuthController {
       maxAge: 14 * 24 * 60 * 60 * 1000,
     });
 
+    const userProfile = await this.auth.profile(user);
+    const rolesMap: Record<string, string> = {};
+    for (const org of userProfile.organizations) {
+      if (org.id && org.role) rolesMap[org.id] = org.role;
+    }
+
     const { signAccessToken } = await import('./jwt.util');
     const accessToken = signAccessToken({
       sub: user.id,
       email: user.email,
+      name: user.name ?? undefined,
       isPlatformAdmin: user.isPlatformAdmin,
+      roles: rolesMap,
     });
-    return { ...(await this.auth.profile(user)), accessToken, refreshToken };
+    return { ...userProfile, accessToken, refreshToken };
   }
 
   @Public()
@@ -181,16 +189,6 @@ export class AuthController {
     response.clearCookie('edops_refresh_token', {
       path: '/', httpOnly: true, sameSite: 'lax', secure: this.config.environment === 'production',
     });
-    const sessionCookie = request.cookies?.[this.config.cookieName];
-    if (sessionCookie) {
-      const sid = typeof sessionCookie === 'string' && sessionCookie.startsWith('s:')
-        ? sessionCookie.slice(2).split('.')[0]
-        : sessionCookie;
-      await this.auth.drizzle.query(`DELETE FROM sessions WHERE sid = $1`, [sid]);
-      response.clearCookie(this.config.cookieName, {
-        path: '/', httpOnly: true, sameSite: 'lax', secure: this.config.environment === 'production',
-      });
-    }
     if (user) {
       await this.auth.recordLogout(user);
     }

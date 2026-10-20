@@ -34,12 +34,16 @@ export class AuthService {
       const { verifyAccessToken } = await import('./jwt.util');
       const payload = verifyAccessToken(token);
       if (!payload?.sub) return null;
-      const [user] = await this.drizzle.query(
-        `SELECT id, email, name, phone, is_platform_admin AS "isPlatformAdmin", is_active AS "isActive", created_at AS "createdAt"
-         FROM users WHERE id = $1 AND is_active = true LIMIT 1`,
-        [payload.sub]
-      );
-      return user ?? null;
+
+      return {
+        id: payload.sub,
+        email: payload.email,
+        name: payload.name || payload.email.split('@')[0],
+        isPlatformAdmin: Boolean(payload.isPlatformAdmin),
+        isActive: true,
+        createdAt: new Date(),
+        ...(payload.roles ? { roles: payload.roles } : {}),
+      } as unknown as User;
     } catch {
       return null;
     }
@@ -50,25 +54,6 @@ export class AuthService {
     const authString = typeof authHeader === 'string' ? authHeader : '';
     if (authString.startsWith('Bearer ')) {
       return this.userFromJwt(authString.substring(7).trim());
-    }
-    const rawCookie = request.cookies?.[this.config.cookieName];
-    if (rawCookie) {
-      const sid = typeof rawCookie === 'string' && rawCookie.startsWith('s:')
-        ? rawCookie.slice(2).split('.')[0]
-        : rawCookie;
-      const [session] = await this.drizzle.query(
-        `SELECT sess FROM sessions WHERE sid = $1 AND expire > NOW() LIMIT 1`,
-        [sid]
-      );
-      const userId = session?.sess?.userId;
-      if (userId) {
-        const [user] = await this.drizzle.query(
-          `SELECT id, email, name, phone, password_hash AS "passwordHash", is_platform_admin AS "isPlatformAdmin", is_active AS "isActive", created_at AS "createdAt"
-           FROM users WHERE id = $1 AND is_active = true LIMIT 1`,
-          [userId]
-        );
-        if (user) return user;
-      }
     }
     return null;
   }
@@ -115,11 +100,19 @@ export class AuthService {
     );
     if (!user) return null;
 
+    const userProfile = await this.profile(user);
+    const rolesMap: Record<string, string> = {};
+    for (const org of userProfile.organizations) {
+      if (org.id && org.role) rolesMap[org.id] = org.role;
+    }
+
     const newRefreshToken = await this.createRefreshToken(user.id);
     const accessToken = signAccessToken({
       sub: user.id,
       email: user.email,
+      name: user.name ?? undefined,
       isPlatformAdmin: user.isPlatformAdmin,
+      roles: rolesMap,
     });
     return { user, newRefreshToken, accessToken };
   }
@@ -242,7 +235,6 @@ export class AuthService {
       await manager.query(`UPDATE users SET password_hash = $1 WHERE id = $2`, [newPasswordHash, record.user_id]);
       await manager.query(`UPDATE password_reset_tokens SET used_at = NOW() WHERE id = $1`, [record.id]);
       await manager.query(`UPDATE user_refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL`, [record.user_id]);
-      await manager.query(`DELETE FROM sessions WHERE sess->>'userId' = $1`, [record.user_id]);
       await this.audit.record(manager, { organizationId: null, actorId: record.user_id, action: 'auth.password_reset' });
     });
   }
@@ -277,7 +269,6 @@ export async function resetUserPassword(drizzle: DrizzleService, email: string, 
     if (!user) throw new BadRequestException(`No account found with email '${normalized}'`);
     await manager.query('UPDATE users SET password_hash = $1 WHERE id = $2', [passwordHash, user.id]);
     await manager.query('UPDATE user_refresh_tokens SET revoked_at = NOW() WHERE user_id = $1 AND revoked_at IS NULL', [user.id]);
-    await manager.query(`DELETE FROM sessions WHERE sess->>'userId' = $1`, [user.id]);
     await audit.record(manager, { organizationId: null, actorId: user.id, action: 'auth.cli_password_reset' });
     return user.id;
   });

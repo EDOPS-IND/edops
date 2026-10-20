@@ -36,12 +36,16 @@ export class AuthGuard implements CanActivate {
       const rawOrgId = request.params?.organizationId;
       const orgId = typeof rawOrgId === 'string' ? rawOrgId : Array.isArray(rawOrgId) ? rawOrgId[0] : undefined;
       if (orgId) {
-        const [membership] = await this.auth.drizzle.query(
-          `SELECT role FROM memberships WHERE organization_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1`,
-          [orgId, user.id]
-        );
+        let role = (user as any).roles?.[orgId];
+        if (!role) {
+          const [membership] = await this.auth.drizzle.query(
+            `SELECT role FROM memberships WHERE organization_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1`,
+            [orgId, user.id]
+          );
+          role = membership?.role;
+        }
         const { requireFeature } = await import('../modules/billing/entitlements');
-        await requireFeature(this.auth.drizzle, orgId, featureKey, membership?.role);
+        await requireFeature(this.auth.drizzle, orgId, featureKey, role);
       }
     }
 

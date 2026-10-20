@@ -42,7 +42,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     try {
       const url = new URL(origin);
       if (url.origin !== origin || !['http:', 'https:'].includes(url.protocol)) throw new Error();
-      if (environment === 'production' && url.protocol !== 'https:') throw new Error();
+      if (environment === 'production' && url.protocol !== 'https:' && url.hostname !== 'localhost') throw new Error();
     } catch {
       throw new Error('CORS_ORIGINS must contain exact HTTP origins (HTTPS in production)');
     }
