@@ -267,6 +267,17 @@ export function SchoolAdminWorkspace({
     return () => window.removeEventListener("keydown", handleGlobalKey);
   }, []);
 
+  React.useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchModalOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, []);
+
   const go = (tab: SchoolAdminTab, subTab?: string) => {
     if (tab === "assignments") {
       if (!available("learning")) return;
