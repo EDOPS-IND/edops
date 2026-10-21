@@ -346,7 +346,7 @@ export function PlatformWorkspace({
               display: "flex",
               alignItems: "center",
               gap: "8px",
-              minWidth: "280px",
+              minWidth: "min(280px, 100%)",
               padding: "7px 12px",
               borderRadius: "7px",
               border: "1px solid #D1D5DB",
@@ -425,7 +425,7 @@ export function PlatformWorkspace({
                 display: "inline-flex", alignItems: "center", gap: "7px", padding: "7px 14px", borderRadius: "7px",
                 border: "1px solid", borderColor: isActive ? "#064E3B" : "#E2DDD5",
                 background: isActive ? "#064E3B" : "#FFFFFF", color: isActive ? "#F8E7C9" : "#4B5563",
-                fontWeight: 700, fontSize: "12.5px", cursor: "pointer", whiteSpace: "nowrap", transition: "all 0.15s ease",
+                fontWeight: 700, fontSize: "12.5px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0, transition: "all 0.15s ease",
               }}
             >
               <Icon size={15} />

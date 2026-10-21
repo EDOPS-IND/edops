@@ -27,6 +27,8 @@ import {
   Settings,
   ShieldCheck,
   CheckCircle2,
+  Menu,
+  X,
 } from 'lucide-react';
 
 import { OrganizationSummary, getTeacherClasses, getStudentAvatarUrl } from '../edops-api';
@@ -119,6 +121,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
   const [interventionModalOpen, setInterventionModalOpen] = useState(initialModal === "intervention");
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudentId || null);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
@@ -347,13 +350,12 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
       <aside
         id="sidebar"
         aria-label="Teacher primary navigation"
+        className="workspace-aside"
         style={{
           width: "240px",
           flexShrink: 0,
           background: S.sidebarBg,
           color: "#fff",
-          display: "flex",
-          flexDirection: "column",
           height: "100vh",
           position: "sticky",
           top: 0,
@@ -576,28 +578,23 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0 }}>
         {/* Header Bar - Exactly 68px matching Student Workspace */}
         <header
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: "16px",
-            height: "68px",
-            padding: "0 32px",
-            background: "#fff",
-            borderBottom: "1px solid rgba(206, 216, 229, 0.97)",
-            position: "sticky",
-            top: 0,
-            zIndex: 30,
-            flexShrink: 0,
-          }}
+          className="workspace-header"
         >
           {/* Header Title & Crumb */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", whiteSpace: "nowrap" }}>
-            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: S.navy }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", whiteSpace: "nowrap", minWidth: 0 }}>
+            <button
+              type="button"
+              aria-label="Open teacher navigation"
+              className="workspace-hamburger-btn"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu size={18} />
+            </button>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: S.navy, overflow: "hidden", textOverflow: "ellipsis" }}>
               Teacher Command Center
             </p>
-            <span style={{ width: "1px", height: "16px", background: S.line }} />
-            <p style={{ margin: 0, fontSize: "13px", color: S.slate }}>
+            <span className="hidden sm:inline-block" style={{ width: "1px", height: "16px", background: S.line }} />
+            <p className="hidden sm:inline-block" style={{ margin: 0, fontSize: "13px", color: S.slate }}>
               {pageTitles[activeTab] || "Command Center"}
             </p>
 
@@ -626,17 +623,17 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
             )}
           </div>
 
-          {/* Header Actions (Preserving Teacher Action Buttons with Student Styling) */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {/* Header Actions */}
+          <div className="workspace-header-actions">
             {/* Quick Action Button 1: Mark Attendance */}
             <button
               type="button"
               onClick={() => handleOpenAttendance()}
+              className="hidden sm:inline-flex"
               style={{
-                display: "inline-flex",
                 alignItems: "center",
                 gap: "7px",
-                padding: "8px 14px",
+                padding: "8px 12px",
                 border: `1px solid ${S.line}`,
                 borderRadius: "6px",
                 background: "#ffffff",
@@ -658,18 +655,18 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
               }}
             >
               <CheckSquare size={14} style={{ color: S.navy }} />
-              <span>Mark Attendance</span>
+              <span className="hidden sm:inline">Mark Attendance</span>
             </button>
 
             {/* Quick Action Button 2: + New Assignment */}
             <button
               type="button"
               onClick={() => setAssignmentModalOpen(true)}
+              className="hidden sm:inline-flex"
               style={{
-                display: "inline-flex",
                 alignItems: "center",
                 gap: "7px",
-                padding: "8px 15px",
+                padding: "8px 12px",
                 border: `1px solid ${S.navy}`,
                 borderRadius: "6px",
                 background: S.navy,
@@ -685,36 +682,19 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
               onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
             >
               <Plus size={14} strokeWidth={2.5} style={{ color: "#ffffff" }} />
-              <span>New Assignment</span>
+              <span className="hidden sm:inline">New Assignment</span>
             </button>
 
             {/* Search Box */}
             <button
               type="button"
               onClick={() => setSearchModalOpen(true)}
-              style={{
-                all: "unset",
-                boxSizing: "border-box",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                width: "180px",
-                padding: "6px 14px",
-                background: S.chip,
-                border: "1px solid #ebedf2",
-                borderRadius: "6px",
-                color: S.slate,
-                cursor: "pointer",
-                transition: "border-color 0.15s ease",
-              }}
+              className="workspace-search-btn"
+              aria-label="Search"
             >
-              <Search size={14} style={{ flexShrink: 0, color: S.slate }} />
-              <span style={{ fontSize: "12.5px", color: S.slate, width: "100%", textAlign: "left" }}>
-                Search...
-              </span>
-              <span style={{ fontSize: "10.5px", color: S.faint, whiteSpace: "nowrap", flexShrink: 0 }}>
-                ⌘ K
-              </span>
+              <Search size={15} style={{ flexShrink: 0, color: "#64748b" }} className="search-icon" />
+              <span className="search-label">Search...</span>
+              <kbd className="search-kbd">⌘ K</kbd>
             </button>
 
             {/* Action Icon Group */}
@@ -825,21 +805,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
                       onClick={() => setProfileMenuOpen(false)}
                     />
                     <div
-                      style={{
-                        position: "absolute",
-                        top: "calc(100% + 8px)",
-                        right: 0,
-                        zIndex: 100,
-                        width: "240px",
-                        background: "#ffffff",
-                        border: `1px solid ${S.border}`,
-                        borderRadius: "12px",
-                        boxShadow: "0 10px 25px -5px rgba(12, 30, 51, 0.15), 0 8px 10px -6px rgba(12, 30, 51, 0.1)",
-                        padding: "8px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "4px",
-                      }}
+                      className="workspace-profile-dropdown"
                     >
                       <div style={{ padding: "10px 12px", borderBottom: `1px solid ${S.border}`, marginBottom: "4px" }}>
                         <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: S.navy }}>
@@ -931,10 +897,8 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
             M A I N   C O N T E N T   B O D Y
         ═══════════════════════════════════════════════ */}
         <main
+          className="workspace-content-canvas"
           style={{
-            flex: 1,
-            padding: "28px 32px 32px",
-            boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
             gap: "24px",
@@ -992,7 +956,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
 
               {activeTab === 'learning' && (
                 <LearningPane
-                  key={`learning-${lessonRefreshKey}-${activeSubTab}`}
+                  key={`learning-${lessonRefreshKey}`}
                   organizationId={organization.id}
                   initialTab={activeSubTab}
                   onTabChange={(sub) => navigateTo('learning', sub)}
@@ -1003,7 +967,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
 
               {activeTab === 'assignments' && (
                 <AssignmentsPane
-                  key={`assign-${assignmentRefreshKey}-${activeSubTab}`}
+                  key={`assign-${assignmentRefreshKey}`}
                   organizationId={organization.id}
                   initialTab={activeSubTab}
                   onTabChange={(sub) => navigateTo('assignments', sub)}
@@ -1025,7 +989,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
 
               {activeTab === 'students' && (
                 <StudentsPane
-                  key={`students-${studentsRefreshKey}-${activeSubTab}`}
+                  key={`students-${studentsRefreshKey}`}
                   organizationId={organization.id}
                   initialTab={activeSubTab}
                   onTabChange={(sub) => navigateTo('students', sub)}
@@ -1043,7 +1007,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
 
               {activeTab === 'communication' && (
                 <CommunicationPane
-                  key={`comm-${activeSubTab}`}
+                  key="comm"
                   organizationId={organization.id}
                   initialTab={activeSubTab}
                   onTabChange={(sub) => navigateTo('communication', sub)}
@@ -1069,6 +1033,114 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
           )}
         </main>
       </div>
+
+      {/* MOBILE DRAWER */}
+      {mobileMenuOpen && (
+        <div className="workspace-drawer-backdrop">
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="workspace-drawer-overlay"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="workspace-drawer">
+            {/* Top brand header with logo just like desktop view */}
+            <div
+              style={{
+                height: "68px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "0 18px",
+                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}
+                onClick={() => { setMobileMenuOpen(false); navigateTo('dashboard'); }}
+                title="EDOPS Teacher Portal"
+              >
+                <img
+                  src="/EDOPSLogo.png"
+                  alt="EDOPS Teacher Portal"
+                  style={{
+                    height: "34px",
+                    width: "auto",
+                    maxWidth: "130px",
+                    display: "block",
+                    objectFit: "contain",
+                    filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                aria-label="Close navigation"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  all: "unset",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  color: "#94a3b8",
+                  background: "rgba(255, 255, 255, 0.05)",
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <nav style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: "3px" }}>
+              {[
+                { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+                ...primaryInstructionItems,
+                ...extraTeacherItems,
+              ].map((item) => {
+                const Icon = item.icon;
+                const active = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      navigateTo(item.id as TeacherTab);
+                    }}
+                    className={`drawer-nav-item ${active ? "active" : ""}`}
+                    style={{
+                      all: "unset",
+                      boxSizing: "border-box",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "11px",
+                      width: "100%",
+                      height: "40px",
+                      padding: "0 12px",
+                      borderRadius: "10px",
+                      fontSize: "13.5px",
+                      fontWeight: active ? 600 : 500,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      background: active ? S.itemActiveBg : "transparent",
+                      color: active ? "#ffffff" : "#cbd5e1",
+                      borderLeft: active ? "3px solid #F8E7C9" : "3px solid transparent",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <Icon size={17} style={{ flexShrink: 0, color: active ? "#F8E7C9" : "#94a3b8" }} />
+                    <span style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      )}
 
       {/* Global Modals & Drawers */}
       <QuickAttendanceModal

@@ -487,7 +487,7 @@ export function DashboardPane({
       {/* ═══════════════════════════════════════════════
           3. DUAL STATUS: HEALTH PILLARS & TODAY'S OPERATIONS
       ═══════════════════════════════════════════════ */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 0.9fr", gap: "20px" }}>
+      <div className="portal-split-grid" style={{ gap: "20px" }}>
         {/* Left: Explainable Academic Health Pillars Card */}
         <div
           style={{
@@ -794,7 +794,7 @@ export function DashboardPane({
       {/* ═══════════════════════════════════════════════
           5. ATTENTION ENGINE & LIVE AUDIT TRAIL
       ═══════════════════════════════════════════════ */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "20px" }}>
+      <div className="portal-split-grid" style={{ gap: "20px" }}>
         {/* Attention Engine */}
         <div
           style={{

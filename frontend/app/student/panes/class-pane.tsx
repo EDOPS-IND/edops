@@ -267,7 +267,7 @@ export const ClassPane: React.FC<ClassPaneProps> = ({ organizationId }) => {
       >
         <div
           style={{
-            padding: '18px 24px',
+            padding: '16px clamp(14px, 3vw, 24px)',
             borderBottom: `1px solid ${T.border}`,
             display: 'flex',
             alignItems: 'center',
@@ -290,7 +290,7 @@ export const ClassPane: React.FC<ClassPaneProps> = ({ organizationId }) => {
               <div
                 key={ann.id || idx}
                 style={{
-                  padding: '16px 24px',
+                  padding: '14px clamp(14px, 3vw, 24px)',
                   borderBottom: idx === announcements.length - 1 ? 'none' : `1px solid ${T.border}`,
                   display: 'flex',
                   flexDirection: 'column',
@@ -322,7 +322,7 @@ export const ClassPane: React.FC<ClassPaneProps> = ({ organizationId }) => {
           background: T.white,
           border: `1px solid ${T.border}`,
           borderRadius: '10px',
-          padding: '20px 24px',
+          padding: 'clamp(14px, 3vw, 20px) clamp(14px, 3vw, 24px)',
           display: 'flex',
           flexDirection: 'column',
           gap: '16px',
@@ -357,7 +357,7 @@ export const ClassPane: React.FC<ClassPaneProps> = ({ organizationId }) => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 220px), 1fr))',
             gap: '10px',
           }}
         >
@@ -367,19 +367,23 @@ export const ClassPane: React.FC<ClassPaneProps> = ({ organizationId }) => {
               <div
                 key={idx}
                 style={{
-                  padding: '12px 14px',
-                  borderRadius: '6px',
+                  padding: '10px 14px',
+                  borderRadius: '8px',
                   border: isSelf ? `1px solid ${T.navy}` : `1px solid ${T.border}`,
                   background: isSelf ? '#f0f4f8' : T.pageBg,
                   display: 'flex',
                   alignItems: 'center',
                   gap: '12px',
+                  minWidth: 0,
+                  boxSizing: 'border-box',
                 }}
               >
                 <div
                   style={{
-                    width: '32px',
-                    height: '32px',
+                    width: '36px',
+                    height: '36px',
+                    minWidth: '36px',
+                    minHeight: '36px',
                     borderRadius: '50%',
                     background: isSelf ? T.navy : T.chip,
                     color: isSelf ? '#ffffff' : T.navy,
@@ -393,11 +397,11 @@ export const ClassPane: React.FC<ClassPaneProps> = ({ organizationId }) => {
                 >
                   {mate.rollNumber}
                 </div>
-                <div style={{ overflow: 'hidden' }}>
+                <div style={{ flex: 1, minWidth: 0, overflow: 'hidden' }}>
                   <div style={{ fontSize: '13px', fontWeight: isSelf ? 700 : 500, color: T.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {mate.name} {isSelf && '(You)'}
                   </div>
-                  <div style={{ fontSize: '11px', color: T.slate }}>
+                  <div style={{ fontSize: '11px', color: T.slate, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     Roll No. {mate.rollNumber}
                   </div>
                 </div>
