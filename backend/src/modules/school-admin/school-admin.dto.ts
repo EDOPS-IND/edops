@@ -16,6 +16,34 @@ import {
   Min,
 } from "class-validator";
 
+export class DirectAdmitStudentDto {
+  @ApiProperty({ description: "Student full name" })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(120)
+  name!: string;
+
+  @ApiProperty({ description: "Student email address" })
+  @IsNotEmpty()
+  @IsString()
+  email!: string;
+
+  @ApiPropertyOptional({ description: "Contact phone number" })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiPropertyOptional({ description: "Assigned academic section UUID" })
+  @IsOptional()
+  @IsUUID()
+  sectionId?: string;
+
+  @ApiPropertyOptional({ description: "Custom admission number" })
+  @IsOptional()
+  @IsString()
+  admissionNo?: string;
+}
+
 export class UpdateLeaveStatusDto {
   @ApiProperty({ enum: ["approved", "rejected"] })
   @IsEnum(["approved", "rejected"])

@@ -24,7 +24,7 @@ import {
 import {
   createSchoolAdminBroadcast, createSchoolAdminLeave,
   createSchoolAdminDiscipline, createSchoolAdminDepartment,
-  createSchoolInvitation, getSchoolAdminAcademics, getSchoolAdminStudents,
+  createSchoolInvitation, directAdmitStudent, getSchoolAdminAcademics, getSchoolAdminStudents,
   getSchoolAdminTeachers, createAcademicSection, createAcademicProgram,
   getStudentAvatarUrl,
   createSchoolAdminExam,
@@ -267,17 +267,6 @@ export function SchoolAdminWorkspace({
     return () => window.removeEventListener("keydown", handleGlobalKey);
   }, []);
 
-  React.useEffect(() => {
-    const handleGlobalKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setSearchModalOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener("keydown", handleGlobalKey);
-    return () => window.removeEventListener("keydown", handleGlobalKey);
-  }, []);
-
   const go = (tab: SchoolAdminTab, subTab?: string) => {
     if (tab === "assignments") {
       if (!available("learning")) return;
@@ -345,6 +334,7 @@ export function SchoolAdminWorkspace({
   const [examStartTime, setExamStartTime] = useState("09:00");
   const [examEndTime, setExamEndTime] = useState("12:00");
   const [examMaxMarks, setExamMaxMarks] = useState(100);
+  const [directAddWithoutInvite, setDirectAddWithoutInvite] = useState(false);
 
   const isPersonAction = ["addPrincipal", "addTeacher", "addStudent", "addStaff", "mapParent", "addParent"].includes(quickActionModal || "");
   const isDepartmentAction = quickActionModal === "addDepartment";
@@ -371,6 +361,7 @@ export function SchoolAdminWorkspace({
       setSectionYearId(""); setSectionProgramId(""); setSectionName("A"); setSectionCapacity(40);
       setIsCreatingNewClass(false); setNewClassName(""); setNewClassOrder(10);
       setCreatedInvite(null); setCopiedLink(false); setActionError("");
+      setDirectAddWithoutInvite(false);
       setQuickActionModal(act);
 
       if (act === "sendBroadcast") {
@@ -442,6 +433,18 @@ export function SchoolAdminWorkspace({
     try {
       if (organizationId) {
         if (isPersonAction) {
+          if (detectedRole === "student" && directAddWithoutInvite) {
+            await directAdmitStudent(organizationId, {
+              name: personName.trim(),
+              email: personEmail.trim().toLowerCase(),
+              phone: personPhone.trim() || undefined,
+              sectionId: selectedSectionId || undefined,
+            });
+            setRefreshKey((k) => k + 1);
+            setQuickActionModal(null);
+            return;
+          }
+
           const res = await createSchoolInvitation(organizationId, {
             name: personName.trim() || undefined,
             email: personEmail.trim().toLowerCase(),
@@ -636,6 +639,7 @@ export function SchoolAdminWorkspace({
           height: "100vh",
           position: "sticky",
           top: 0,
+          alignSelf: "flex-start",
           padding: 0,
           boxSizing: "border-box",
           zIndex: 40,
@@ -736,7 +740,7 @@ export function SchoolAdminWorkspace({
       {/* ═══════════════════════════════════════════════
           M A I N   C O N T E N T   &   H E A D E R
       ═══════════════════════════════════════════════ */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh" }}>
         {/* Top bar - Exactly 68px height matching Command Center Spec */}
         <header
           className="workspace-header"
@@ -1532,6 +1536,42 @@ export function SchoolAdminWorkspace({
                               </select>
                             </label>
                           )}
+
+                          {/* Admission Option: Invite vs Direct Add */}
+                          <div
+                            style={{
+                              marginTop: "4px",
+                              padding: "12px",
+                              borderRadius: "8px",
+                              background: "#F8FAFC",
+                              border: "1px solid #E2E8F0",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "8px",
+                            }}
+                          >
+                            <span style={{ fontSize: "12px", fontWeight: 600, color: "#1E293B" }}>
+                              Admission &amp; Invitation Mode
+                            </span>
+                            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
+                              <input
+                                type="radio"
+                                name="studentAdmissionMode"
+                                checked={!directAddWithoutInvite}
+                                onChange={() => setDirectAddWithoutInvite(false)}
+                              />
+                              <span><b>Send Invitation Link</b> (Generates invite token &amp; sends invitation email)</span>
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
+                              <input
+                                type="radio"
+                                name="studentAdmissionMode"
+                                checked={directAddWithoutInvite}
+                                onChange={() => setDirectAddWithoutInvite(true)}
+                              />
+                              <span><b>Directly Add Student to Register</b> (No invitation email sent now; marked as Not Sent)</span>
+                            </label>
+                          </div>
                         </>
                       )}
 
@@ -2460,6 +2500,8 @@ export function SchoolAdminWorkspace({
                     >
                       {actionBusy
                         ? "Processing…"
+                        : detectedRole === "student" && directAddWithoutInvite
+                        ? "Directly Admit Student"
                         : isPersonAction
                         ? "Generate Invite Link"
                         : isDepartmentAction

@@ -244,6 +244,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
           height: "100vh",
           position: "sticky",
           top: 0,
+          alignSelf: "flex-start",
           overflow: "hidden",
           zIndex: 40,
         }}

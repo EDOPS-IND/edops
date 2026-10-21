@@ -336,6 +336,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
           height: "100vh",
           position: "sticky",
           top: 0,
+          alignSelf: "flex-start",
           padding: 0,
           boxSizing: "border-box",
           zIndex: 40,

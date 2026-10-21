@@ -17,6 +17,7 @@ import {
   updateParentChildren,
   updateTeacherEmployment,
   getStudentAvatarUrl,
+  sendStudentInvite,
 } from "../edops-api";
 import {
   Users,
@@ -75,6 +76,43 @@ export function PeoplePane({
   const [student360Tab, setStudent360Tab] = useState<
     "personal" | "academic" | "parents" | "attendance" | "assignments" | "exams" | "results" | "fees" | "leave" | "discipline" | "documents" | "communication" | "activity"
   >("personal");
+
+  // Invite actions state
+  const [sendingInviteStudentId, setSendingInviteStudentId] = useState<string | null>(null);
+  const [inviteFeedback, setInviteFeedback] = useState<{ id: string; msg: string; error?: boolean } | null>(null);
+
+  const handleSendInvite = async (s: StudentRecord) => {
+    if (!organizationId) return;
+    const studentId = s.id || s.userId;
+    if (!studentId) return;
+    setSendingInviteStudentId(studentId);
+    setInviteFeedback(null);
+    try {
+      const res = await sendStudentInvite(organizationId, studentId);
+      if (res && res.success) {
+        setStudents((prev) =>
+          prev.map((item) =>
+            item.id === s.id || item.userId === studentId
+              ? {
+                  ...item,
+                  inviteStatus: "pending",
+                  inviteToken: res.token,
+                  inviteExpiresAt: res.expiresAt,
+                }
+              : item
+          )
+        );
+        setInviteFeedback({ id: studentId, msg: "Invite sent" });
+        setTimeout(() => setInviteFeedback(null), 3500);
+      } else {
+        setInviteFeedback({ id: studentId, msg: "Failed to send", error: true });
+      }
+    } catch (err: any) {
+      setInviteFeedback({ id: studentId, msg: err?.message || "Error sending invite", error: true });
+    } finally {
+      setSendingInviteStudentId(null);
+    }
+  };
 
   // Selected Teacher for Workload Modal
   const [selectedTeacher, setSelectedTeacher] = useState<TeacherRecord | null>(null);
@@ -520,13 +558,14 @@ export function PeoplePane({
                   <th style={{ padding: "12px 10px" }}>Attendance</th>
                   <th style={{ padding: "12px 10px" }}>Fee Status</th>
                   <th style={{ padding: "12px 10px" }}>Academic Status</th>
+                  <th style={{ padding: "12px 10px" }}>Invite</th>
                   <th style={{ padding: "12px 10px", textAlign: "right" }}>360° Profile</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ padding: "32px 10px", textAlign: "center", color: "#64748b" }}>
+                    <td colSpan={9} style={{ padding: "32px 10px", textAlign: "center", color: "#64748b" }}>
                       {loading ? "Loading students..." : "No student records found."}
                     </td>
                   </tr>
@@ -584,6 +623,101 @@ export function PeoplePane({
                       </td>
                       <td style={{ padding: "12px 10px" }}>
                         <span style={{ fontSize: "12px", fontWeight: 600, color: "#0c1e33" }}>{s.academicStatus}</span>
+                      </td>
+                      <td style={{ padding: "12px 10px" }}>
+                        {(() => {
+                          const status = s.inviteStatus || (s.status === "Pending Invite" ? "pending" : "accepted");
+                          if (status === "accepted") {
+                            return (
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  padding: "2px 8px",
+                                  borderRadius: "10px",
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  background: "#ECFDF5",
+                                  color: "#047857",
+                                }}
+                              >
+                                <CheckCircle2 size={12} /> Accepted
+                              </span>
+                            );
+                          }
+                          if (status === "pending") {
+                            return (
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  padding: "2px 8px",
+                                  borderRadius: "10px",
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  background: "#FEF3C7",
+                                  color: "#92400E",
+                                }}
+                              >
+                                <Clock size={12} /> Pending
+                              </span>
+                            );
+                          }
+                          const studentIdentifier = s.id || s.userId;
+                          const isBusy = sendingInviteStudentId === studentIdentifier;
+                          const feedback = inviteFeedback?.id === studentIdentifier ? inviteFeedback : null;
+                          return (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "4px", alignItems: "flex-start" }}>
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  padding: "2px 8px",
+                                  borderRadius: "10px",
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  background: "#F1F5F9",
+                                  color: "#475569",
+                                }}
+                              >
+                                <Mail size={12} /> Not Sent
+                              </span>
+                              <button
+                                type="button"
+                                disabled={isBusy}
+                                onClick={() => handleSendInvite(s)}
+                                style={{
+                                  padding: "3px 8px",
+                                  borderRadius: "5px",
+                                  border: "1px solid #CBD5E1",
+                                  background: "#FFFFFF",
+                                  color: "#0c1e33",
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  cursor: isBusy ? "wait" : "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  opacity: isBusy ? 0.6 : 1,
+                                  transition: "all 0.15s ease",
+                                }}
+                                onMouseEnter={(e) => { if (!isBusy) e.currentTarget.style.borderColor = "#94A3B8"; }}
+                                onMouseLeave={(e) => { if (!isBusy) e.currentTarget.style.borderColor = "#CBD5E1"; }}
+                              >
+                                <Send size={11} />
+                                {isBusy ? "Sending…" : "Send Invite Link"}
+                              </button>
+                              {feedback && (
+                                <span style={{ fontSize: "10px", color: feedback.error ? "#DC2626" : "#059669", fontWeight: 600 }}>
+                                  {feedback.msg}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: "12px 10px", textAlign: "right" }}>
                         <button

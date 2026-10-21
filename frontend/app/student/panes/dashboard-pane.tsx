@@ -158,7 +158,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             alignItems: "flex-start",
             gap: "12px",
             minWidth: 0,
-            padding: "28px 32px",
+            padding: "24px clamp(16px, 3vw, 32px)",
           }}
         >
           {/* Greeting Row */}
@@ -316,7 +316,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
         </div>
 
         {/* Student Dashboard Illustration */}
-        <div style={{ flexShrink: 0, width: "251px", height: "196px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="dashboard-hero-illustration" style={{ flexShrink: 0, width: "251px", height: "196px", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <img
             src="/studentdashboard.svg"
             alt="Student Dashboard"
@@ -330,9 +330,9 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
       {/* ═══════════════════════════════════════════════
           2. ACADEMIC OVERVIEW HEADER
       ═══════════════════════════════════════════════ */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 600, color: S.navy, whiteSpace: "nowrap" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+          <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 600, color: S.navy }}>
             Your Academic Overview
           </h2>
           <span
@@ -343,13 +343,12 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
               fontSize: "10px",
               fontWeight: 600,
               color: S.slate,
-              whiteSpace: "nowrap",
             }}
           >
             {enrollment.academicYear || "2026–2027"}
           </span>
         </div>
-        <p style={{ margin: 0, fontSize: "11px", color: S.faint, whiteSpace: "nowrap" }}>
+        <p style={{ margin: 0, fontSize: "11px", color: S.faint }}>
           Current academic year
         </p>
       </div>
