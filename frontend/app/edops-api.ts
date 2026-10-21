@@ -272,6 +272,23 @@ export async function getSchoolAdminStudent360(orgId: string, studentId: string)
   return api<any>(`/organizations/${orgId}/school-admin/people/students/${studentId}/360`);
 }
 
+export async function directAdmitStudent(
+  orgId: string,
+  payload: { name: string; email: string; phone?: string; sectionId?: string; admissionNo?: string }
+) {
+  return api<{ success: boolean; studentId: string; admissionNo: string; rollNo?: string; inviteStatus: string }>(
+    `/organizations/${orgId}/school-admin/people/students/direct`,
+    { method: "POST", body: payload }
+  );
+}
+
+export async function sendStudentInvite(orgId: string, studentId: string) {
+  return api<{ success: boolean; invitationId: string; token: string; expiresAt: string; inviteStatus: string }>(
+    `/organizations/${orgId}/school-admin/people/students/${studentId}/send-invite`,
+    { method: "POST" }
+  );
+}
+
 export async function getSchoolAdminTeachers(orgId: string) {
   return api<any[]>(`/organizations/${orgId}/school-admin/people/teachers`);
 }

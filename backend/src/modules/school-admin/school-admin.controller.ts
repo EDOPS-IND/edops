@@ -14,6 +14,7 @@ import {
   CreateSchoolAssetDto,
   CreateTimetableEntryDto,
   CreateTransportVehicleDto,
+  DirectAdmitStudentDto,
   GrantFeeConcessionDto,
   RecordOfflinePaymentDto,
   ScheduleExamDto,
@@ -55,6 +56,27 @@ export class SchoolAdminController {
       search,
       sectionId,
     });
+  }
+
+  @Post('people/students/direct')
+  @ApiOperation({ summary: 'Directly admit student to roster without sending an invitation email' })
+  directAdmitStudent(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: DirectAdmitStudentDto,
+  ) {
+    return this.service.directAdmitStudent(orgId, req.user, dto);
+  }
+
+  @Post('people/students/:studentId/send-invite')
+  @ApiParam({ name: 'studentId', format: 'uuid' })
+  @ApiOperation({ summary: 'Generate and send an invitation link to an admitted student' })
+  sendStudentInvite(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Param('studentId', ParseUUIDPipe) studentId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.sendStudentInvite(orgId, req.user, studentId);
   }
 
   @Get('people/students/:studentId/360')

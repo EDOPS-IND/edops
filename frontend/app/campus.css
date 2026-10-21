@@ -17,7 +17,14 @@
   --navy: #064E3B;
   --coral: #F8E7C9;
 }
-body { background: var(--canvas); color: var(--ink); font-size: 14px; line-height: 1.55; }
+html, body {
+  overflow-x: hidden;
+  max-width: 100%;
+  background: var(--canvas);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.55;
+}
 h1,h2,h3 { letter-spacing: -.025em; }
 button,input,select,textarea { font: inherit; }
 button { transition: background .15s, border-color .15s, box-shadow .15s; }
@@ -1176,9 +1183,10 @@ table {
   padding: 24px clamp(12px, 3vw, 32px) 64px;
   box-sizing: border-box;
   min-width: 0;
+  max-width: 100%;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 850px) {
   .dashboard-hero-illustration {
     display: none !important;
   }

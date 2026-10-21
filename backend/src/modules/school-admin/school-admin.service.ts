@@ -1,6 +1,9 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { AuditService } from '../audit/audit.service';
+import { tokenHash } from '../auth/password';
 import { User } from '../auth/user.entity';
+import { MailService } from '../notifications/mail.service';
 import { Membership, Organization } from '../tenants/tenant.entity';
 import {
   BatchFeeReminderDto,
@@ -15,6 +18,7 @@ import {
   CreateSchoolAssetDto,
   CreateTimetableEntryDto,
   CreateTransportVehicleDto,
+  DirectAdmitStudentDto,
   GrantFeeConcessionDto,
   RecordOfflinePaymentDto,
   ScheduleExamDto,
@@ -34,6 +38,7 @@ export class SchoolAdminService {
   constructor(
     private readonly drizzle: DrizzleService,
     private readonly audit: AuditService,
+    private readonly mail: MailService,
   ) {}
 
   private async authorize(manager: Queryable, orgId: string, actor: User, principalTimetable = false): Promise<Organization> {
@@ -377,7 +382,8 @@ export class SchoolAdminService {
           NULL as "academicStatus",
           (SELECT ROUND(AVG(CASE WHEN ar.status IN ('present','late') THEN 100.0 ELSE 0.0 END),1) FROM attendance_records ar WHERE ar.organization_id=m.organization_id AND ar.student_id=u.id) as "attendancePct",
           NULL::text as "inviteToken",
-          NULL::timestamptz as "inviteExpiresAt"
+          NULL::timestamptz as "inviteExpiresAt",
+          COALESCE(sp.invitation_status, 'accepted') as "inviteStatus"
          FROM memberships m
          JOIN users u ON u.id = m.user_id
          LEFT JOIN enrollments e ON e.student_user_id = u.id AND e.organization_id = m.organization_id
@@ -418,7 +424,8 @@ export class SchoolAdminService {
           NULL as "academicStatus",
           NULL::numeric as "attendancePct",
           i.raw_token as "inviteToken",
-          i.expires_at as "inviteExpiresAt"
+          i.expires_at as "inviteExpiresAt",
+          'pending' as "inviteStatus"
          FROM invitations i
          LEFT JOIN sections sec ON sec.id = i.section_id
          LEFT JOIN programs prog ON prog.id = sec.program_id
@@ -431,6 +438,164 @@ export class SchoolAdminService {
         [orgId, search, sectionId, limit, offset],
       );
       return { items, total, limit, offset };
+    });
+  }
+
+  async directAdmitStudent(orgId: string, actor: User, dto: DirectAdmitStudentDto) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+
+      const email = dto.email.trim().toLowerCase();
+      const name = dto.name.trim();
+      const phone = dto.phone?.trim() || null;
+
+      // 1. Check or create user
+      let [user] = await manager.query('SELECT id, name, email FROM users WHERE email = $1 LIMIT 1', [email]);
+      if (!user) {
+        [user] = await manager.query(
+          `INSERT INTO users (email, name, phone, password_hash)
+           VALUES ($1, $2, $3, '')
+           RETURNING id, name, email`,
+          [email, name, phone]
+        );
+      } else {
+        await manager.query(
+          `UPDATE users SET name = COALESCE(NULLIF(name, ''), $1), phone = COALESCE(phone, $2) WHERE id = $3`,
+          [name, phone, user.id]
+        );
+      }
+
+      // 2. Organization Membership
+      await manager.query(
+        `INSERT INTO memberships (organization_id, user_id, role)
+         VALUES ($1, $2, 'student')
+         ON CONFLICT (organization_id, user_id) DO UPDATE SET role = 'student'`,
+        [orgId, user.id]
+      );
+
+      // 3. Enrollment into section if provided
+      let rollNo = '';
+      if (dto.sectionId) {
+        const [academicYear] = await manager.query(
+          'SELECT id FROM academic_years WHERE organization_id = $1 AND is_current = true LIMIT 1',
+          [orgId]
+        );
+        const yearId = academicYear?.id || (await manager.query('SELECT id FROM academic_years WHERE organization_id = $1 ORDER BY start_date DESC LIMIT 1', [orgId]))[0]?.id;
+        if (yearId) {
+          const [cnt] = await manager.query('SELECT COUNT(*)::int as count FROM enrollments WHERE organization_id = $1', [orgId]);
+          rollNo = `ROLL-${String((cnt?.count || 0) + 1).padStart(3, '0')}`;
+          await manager.query(
+            `INSERT INTO enrollments (organization_id, student_user_id, section_id, academic_year_id, roll_number, status)
+             VALUES ($1, $2, $3, $4, $5, 'active')
+             ON CONFLICT DO NOTHING`,
+            [orgId, user.id, dto.sectionId, yearId, rollNo]
+          );
+        }
+      }
+
+      // 4. Student Profile with invitation_status = 'not_sent'
+      const [admCount] = await manager.query('SELECT COUNT(*)::int as count FROM student_profiles WHERE organization_id = $1', [orgId]);
+      const admNo = dto.admissionNo?.trim() || `ADM-${String((admCount?.count || 0) + 1).padStart(4, '0')}`;
+      await manager.query(
+        `INSERT INTO student_profiles (organization_id, student_user_id, admission_number, status, invitation_status)
+         VALUES ($1, $2, $3, 'active', 'not_sent')
+         ON CONFLICT (organization_id, student_user_id) DO UPDATE SET invitation_status = 'not_sent'`,
+        [orgId, user.id, admNo]
+      );
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: 'student.direct_admit',
+        details: { studentUserId: user.id, email, admissionNo: admNo, sectionId: dto.sectionId },
+      });
+
+      return { success: true, studentId: user.id, admissionNo: admNo, rollNo, inviteStatus: 'not_sent' };
+    });
+  }
+
+  async sendStudentInvite(orgId: string, actor: User, studentId: string) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+
+      const [student] = await manager.query(
+        `SELECT u.id, u.name, u.email, u.phone, e.section_id as "sectionId"
+         FROM users u
+         JOIN memberships m ON m.user_id = u.id AND m.organization_id = $1
+         LEFT JOIN enrollments e ON e.student_user_id = u.id AND e.organization_id = $1
+         WHERE u.id = $2 AND m.role = 'student'
+         LIMIT 1`,
+        [orgId, studentId]
+      );
+
+      let targetEmail = student?.email;
+      let targetName = student?.name;
+      let targetPhone = student?.phone;
+      let targetSectionId = student?.sectionId;
+
+      if (!student) {
+        const [inviteRow] = await manager.query(
+          `SELECT id, email, name, phone, section_id as "sectionId" FROM invitations WHERE organization_id = $1 AND id = $2 LIMIT 1`,
+          [orgId, studentId]
+        );
+        if (inviteRow) {
+          targetEmail = inviteRow.email;
+          targetName = inviteRow.name;
+          targetPhone = inviteRow.phone;
+          targetSectionId = inviteRow.sectionId;
+        } else {
+          throw new NotFoundException('Student record not found');
+        }
+      }
+
+      const token = randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      const [batch] = await manager.query(
+        'INSERT INTO invitation_batches (organization_id, created_by, count) VALUES ($1, $2, 1) RETURNING id',
+        [orgId, actor.id]
+      );
+
+      await manager.query(
+        `UPDATE invitations SET revoked_at = NOW() WHERE organization_id = $1 AND email = $2 AND accepted_at IS NULL AND revoked_at IS NULL`,
+        [orgId, targetEmail]
+      );
+
+      const [invitation] = await manager.query(
+        `INSERT INTO invitations (organization_id, batch_id, email, role, name, phone, section_id, invited_by, expires_at, token_hash, raw_token)
+         VALUES ($1, $2, $3, 'student', $4, $5, $6, $7, $8, $9, $10)
+         RETURNING id, email, raw_token as token`,
+        [
+          orgId,
+          batch.id,
+          targetEmail,
+          targetName || null,
+          targetPhone || null,
+          targetSectionId || null,
+          actor.id,
+          expiresAt,
+          tokenHash(token),
+          token,
+        ]
+      );
+
+      if (student?.id) {
+        await manager.query(
+          `UPDATE student_profiles SET invitation_status = 'pending' WHERE organization_id = $1 AND student_user_id = $2`,
+          [orgId, student.id]
+        );
+      }
+
+      const [orgData] = await manager.query('SELECT name FROM organizations WHERE id = $1 LIMIT 1', [orgId]);
+      this.mail.sendInvitationEmail(targetEmail, token, 'student', orgData?.name, targetName).catch(() => {});
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: 'invitations.sent',
+        details: { studentId, email: targetEmail },
+      });
+
+      return { success: true, invitationId: invitation.id, token, expiresAt, inviteStatus: 'pending' };
     });
   }
 

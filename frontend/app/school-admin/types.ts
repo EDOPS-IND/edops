@@ -43,6 +43,7 @@ export interface StudentRecord {
   address: string;
   emergencyContact: string;
   gpa?: number;
+  inviteStatus?: "accepted" | "pending" | "not_sent" | string;
   inviteToken?: string | null;
   inviteExpiresAt?: string | null;
   [key: string]: any;

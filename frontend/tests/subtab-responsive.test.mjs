@@ -31,6 +31,7 @@ test("principal-workspace maintains stable component keys across views", async (
 
 test("campus.css contains responsive dashboard and modal rules", async () => {
   const css = await readFile(new URL("../app/campus.css", import.meta.url), "utf8");
+  assert.match(css, /html,\s*body\s*{[^}]*overflow-x:\s*hidden/);
   assert.match(css, /\.workspace-content-canvas\s*{/);
   assert.match(css, /\.dashboard-hero-illustration\s*{[^}]*display:\s*none\s*!important/);
   assert.match(css, /\.form-grid\s*{[^}]*grid-template-columns:\s*1fr\s*!important/);
@@ -46,6 +47,11 @@ test("dashboard panes hide hero illustration and wrap metrics header on mobile",
   assert.match(adminDash, /className="dashboard-hero-illustration"/);
   assert.match(adminDash, /School Operational Overview &amp; Key Metrics/);
   assert.match(adminDash, /flexWrap:\s*"wrap"/);
+
+  const studentDash = await readFile(new URL("../app/student/panes/dashboard-pane.tsx", import.meta.url), "utf8");
+  assert.match(studentDash, /className="dashboard-hero-illustration"/);
+  assert.match(studentDash, /Your Academic Overview/);
+  assert.match(studentDash, /flexWrap:\s*"wrap"/);
 });
 
 test("mobile headers hide non-essential shortcut buttons", async () => {
@@ -69,4 +75,21 @@ test("auth screens fill full height on desktop without vertical cutoff", async (
   for (const cls of bannerMatches) {
     assert.match(cls, /lg:min-h-screen/, "banner must specify lg:min-h-screen to prevent white gaps at the bottom");
   }
+});
+
+test("school admin supports direct student admission and invite status column", async () => {
+  const workspace = await readFile(new URL("../app/school-admin/school-admin-workspace.tsx", import.meta.url), "utf8");
+  assert.match(workspace, /directAddWithoutInvite/);
+  assert.match(workspace, /directAdmitStudent/);
+  assert.match(workspace, /Directly Admit Student/);
+
+  const peoplePane = await readFile(new URL("../app/school-admin/people-pane.tsx", import.meta.url), "utf8");
+  assert.match(peoplePane, /<th[^>]*>Invite<\/th>/);
+  assert.match(peoplePane, /sendStudentInvite/);
+  assert.match(peoplePane, /Send Invite Link/);
+  assert.match(peoplePane, /Not Sent/);
+
+  const api = await readFile(new URL("../app/edops-api.ts", import.meta.url), "utf8");
+  assert.match(api, /export async function directAdmitStudent/);
+  assert.match(api, /export async function sendStudentInvite/);
 });
