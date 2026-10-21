@@ -359,11 +359,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
       ═══════════════════════════════════════════════ */}
       <section
         aria-label="Academic metrics"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
-          gap: "12px",
-        }}
+        className="portal-metrics-grid"
       >
         {/* 1. Attendance Rate (Pastel Violet) */}
         <article
@@ -605,11 +601,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
       ═══════════════════════════════════════════════ */}
       <section
         aria-label="Academic status"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1.2fr 1.8fr",
-          gap: "16px",
-        }}
+        className="portal-split-grid"
       >
         {/* Card 1: Academic Standing */}
         <article
@@ -932,7 +924,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
       {/* ═══════════════════════════════════════════════
           6. TIMETABLE & ACTION ITEMS SPLIT ROW
       ═══════════════════════════════════════════════ */}
-      <section style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr", gap: "16px" }}>
+      <section className="portal-split-grid">
         {/* Today's Lectures & Timetable */}
         <div
           style={{
@@ -1205,7 +1197,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
       {/* ═══════════════════════════════════════════════
           8. REAL-TIME ACTIVITY & TEACHER DIRECTIVES
       ═══════════════════════════════════════════════ */}
-      <section style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+      <section className="portal-two-col">
         {/* Real-time Activity Feed */}
         <div
           style={{

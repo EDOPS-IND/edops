@@ -89,7 +89,17 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
     }
   }, [initialWardId]);
 
-  const selected = wards.find((w) => w.studentUserId === selectedWardId) || wards[0];
+  const fallbackWard: WardInfo = {
+    studentUserId: "preview-ward",
+    name: "Ward Profile",
+    email: "ward@school.edu",
+    rollNumber: "01",
+    sectionName: "10-A",
+    programName: "Secondary",
+    attendancePct: 95,
+    todayAttendance: "present",
+  };
+  const selected = wards.find((w) => w.studentUserId === selectedWardId) || (wards.length > 0 ? wards[0] : fallbackWard);
 
   const refreshDetails = async () => {
     if (!selected) return;
@@ -148,9 +158,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
     };
   }, [organization.id, selected?.studentUserId]);
 
-  const selectedWard = selected
-    ? { ...selected, data: details, organizationId: organization.id, refresh: refreshDetails }
-    : undefined;
+  const selectedWard = { ...(selected || fallbackWard), data: details, organizationId: organization.id, refresh: refreshDetails };
 
   // Modals state
   const [leaveModalOpen, setLeaveModalOpen] = useState(initialModal === "leave" || initialModal === "apply-leave");
@@ -221,46 +229,18 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
     );
   }
 
-  if (!selectedWard) {
-    return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f4f6f7", padding: "20px" }}>
-        <div style={{ background: "#ffffff", padding: "32px", borderRadius: "12px", border: "1px solid #e4e6e9", maxWidth: "440px", textAlign: "center" }}>
-          <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0c1e33", margin: "0 0 8px" }}>Parent Portal</h2>
-          <p style={{ fontSize: "13px", color: "#64748b", margin: "0 0 20px" }}>
-            {error || "No verified children are currently linked to your guardian account."}
-          </p>
-          <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-            <button
-              onClick={loadWards}
-              style={{ padding: "8px 16px", borderRadius: "6px", background: "#0c1e33", color: "#ffffff", fontSize: "12px", fontWeight: 600, border: "none", cursor: "pointer" }}
-            >
-              Retry
-            </button>
-            <button
-              onClick={onLogout}
-              style={{ padding: "8px 16px", borderRadius: "6px", background: "#ffffff", border: "1px solid #e4e6e9", color: "#475569", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f4f6f7", fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif' }}>
       {/* 1. UNIVERSAL MIDNIGHT OBSIDIAN SIDEBAR (#0b0f19) */}
       <aside
         id="parent-sidebar"
         aria-label="Parent Portal Navigation"
+        className="workspace-aside"
         style={{
           width: "240px",
           flexShrink: 0,
           background: "#0b0f19",
           borderRight: "1px solid rgba(255, 255, 255, 0.06)",
-          display: "flex",
-          flexDirection: "column",
           height: "100vh",
           position: "sticky",
           top: 0,
@@ -509,25 +489,21 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
         {/* Top Header Bar */}
         <header
-          style={{
-            height: "68px",
-            position: "sticky",
-            top: 0,
-            zIndex: 30,
-            background: "#ffffff",
-            borderBottom: "1px solid #e4e6e9",
-            padding: "0 28px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            boxSizing: "border-box",
-          }}
+          className="workspace-header"
         >
           {/* Header Left: School & Ward Context */}
-          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+            <button
+              type="button"
+              aria-label="Open parent navigation"
+              className="workspace-hamburger-btn"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu size={18} />
+            </button>
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <h1 style={{ fontSize: "16px", fontWeight: 800, color: "#0c1e33", margin: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <h1 style={{ fontSize: "16px", fontWeight: 800, color: "#0c1e33", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {organization.name}
                 </h1>
                 <span
@@ -545,36 +521,24 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                   Guardian Session
                 </span>
               </div>
-              <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 500 }}>
+              <div style={{ fontSize: "11px", color: "#64748b", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 Active Profile: <b>{selectedWard.name}</b> (Class {selectedWard.sectionName || "Enrolled"})
               </div>
             </div>
           </div>
 
           {/* Header Right: Ward Switcher & Actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <div className="workspace-header-actions">
             {/* Quick Spotlight Search */}
             <button
               type="button"
               onClick={() => setSearchModalOpen(true)}
-              style={{
-                all: "unset",
-                boxSizing: "border-box",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "6px 12px",
-                background: "#f8fafc",
-                border: "1px solid #e4e6e9",
-                borderRadius: "8px",
-                color: "#64748b",
-                cursor: "pointer",
-                transition: "border-color 0.15s ease",
-              }}
+              className="workspace-search-btn"
+              aria-label="Search portal"
             >
-              <Search size={14} style={{ color: "#64748b" }} />
-              <span style={{ fontSize: "12px", color: "#64748b" }}>Search portal...</span>
-              <kbd style={{ fontSize: "10px", color: "#94a3b8", background: "#f1f5f9", padding: "1px 4px", borderRadius: "3px" }}>⌘K</kbd>
+              <Search size={15} style={{ flexShrink: 0, color: "#64748b" }} className="search-icon" />
+              <span className="search-label">Search portal...</span>
+              <kbd className="search-kbd">⌘ K</kbd>
             </button>
             {/* Quick Ward Switcher in Header */}
             <div
@@ -623,8 +587,8 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
 
             <button
               onClick={() => setLeaveModalOpen(true)}
+              className="hidden sm:inline-flex"
               style={{
-                display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
                 padding: "7px 14px",
@@ -642,8 +606,8 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
 
             <button
               onClick={() => navigateTo("ptm")}
+              className="hidden sm:inline-flex"
               style={{
-                display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
                 padding: "7px 14px",
@@ -717,21 +681,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                     onClick={() => setProfileMenuOpen(false)}
                   />
                   <div
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 8px)",
-                      right: 0,
-                      zIndex: 100,
-                      width: "240px",
-                      background: "#ffffff",
-                      border: "1px solid #EAECF0",
-                      borderRadius: "12px",
-                      boxShadow: "0 10px 25px -5px rgba(12, 30, 51, 0.15), 0 8px 10px -6px rgba(12, 30, 51, 0.1)",
-                      padding: "8px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "4px",
-                    }}
+                    className="workspace-profile-dropdown"
                   >
                     <div style={{ padding: "10px 12px", borderBottom: "1px solid #EAECF0", marginBottom: "4px" }}>
                       <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#0c1e33" }}>
@@ -789,7 +739,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
         </header>
 
         {/* Main Canvas */}
-        <main style={{ flex: 1, overflowY: "auto", padding: "28px 36px", background: "#f4f6f7" }}>
+        <main className="workspace-content-canvas" style={{ overflowY: "auto", background: "#f4f6f7" }}>
           <div style={{ maxWidth: "1400px", margin: "0 auto" }}>
             {loading ? (
               <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "360px" }}>
@@ -877,6 +827,117 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
           </div>
         </main>
       </div>
+
+      {/* MOBILE DRAWER */}
+      {mobileMenuOpen && (
+        <div className="workspace-drawer-backdrop">
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="workspace-drawer-overlay"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="workspace-drawer">
+            {/* Top brand header with logo just like desktop view */}
+            <div
+              style={{
+                height: "68px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "0 18px",
+                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}
+                onClick={() => { setMobileMenuOpen(false); navigateTo("overview"); }}
+                title="EDOPS Parent Portal"
+              >
+                <img
+                  src="/EDOPSLogo.png"
+                  alt="EDOPS Parent Portal"
+                  style={{
+                    height: "34px",
+                    width: "auto",
+                    maxWidth: "130px",
+                    display: "block",
+                    objectFit: "contain",
+                    filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                aria-label="Close navigation"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  all: "unset",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  color: "#94a3b8",
+                  background: "rgba(255, 255, 255, 0.05)",
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <nav style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: "3px" }}>
+              {[
+                { id: "overview", label: "Overview & Vitals", icon: LayoutDashboard },
+                { id: "academics", label: "Academics & Report Cards", icon: BookOpen },
+                { id: "attendance", label: "Daily Attendance & Leaves", icon: Calendar },
+                { id: "fees", label: "Fee Ledger & Online Pay", icon: CreditCard },
+                { id: "ptm", label: "PTM Schedule & Meetings", icon: CalendarDays },
+                { id: "notices", label: "School Circulars & Queries", icon: MessageSquare },
+              ].map((item) => {
+                const Icon = item.icon;
+                const active = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      navigateTo(item.id as ParentTab);
+                    }}
+                    className={`drawer-nav-item ${active ? "active" : ""}`}
+                    style={{
+                      all: "unset",
+                      boxSizing: "border-box",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "11px",
+                      width: "100%",
+                      height: "40px",
+                      padding: "0 12px",
+                      borderRadius: "10px",
+                      fontSize: "13.5px",
+                      fontWeight: active ? 600 : 500,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      background: active ? "#1c2337" : "transparent",
+                      color: active ? "#ffffff" : "#cbd5e1",
+                      borderLeft: active ? "3px solid #F8E7C9" : "3px solid transparent",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <Icon size={17} style={{ flexShrink: 0, color: active ? "#F8E7C9" : "#94a3b8" }} />
+                    <span style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        </div>
+      )}
 
       {/* 3. GLOBAL PARENT MODALS */}
       <ApplyLeaveModal

@@ -18,6 +18,7 @@ import {
   X,
   Award,
   Bell,
+  ArrowLeft,
 } from "lucide-react";
 import {
   getTeacherCommunicationInbox,
@@ -394,19 +395,12 @@ export function CommunicationPane({
       </div>
 
       {/* 3. Chat Hub Layout */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "320px 1fr",
-          background: T.white,
-          borderRadius: "10px",
-          border: `1px solid ${T.border}`,
-          height: "640px",
-          overflow: "hidden",
-        }}
-      >
+      <div className="chat-layout-card">
         {/* Left Column: Thread List */}
-        <div style={{ borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", height: "100%" }}>
+        <div
+          className={`chat-sidebar-pane ${selectedThreadId ? 'chat-pane-hidden' : ''}`}
+          style={{ borderRight: `1px solid ${T.border}`, display: "flex", flexDirection: "column", height: "100%", minWidth: 0 }}
+        >
           <div style={{ padding: "14px", borderBottom: `1px solid ${T.border}`, display: "flex", flexDirection: "column", gap: "10px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", background: T.chip, border: `1px solid ${T.border}`, padding: "6px 10px", borderRadius: "8px" }}>
               <Search size={14} color={T.slate} />
@@ -490,20 +484,48 @@ export function CommunicationPane({
         </div>
 
         {/* Right Column: Chat Stream */}
-        <div style={{ display: "flex", flexDirection: "column", height: "100%", background: T.white }}>
+        <div
+          className={`chat-main-pane ${!selectedThreadId ? 'chat-pane-hidden' : ''}`}
+          style={{ display: "flex", flexDirection: "column", height: "100%", background: T.white, minWidth: 0 }}
+        >
           {selectedThreadId && activeThread ? (
             <>
               {/* Thread Header */}
-              <div style={{ padding: "14px 20px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: T.white }}>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: T.navy }}>
-                    {activeThread.subject || "Academic Discussion"}
-                  </h3>
-                  <span style={{ fontSize: "12px", color: T.slate }}>
-                    Channel: {activeThread.channel} • Participant: {activeThread.participantName}
-                  </span>
+              <div style={{ padding: "12px 16px", borderBottom: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", background: T.white, gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", minWidth: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedThreadId(null)}
+                    className="chat-back-btn"
+                    aria-label="Back to thread list"
+                    style={{
+                      all: "unset",
+                      alignItems: "center",
+                      gap: "4px",
+                      padding: "6px 10px",
+                      borderRadius: "6px",
+                      background: T.white,
+                      border: `1px solid ${T.border}`,
+                      color: T.navy,
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <ArrowLeft size={14} />
+                    <span>Threads</span>
+                  </button>
+                  <div style={{ minWidth: 0 }}>
+                    <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: T.navy, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {activeThread.subject || "Academic Discussion"}
+                    </h3>
+                    <span style={{ fontSize: "11px", color: T.slate, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {activeThread.channel} • {activeThread.participantName}
+                    </span>
+                  </div>
                 </div>
-                <span style={{ fontSize: "10.5px", padding: "2px 8px", borderRadius: "100px", background: T.greenBg, color: T.greenDark, fontWeight: 600 }}>
+                <span style={{ fontSize: "10.5px", padding: "2px 8px", borderRadius: "100px", background: T.greenBg, color: T.greenDark, fontWeight: 600, flexShrink: 0 }}>
                   Active Stream
                 </span>
               </div>

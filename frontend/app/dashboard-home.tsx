@@ -274,7 +274,7 @@ export function DashboardHome({
         {/* TODAY'S TIMETABLE */}
         <section>
           <h2 style={{ fontSize: "18px", fontWeight: 800, marginBottom: "14px", color: "#064E3B" }}>Today’s Timetable</h2>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "18px" }}>
+          <div className="dashboard-three-column">
             {timetable.map((cls) => (
               <div
                 key={`${cls.sectionId}:${cls.subjectId}`}
@@ -317,7 +317,7 @@ export function DashboardHome({
         </section>
 
         {/* 2-COLUMN LAYOUT */}
-        <div style={{ display: "grid", gridTemplateColumns: "1.05fr 1fr", gap: "20px", alignItems: "start" }}>
+        <div className="dashboard-two-column">
           {/* Assignments Pending Review */}
           <section
             style={{
@@ -496,7 +496,7 @@ export function DashboardHome({
       </div>
 
       {/* 3 STAT CARDS */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "18px" }}>
+      <div className="dashboard-stat-grid">
         <div style={{ backgroundColor: "#FFFFFF", border: "1px solid #E2DDD5", borderRadius: "10px", padding: "18px 24px", boxShadow: "0 1px 3px rgba(6,78,59,0.03)" }}>
           <div style={{ fontSize: "16px", fontWeight: 700, color: "#064E3B" }}>
             Attendance: <span style={{ fontWeight: 800, color: "#064E3B" }}>{attendanceRate}%</span>
@@ -515,7 +515,7 @@ export function DashboardHome({
       </div>
 
       {/* 2-COLUMN LAYOUT */}
-      <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: "20px", alignItems: "start" }}>
+      <div className="dashboard-two-column">
         {/* Left: Pending Deadlines */}
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           <h2 style={{ fontSize: "18px", color: "#064E3B", margin: 0, fontWeight: 800 }}>Pending Deadlines</h2>
