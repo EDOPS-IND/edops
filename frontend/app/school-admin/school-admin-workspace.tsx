@@ -639,6 +639,7 @@ export function SchoolAdminWorkspace({
           height: "100vh",
           position: "sticky",
           top: 0,
+          alignSelf: "flex-start",
           padding: 0,
           boxSizing: "border-box",
           zIndex: 40,
@@ -739,7 +740,7 @@ export function SchoolAdminWorkspace({
       {/* ═══════════════════════════════════════════════
           M A I N   C O N T E N T   &   H E A D E R
       ═══════════════════════════════════════════════ */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh" }}>
         {/* Top bar - Exactly 68px height matching Command Center Spec */}
         <header
           className="workspace-header"

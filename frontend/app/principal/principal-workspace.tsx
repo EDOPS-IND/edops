@@ -492,6 +492,7 @@ export function PrincipalWorkspace({
           height: "100vh",
           position: "sticky",
           top: 0,
+          alignSelf: "flex-start",
           overflowY: "auto",
           overflowX: "hidden",
           scrollbarWidth: "thin",
@@ -657,7 +658,7 @@ export function PrincipalWorkspace({
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh" }}>
         {/* TOP COMMAND HEADER (Admin Style) */}
         <header
           className="workspace-header"

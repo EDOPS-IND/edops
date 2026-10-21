@@ -17,13 +17,18 @@
   --navy: #064E3B;
   --coral: #F8E7C9;
 }
-html, body {
-  overflow-x: hidden;
-  max-width: 100%;
+body {
   background: var(--canvas);
   color: var(--ink);
   font-size: 14px;
   line-height: 1.55;
+}
+
+@media (max-width: 768px) {
+  html, body {
+    overflow-x: hidden;
+    max-width: 100%;
+  }
 }
 h1,h2,h3 { letter-spacing: -.025em; }
 button,input,select,textarea { font: inherit; }
@@ -806,6 +811,7 @@ table {
   height: 100vh;
   position: sticky;
   top: 0;
+  align-self: flex-start;
   display: flex;
   flex-direction: column;
   z-index: 40;
