@@ -940,11 +940,6 @@ export function GlobalPortalSearch({
     });
   }, [catalog, query]);
 
-  // Adjust selection bounds when query changes
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [query]);
-
   // Keyboard navigation through list (ArrowUp, ArrowDown, Enter)
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown") {
@@ -974,9 +969,6 @@ export function GlobalPortalSearch({
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Settings and navigation search"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -996,6 +988,9 @@ export function GlobalPortalSearch({
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings and navigation search"
         style={{
           background: "#FFFFFF",
           borderRadius: "14px",
@@ -1024,7 +1019,10 @@ export function GlobalPortalSearch({
             ref={inputRef}
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelectedIndex(0);
+            }}
             onKeyDown={handleKeyDown}
             placeholder={
               role === "school_admin"
@@ -1049,7 +1047,11 @@ export function GlobalPortalSearch({
           {query ? (
             <button
               type="button"
-              onClick={() => setQuery("")}
+              aria-label="Clear search"
+              onClick={() => {
+                setQuery("");
+                setSelectedIndex(0);
+              }}
               style={{
                 all: "unset",
                 cursor: "pointer",

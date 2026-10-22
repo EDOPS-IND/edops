@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { MessageSquare, Send, CheckCircle2, User, Plus, Search, HelpCircle } from 'lucide-react';
+import { MessageSquare, Send, CheckCircle2, User, Plus, Search, HelpCircle, ArrowLeft } from 'lucide-react';
 import { getStudentMessages, sendStudentMessage } from '../../edops-api';
 
 const T = {
@@ -235,25 +235,17 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
       </div>
 
       {/* 2. Chat Layout Card - 10px radius, 1px border, zero shadows */}
-      <div
-        style={{
-          background: T.white,
-          border: `1px solid ${T.border}`,
-          borderRadius: '10px',
-          overflow: 'hidden',
-          display: 'grid',
-          gridTemplateColumns: 'minmax(260px, 320px) 1fr',
-          height: '620px',
-          boxSizing: 'border-box',
-        }}
-      >
+      <div className="chat-layout-card">
         {/* Left Side: Thread Directory */}
         <div
+          className={`chat-sidebar-pane ${activeContactId ? 'chat-pane-hidden' : ''}`}
           style={{
             borderRight: `1px solid ${T.border}`,
             display: 'flex',
             flexDirection: 'column',
             background: T.white,
+            minWidth: 0,
+            height: '100%',
           }}
         >
           {/* Thread Search Box */}
@@ -348,27 +340,56 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
         </div>
 
         {/* Right Side: Message Thread Area */}
-        <div style={{ display: 'flex', flexDirection: 'column', background: T.white }}>
+        <div
+          className={`chat-main-pane ${!activeContactId ? 'chat-pane-hidden' : ''}`}
+          style={{ display: 'flex', flexDirection: 'column', background: T.white, minWidth: 0, height: '100%' }}
+        >
           {activeThread ? (
             <>
               {/* Chat Header */}
               <div
                 style={{
-                  padding: '16px 24px',
+                  padding: '12px 16px',
                   borderBottom: `1px solid ${T.border}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   background: T.pageBg,
+                  gap: '8px',
                 }}
               >
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.navy }}>
-                    {activeThread.contactName}
-                  </h4>
-                  <span style={{ fontSize: '12px', color: T.slate }}>
-                    {activeThread.contactRole}
-                  </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveContactId('')}
+                    className="chat-back-btn"
+                    aria-label="Back to teacher list"
+                    style={{
+                      all: 'unset',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '6px 10px',
+                      borderRadius: '6px',
+                      background: T.white,
+                      border: `1px solid ${T.border}`,
+                      color: T.navy,
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <ArrowLeft size={14} />
+                    <span>Teachers</span>
+                  </button>
+                  <div style={{ minWidth: 0 }}>
+                    <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {activeThread.contactName}
+                    </h4>
+                    <span style={{ fontSize: '12px', color: T.slate, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {activeThread.contactRole}
+                    </span>
+                  </div>
                 </div>
                 <span
                   style={{
@@ -378,6 +399,7 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
                     color: T.greenDark,
                     fontSize: '10px',
                     fontWeight: 600,
+                    flexShrink: 0,
                   }}
                 >
                   Active Conversation
@@ -448,7 +470,7 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
               <form
                 onSubmit={handleSendMessage}
                 style={{
-                  padding: '16px 24px',
+                  padding: '12px clamp(12px, 3vw, 20px)',
                   borderTop: `1px solid ${T.border}`,
                   display: 'flex',
                   alignItems: 'center',
@@ -471,6 +493,7 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
                     color: T.navy,
                     outline: 'none',
                     fontFamily: "'Poppins', sans-serif",
+                    minWidth: 0,
                   }}
                 />
                 <button
@@ -490,6 +513,7 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
                     cursor: sending || !chatInput.trim() ? 'not-allowed' : 'pointer',
                     opacity: sending || !chatInput.trim() ? 0.6 : 1,
                     fontFamily: "'Poppins', sans-serif",
+                    flexShrink: 0,
                   }}
                 >
                   <Send size={14} />
@@ -498,7 +522,7 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
               </form>
             </>
           ) : (
-            <div style={{ margin: 'auto', textAlign: 'center', color: T.slate, fontSize: '13px' }}>
+            <div style={{ margin: 'auto', textAlign: 'center', color: T.slate, fontSize: '13px', padding: '24px' }}>
               Select a teacher from the left directory to view the conversation.
             </div>
           )}

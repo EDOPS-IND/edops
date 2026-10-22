@@ -48,7 +48,7 @@ export function OverviewPane({
           background: "#eaedf2",
           border: "1px solid #d8dee6",
           borderRadius: "12px",
-          padding: "24px 28px",
+          padding: "20px clamp(14px, 3vw, 28px)",
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -175,6 +175,7 @@ export function OverviewPane({
 
         {/* Executive Administrative SVG Art in Hero Banner */}
         <div
+          className="hidden lg:block"
           style={{
             position: "absolute",
             right: "20px",
@@ -318,7 +319,7 @@ export function OverviewPane({
       </div>
 
       {/* 3. Main Split View */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
+      <div className="portal-two-col" style={{ gap: "20px" }}>
         {/* Left Column: Schedule & Child Dossier */}
         <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
           {/* Child Dossier Card */}
@@ -327,10 +328,12 @@ export function OverviewPane({
               background: "#ffffff",
               border: "1px solid #e4e6e9",
               borderRadius: "10px",
-              padding: "20px",
+              padding: "16px clamp(12px, 3vw, 20px)",
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+              flexWrap: "wrap",
+              gap: "12px",
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>

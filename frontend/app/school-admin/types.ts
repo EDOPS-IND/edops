@@ -27,6 +27,7 @@ export interface StudentRecord {
   id: string;
   admissionNo: string;
   name: string;
+  phone?: string;
   rollNo: string;
   grade: string;
   section: string;
@@ -34,6 +35,7 @@ export interface StudentRecord {
   house: string;
   parentName: string;
   parentPhone: string;
+  parentEmail?: string;
   attendancePct: number;
   feeStatus: "Paid" | "Pending" | "Overdue";
   academicStatus: "Good Standing" | "Needs Attention" | "Honor Roll";
@@ -42,7 +44,9 @@ export interface StudentRecord {
   dob: string;
   address: string;
   emergencyContact: string;
+  medicalNotes?: string;
   gpa?: number;
+  inviteStatus?: "accepted" | "pending" | "not_sent" | string;
   inviteToken?: string | null;
   inviteExpiresAt?: string | null;
   [key: string]: any;

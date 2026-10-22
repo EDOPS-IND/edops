@@ -19,12 +19,12 @@ import {
   LayoutDashboard, Users, GraduationCap, Briefcase, HeartHandshake,
   Building2, BookOpen, CalendarDays, CalendarCheck2, Award, CreditCard,
   MessageSquare, Bus, ShieldAlert, FileText, BarChart3, Sliders, History,
-  Search, Bell, LogOut, RefreshCw, ChevronDown, X,
+  Search, Bell, LogOut, RefreshCw, ChevronDown, Menu, X,
 } from "lucide-react";
 import {
   createSchoolAdminBroadcast, createSchoolAdminLeave,
   createSchoolAdminDiscipline, createSchoolAdminDepartment,
-  createSchoolInvitation, getSchoolAdminAcademics, getSchoolAdminStudents,
+  createSchoolInvitation, directAdmitStudent, getSchoolAdminAcademics, getSchoolAdminStudents,
   getSchoolAdminTeachers, createAcademicSection, createAcademicProgram,
   getStudentAvatarUrl,
   createSchoolAdminExam,
@@ -224,6 +224,10 @@ export function SchoolAdminWorkspace({
   const [personSpecialty, setPersonSpecialty] = useState("");
   const [personEmployeeId, setPersonEmployeeId] = useState("");
   const [personEmploymentType, setPersonEmploymentType] = useState("Regular Faculty");
+  const [studentGender, setStudentGender] = useState("Male");
+  const [studentDob, setStudentDob] = useState("");
+  const [studentAdmissionNo, setStudentAdmissionNo] = useState("");
+  const [studentRollNo, setStudentRollNo] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSectionId, setSelectedSectionId] = useState("");
   const [academicSections, setAcademicSections] = useState<{ id: string; name: string; programName: string }[]>([]);
@@ -254,12 +258,16 @@ export function SchoolAdminWorkspace({
   const [refreshKey, setRefreshKey] = useState(0);
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   React.useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchModalOpen((prev) => !prev);
+      } else if (e.key === "Escape") {
+        setProfileMenuOpen(false);
+        setMobileMenuOpen(false);
       }
     };
     window.addEventListener("keydown", handleGlobalKey);
@@ -333,6 +341,7 @@ export function SchoolAdminWorkspace({
   const [examStartTime, setExamStartTime] = useState("09:00");
   const [examEndTime, setExamEndTime] = useState("12:00");
   const [examMaxMarks, setExamMaxMarks] = useState(100);
+  const [directAddWithoutInvite, setDirectAddWithoutInvite] = useState(false);
 
   const isPersonAction = ["addPrincipal", "addTeacher", "addStudent", "addStaff", "mapParent", "addParent"].includes(quickActionModal || "");
   const isDepartmentAction = quickActionModal === "addDepartment";
@@ -355,10 +364,12 @@ export function SchoolAdminWorkspace({
       setPersonName(""); setPersonEmail(""); setPersonPhone(""); setPersonSpecialty("");
       setPersonEmployeeId(""); setPersonEmploymentType(act === "addStaff" ? "Permanent Staff" : act === "addPrincipal" ? "Tenured Principal" : "Regular Faculty");
       setSelectedClass(""); setSelectedSectionId(""); setSelectedChildIds([]); setChildSearch("");
+      setStudentGender("Male"); setStudentDob(""); setStudentAdmissionNo(""); setStudentRollNo("");
       setDeptName(""); setDeptCode(""); setDeptHeadTeacherId(""); setDeptLocation(""); setDeptSubjectIds([]); setSubjectSearch("");
       setSectionYearId(""); setSectionProgramId(""); setSectionName("A"); setSectionCapacity(40);
       setIsCreatingNewClass(false); setNewClassName(""); setNewClassOrder(10);
       setCreatedInvite(null); setCopiedLink(false); setActionError("");
+      setDirectAddWithoutInvite(false);
       setQuickActionModal(act);
 
       if (act === "sendBroadcast") {
@@ -430,6 +441,22 @@ export function SchoolAdminWorkspace({
     try {
       if (organizationId) {
         if (isPersonAction) {
+          if (detectedRole === "student" && directAddWithoutInvite) {
+            await directAdmitStudent(organizationId, {
+              name: personName.trim(),
+              email: personEmail.trim().toLowerCase(),
+              phone: personPhone.trim() || undefined,
+              sectionId: selectedSectionId || undefined,
+              admissionNo: studentAdmissionNo.trim() || undefined,
+              rollNo: studentRollNo.trim() || undefined,
+              gender: studentGender || "Not Specified",
+              dob: studentDob || undefined,
+            });
+            setRefreshKey((k) => k + 1);
+            setQuickActionModal(null);
+            return;
+          }
+
           const res = await createSchoolInvitation(organizationId, {
             name: personName.trim() || undefined,
             email: personEmail.trim().toLowerCase(),
@@ -471,12 +498,19 @@ export function SchoolAdminWorkspace({
               throw new Error("Please enter a Class number or digit (e.g. 10)");
             }
             const fullClassName = `Class ${rawClass}`;
-            const seqOrder = Number(newClassOrder) || parseInt(rawClass, 10) || 10;
-            const newProg = await createAcademicProgram(organizationId, {
-              name: fullClassName,
-              sequenceOrder: seqOrder,
-            });
-            progId = newProg?.id;
+            const existingProg = academicPrograms.find(
+              (p) => p.name.trim().toLowerCase() === fullClassName.toLowerCase()
+            );
+            if (existingProg) {
+              progId = existingProg.id;
+            } else {
+              const seqOrder = Number(newClassOrder) || parseInt(rawClass, 10) || 10;
+              const newProg = await createAcademicProgram(organizationId, {
+                name: fullClassName,
+                sequenceOrder: seqOrder,
+              });
+              progId = newProg?.id;
+            }
           }
           if (!sectionYearId) {
             throw new Error("Please select an Academic Year");
@@ -615,16 +649,16 @@ export function SchoolAdminWorkspace({
       <aside
         id="sidebar"
         aria-label="School Admin primary navigation"
+        className="workspace-aside"
         style={{
           width: "240px",
           flexShrink: 0,
           background: S.sidebarBg,
           color: "#fff",
-          display: "flex",
-          flexDirection: "column",
           height: "100vh",
           position: "sticky",
           top: 0,
+          alignSelf: "flex-start",
           padding: 0,
           boxSizing: "border-box",
           zIndex: 40,
@@ -725,38 +759,35 @@ export function SchoolAdminWorkspace({
       {/* ═══════════════════════════════════════════════
           M A I N   C O N T E N T   &   H E A D E R
       ═══════════════════════════════════════════════ */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh" }}>
         {/* Top bar - Exactly 68px height matching Command Center Spec */}
         <header
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 30,
-            height: "68px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 32px",
-            background: "#ffffff",
-            borderBottom: `1px solid ${S.headerBorder}`,
-            gap: "16px",
-            flexShrink: 0,
-          }}
+          className="workspace-header"
         >
           {/* Left: Page Title & Breadcrumb */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", whiteSpace: "nowrap", minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: S.navy }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", whiteSpace: "nowrap", minWidth: 0 }}>
+            <button
+              type="button"
+              aria-label="Open school admin navigation"
+              className="workspace-hamburger-btn"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu size={18} />
+            </button>
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: S.navy, overflow: "hidden", textOverflow: "ellipsis" }}>
               School Admin Command Center
             </p>
-            <span style={{ width: "1px", height: "16px", background: S.line }} />
-            <p style={{ margin: 0, fontSize: "13px", color: S.slate }}>
+            <span className="hidden sm:inline-block" style={{ width: "1px", height: "16px", background: S.line }} />
+            <p className="hidden sm:inline-block" style={{ margin: 0, fontSize: "13px", color: S.slate }}>
               {pageTitle[currentTab] ?? currentTab.charAt(0).toUpperCase() + currentTab.slice(1)}
             </p>
 
             {currentTab === "dashboard" && (
               <button
+                type="button"
                 onClick={() => setRefreshKey((k) => k + 1)}
                 title="Refresh Dashboard"
+                aria-label="Refresh Dashboard"
                 style={{
                   all: "unset",
                   display: "inline-flex",
@@ -779,46 +810,18 @@ export function SchoolAdminWorkspace({
           </div>
 
           {/* Right: Actions */}
-          <div style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
+          <div className="workspace-header-actions">
 
             {/* Search Input */}
             <button
               type="button"
               onClick={() => setSearchModalOpen(true)}
-              style={{
-                all: "unset",
-                boxSizing: "border-box",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                height: "38px",
-                padding: "0 12px",
-                border: `1px solid ${S.line}`,
-                borderRadius: "8px",
-                background: S.inputBg,
-                cursor: "pointer",
-                transition: "border-color 0.15s ease",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = S.navy; }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = S.line; }}
+              className="workspace-search-btn"
+              aria-label="Search portal"
             >
-              <Search size={14} strokeWidth={2} style={{ color: S.slate, flexShrink: 0 }} />
-              <span style={{ fontSize: "13px", color: S.slate, width: "130px", textAlign: "left" }}>
-                Search portal...
-              </span>
-              <kbd
-                style={{
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  color: S.slate,
-                  background: "#ECEEF3",
-                  padding: "2px 5px",
-                  borderRadius: "4px",
-                  border: "1px solid #E2E8F0",
-                }}
-              >
-                ⌘K
-              </kbd>
+              <Search size={15} style={{ flexShrink: 0, color: "#64748b" }} className="search-icon" />
+              <span className="search-label">Search portal...</span>
+              <kbd className="search-kbd">⌘ K</kbd>
             </button>
 
             {/* Notification Bell */}
@@ -892,18 +895,7 @@ export function SchoolAdminWorkspace({
                     onClick={() => setProfileMenuOpen(false)}
                   />
                   <div
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 8px)",
-                      right: 0,
-                      width: "240px",
-                      background: "#FFFFFF",
-                      border: `1px solid ${S.border}`,
-                      borderRadius: "10px",
-                      boxShadow: "0 12px 32px rgba(12, 30, 51, 0.12)",
-                      padding: "6px",
-                      zIndex: 100,
-                    }}
+                    className="workspace-profile-dropdown"
                   >
                     <div style={{ padding: "10px 12px", borderBottom: `1px solid ${S.border}`, marginBottom: "6px", display: "flex", alignItems: "center", gap: "10px" }}>
                       <div
@@ -967,7 +959,7 @@ export function SchoolAdminWorkspace({
         </header>
 
         {/* ── Page content Canvas ────────────────────────── */}
-        <div style={{ flex: 1, padding: "32px 32px 64px", background: S.canvasBg }}>
+        <div className="workspace-content-canvas" style={{ background: S.canvasBg }}>
           {navigation.loading ? (
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "360px" }}>
               <ThreeDotsLoading size={10} color="#0c1e33" />
@@ -1060,6 +1052,118 @@ export function SchoolAdminWorkspace({
           )}
         </div>
       </main>
+
+      {/* MOBILE DRAWER */}
+      {mobileMenuOpen && (
+        <div className="workspace-drawer-backdrop">
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="workspace-drawer-overlay"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="workspace-drawer">
+            {/* Top brand header with logo just like desktop view */}
+            <div
+              style={{
+                height: "68px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "0 18px",
+                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}
+                onClick={() => { setMobileMenuOpen(false); go("dashboard"); }}
+                title="EDOPS School Admin Portal"
+              >
+                <img
+                  src="/EDOPSLogo.png"
+                  alt="EDOPS School Admin Portal"
+                  style={{
+                    height: "34px",
+                    width: "auto",
+                    maxWidth: "130px",
+                    display: "block",
+                    objectFit: "contain",
+                    filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                aria-label="Close navigation"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  all: "unset",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  color: "#94a3b8",
+                  background: "rgba(255, 255, 255, 0.05)",
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <nav style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: "4px" }}>
+              {navigation.sections.map((section) => (
+                <div key={section.key} style={{ marginBottom: "10px" }}>
+                  <div style={{ fontSize: "10px", fontWeight: 700, color: "rgba(255, 255, 255, 0.4)", textTransform: "uppercase", letterSpacing: "0.08em", padding: "6px 12px 4px" }}>
+                    {section.label}
+                  </div>
+                  {section.items.map((item) => {
+                    const tab = item.key.split(".").at(-1) as SchoolAdminTab;
+                    const Icon = navIcons[tab] || LayoutDashboard;
+                    const active = currentTab === tab;
+                    return (
+                      <button
+                        key={item.key}
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          go(tab);
+                        }}
+                        className={`drawer-nav-item ${active ? "active" : ""}`}
+                        style={{
+                          all: "unset",
+                          boxSizing: "border-box",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "11px",
+                          width: "100%",
+                          height: "38px",
+                          padding: "0 12px",
+                          borderRadius: "10px",
+                          fontSize: "13px",
+                          fontWeight: active ? 600 : 500,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          background: active ? "#1c2337" : "transparent",
+                          color: active ? "#ffffff" : "#cbd5e1",
+                          borderLeft: active ? "3px solid #F8E7C9" : "3px solid transparent",
+                          transition: "all 0.15s ease",
+                        }}
+                      >
+                        <Icon size={16} style={{ flexShrink: 0, color: active ? "#F8E7C9" : "#94a3b8" }} />
+                        <span style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {item.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </nav>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════════════════════════════════════════
           Q U I C K   A C T I O N   D O S S I E R   D R A W E R
@@ -1610,6 +1714,127 @@ export function SchoolAdminWorkspace({
                               </select>
                             </label>
                           )}
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                            <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                              <span>Gender</span>
+                              <select
+                                value={studentGender}
+                                onChange={(e) => setStudentGender(e.target.value)}
+                                style={{
+                                  padding: "9px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #D0D5DD",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  color: "#101828",
+                                  background: "#FFFFFF",
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            </label>
+
+                            <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                              <span>Date of Birth</span>
+                              <input
+                                type="date"
+                                value={studentDob}
+                                onChange={(e) => setStudentDob(e.target.value)}
+                                style={{
+                                  padding: "8px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #D0D5DD",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  color: "#101828",
+                                  background: "#FFFFFF",
+                                  fontFamily: "inherit",
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                            <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                              <span>Admission No <small style={{ color: "#667085", fontWeight: 400 }}>(Optional)</small></span>
+                              <input
+                                type="text"
+                                placeholder="Auto (e.g. ADM-0003)"
+                                value={studentAdmissionNo}
+                                onChange={(e) => setStudentAdmissionNo(e.target.value)}
+                                style={{
+                                  padding: "9px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #D0D5DD",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  color: "#101828",
+                                  background: "#FFFFFF",
+                                  fontFamily: "inherit",
+                                }}
+                              />
+                            </label>
+
+                            <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                              <span>Roll No <small style={{ color: "#667085", fontWeight: 400 }}>(Optional)</small></span>
+                              <input
+                                type="text"
+                                placeholder="Auto (e.g. 001)"
+                                value={studentRollNo}
+                                onChange={(e) => setStudentRollNo(e.target.value)}
+                                style={{
+                                  padding: "9px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #D0D5DD",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  color: "#101828",
+                                  background: "#FFFFFF",
+                                  fontFamily: "inherit",
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          {/* Admission Option: Invite vs Direct Add */}
+                          <div
+                            style={{
+                              marginTop: "4px",
+                              padding: "12px",
+                              borderRadius: "8px",
+                              background: "#F8FAFC",
+                              border: "1px solid #E2E8F0",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "8px",
+                            }}
+                          >
+                            <span style={{ fontSize: "12px", fontWeight: 600, color: "#1E293B" }}>
+                              Admission &amp; Invitation Mode
+                            </span>
+                            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
+                              <input
+                                type="radio"
+                                name="studentAdmissionMode"
+                                checked={!directAddWithoutInvite}
+                                onChange={() => setDirectAddWithoutInvite(false)}
+                              />
+                              <span><b>Send Invitation Link</b> (Generates invite token &amp; sends invitation email)</span>
+                            </label>
+                            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
+                              <input
+                                type="radio"
+                                name="studentAdmissionMode"
+                                checked={directAddWithoutInvite}
+                                onChange={() => setDirectAddWithoutInvite(true)}
+                              />
+                              <span><b>Directly Add Student to Register</b> (No invitation email sent now; marked as Not Sent)</span>
+                            </label>
+                          </div>
                         </>
                       )}
 
@@ -2559,6 +2784,8 @@ export function SchoolAdminWorkspace({
                     >
                       {actionBusy
                         ? "Processing…"
+                        : detectedRole === "student" && directAddWithoutInvite
+                        ? "Directly Admit Student"
                         : quickActionModal === "addStaff"
                         ? "Send Staff Invite Link"
                         : quickActionModal === "addTeacher"

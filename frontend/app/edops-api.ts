@@ -283,6 +283,31 @@ export async function getSchoolAdminStudent360(orgId: string, studentId: string)
   return api<any>(`/organizations/${orgId}/school-admin/people/students/${studentId}/360`);
 }
 
+export async function directAdmitStudent(
+  orgId: string,
+  payload: { name: string; email: string; phone?: string; sectionId?: string; admissionNo?: string; rollNo?: string; gender?: string; dob?: string }
+) {
+  return api<{ success: boolean; studentId: string; admissionNo: string; rollNo?: string; inviteStatus: string }>(
+    `/organizations/${orgId}/school-admin/people/students/direct`,
+    { method: "POST", body: payload }
+  );
+}
+
+export async function getStudentProfile(orgId: string) {
+  return api<any>(`/organizations/${orgId}/student/profile`);
+}
+
+export async function updateStudentProfile(orgId: string, body: any) {
+  return api<any>(`/organizations/${orgId}/student/profile`, { method: "PATCH", body });
+}
+
+export async function sendStudentInvite(orgId: string, studentId: string) {
+  return api<{ success: boolean; invitationId: string; token: string; expiresAt: string; inviteStatus: string }>(
+    `/organizations/${orgId}/school-admin/people/students/${studentId}/send-invite`,
+    { method: "POST" }
+  );
+}
+
 export async function getSchoolAdminTeachers(orgId: string) {
   return api<any[]>(`/organizations/${orgId}/school-admin/people/teachers`);
 }
@@ -393,6 +418,33 @@ export function createSchoolAdminCurriculum(
   return api<any>(`/organizations/${orgId}/school-admin/curriculum`, {
     method: "POST",
     body: payload,
+  });
+}
+
+export function bulkCreateCurriculumChapters(
+  orgId: string,
+  payload: {
+    grade: string;
+    subjectId?: string;
+    subjectName: string;
+    chapters: Array<{
+      id?: string;
+      unitName?: string;
+      chapterName: string;
+      expectedCompletionWeek?: number;
+      learningOutcomes?: string[];
+    }>;
+  },
+) {
+  return api<any>(`/organizations/${orgId}/school-admin/curriculum/bulk`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function deleteCurriculumChapter(orgId: string, chapterId: string) {
+  return api<any>(`/organizations/${orgId}/school-admin/curriculum/${chapterId}`, {
+    method: "DELETE",
   });
 }
 
@@ -660,13 +712,45 @@ export async function getTeacherAttendance(orgId: string, query?: any): Promise<
 
 export function recordTeacherLessonDelivery(orgId: string, body: any) { return api<any>(`/organizations/${orgId}/teacher/lessons/deliver`, { method: "POST", body }); }
 
-export async function getTeacherCurriculum(orgId: string): Promise<any> {
-  return api<any>(`/organizations/${orgId}/teacher/curriculum`);
+export async function getTeacherCurriculum(orgId: string, sectionId?: string, subjectId?: string): Promise<any> {
+  const params = new URLSearchParams();
+  if (sectionId) params.append("sectionId", sectionId);
+  if (subjectId) params.append("subjectId", subjectId);
+  const qs = params.toString() ? `?${params.toString()}` : "";
+  return api<any>(`/organizations/${orgId}/teacher/curriculum${qs}`);
 }
 
-export function updateTeacherCurriculumProgress(orgId: string, chapterIdOrBody: any, maybeBody?: any) {
-  const body = maybeBody !== undefined ? { chapterId: chapterIdOrBody, ...maybeBody } : chapterIdOrBody;
-  return api<any>(`/organizations/${orgId}/teacher/curriculum/${body.chapterId}/progress`, { method: "PATCH", body: { completionPct:body.completionPct } });
+export function updateTeacherCurriculumProgress(
+  orgId: string,
+  chapterIdOrBody: any,
+  completionPctOrBody?: any,
+  status?: string
+) {
+  let chapterId = '';
+  let completionPct = 0;
+  let statusVal = status;
+
+  if (typeof chapterIdOrBody === 'string') {
+    chapterId = chapterIdOrBody;
+    if (typeof completionPctOrBody === 'number') {
+      completionPct = completionPctOrBody;
+    } else if (typeof completionPctOrBody === 'object' && completionPctOrBody !== null) {
+      completionPct = completionPctOrBody.completionPct ?? completionPctOrBody.progress ?? 0;
+      statusVal = completionPctOrBody.status ?? status;
+    }
+  } else if (typeof chapterIdOrBody === 'object' && chapterIdOrBody !== null) {
+    chapterId = chapterIdOrBody.chapterId || chapterIdOrBody.id;
+    completionPct = chapterIdOrBody.completionPct ?? chapterIdOrBody.progress ?? 0;
+    statusVal = chapterIdOrBody.status;
+  }
+
+  return api<any>(`/organizations/${orgId}/teacher/curriculum/${chapterId}/progress`, {
+    method: "PATCH",
+    body: {
+      completionPct,
+      status: statusVal,
+    },
+  });
 }
 
 export function createTeacherAssignment(orgId: string, body: any) { return api<any>(`/organizations/${orgId}/teacher/assignments`, { method: "POST", body }); }

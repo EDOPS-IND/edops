@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedRequest } from '../../../common/auth.guard';
 import { TeacherGuard } from '../guards/teacher.guard';
@@ -16,9 +16,11 @@ export class TeacherCurriculumController {
   @ApiOperation({ summary: 'Get syllabus chapters, progress gap and learning outcomes matrix' })
   getCurriculum(
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
-    @Req() req: AuthenticatedRequest
+    @Req() req: AuthenticatedRequest,
+    @Query('sectionId') sectionId?: string,
+    @Query('subjectId') subjectId?: string,
   ) {
-    return this.curriculumService.getCurriculumOverview(organizationId, req.user);
+    return this.curriculumService.getCurriculumOverview(organizationId, req.user, sectionId, subjectId);
   }
 
   @Patch('curriculum/:chapterId/progress')
@@ -27,8 +29,9 @@ export class TeacherCurriculumController {
     @Param('organizationId', ParseUUIDPipe) organizationId: string,
     @Param('chapterId') chapterId: string,
     @Req() req: AuthenticatedRequest,
-    @Body('completionPct') completionPct: number
+    @Body('completionPct') completionPct: number,
+    @Body('status') status?: string,
   ) {
-    return this.curriculumService.updateProgress(organizationId, req.user, chapterId, completionPct);
+    return this.curriculumService.updateProgress(organizationId, req.user, chapterId, completionPct, status);
   }
 }

@@ -115,6 +115,8 @@ export function PrincipalWorkspace({
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchModalOpen((prev) => !prev);
+      } else if (e.key === "Escape") {
+        setProfileMenuOpen(false);
       }
     };
     window.addEventListener("keydown", handleGlobalKey);
@@ -483,16 +485,16 @@ export function PrincipalWorkspace({
     >
       {/* SIDEBAR NAVIGATION (Executive Dark #0b0f19) */}
       <aside
+        className="workspace-aside"
         style={{
           width: "228px",
           flexShrink: 0,
           background: "#0b0f19",
           borderRight: "1px solid rgba(255, 255, 255, 0.06)",
-          display: "flex",
-          flexDirection: "column",
           height: "100vh",
           position: "sticky",
           top: 0,
+          alignSelf: "flex-start",
           overflowY: "auto",
           overflowX: "hidden",
           scrollbarWidth: "none",
@@ -657,26 +659,21 @@ export function PrincipalWorkspace({
       </aside>
 
       {/* MAIN CONTENT AREA */}
-      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh", overflow: "auto" }}>
+      <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh" }}>
         {/* TOP COMMAND HEADER (Admin Style) */}
         <header
-          style={{
-            position: "sticky",
-            top: 0,
-            zIndex: 30,
-            height: "58px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 28px",
-            background: "#FFFFFF",
-            borderBottom: "1px solid #EAECF0",
-            gap: "16px",
-            flexShrink: 0,
-          }}
+          className="workspace-header"
         >
-          {/* Left Title */}
+          {/* Left Title & Hamburger */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+            <button
+              type="button"
+              aria-label="Open principal navigation"
+              className="workspace-hamburger-btn"
+              onClick={() => setMobileMenuOpen(true)}
+            >
+              <Menu size={18} />
+            </button>
             <h1
               style={{
                 margin: 0,
@@ -693,8 +690,8 @@ export function PrincipalWorkspace({
             </h1>
           </div>
 
-          {/* Right: Quick Action Buttons strictly placed on top as requested */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
+          {/* Right: Quick Action Buttons */}
+          <div className="workspace-header-actions">
             {/* Quick Academic Health Badge Button */}
             <button
               onClick={() => setHealthModalOpen(true)}
@@ -704,7 +701,7 @@ export function PrincipalWorkspace({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
-                padding: "6px 12px",
+                padding: "6px 10px",
                 background: "#ECFDF3",
                 border: "1px solid #ABEFC6",
                 borderRadius: "8px",
@@ -712,10 +709,14 @@ export function PrincipalWorkspace({
                 fontWeight: 700,
                 color: "#027A48",
                 cursor: "pointer",
+                whiteSpace: "nowrap",
               }}
             >
               <HeartPulse size={14} />
-              <span>Academic Health: {healthScore !== null ? `${healthScore}/100` : "Awaiting data"}</span>
+              <span>
+                <span className="hidden sm:inline">Academic Health: </span>
+                {healthScore !== null ? `${healthScore}/100` : "Health"}
+              </span>
             </button>
 
             {/* Action Plans */}
@@ -728,7 +729,7 @@ export function PrincipalWorkspace({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
-                padding: "6px 14px",
+                padding: "6px 12px",
                 background: "#101828",
                 border: "1px solid #101828",
                 borderRadius: "8px",
@@ -737,37 +738,28 @@ export function PrincipalWorkspace({
                 color: "#FFFFFF",
                 cursor: "pointer",
                 boxShadow: "0 1px 2px rgba(16,24,40,0.08)",
+                whiteSpace: "nowrap",
               }}
             >
               <Plus size={13} style={{ color: "#FFFFFF" }} />
-              <span>Action Plans</span>
+              <span className="hidden sm:inline">Action Plans</span>
             </button>
 
             {/* Academic Search */}
             <button
+              type="button"
               onClick={() => setSearchModalOpen(true)}
-              style={{
-                all: "unset",
-                boxSizing: "border-box",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "6px 12px",
-                background: "#FFFFFF",
-                border: "1px solid #D0D5DD",
-                borderRadius: "8px",
-                fontSize: "12.5px",
-                fontWeight: 600,
-                color: "#101828",
-                cursor: "pointer",
-              }}
+              className="workspace-search-btn"
+              aria-label="Academic Search"
             >
-              <Search size={13} style={{ color: "#475467" }} />
-              <span>Academic Search ⌘K</span>
+              <Search size={15} style={{ flexShrink: 0, color: "#64748b" }} className="search-icon" />
+              <span className="search-label">Academic Search</span>
+              <kbd className="search-kbd">⌘ K</kbd>
             </button>
 
             {/* Academic Alerts */}
             <button
+              type="button"
               onClick={() => navigateTo("alerts")}
               style={{
                 all: "unset",
@@ -784,6 +776,7 @@ export function PrincipalWorkspace({
                 position: "relative",
               }}
               title="Academic Alerts"
+              aria-label="Academic Alerts"
             >
               <Bell size={15} style={{ color: "#0c1e33" }} />
               <span style={{ position: "absolute", top: "7px", right: "7px", width: "6px", height: "6px", borderRadius: "50%", background: "#E84040" }} />
@@ -824,21 +817,7 @@ export function PrincipalWorkspace({
                     onClick={() => setProfileMenuOpen(false)}
                   />
                   <div
-                    style={{
-                      position: "absolute",
-                      top: "calc(100% + 8px)",
-                      right: 0,
-                      zIndex: 100,
-                      width: "240px",
-                      background: "#ffffff",
-                      border: "1px solid #EAECF0",
-                      borderRadius: "12px",
-                      boxShadow: "0 10px 25px -5px rgba(12, 30, 51, 0.15), 0 8px 10px -6px rgba(12, 30, 51, 0.1)",
-                      padding: "8px",
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: "4px",
-                    }}
+                    className="workspace-profile-dropdown"
                   >
                     <div style={{ padding: "10px 12px", borderBottom: "1px solid #EAECF0", marginBottom: "4px" }}>
                       <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#101828" }}>
@@ -906,7 +885,7 @@ export function PrincipalWorkspace({
         )}
 
         {/* WORKSPACE BODY VIEW */}
-        <div style={{ padding: "24px 28px", flex: 1 }}>
+        <div className="workspace-content-canvas">
           {navigation.loading ? (
             <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "360px" }}>
               <ThreeDotsLoading size={10} color="#101828" />
@@ -934,7 +913,7 @@ export function PrincipalWorkspace({
 
           {activePane === "planning" && (
             <PlanningPane
-              key={activeView}
+              key="planning"
               organizationId={organization.id}
               initialTab={activeView}
               onTabChange={(tab) => navigateTo("planning", tab)}
@@ -943,7 +922,7 @@ export function PrincipalWorkspace({
 
           {activePane === "people" && (
             <TeachersPane
-              key={activeView}
+              key="people"
               organizationId={organization.id}
               view={activeView as "hods" | "coordinators" | "assignments" | "workload" | "development"}
               onOpenProfile={(id) => setSelectedTeacherId(id)}
@@ -953,7 +932,7 @@ export function PrincipalWorkspace({
 
           {activePane === "academics" && (
             <AcademicsPane
-              key={activeView}
+              key="academics"
               organizationId={organization.id}
               initialTab={activeView}
               onOpenTeacherProfile={(id) => setSelectedTeacherId(id)}
@@ -963,7 +942,7 @@ export function PrincipalWorkspace({
 
           {activePane === "timetable" && (
             <TimetablePane
-              key={activeView}
+              key="timetable"
               organizationId={organization.id}
               initialTab={activeView}
               onTabChange={(tab) => navigateTo("timetable", tab)}
@@ -972,7 +951,7 @@ export function PrincipalWorkspace({
 
           {activePane === "attendance" && (
             <AttendancePane
-              key={activeView}
+              key="attendance"
               organizationId={organization.id}
               initialTab={activeView as "students" | "trends" | "teachers"}
               onTabChange={(tab) => navigateTo("attendance", tab)}
@@ -981,7 +960,7 @@ export function PrincipalWorkspace({
 
           {activePane === "learning" && (
             <LearningPane
-              key={activeView}
+              key="learning"
               organizationId={organization.id}
               initialTab={activeView as "assignments" | "submissions" | "materials" | "activities"}
               onTabChange={(tab) => navigateTo("learning", tab)}
@@ -998,7 +977,7 @@ export function PrincipalWorkspace({
               </div>
             ) : (
               <AssessmentsPane
-                key={activeView}
+                key="assessment"
                 organizationId={organization.id}
                 initialTab={(activeView as "assessments" | "analysis") || "assessments"}
                 onNavigate={navigateTo}
@@ -1010,7 +989,7 @@ export function PrincipalWorkspace({
           {activePane === "examinations" && (
             isFeatureEnabled("exams") ? (
               <ExaminationsPane
-                key={activeView}
+                key="examinations"
                 organizationId={organization.id}
                 initialTab={activeView as "planning" | "schedule" | "marks" | "report_cards"}
                 onTabChange={(tab) => navigateTo("examinations", tab)}
@@ -1024,7 +1003,7 @@ export function PrincipalWorkspace({
 
           {activePane === "students" && (
             <StudentsPane
-              key={activeView}
+              key="students"
               organizationId={organization.id}
               onOpenStudent360={(id) => setSelectedStudentId(id)}
               initialTab={activeView}
@@ -1034,7 +1013,7 @@ export function PrincipalWorkspace({
 
           {activePane === "communication" && (
             <CommunicationPane
-              key={activeView}
+              key="communication"
               organizationId={organization.id}
               initialTab={activeView}
               onTabChange={(tab) => navigateTo("communication", tab)}
@@ -1043,7 +1022,7 @@ export function PrincipalWorkspace({
 
           {activePane === "analytics" && (
             <AnalyticsAuditPane
-              key={activeView}
+              key="analytics"
               organizationId={organization.id}
               initialTab={activeView}
               onNavigate={navigateTo}
@@ -1075,37 +1054,103 @@ export function PrincipalWorkspace({
 
       {/* MOBILE DRAWER */}
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 flex lg:hidden">
-          <button type="button" aria-label="Close navigation"
-            className="fixed inset-0 bg-black/50"
+        <div className="workspace-drawer-backdrop">
+          <button
+            type="button"
+            aria-label="Close navigation"
+            className="workspace-drawer-overlay"
             onClick={() => setMobileMenuOpen(false)}
           />
-          <div className="relative flex-1 flex flex-col max-w-xs w-full bg-[#090D16] border-r border-[#1A243D] p-4">
-            <div className="flex items-center justify-between pb-4 border-b border-[#1A243D]">
-              <span className="font-bold text-sm text-white">Principal Navigation</span>
-              <button
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-1.5 text-slate-400 rounded-lg hover:bg-[#131C31] hover:text-white"
+          <div className="workspace-drawer">
+            {/* Top brand header with logo just like desktop view */}
+            <div
+              style={{
+                height: "68px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "0 18px",
+                borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer" }}
+                onClick={() => { setMobileMenuOpen(false); navigateTo("overview"); }}
+                title="EDOPS Principal Command Center"
               >
-                <X className="w-5 h-5" />
+                <img
+                  src="/EDOPSLogo.png"
+                  alt="EDOPS Principal Command Center"
+                  style={{
+                    height: "34px",
+                    width: "auto",
+                    maxWidth: "130px",
+                    display: "block",
+                    objectFit: "contain",
+                    filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
+                  }}
+                />
+              </div>
+              <button
+                type="button"
+                aria-label="Close navigation"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  all: "unset",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: "32px",
+                  height: "32px",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  color: "#94a3b8",
+                  background: "rgba(255, 255, 255, 0.05)",
+                }}
+              >
+                <X size={18} />
               </button>
             </div>
-            <nav className="flex-1 overflow-y-auto py-4 space-y-1">
-              {navItems.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => item.subItems?.length ? navigateTo(item.subItems[0].paneId ?? item.id, item.subItems[0].id) : navigateTo(item.paneId ?? item.id)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 text-xs font-semibold rounded-lg ${
-                    activePane === item.id
-                      ? "bg-[#131C31] border-l-2 border-indigo-400 font-bold"
-                      : "hover:bg-[#131C31]/60"
-                  }`}
-                  style={{ color: activePane === item.id ? "#FFFFFF" : "#CBD5E1" }}
-                >
-                  <span style={{ color: activePane === item.id ? "#818CF8" : "#94A3B8" }}>{item.icon}</span>
-                  {item.label}
-                </button>
-              ))}
+            <nav style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: "3px" }}>
+              {navItems.map((item) => {
+                const active = activePane === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      if (item.subItems?.length) navigateTo(item.subItems[0].paneId ?? item.id, item.subItems[0].id);
+                      else navigateTo(item.paneId ?? item.id);
+                    }}
+                    className={`drawer-nav-item ${active ? "active" : ""}`}
+                    style={{
+                      all: "unset",
+                      boxSizing: "border-box",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "11px",
+                      width: "100%",
+                      height: "40px",
+                      padding: "0 12px",
+                      borderRadius: "10px",
+                      fontSize: "13.5px",
+                      fontWeight: active ? 600 : 500,
+                      cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      background: active ? "#131C31" : "transparent",
+                      color: active ? "#ffffff" : "#cbd5e1",
+                      borderLeft: active ? "3px solid #818CF8" : "3px solid transparent",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <span style={{ color: active ? "#818CF8" : "#94A3B8", display: "grid", placeItems: "center" }}>{item.icon}</span>
+                    <span style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
             </nav>
           </div>
         </div>

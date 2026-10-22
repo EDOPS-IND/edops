@@ -3,6 +3,7 @@ import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedRequest } from '../../common/auth.guard';
 import {
   BatchFeeReminderDto,
+  BulkCreateCurriculumDto,
   CreateBroadcastDto,
   CreateCourseworkDto,
   CreateCurriculumNodeDto,
@@ -14,6 +15,7 @@ import {
   CreateSchoolAssetDto,
   CreateTimetableEntryDto,
   CreateTransportVehicleDto,
+  DirectAdmitStudentDto,
   GrantFeeConcessionDto,
   RecordOfflinePaymentDto,
   ScheduleExamDto,
@@ -55,6 +57,27 @@ export class SchoolAdminController {
       search,
       sectionId,
     });
+  }
+
+  @Post('people/students/direct')
+  @ApiOperation({ summary: 'Directly admit student to roster without sending an invitation email' })
+  directAdmitStudent(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: DirectAdmitStudentDto,
+  ) {
+    return this.service.directAdmitStudent(orgId, req.user, dto);
+  }
+
+  @Post('people/students/:studentId/send-invite')
+  @ApiParam({ name: 'studentId', format: 'uuid' })
+  @ApiOperation({ summary: 'Generate and send an invitation link to an admitted student' })
+  sendStudentInvite(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Param('studentId', ParseUUIDPipe) studentId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.sendStudentInvite(orgId, req.user, studentId);
   }
 
   @Get('people/students/:studentId/360')
@@ -165,6 +188,26 @@ export class SchoolAdminController {
     @Body() dto: CreateCurriculumNodeDto,
   ) {
     return this.service.createCurriculumNode(orgId, req.user, dto);
+  }
+
+  @Post('curriculum/bulk')
+  @ApiOperation({ summary: 'Bulk create or update curriculum chapters for a class and subject' })
+  bulkCreateCurriculum(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: BulkCreateCurriculumDto,
+  ) {
+    return this.service.bulkCreateCurriculumNodes(orgId, req.user, dto);
+  }
+
+  @Delete('curriculum/:chapterId')
+  @ApiOperation({ summary: 'Delete a curriculum chapter node' })
+  deleteCurriculum(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Param('chapterId', ParseUUIDPipe) chapterId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.deleteCurriculumNode(orgId, req.user, chapterId);
   }
 
   @Get('timetable')

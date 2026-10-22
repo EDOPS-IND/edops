@@ -1,8 +1,10 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Req,
   UseGuards,
 } from "@nestjs/common";
@@ -37,6 +39,15 @@ export class StudentDashboardController {
   }
   @Get('profile')
   getProfile(@Param('organizationId',ParseUUIDPipe) org:string,@Req() req:AuthenticatedRequest) {return this.dashboardService.getProfile(org,req.user.id);}
+  @Patch('profile')
+  @ApiOperation({ summary: 'Update student profile details (blood group, address, emergency contact, etc.)' })
+  updateProfile(
+    @Param('organizationId', ParseUUIDPipe) org: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() body: any,
+  ) {
+    return this.dashboardService.updateProfile(org, req.user.id, body);
+  }
   @Get('calendar')
   getCalendar(@Param('organizationId',ParseUUIDPipe) org:string,@Req() req:AuthenticatedRequest) {return this.dashboardService.getCalendar(org,req.user.id);}
 

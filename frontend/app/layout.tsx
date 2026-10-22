@@ -11,7 +11,15 @@ const spaceGrotesk = Space_Grotesk({ variable: "--font-space-grotesk", subsets: 
 export const metadata: Metadata = {
   title: "EDOPS — Connected school operations",
   description: "Manage school setup, academic structure and roster from one connected workspace.",
-  icons: { icon: "/favicon.png", shortcut: "/favicon.png", apple: "/EDOPSLogo.png" },
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.png", type: "image/png", sizes: "64x64" },
+    ],
+    shortcut: "/favicon.ico",
+    apple: "/apple-touch-icon.png",
+  },
   openGraph: { title: "EDOPS", description: "School operations, properly connected.", images: ["/EDOPSLogo.png"] },
   twitter: { card: "summary_large_image", title: "EDOPS", description: "School operations, properly connected.", images: ["/EDOPSLogo.png"] },
 };
