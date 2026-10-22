@@ -124,6 +124,23 @@ export class SchoolAdminController {
     return this.service.getDepartments(orgId, req.user);
   }
 
+  @Get('people/departments/available-subjects')
+  @ApiOperation({ summary: 'List all subjects available for department mapping' })
+  availableSubjects(@Param('organizationId', ParseUUIDPipe) orgId: string, @Req() req: AuthenticatedRequest) {
+    return this.service.getAvailableSubjects(orgId, req.user);
+  }
+
+  @Put('people/departments/:departmentId/subjects')
+  @ApiOperation({ summary: 'Update subjects mapped to an academic department' })
+  updateDepartmentSubjects(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Param('departmentId', ParseUUIDPipe) departmentId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: { subjectIds: string[] },
+  ) {
+    return this.service.updateDepartmentSubjects(orgId, req.user, departmentId, dto.subjectIds || []);
+  }
+
   @Post('people/departments')
   @ApiOperation({ summary: 'Create new academic department' })
   createDepartment(

@@ -81,7 +81,8 @@ async function request<T>(path: string, options: { method?: "GET" | "POST" | "PA
         body: JSON.stringify({ refreshToken: jwtRefreshToken }),
       });
       if (refreshRes.ok) {
-        const refreshData = await refreshRes.json();
+        const refreshText = await refreshRes.text();
+        const refreshData = refreshText ? JSON.parse(refreshText) : null;
         if (refreshData?.accessToken) {
           jwtAccessToken = refreshData.accessToken;
           if (refreshData.refreshToken) jwtRefreshToken = refreshData.refreshToken;
@@ -108,7 +109,17 @@ async function request<T>(path: string, options: { method?: "GET" | "POST" | "PA
     return null as T;
   }
 
-  const data = response.status === 204 ? null : await response.json();
+  let data: any = null;
+  if (response.status !== 204) {
+    const rawText = await response.text();
+    if (rawText && rawText.trim().length > 0) {
+      try {
+        data = JSON.parse(rawText);
+      } catch {
+        data = { message: rawText };
+      }
+    }
+  }
   if (!response.ok) {
     const message = Array.isArray(data?.message) ? data.message.join("; ") : data?.message;
     throw new Error(message || `Request failed (${response.status})`);
@@ -312,6 +323,17 @@ export async function getSchoolAdminDepartments(orgId: string) {
 
 export async function createSchoolAdminDepartment(orgId: string, data: any) {
   return api<any>(`/organizations/${orgId}/school-admin/people/departments`, { method: "POST", body: data });
+}
+
+export async function getAvailableDepartmentSubjects(orgId: string) {
+  return api<any[]>(`/organizations/${orgId}/school-admin/people/departments/available-subjects`);
+}
+
+export async function updateDepartmentSubjects(orgId: string, departmentId: string, subjectIds: string[]) {
+  return api<any>(`/organizations/${orgId}/school-admin/people/departments/${departmentId}/subjects`, {
+    method: "PUT",
+    body: { subjectIds },
+  });
 }
 
 export interface CreateMemberInvitationPayload {

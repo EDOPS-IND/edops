@@ -19,7 +19,7 @@ import {
   LayoutDashboard, Users, GraduationCap, Briefcase, HeartHandshake,
   Building2, BookOpen, CalendarDays, CalendarCheck2, Award, CreditCard,
   MessageSquare, Bus, ShieldAlert, FileText, BarChart3, Sliders, History,
-  Search, Bell, LogOut, RefreshCw, ChevronDown,
+  Search, Bell, LogOut, RefreshCw, ChevronDown, X,
 } from "lucide-react";
 import {
   createSchoolAdminBroadcast, createSchoolAdminLeave,
@@ -353,7 +353,7 @@ export function SchoolAdminWorkspace({
     } else {
       setActionTitle(""); setActionScope(""); setActionNotes("");
       setPersonName(""); setPersonEmail(""); setPersonPhone(""); setPersonSpecialty("");
-      setPersonEmployeeId(""); setPersonEmploymentType("Regular Faculty");
+      setPersonEmployeeId(""); setPersonEmploymentType(act === "addStaff" ? "Permanent Staff" : act === "addPrincipal" ? "Tenured Principal" : "Regular Faculty");
       setSelectedClass(""); setSelectedSectionId(""); setSelectedChildIds([]); setChildSearch("");
       setDeptName(""); setDeptCode(""); setDeptHeadTeacherId(""); setDeptLocation(""); setDeptSubjectIds([]); setSubjectSearch("");
       setSectionYearId(""); setSectionProgramId(""); setSectionName("A"); setSectionCapacity(40);
@@ -1062,19 +1062,35 @@ export function SchoolAdminWorkspace({
       </main>
 
       {/* ═══════════════════════════════════════════════
-          Q U I C K   A C T I O N   M O D A L
+          Q U I C K   A C T I O N   D O S S I E R   D R A W E R
       ═══════════════════════════════════════════════ */}
+      <style>{`
+        @keyframes edopsSlideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0.6;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+        @keyframes edopsFadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
       {quickActionModal && (
         <div
           style={{
             position: "fixed",
             inset: 0,
-            zIndex: 200,
-            display: "grid",
-            placeItems: "center",
-            padding: "20px",
+            zIndex: 1000,
+            display: "flex",
+            justifyContent: "flex-end",
             background: "rgba(12, 30, 51, 0.45)",
-            backdropFilter: "blur(6px)",
+            backdropFilter: "blur(4px)",
+            animation: "edopsFadeIn 0.15s ease",
           }}
           onMouseDown={(e) => {
             if (e.target === e.currentTarget) {
@@ -1083,116 +1099,241 @@ export function SchoolAdminWorkspace({
             }
           }}
         >
-          <section
+          <aside
             style={{
               position: "relative",
-              width: "min(500px, 95vw)",
-              maxHeight: "90vh",
-              overflow: "auto",
-              padding: "28px",
-              borderRadius: "14px",
+              width: "580px",
+              maxWidth: "100vw",
+              height: "100vh",
+              display: "flex",
+              flexDirection: "column",
               background: "#FFFFFF",
-              border: `1px solid ${S.border}`,
-              boxShadow: "0 24px 64px rgba(12, 30, 51, 0.2)",
-              fontFamily: "inherit",
+              boxShadow: "-8px 0 32px rgba(12, 30, 51, 0.14)",
+              borderLeft: "1px solid #E2E8F0",
+              animation: "edopsSlideInRight 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
+              fontFamily: "'Poppins', sans-serif",
             }}
             role="dialog"
             aria-modal="true"
           >
-            {/* close */}
-            <button
-              onClick={() => {
-                setQuickActionModal(null);
-                setCreatedInvite(null);
-              }}
-              aria-label="Close"
+            {/* Header: Clean, minimalist with breadcrumb & close */}
+            <div
               style={{
-                all: "unset",
-                position: "absolute", top: "14px", right: "14px",
-                width: "28px", height: "28px",
-                borderRadius: "50%",
-                background: "#F2F4F7",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                cursor: "pointer",
-                fontSize: "16px", color: "#667085",
+                padding: "18px 24px 14px",
+                borderBottom: "1px solid #E2E8F0",
+                background: "#FFFFFF",
+                flexShrink: 0,
               }}
-            >×</button>
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: "12px",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#64748B",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                  }}
+                >
+                  {isPersonAction
+                    ? `Member Onboarding Dossier · ${
+                        detectedRole === "staff"
+                          ? "Staff Member"
+                          : detectedRole === "teacher"
+                          ? "Faculty Teacher"
+                          : detectedRole === "student"
+                          ? "Enrolled Student"
+                          : detectedRole === "parent"
+                          ? "Guardian / Parent"
+                          : "School Principal"
+                      }`
+                    : isDepartmentAction
+                    ? "Academic Department Dossier · Register"
+                    : isSectionAction
+                    ? "Academic Structure Dossier · Section"
+                    : isClassAction
+                    ? "Academic Structure Dossier · Class"
+                    : isBroadcastAction
+                    ? "Communication Dispatch Dossier"
+                    : isExamAction
+                    ? "Assessment Schedule Dossier"
+                    : "School Operations Dossier"}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuickActionModal(null);
+                    setCreatedInvite(null);
+                  }}
+                  title="Close (Esc)"
+                  style={{
+                    width: "28px",
+                    height: "28px",
+                    borderRadius: "6px",
+                    border: "1px solid #E2E8F0",
+                    background: "#FFFFFF",
+                    color: "#64748B",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    transition: "all 0.12s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#F1F5F9";
+                    e.currentTarget.style.color = "#0C1E33";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#FFFFFF";
+                    e.currentTarget.style.color = "#64748B";
+                  }}
+                >
+                  <X size={15} />
+                </button>
+              </div>
+
+              {/* Title & Description - Clean without logo / icon */}
+              <div>
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: "18px",
+                    fontWeight: 650,
+                    color: "#0C1E33",
+                    letterSpacing: "-0.01em",
+                  }}
+                >
+                  {isSectionAction
+                    ? "Add Academic Section"
+                    : isClassAction
+                    ? "Add Class Program"
+                    : quickActionModal === "addDepartment"
+                    ? "Create Academic Department"
+                    : quickActionModal === "addStudent"
+                    ? "Add New Student"
+                    : quickActionModal === "addTeacher"
+                    ? "Add New Teacher"
+                    : quickActionModal === "addStaff"
+                    ? "Add New Staff Member"
+                    : quickActionModal === "addPrincipal"
+                    ? "Add School Principal"
+                    : quickActionModal === "mapParent" || quickActionModal === "addParent"
+                    ? "Map Parent / Guardian"
+                    : isBroadcastAction
+                    ? "Send School Broadcast"
+                    : isExamAction
+                    ? "Schedule Examination"
+                    : quickActionModal.replace(/([A-Z])/g, " $1").trim()}
+                </h3>
+                <div style={{ fontSize: "12px", color: "#64748B", marginTop: "3px" }}>
+                  {quickActionModal === "addStaff"
+                    ? "Enter staff member details, assign an employee ID, and generate an official onboarding invitation link."
+                    : quickActionModal === "addTeacher"
+                    ? "Enter faculty member details, subject specialty, and generate an official onboarding invitation link."
+                    : quickActionModal === "addStudent"
+                    ? "Enter student details, assign class and section, and generate an official onboarding invitation link."
+                    : quickActionModal === "mapParent" || quickActionModal === "addParent"
+                    ? "Enter guardian contact details and link with enrolled student profiles."
+                    : isDepartmentAction
+                    ? "Configure department name, code, Head of Department, and discipline subjects."
+                    : "Fill in the required information to complete the onboarding process."}
+                </div>
+              </div>
+            </div>
 
             {createdInvite ? (
-              <div style={{ display: "grid", gap: "16px" }}>
-                <div style={{
-                  width: "44px", height: "44px", borderRadius: "10px",
-                  background: "#ECFDF5", border: "1px solid #A7F3D0",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  fontSize: "20px", color: "#065F46"
-                }}>
-                  ✓
-                </div>
-                <div>
-                  <p style={{ margin: "0 0 2px", fontSize: "11px", fontWeight: 600, color: "#027A48", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                    Invitation Ready
-                  </p>
-                  <h2 style={{ margin: "0 0 6px", fontSize: "18px", fontWeight: 600, color: "#101828", letterSpacing: "-0.02em" }}>
-                    Invitation link generated
-                  </h2>
-                  <p style={{ margin: 0, fontSize: "13px", color: "#475467", lineHeight: 1.5 }}>
-                    An invitation was created for <strong style={{ color: "#101828" }}>{createdInvite.email}</strong> as <strong style={{ color: "#101828", textTransform: "capitalize" }}>{createdInvite.role}</strong>. Share this link for them to activate their account.
-                  </p>
-                </div>
-
-                <div style={{ display: "grid", gap: "6px" }}>
-                  <label style={{ fontSize: "12px", fontWeight: 500, color: "#344054" }}>
-                    Invitation URL
-                  </label>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <input
-                      type="text"
-                      readOnly
-                      value={typeof window !== "undefined" ? `${window.location.origin}/?invite=${createdInvite.token}` : `/?invite=${createdInvite.token}`}
-                      style={{
-                        flex: 1,
-                        padding: "9px 12px",
-                        borderRadius: "8px",
-                        border: "1px solid #D0D5DD",
-                        fontSize: "12px",
-                        background: "#F9FAFB",
-                        color: "#101828",
-                        fontFamily: "monospace",
-                        outline: "none",
-                      }}
-                      onFocus={(e) => e.target.select()}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const url = typeof window !== "undefined" ? `${window.location.origin}/?invite=${createdInvite.token}` : `/?invite=${createdInvite.token}`;
-                        navigator.clipboard.writeText(url);
-                        setCopiedLink(true);
-                        setTimeout(() => setCopiedLink(false), 2000);
-                      }}
-                      style={{
-                        all: "unset",
-                        boxSizing: "border-box",
-                        padding: "8px 16px",
-                        borderRadius: "8px",
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        background: copiedLink ? "#027A48" : "#101828",
-                        color: "#FFFFFF",
-                        cursor: "pointer",
-                        whiteSpace: "nowrap",
-                        transition: "background 0.15s ease",
-                      }}
-                    >
-                      {copiedLink ? "✓ Copied" : "Copy Link"}
-                    </button>
+              <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "grid", gap: "16px", alignContent: "start" }}>
+                  <div style={{
+                    width: "44px", height: "44px", borderRadius: "10px",
+                    background: "#ECFDF5", border: "1px solid #A7F3D0",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "20px", color: "#065F46"
+                  }}>
+                    ✓
                   </div>
-                  <span style={{ fontSize: "11.5px", color: "#667085" }}>
-                    Token expires in 48 hours. Can be redeemed once.
-                  </span>
+                  <div>
+                    <p style={{ margin: "0 0 2px", fontSize: "11px", fontWeight: 600, color: "#027A48", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      Invitation Ready
+                    </p>
+                    <h2 style={{ margin: "0 0 6px", fontSize: "18px", fontWeight: 650, color: "#0C1E33", letterSpacing: "-0.02em" }}>
+                      Invitation link generated
+                    </h2>
+                    <p style={{ margin: 0, fontSize: "13px", color: "#475467", lineHeight: 1.5 }}>
+                      An invitation was created for <strong style={{ color: "#0C1E33" }}>{createdInvite.email}</strong> as <strong style={{ color: "#0C1E33", textTransform: "capitalize" }}>{createdInvite.role}</strong>. Share this link for them to activate their account.
+                    </p>
+                  </div>
+
+                  <div style={{ display: "grid", gap: "6px" }}>
+                    <label style={{ fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                      Invitation URL
+                    </label>
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <input
+                        type="text"
+                        readOnly
+                        value={typeof window !== "undefined" ? `${window.location.origin}/?invite=${createdInvite.token}` : `/?invite=${createdInvite.token}`}
+                        style={{
+                          flex: 1,
+                          padding: "9px 12px",
+                          borderRadius: "6px",
+                          border: "1px solid #CBD5E1",
+                          fontSize: "12px",
+                          background: "#F8FAFC",
+                          color: "#0C1E33",
+                          fontFamily: "monospace",
+                          outline: "none",
+                        }}
+                        onFocus={(e) => e.target.select()}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const url = typeof window !== "undefined" ? `${window.location.origin}/?invite=${createdInvite.token}` : `/?invite=${createdInvite.token}`;
+                          navigator.clipboard.writeText(url);
+                          setCopiedLink(true);
+                          setTimeout(() => setCopiedLink(false), 2000);
+                        }}
+                        style={{
+                          boxSizing: "border-box",
+                          padding: "8px 16px",
+                          borderRadius: "6px",
+                          fontSize: "12.5px",
+                          fontWeight: 600,
+                          background: copiedLink ? "#047857" : "#0C1E33",
+                          color: "#FFFFFF",
+                          border: "none",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                          transition: "background 0.15s ease",
+                          fontFamily: "'Poppins', sans-serif",
+                        }}
+                      >
+                        {copiedLink ? "✓ Copied" : "Copy Link"}
+                      </button>
+                    </div>
+                    <span style={{ fontSize: "11.5px", color: "#64748B" }}>
+                      Token expires in 48 hours. Can be redeemed once.
+                    </span>
+                  </div>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "8px" }}>
+                <div style={{
+                  padding: "14px 24px",
+                  background: "#FFFFFF",
+                  borderTop: "1px solid #E2E8F0",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  flexShrink: 0
+                }}>
                   <button
                     type="button"
                     onClick={() => {
@@ -1200,65 +1341,64 @@ export function SchoolAdminWorkspace({
                       setCreatedInvite(null);
                     }}
                     style={{
-                      all: "unset",
-                      boxSizing: "border-box",
-                      padding: "9px 20px",
-                      borderRadius: "8px",
-                      fontSize: "13px",
+                      padding: "8px 24px",
+                      borderRadius: "6px",
+                      border: "none",
+                      fontSize: "12.5px",
                       fontWeight: 600,
-                      background: S.navy,
+                      background: "#0C1E33",
                       color: "#FFFFFF",
                       cursor: "pointer",
+                      fontFamily: "'Poppins', sans-serif",
                       transition: "background 0.15s ease",
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#1B3554")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = "#0C1E33")}
                   >
                     Done
                   </button>
                 </div>
               </div>
             ) : (
-              <>
-                <p style={{ margin: "0 0 2px", fontSize: "11px", fontWeight: 600, color: "#667085", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  {isPersonAction ? "Member Onboarding" : (isDepartmentAction || isSectionAction || isClassAction) ? "Academic Structure" : isBroadcastAction ? "Communication" : isExamAction ? "Examinations & Assessments" : "Quick Action"}
-                </p>
-                <h2 style={{ margin: "0 0 16px", fontSize: "17px", fontWeight: 600, color: "#101828", letterSpacing: "-0.02em" }}>
-                  {isSectionAction
-                    ? "Add Academic Section"
-                    : isClassAction
-                    ? "Add Class"
-                    : quickActionModal === "addDepartment"
-                    ? "Add Academic Department"
-                    : isBroadcastAction
-                    ? "Send School Broadcast"
-                    : isExamAction
-                    ? "Schedule School Examination"
-                    : quickActionModal.replace(/([A-Z])/g, " $1").trim()}
-                </h2>
-
+              <form onSubmit={handleActionSubmit} style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
                 {actionError && (
-                  <div style={{ padding: "8px 12px", background: "#FEF3F2", border: "1px solid #FECDCA", borderRadius: "8px", color: "#B42318", fontSize: "12px", marginBottom: "14px" }}>
+                  <div style={{ margin: "16px 24px 0", padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "6px", color: "#DC2626", fontSize: "12px" }}>
                     {actionError}
                   </div>
                 )}
 
-                <form onSubmit={handleActionSubmit} style={{ display: "grid", gap: "14px" }}>
+                <div
+                  style={{
+                    flex: 1,
+                    overflowY: "auto",
+                    padding: "20px 24px",
+                    display: "grid",
+                    gap: "14px",
+                    alignContent: "start",
+                  }}
+                >
                   {isPersonAction ? (
                     <>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", background: "#F0F9FF", border: "1px solid #B9E6FE", borderRadius: "8px" }}>
-                        <span style={{ fontSize: "12px", color: "#026AA2" }}>Role automatically detected:</span>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "6px" }}>
+                        <span style={{ fontSize: "12px", color: "#475569", fontWeight: 500 }}>Assigned Role:</span>
                         <span style={{
                           display: "inline-block",
                           padding: "2px 8px",
-                          borderRadius: "6px",
+                          borderRadius: "4px",
                           fontSize: "11px",
-                          fontWeight: 700,
-                          textTransform: "capitalize",
-                          background: "#0284C7",
+                          fontWeight: 600,
+                          background: "#0C1E33",
                           color: "#FFFFFF",
                         }}>
-                          {detectedRole}
+                          {detectedRole === "staff"
+                            ? "Staff Member"
+                            : detectedRole === "teacher"
+                            ? "Teaching Faculty"
+                            : detectedRole === "student"
+                            ? "Enrolled Student"
+                            : detectedRole === "parent"
+                            ? "Guardian / Parent"
+                            : "School Principal"}
                         </span>
                       </div>
 
@@ -1352,13 +1492,13 @@ export function SchoolAdminWorkspace({
                           <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
                             <div style={{ display: "flex", justifyContent: "space-between" }}>
                               <span>Employee ID / Code</span>
-                              <span style={{ fontSize: "11px", color: "#667085" }}>Optional (e.g. EMP-1042)</span>
+                              <span style={{ fontSize: "11px", color: "#667085" }}>Optional (e.g. {detectedRole === "staff" ? "STF-1042" : "EMP-1042"})</span>
                             </div>
                             <input
                               type="text"
                               value={personEmployeeId}
                               onChange={(e) => setPersonEmployeeId(e.target.value)}
-                              placeholder="e.g. EMP-1042 or TCH-089"
+                              placeholder={detectedRole === "staff" ? "e.g. STF-1042 or ADM-089" : "e.g. EMP-1042 or TCH-089"}
                               style={{
                                 padding: "9px 12px",
                                 borderRadius: "8px",
@@ -1388,10 +1528,27 @@ export function SchoolAdminWorkspace({
                                 fontFamily: "inherit",
                               }}
                             >
-                              <option value="Regular Faculty">Regular Faculty (Permanent Full-Time)</option>
-                              <option value="Probationary Faculty">Probationary Faculty</option>
-                              <option value="Contractual Faculty">Contractual / Ad-hoc Faculty</option>
-                              <option value="Visiting / Part-Time">Visiting / Part-Time Faculty</option>
+                              {detectedRole === "staff" ? (
+                                <>
+                                  <option value="Permanent Staff">Permanent Staff (Full-Time)</option>
+                                  <option value="Probationary Staff">Probationary Staff</option>
+                                  <option value="Contractual Staff">Contractual Staff</option>
+                                  <option value="Part-Time Staff">Part-Time / Support Staff</option>
+                                </>
+                              ) : detectedRole === "principal" ? (
+                                <>
+                                  <option value="Tenured Principal">Tenured Principal (Full-Time)</option>
+                                  <option value="Acting Principal">Acting / Interim Principal</option>
+                                  <option value="Contractual Principal">Contractual Administrator</option>
+                                </>
+                              ) : (
+                                <>
+                                  <option value="Regular Faculty">Regular Faculty (Permanent Full-Time)</option>
+                                  <option value="Probationary Faculty">Probationary Faculty</option>
+                                  <option value="Contractual Faculty">Contractual / Ad-hoc Faculty</option>
+                                  <option value="Visiting / Part-Time">Visiting / Part-Time Faculty</option>
+                                </>
+                              )}
                             </select>
                           </label>
                         </>
@@ -2344,21 +2501,36 @@ export function SchoolAdminWorkspace({
                     </>
                   )}
 
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "4px" }}>
+                  </div>
+
+                  {/* Sticky Drawer Footer */}
+                  <div
+                    style={{
+                      padding: "14px 24px",
+                      background: "#FFFFFF",
+                      borderTop: "1px solid #E2E8F0",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexShrink: 0,
+                    }}
+                  >
                     <button
                       type="button"
                       onClick={() => setQuickActionModal(null)}
                       style={{
-                        all: "unset", boxSizing: "border-box",
                         padding: "8px 16px",
-                        border: `1px solid ${S.line}`,
-                        borderRadius: "8px",
-                        fontSize: "13px", fontWeight: 500,
-                        color: S.slate, cursor: "pointer",
+                        border: "1px solid #CBD5E1",
+                        borderRadius: "6px",
+                        fontSize: "12.5px",
+                        fontWeight: 500,
+                        color: "#475569",
+                        cursor: "pointer",
                         background: "#FFFFFF",
+                        fontFamily: "'Poppins', sans-serif",
                         transition: "background 0.12s ease",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f4f6f7")}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#F1F5F9")}
                       onMouseLeave={(e) => (e.currentTarget.style.background = "#FFFFFF")}
                     >
                       Cancel
@@ -2367,20 +2539,34 @@ export function SchoolAdminWorkspace({
                       type="submit"
                       disabled={actionBusy}
                       style={{
-                        all: "unset", boxSizing: "border-box",
-                        padding: "8px 18px",
-                        borderRadius: "8px",
-                        fontSize: "13px", fontWeight: 600,
-                        background: S.navy, color: "#FFFFFF",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "8px 20px",
+                        borderRadius: "6px",
+                        border: "none",
+                        fontSize: "12.5px",
+                        fontWeight: 600,
+                        background: "#0C1E33",
+                        color: "#FFFFFF",
                         cursor: actionBusy ? "wait" : "pointer",
-                        opacity: actionBusy ? 0.6 : 1,
+                        opacity: actionBusy ? 0.7 : 1,
+                        fontFamily: "'Poppins', sans-serif",
                         transition: "background 0.15s ease",
                       }}
-                      onMouseEnter={(e) => { if (!actionBusy) e.currentTarget.style.background = "#132840"; }}
-                      onMouseLeave={(e) => { if (!actionBusy) e.currentTarget.style.background = S.navy; }}
+                      onMouseEnter={(e) => { if (!actionBusy) e.currentTarget.style.background = "#1B3554"; }}
+                      onMouseLeave={(e) => { if (!actionBusy) e.currentTarget.style.background = "#0C1E33"; }}
                     >
                       {actionBusy
                         ? "Processing…"
+                        : quickActionModal === "addStaff"
+                        ? "Send Staff Invite Link"
+                        : quickActionModal === "addTeacher"
+                        ? "Send Teacher Invite Link"
+                        : quickActionModal === "addStudent"
+                        ? "Send Student Invite Link"
+                        : quickActionModal === "mapParent" || quickActionModal === "addParent"
+                        ? "Send Guardian Invite Link"
                         : isPersonAction
                         ? "Generate Invite Link"
                         : isDepartmentAction
@@ -2397,9 +2583,8 @@ export function SchoolAdminWorkspace({
                     </button>
                   </div>
                 </form>
-              </>
             )}
-          </section>
+          </aside>
         </div>
       )}
 
