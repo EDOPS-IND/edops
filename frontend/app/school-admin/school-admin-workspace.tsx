@@ -1343,7 +1343,7 @@ export function SchoolAdminWorkspace({
                     : quickActionModal === "addTeacher"
                     ? "Enter faculty member details, subject specialty, and generate an official onboarding invitation link."
                     : quickActionModal === "addStudent"
-                    ? "Enter student details, assign class and section, and generate an official onboarding invitation link."
+                    ? "Enter student details, assign class, and generate an onboarding invitation link."
                     : quickActionModal === "mapParent" || quickActionModal === "addParent"
                     ? "Enter guardian contact details and link with enrolled student profiles."
                     : isDepartmentAction
@@ -1801,39 +1801,132 @@ export function SchoolAdminWorkspace({
                           </div>
 
                           {/* Admission Option: Invite vs Direct Add */}
-                          <div
-                            style={{
-                              marginTop: "4px",
-                              padding: "12px",
-                              borderRadius: "8px",
-                              background: "#F8FAFC",
-                              border: "1px solid #E2E8F0",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "8px",
-                            }}
-                          >
-                            <span style={{ fontSize: "12px", fontWeight: 600, color: "#1E293B" }}>
+                          <div style={{ marginTop: "4px", display: "grid", gap: "6px" }}>
+                            <label style={{ fontSize: "12px", fontWeight: 500, color: "#344054" }}>
                               Admission &amp; Invitation Mode
-                            </span>
-                            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
-                              <input
-                                type="radio"
-                                name="studentAdmissionMode"
-                                checked={!directAddWithoutInvite}
-                                onChange={() => setDirectAddWithoutInvite(false)}
-                              />
-                              <span><b>Send Invitation Link</b> (Generates invite token &amp; sends invitation email)</span>
                             </label>
-                            <label style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", color: "#334155", cursor: "pointer" }}>
-                              <input
-                                type="radio"
-                                name="studentAdmissionMode"
-                                checked={directAddWithoutInvite}
-                                onChange={() => setDirectAddWithoutInvite(true)}
-                              />
-                              <span><b>Directly Add Student to Register</b> (No invitation email sent now; marked as Not Sent)</span>
-                            </label>
+
+                            <div style={{ display: "grid", gap: "8px" }}>
+                              {/* Option 1: Send Invitation Link */}
+                              <div
+                                onClick={() => setDirectAddWithoutInvite(false)}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "flex-start",
+                                  gap: "12px",
+                                  padding: "11px 14px",
+                                  borderRadius: "8px",
+                                  border: !directAddWithoutInvite ? "1.5px solid #0C1E33" : "1px solid #E2E8F0",
+                                  background: !directAddWithoutInvite ? "#F8FAFC" : "#FFFFFF",
+                                  cursor: "pointer",
+                                  transition: "all 0.15s ease",
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (directAddWithoutInvite) e.currentTarget.style.borderColor = "#CBD5E1";
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (directAddWithoutInvite) e.currentTarget.style.borderColor = "#E2E8F0";
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: "16px",
+                                    height: "16px",
+                                    borderRadius: "50%",
+                                    border: !directAddWithoutInvite ? "5px solid #0C1E33" : "1.5px solid #CBD5E1",
+                                    background: "#FFFFFF",
+                                    flexShrink: 0,
+                                    marginTop: "2px",
+                                    transition: "all 0.15s ease",
+                                    boxSizing: "border-box",
+                                  }}
+                                />
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                    <span style={{ fontSize: "13px", fontWeight: 600, color: "#0C1E33" }}>
+                                      Send Invitation Link
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: "10px",
+                                        fontWeight: 600,
+                                        color: "#047857",
+                                        background: "#ECFDF5",
+                                        border: "1px solid #D1FAE5",
+                                        padding: "1px 7px",
+                                        borderRadius: "12px",
+                                        lineHeight: "15px",
+                                      }}
+                                    >
+                                      Recommended
+                                    </span>
+                                  </div>
+                                  <p style={{ margin: "3px 0 0", fontSize: "11.5px", color: "#64748B", lineHeight: "1.4" }}>
+                                    Generates secure digital onboarding token and sends an invitation email to the student
+                                  </p>
+                                </div>
+                              </div>
+
+                              {/* Option 2: Directly Add Student to Register */}
+                              <div
+                                onClick={() => setDirectAddWithoutInvite(true)}
+                                style={{
+                                  display: "flex",
+                                  alignItems: "flex-start",
+                                  gap: "12px",
+                                  padding: "11px 14px",
+                                  borderRadius: "8px",
+                                  border: directAddWithoutInvite ? "1.5px solid #0C1E33" : "1px solid #E2E8F0",
+                                  background: directAddWithoutInvite ? "#F8FAFC" : "#FFFFFF",
+                                  cursor: "pointer",
+                                  transition: "all 0.15s ease",
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!directAddWithoutInvite) e.currentTarget.style.borderColor = "#CBD5E1";
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!directAddWithoutInvite) e.currentTarget.style.borderColor = "#E2E8F0";
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    width: "16px",
+                                    height: "16px",
+                                    borderRadius: "50%",
+                                    border: directAddWithoutInvite ? "5px solid #0C1E33" : "1.5px solid #CBD5E1",
+                                    background: "#FFFFFF",
+                                    flexShrink: 0,
+                                    marginTop: "2px",
+                                    transition: "all 0.15s ease",
+                                    boxSizing: "border-box",
+                                  }}
+                                />
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                    <span style={{ fontSize: "13px", fontWeight: 600, color: "#0C1E33" }}>
+                                      Directly Add Student to Register
+                                    </span>
+                                    <span
+                                      style={{
+                                        fontSize: "10px",
+                                        fontWeight: 600,
+                                        color: "#475569",
+                                        background: "#F1F5F9",
+                                        border: "1px solid #E2E8F0",
+                                        padding: "1px 7px",
+                                        borderRadius: "12px",
+                                        lineHeight: "15px",
+                                      }}
+                                    >
+                                      Direct Enrolment
+                                    </span>
+                                  </div>
+                                  <p style={{ margin: "3px 0 0", fontSize: "11.5px", color: "#64748B", lineHeight: "1.4" }}>
+                                    Enrolls student immediately into the active directory without sending an invitation email now (status: <em>Not Sent</em>)
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </>
                       )}
