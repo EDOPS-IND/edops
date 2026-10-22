@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
 /* EDOPS workspace design system: Emerald Ink (#064E3B) and Champagne (#F8E7C9) */
 :root {
   --emerald: #064E3B;
@@ -17,6 +19,29 @@
   --navy: #064E3B;
   --coral: #F8E7C9;
 }
+/* Universally hide side scrollbars across the entire dashboard and all elements */
+html,
+body,
+* {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar,
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  display: none !important;
+  width: 0px !important;
+  height: 0px !important;
+  background: transparent !important;
+}
+
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
+}
+
 body {
   background: var(--canvas);
   color: var(--ink);

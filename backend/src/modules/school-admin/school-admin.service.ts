@@ -930,19 +930,42 @@ export class SchoolAdminService {
           NULL as "invitationStatus",
           COALESCE((
             SELECT json_agg(json_build_object(
-              'id', s_u.id,
-              'studentId', s_u.id,
-              'name', COALESCE(NULLIF(s_u.name, ''), split_part(s_u.email, '@', 1)),
-              'studentName', COALESCE(NULLIF(s_u.name, ''), split_part(s_u.email, '@', 1)),
-              'grade', COALESCE(prog.name, ''),
-              'section', COALESCE(sec.name, ''),
-              'class', COALESCE(prog.name, '') || ' ' || COALESCE(sec.name, '')
+              'id', st.id,
+              'studentId', st.id,
+              'name', st.name,
+              'studentName', st.name,
+              'admissionNo', st.admission_no,
+              'grade', st.grade,
+              'section', st.section,
+              'class', st.class_name
             ))
-            FROM parent_student_relationships psr
-            JOIN users s_u ON s_u.id = psr.student_id
-            LEFT JOIN enrollments enr ON enr.student_user_id = s_u.id AND enr.organization_id = m.organization_id AND enr.status = 'active'
-            LEFT JOIN sections sec ON sec.id = enr.section_id
-            LEFT JOIN programs prog ON prog.id = sec.program_id
+            FROM (
+              SELECT
+                u_s.id,
+                COALESCE(NULLIF(u_s.name, ''), split_part(u_s.email, '@', 1)) as name,
+                sp.admission_number as admission_no,
+                COALESCE(p.name, '') as grade,
+                COALESCE(sec.name, '') as section,
+                TRIM(COALESCE(p.name, '') || ' ' || COALESCE(sec.name, '')) as class_name
+              FROM users u_s
+              LEFT JOIN student_profiles sp ON sp.student_user_id = u_s.id AND sp.organization_id = m.organization_id
+              LEFT JOIN enrollments enr ON enr.student_user_id = u_s.id AND enr.organization_id = m.organization_id AND enr.status = 'active'
+              LEFT JOIN sections sec ON sec.id = enr.section_id
+              LEFT JOIN programs p ON p.id = sec.program_id
+              UNION ALL
+              SELECT
+                inv_s.id,
+                COALESCE(NULLIF(inv_s.name, ''), split_part(inv_s.email, '@', 1)) as name,
+                NULL::text as admission_no,
+                COALESCE(p_inv.name, '') as grade,
+                COALESCE(sec_inv.name, '') as section,
+                TRIM(COALESCE(p_inv.name, '') || ' ' || COALESCE(sec_inv.name, '')) as class_name
+              FROM invitations inv_s
+              LEFT JOIN sections sec_inv ON sec_inv.id = inv_s.section_id
+              LEFT JOIN programs p_inv ON p_inv.id = sec_inv.program_id
+              WHERE inv_s.organization_id = m.organization_id AND inv_s.role = 'student'
+            ) st
+            JOIN parent_student_relationships psr ON psr.student_id = st.id
             WHERE psr.school_id = m.organization_id AND psr.parent_id = u.id AND psr.status = 'active'
           ), '[]'::json) as "children",
           json_build_object('attendance', true, 'fees', true, 'exams', true, 'assignments', true, 'communication', true, 'transport', true) as "permissions",
@@ -968,19 +991,42 @@ export class SchoolAdminService {
           'Pending' as "invitationStatus",
           COALESCE((
             SELECT json_agg(json_build_object(
-              'id', s_u.id,
-              'studentId', s_u.id,
-              'name', COALESCE(NULLIF(s_u.name, ''), split_part(s_u.email, '@', 1)),
-              'studentName', COALESCE(NULLIF(s_u.name, ''), split_part(s_u.email, '@', 1)),
-              'grade', COALESCE(prog.name, ''),
-              'section', COALESCE(sec.name, ''),
-              'class', COALESCE(prog.name, '') || ' ' || COALESCE(sec.name, '')
+              'id', st.id,
+              'studentId', st.id,
+              'name', st.name,
+              'studentName', st.name,
+              'admissionNo', st.admission_no,
+              'grade', st.grade,
+              'section', st.section,
+              'class', st.class_name
             ))
-            FROM users s_u
-            LEFT JOIN enrollments enr ON enr.student_user_id = s_u.id AND enr.organization_id = i.organization_id AND enr.status = 'active'
-            LEFT JOIN sections sec ON sec.id = enr.section_id
-            LEFT JOIN programs prog ON prog.id = sec.program_id
-            WHERE i.child_student_ids IS NOT NULL AND (i.child_student_ids::jsonb) ? s_u.id::text
+            FROM (
+              SELECT
+                u_s.id,
+                COALESCE(NULLIF(u_s.name, ''), split_part(u_s.email, '@', 1)) as name,
+                sp.admission_number as admission_no,
+                COALESCE(p.name, '') as grade,
+                COALESCE(sec.name, '') as section,
+                TRIM(COALESCE(p.name, '') || ' ' || COALESCE(sec.name, '')) as class_name
+              FROM users u_s
+              LEFT JOIN student_profiles sp ON sp.student_user_id = u_s.id AND sp.organization_id = i.organization_id
+              LEFT JOIN enrollments enr ON enr.student_user_id = u_s.id AND enr.organization_id = i.organization_id AND enr.status = 'active'
+              LEFT JOIN sections sec ON sec.id = enr.section_id
+              LEFT JOIN programs p ON p.id = sec.program_id
+              UNION ALL
+              SELECT
+                inv_s.id,
+                COALESCE(NULLIF(inv_s.name, ''), split_part(inv_s.email, '@', 1)) as name,
+                NULL::text as admission_no,
+                COALESCE(p_inv.name, '') as grade,
+                COALESCE(sec_inv.name, '') as section,
+                TRIM(COALESCE(p_inv.name, '') || ' ' || COALESCE(sec_inv.name, '')) as class_name
+              FROM invitations inv_s
+              LEFT JOIN sections sec_inv ON sec_inv.id = inv_s.section_id
+              LEFT JOIN programs p_inv ON p_inv.id = sec_inv.program_id
+              WHERE inv_s.organization_id = i.organization_id AND inv_s.role = 'student'
+            ) st
+            WHERE i.child_student_ids IS NOT NULL AND (i.child_student_ids::jsonb) ? st.id::text
           ), '[]'::json) as "children",
           json_build_object('attendance', true, 'fees', true, 'exams', true, 'assignments', true, 'communication', true, 'transport', true) as "permissions",
           i.raw_token as "inviteToken",
@@ -1062,53 +1108,177 @@ export class SchoolAdminService {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
-      const rows = await manager.query(
-        `SELECT 
-          d.id,
-          d.name,
-          d.code,
-          d.head_teacher_name as "headName",
-          u.email as "headEmail",
-          COALESCE(
-            NULLIF(
-              (SELECT COUNT(DISTINCT csa.teacher_user_id)::int 
-               FROM subjects s 
-               JOIN class_subject_assignments csa ON csa.subject_id = s.id AND csa.organization_id = d.organization_id
-               WHERE s.department_id = d.id),
-              0
-            ),
-            d.faculty_count
-          ) as "teachersCount",
-          NULL as "staffCount",
-          COALESCE(
-            NULLIF(
-              (SELECT COUNT(DISTINCT enr.student_user_id)::int 
-               FROM subjects s 
-               JOIN class_subject_assignments csa ON csa.subject_id = s.id AND csa.organization_id = d.organization_id
-               JOIN enrollments enr ON enr.section_id = csa.section_id AND enr.organization_id = d.organization_id AND enr.status = 'active'
-               WHERE s.department_id = d.id),
-              0
-            ),
-            d.student_load
-          ) as "studentsCount",
-          NULL as "classesCount",
-          COALESCE(d.attendance_rate, 95) as "avgAttendancePct",
-          COALESCE(d.syllabus_progress, 0) as "syllabusCompletionPct",
-          'Active' as "status",
-          COALESCE(d.location, '') as "location",
-          COALESCE((
-            SELECT json_agg(json_build_object('id', s.id, 'name', s.name, 'code', s.code) ORDER BY s.name)
-            FROM subjects s
-            WHERE s.organization_id = d.organization_id AND s.department_id = d.id
-          ), '[]'::json) as "subjects"
-         FROM school_departments d
-         LEFT JOIN users u ON u.id = d.head_teacher_id
-         WHERE d.organization_id = $1 
-         ORDER BY d.name`,
-        [orgId],
-      );
+      const queryDepartments = async () => {
+        return manager.query(
+          `SELECT 
+            d.id,
+            d.name,
+            d.code,
+            COALESCE(NULLIF(d.head_teacher_name, ''), 'Unassigned') as "headName",
+            COALESCE(u.email, '') as "headEmail",
+            (
+              SELECT COUNT(DISTINCT m.user_id)::int
+              FROM memberships m
+              WHERE m.organization_id = d.organization_id AND m.role = 'teacher' AND m.status = 'active'
+              AND (
+                LOWER(m.specialty) = LOWER(d.name)
+                OR EXISTS (
+                  SELECT 1 FROM class_subject_assignments csa
+                  JOIN subjects s ON s.id = csa.subject_id AND s.organization_id = m.organization_id
+                  WHERE csa.teacher_user_id = m.user_id AND (s.department_id = d.id OR LOWER(s.name) = LOWER(d.name) OR UPPER(s.code) = UPPER(d.code))
+                )
+              )
+            ) as "teachersCount",
+            (
+              SELECT COUNT(DISTINCT enr.student_user_id)::int 
+              FROM subjects s 
+              JOIN class_subject_assignments csa ON csa.subject_id = s.id AND csa.organization_id = d.organization_id
+              JOIN enrollments enr ON enr.section_id = csa.section_id AND enr.organization_id = d.organization_id AND enr.status = 'active'
+              WHERE s.department_id = d.id OR LOWER(s.name) = LOWER(d.name) OR UPPER(s.code) = UPPER(d.code)
+            ) as "studentsCount",
+            COALESCE(d.location, 'Academic Wing') as "location",
+            CASE 
+              WHEN (
+                EXISTS (
+                  SELECT 1 FROM subjects s 
+                  WHERE s.organization_id = d.organization_id AND (s.department_id = d.id OR LOWER(s.name) = LOWER(d.name))
+                ) OR EXISTS (
+                  SELECT 1 FROM memberships m
+                  WHERE m.organization_id = d.organization_id AND m.role = 'teacher' AND LOWER(m.specialty) = LOWER(d.name)
+                )
+              ) THEN 'Active'
+              ELSE 'Pending Setup'
+            END as "status",
+            COALESCE((
+              SELECT json_agg(json_build_object(
+                'id', s.id, 
+                'name', s.name, 
+                'code', s.code,
+                'teachersCount', (
+                  SELECT COUNT(DISTINCT csa.teacher_user_id)::int
+                  FROM class_subject_assignments csa
+                  WHERE csa.subject_id = s.id AND csa.organization_id = d.organization_id
+                ),
+                'sectionsCount', (
+                  SELECT COUNT(DISTINCT csa.section_id)::int
+                  FROM class_subject_assignments csa
+                  WHERE csa.subject_id = s.id AND csa.organization_id = d.organization_id
+                ),
+                'teachers', COALESCE((
+                  SELECT json_agg(json_build_object(
+                    'id', tu.id, 
+                    'name', COALESCE(NULLIF(tu.name, ''), split_part(tu.email, '@', 1)), 
+                    'email', tu.email
+                  ))
+                  FROM class_subject_assignments csa
+                  JOIN users tu ON tu.id = csa.teacher_user_id
+                  WHERE csa.subject_id = s.id AND csa.organization_id = d.organization_id
+                ), '[]'::json)
+              ) ORDER BY s.name)
+              FROM subjects s
+              WHERE s.organization_id = d.organization_id AND (s.department_id = d.id OR LOWER(s.name) = LOWER(d.name) OR UPPER(s.code) = UPPER(d.code))
+            ), '[]'::json) as "subjects",
+            COALESCE((
+              SELECT json_agg(json_build_object(
+                'id', u.id,
+                'name', COALESCE(NULLIF(u.name, ''), split_part(u.email, '@', 1)),
+                'email', u.email,
+                'phone', COALESCE(u.phone, '-'),
+                'empId', m.employee_id,
+                'designation', 'Faculty Teacher'
+              ) ORDER BY u.name)
+              FROM memberships m
+              JOIN users u ON u.id = m.user_id
+              WHERE m.organization_id = d.organization_id AND m.role = 'teacher' AND m.status = 'active'
+              AND (
+                LOWER(m.specialty) = LOWER(d.name)
+                OR EXISTS (
+                  SELECT 1 FROM class_subject_assignments csa
+                  JOIN subjects s ON s.id = csa.subject_id AND s.organization_id = m.organization_id
+                  WHERE csa.teacher_user_id = m.user_id AND (s.department_id = d.id OR LOWER(s.name) = LOWER(d.name) OR UPPER(s.code) = UPPER(d.code))
+                )
+              )
+            ), '[]'::json) as "teachers"
+           FROM school_departments d
+           LEFT JOIN users u ON u.id = d.head_teacher_id
+           WHERE d.organization_id = $1 
+           ORDER BY d.name`,
+          [orgId],
+        );
+      };
+
+      let rows = await queryDepartments();
+
+      // If no departments exist yet, auto-synchronize departments from existing curriculum subjects and faculty specialties
+      if (rows.length === 0) {
+        const existingSubjects = await manager.query(
+          `SELECT DISTINCT name, code FROM subjects WHERE organization_id = $1`,
+          [orgId],
+        );
+        const teacherSpecialties = await manager.query(
+          `SELECT DISTINCT specialty as name FROM memberships WHERE organization_id = $1 AND role = 'teacher' AND specialty IS NOT NULL AND specialty != ''`,
+          [orgId],
+        );
+        const deptNames = Array.from(new Set([
+          ...existingSubjects.map((s: any) => s.name?.trim()),
+          ...teacherSpecialties.map((t: any) => t.name?.trim()),
+        ])).filter(Boolean);
+
+        if (deptNames.length > 0) {
+          for (const rawName of deptNames) {
+            const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
+            const code = name.slice(0, 4).toUpperCase();
+            await manager.query(
+              `INSERT INTO school_departments (organization_id, name, code, head_teacher_name, location)
+               VALUES ($1, $2, $3, 'Department Head', 'Academic Wing')
+               ON CONFLICT DO NOTHING`,
+              [orgId, name, code],
+            );
+            await manager.query(
+              `UPDATE subjects s 
+               SET department_id = (SELECT id FROM school_departments WHERE organization_id = $1 AND name = $2 LIMIT 1)
+               WHERE s.organization_id = $1 AND LOWER(s.name) = LOWER($2) AND s.department_id IS NULL`,
+              [orgId, name],
+            );
+          }
+          rows = await queryDepartments();
+        }
+      }
 
       return rows;
+    });
+  }
+
+  async updateDepartmentSubjects(orgId: string, actor: User, departmentId: string, subjectIds: string[]) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+      // Unlink subjects currently mapped to this department
+      await manager.query(
+        `UPDATE subjects SET department_id = NULL WHERE organization_id = $1 AND department_id = $2`,
+        [orgId, departmentId],
+      );
+      // Link selected subjects
+      if (subjectIds && subjectIds.length > 0) {
+        await manager.query(
+          `UPDATE subjects SET department_id = $1 WHERE organization_id = $2 AND id = ANY($3::uuid[])`,
+          [departmentId, orgId, subjectIds],
+        );
+      }
+      return { success: true };
+    });
+  }
+
+  async getAvailableSubjects(orgId: string, actor: User) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+      return manager.query(
+        `SELECT s.id, s.name, s.code, s.department_id as "departmentId", d.name as "departmentName"
+         FROM subjects s
+         LEFT JOIN school_departments d ON d.id = s.department_id AND d.organization_id = s.organization_id
+         WHERE s.organization_id = $1
+         ORDER BY s.name`,
+        [orgId],
+      );
     });
   }
 

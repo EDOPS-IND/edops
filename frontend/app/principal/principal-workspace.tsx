@@ -497,8 +497,7 @@ export function PrincipalWorkspace({
           alignSelf: "flex-start",
           overflowY: "auto",
           overflowX: "hidden",
-          scrollbarWidth: "thin",
-          scrollbarColor: "#1c2337 transparent",
+          scrollbarWidth: "none",
           zIndex: 40,
         }}
       >

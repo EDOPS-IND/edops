@@ -2558,8 +2558,7 @@ function RoleWorkspace({
           top: 0,
           overflowY: "auto",
           overflowX: "hidden",
-          scrollbarWidth: "thin",
-          scrollbarColor: "#2A2D35 transparent",
+          scrollbarWidth: "none",
           zIndex: 40,
         }}
       >

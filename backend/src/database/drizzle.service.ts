@@ -28,6 +28,10 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
       idleTimeoutMillis: 30000,
     });
 
+    this.pool.on('error', (err) => {
+      console.warn('Postgres pool idle connection notice:', err?.message);
+    });
+
     this.db = drizzle(this.pool, { schema });
   }
 
