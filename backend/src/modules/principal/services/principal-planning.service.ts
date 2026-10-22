@@ -15,21 +15,33 @@ export class PrincipalPlanningService {
 
   async getPlanningOverview(orgId: string, _actor: User) {
     const [plans, targets, actionPlans, meetings] = await Promise.all([
-      this.drizzle.query(`SELECT id, title, board, academic_objectives AS "academicObjectives",
+      this.drizzle.query(
+        `SELECT id, title, board, academic_objectives AS "academicObjectives",
         teaching_pedagogy_strategy AS "teachingPedagogyStrategy", assessment_strategy AS "assessmentStrategy",
         remedial_plan AS "remedialPlan", status, created_at AS "createdAt"
-        FROM principal_academic_plans WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 100`, [orgId]),
-      this.drizzle.query(`SELECT id, title, category, baseline_value AS "baselineValue",
+        FROM principal_academic_plans WHERE organization_id = $1 ORDER BY created_at DESC LIMIT 100`,
+        [orgId],
+      ),
+      this.drizzle.query(
+        `SELECT id, title, category, baseline_value AS "baselineValue",
         target_value AS "targetValue", current_value AS "currentValue",
         progress_percentage AS "progressPercentage", owner_name AS "ownerName", deadline, status
-        FROM principal_academic_targets WHERE organization_id = $1 ORDER BY deadline ASC LIMIT 100`, [orgId]),
-      this.drizzle.query(`SELECT id, issue, evidence, root_cause AS "rootCause", action,
+        FROM principal_academic_targets WHERE organization_id = $1 ORDER BY deadline ASC LIMIT 100`,
+        [orgId],
+      ),
+      this.drizzle.query(
+        `SELECT id, issue, evidence, root_cause AS "rootCause", action,
         owner_name AS "ownerName", deadline, review_date AS "reviewDate",
         expected_result AS "expectedResult", status
-        FROM principal_action_plans WHERE organization_id = $1 ORDER BY review_date ASC LIMIT 100`, [orgId]),
-      this.drizzle.query(`SELECT id, meeting_type AS "meetingType", meeting_date AS "meetingDate",
+        FROM principal_action_plans WHERE organization_id = $1 ORDER BY review_date ASC LIMIT 100`,
+        [orgId],
+      ),
+      this.drizzle.query(
+        `SELECT id, meeting_type AS "meetingType", meeting_date AS "meetingDate",
         participants, agenda, findings, decisions, status
-        FROM principal_academic_meetings WHERE organization_id = $1 ORDER BY meeting_date DESC LIMIT 100`, [orgId]),
+        FROM principal_academic_meetings WHERE organization_id = $1 ORDER BY meeting_date DESC LIMIT 100`,
+        [orgId],
+      ),
     ]);
     return { plans, targets, actionPlans, meetings };
   }
@@ -83,17 +95,27 @@ export class PrincipalPlanningService {
     return inserted;
   }
 
-  async updateTarget(orgId: string, targetId: string, dto: UpdateAcademicTargetDto) {
-    const [target] = await this.drizzle.query(`UPDATE principal_academic_targets
+  async updateTarget(
+    orgId: string,
+    targetId: string,
+    dto: UpdateAcademicTargetDto,
+  ) {
+    const [target] = await this.drizzle.query(
+      `UPDATE principal_academic_targets
       SET current_value = $3, progress_percentage = $4,
         status = CASE WHEN $4 = 100 THEN 'Achieved' ELSE 'In Progress' END
       WHERE organization_id = $1 AND id = $2 RETURNING id`,
-      [orgId, targetId, dto.currentValue, dto.progressPercentage]);
+      [orgId, targetId, dto.currentValue, dto.progressPercentage],
+    );
     if (!target) throw new NotFoundException("Target not found");
     return target;
   }
 
-  async createActionPlan(orgId: string, _actor: User, dto: CreateActionPlanDto) {
+  async createActionPlan(
+    orgId: string,
+    _actor: User,
+    dto: CreateActionPlanDto,
+  ) {
     const manager = this.drizzle;
     const [inserted] = await manager.query(
       `INSERT INTO principal_action_plans (
@@ -135,7 +157,9 @@ export class PrincipalPlanningService {
         dto.agenda,
         dto.findings || "",
         dto.decisions || "",
-        dto.meetingDate > new Date().toISOString().slice(0, 10) ? "Scheduled" : "Completed",
+        dto.meetingDate > new Date().toISOString().slice(0, 10)
+          ? "Scheduled"
+          : "Completed",
       ],
     );
     return inserted;

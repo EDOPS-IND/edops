@@ -51,6 +51,7 @@ export function TimetablePane({
   const [sections, setSections] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
   const [teachers, setTeachers] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<any[]>([]);
 
   // Raw entries from backend
   const [rawEntries, setRawEntries] = useState<any[]>([]);
@@ -93,6 +94,9 @@ export function TimetablePane({
           setSelectedSectionId(current => acadData.sections.some((s: any) => s.id === current) ? current : (acadData.sections[0]?.id || ""));
         }
         if (acadData?.subjects) setSubjects(acadData.subjects);
+        if (acadData?.assignments && Array.isArray(acadData.assignments)) {
+          setAssignments(acadData.assignments);
+        }
         if (Array.isArray(teachData) && teachData.length > 0) {
           setTeachers(teachData);
           setSelectedTeacherId(current => teachData.some((t: any) => (t.id || t.userId) === current) ? current : (teachData[0]?.id || teachData[0]?.userId || ""));
@@ -135,18 +139,21 @@ export function TimetablePane({
   const openCreateModal = () => {
     setEditingSlot(null);
     setFormError(null);
-    const defaultSecId = sections[0]?.id || "";
+    const defaultSecId = selectedSectionId || sections[0]?.id || "";
     const defaultSubId = subjects[0]?.id || "";
-    const defaultTeachId = teachers[0]?.id || "";
+    const match = assignments.find(
+      (a: any) => a.sectionId === defaultSecId && a.subjectId === defaultSubId
+    );
+    const defaultTeachId = match?.teacherUserId || selectedTeacherId || teachers[0]?.id || "";
     setForm({
       sectionId: defaultSecId,
       subjectId: defaultSubId,
       teacherUserId: defaultTeachId,
       dayOfWeek: 1,
       periodNumber: 1,
-      startTime: "",
-      endTime: "",
-      roomNumber: "",
+      startTime: "08:30",
+      endTime: "09:15",
+      roomNumber: "Room 101",
     });
     setModalOpen(true);
   };
@@ -633,7 +640,15 @@ export function TimetablePane({
                   <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "#334155", marginBottom: "4px" }}>Class / Section</label>
                   <select
                     value={form.sectionId}
-                    onChange={(e) => setForm({ ...form, sectionId: e.target.value })}
+                    onChange={(e) => {
+                      const secId = e.target.value;
+                      const match = assignments.find((a: any) => a.sectionId === secId && a.subjectId === form.subjectId);
+                      setForm((prev) => ({
+                        ...prev,
+                        sectionId: secId,
+                        ...(match?.teacherUserId ? { teacherUserId: match.teacherUserId } : {}),
+                      }));
+                    }}
                     required
                     style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px" }}
                   >
@@ -681,7 +696,15 @@ export function TimetablePane({
                   <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "#334155", marginBottom: "4px" }}>Subject</label>
                   <select
                     value={form.subjectId}
-                    onChange={(e) => setForm({ ...form, subjectId: e.target.value })}
+                    onChange={(e) => {
+                      const subId = e.target.value;
+                      const match = assignments.find((a: any) => a.sectionId === form.sectionId && a.subjectId === subId);
+                      setForm((prev) => ({
+                        ...prev,
+                        subjectId: subId,
+                        ...(match?.teacherUserId ? { teacherUserId: match.teacherUserId } : {}),
+                      }));
+                    }}
                     required
                     style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px" }}
                   >
@@ -694,7 +717,43 @@ export function TimetablePane({
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "#334155", marginBottom: "4px" }}>Assigned Teacher</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <label style={{ fontSize: "11.5px", fontWeight: 700, color: "#334155" }}>Assigned Teacher</label>
+                  {(() => {
+                    const match = assignments.find(
+                      (a: any) => a.sectionId === form.sectionId && a.subjectId === form.subjectId
+                    );
+                    if (!match) return null;
+                    const isPrimary = form.teacherUserId === match.teacherUserId;
+                    return (
+                      <span style={{ fontSize: "11px", color: isPrimary ? "#059669" : "#b45309", fontWeight: 600 }}>
+                        {isPrimary ? (
+                          `Primary: ${match.teacherName}`
+                        ) : (
+                          <span>
+                            Primary: {match.teacherName}{" "}
+                            <button
+                              type="button"
+                              onClick={() => setForm((prev) => ({ ...prev, teacherUserId: match.teacherUserId }))}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "#0284c7",
+                                textDecoration: "underline",
+                                cursor: "pointer",
+                                fontSize: "11px",
+                                padding: 0,
+                                fontWeight: 600,
+                              }}
+                            >
+                              (Use)
+                            </button>
+                          </span>
+                        )}
+                      </span>
+                    );
+                  })()}
+                </div>
                 <select
                   value={form.teacherUserId}
                   onChange={(e) => setForm({ ...form, teacherUserId: e.target.value })}

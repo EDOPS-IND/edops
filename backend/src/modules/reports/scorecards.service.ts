@@ -1,18 +1,25 @@
-import { Injectable } from '@nestjs/common';
-import { User } from '../auth/user.entity';
-import { TeachingAccess } from '../assignments/teaching-access.service';
-import { ClassQuery } from '../assignments/teaching.dto';
-import { Queryable } from '../billing/entitlements';
+import { Injectable } from "@nestjs/common";
+import { User } from "../auth/user.entity";
+import { TeachingAccess } from "../assignments/teaching-access.service";
+import { ClassQuery } from "../assignments/teaching.dto";
+import { Queryable } from "../billing/entitlements";
 
 @Injectable()
 export class ScorecardsService {
   constructor(private readonly access: TeachingAccess) {}
 
-  async refresh(manager: Queryable, org: string, sectionId: string, subjectId: string | null, studentId?: string) {
+  async refresh(
+    manager: Queryable,
+    org: string,
+    sectionId: string,
+    subjectId: string | null,
+    studentId?: string,
+  ) {
     // ponytail: refresh one class/subject on writes; scope to one student when possible to avoid deadlocks.
     // Aggregate independently before joining, so attendance never multiplies assignment counts.
     const params = [org, sectionId, subjectId, studentId ?? null];
-    await manager.query(`WITH grades AS (
+    await manager.query(
+      `WITH grades AS (
       SELECT s.student_id, count(*)::int AS assigned,
         count(s.submitted_at)::int AS submitted, count(s.score)::int AS graded,
         avg(s.score / a.max_score * 100) AS average
@@ -47,17 +54,42 @@ export class ScorecardsService {
       assignment_count=excluded.assignment_count, submitted_count=excluded.submitted_count, graded_count=excluded.graded_count,
       avg_score=excluded.avg_score, completion_pct=excluded.completion_pct, attendance_count=excluded.attendance_count,
       attended_count=excluded.attended_count, attendance_pct=excluded.attendance_pct, generated_at=excluded.generated_at,
-      arena_attempt_count=excluded.arena_attempt_count, arena_question_count=excluded.arena_question_count, arena_score=excluded.arena_score`, params);
+      arena_attempt_count=excluded.arena_attempt_count, arena_question_count=excluded.arena_question_count, arena_score=excluded.arena_score`,
+      params,
+    );
   }
 
   list(org: string, actor: User, query: ClassQuery) {
-    return this.access.run(org, actor, null, null, null,
-      (manager, role) => this.access.classScope(manager, org, actor, role, query.sectionId, query.subjectId ?? null),
+    return this.access.run(
+      org,
+      actor,
+      null,
+      null,
+      null,
+      (manager, role) =>
+        this.access.classScope(
+          manager,
+          org,
+          actor,
+          role,
+          query.sectionId,
+          query.subjectId ?? null,
+        ),
       async (manager, role) => {
-        const params = [org, query.sectionId, query.subjectId ?? null, role === 'student' ? actor.id : null];
-        const where = 'organization_id=$1 AND section_id=$2 AND subject_id IS NOT DISTINCT FROM $3::uuid AND ($4::uuid IS NULL OR student_id=$4)';
-        const [count] = await manager.query(`SELECT count(*)::int AS total FROM scorecards WHERE ${where}`, params);
-        const items = await manager.query(`SELECT id, organization_id AS "organizationId", student_id AS "studentId", section_id AS "sectionId",
+        const params = [
+          org,
+          query.sectionId,
+          query.subjectId ?? null,
+          role === "student" ? actor.id : null,
+        ];
+        const where =
+          "organization_id=$1 AND section_id=$2 AND subject_id IS NOT DISTINCT FROM $3::uuid AND ($4::uuid IS NULL OR student_id=$4)";
+        const [count] = await manager.query(
+          `SELECT count(*)::int AS total FROM scorecards WHERE ${where}`,
+          params,
+        );
+        const items = await manager.query(
+          `SELECT id, organization_id AS "organizationId", student_id AS "studentId", section_id AS "sectionId",
           subject_id AS "subjectId", term, assignment_count AS "assignmentCount", submitted_count AS "submittedCount",
           graded_count AS "gradedCount", avg_score AS "avgScore", completion_pct AS "completionPct", attendance_count AS "attendanceCount",
           attended_count AS "attendedCount", attendance_pct AS "attendancePct", generated_at AS "generatedAt",
@@ -65,8 +97,16 @@ export class ScorecardsService {
           (SELECT email FROM users WHERE id = scorecards.student_id) AS "studentEmail",
           (SELECT coalesce(nullif(name, ''), split_part(email, '@', 1)) FROM users WHERE id = scorecards.student_id) AS "studentName",
           (SELECT roll_number FROM enrollments WHERE organization_id = scorecards.organization_id AND student_user_id = scorecards.student_id AND section_id = scorecards.section_id AND status = 'active' LIMIT 1) AS "rollNumber"
-          FROM scorecards WHERE ${where} ORDER BY student_id LIMIT $5 OFFSET $6`, [...params, query.limit, query.offset]);
-        return { items, total: count.total, limit: query.limit, offset: query.offset };
-      });
+          FROM scorecards WHERE ${where} ORDER BY student_id LIMIT $5 OFFSET $6`,
+          [...params, query.limit, query.offset],
+        );
+        return {
+          items,
+          total: count.total,
+          limit: query.limit,
+          offset: query.offset,
+        };
+      },
+    );
   }
 }

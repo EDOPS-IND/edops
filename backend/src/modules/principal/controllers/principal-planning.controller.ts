@@ -64,7 +64,9 @@ export class PrincipalPlanningController {
   }
 
   @Patch("targets/:targetId")
-  @ApiOperation({ summary: "Record measured progress on a school or learning target" })
+  @ApiOperation({
+    summary: "Record measured progress on a school or learning target",
+  })
   updateTarget(
     @Param("organizationId", ParseUUIDPipe) orgId: string,
     @Param("targetId", ParseUUIDPipe) targetId: string,

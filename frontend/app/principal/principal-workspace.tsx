@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type ReactNode } from "react";
+import { useState, useEffect, type ReactNode, type ElementType } from "react";
 import {
   LayoutDashboard,
   CalendarCheck,
@@ -54,13 +54,189 @@ import { useDashboardNavigation } from "../dashboard-navigation";
 import { FeatureUnavailableCard, ThreeDotsLoading } from "../components/feature-unavailable-card";
 import { PrincipalTab } from "./types";
 
-type PrincipalNavItem = { id: string; label: string; icon: ReactNode; paneId?: string; subItems?: { id: string; label: string; paneId?: string }[] };
+// ─── Design Tokens (Strictly synchronized with School Admin & System Specs) ───
+const S = {
+  // Sidebar tokens
+  sidebarBg: "#0b0f19",
+  sidebarBorder: "rgba(255, 255, 255, 0.06)",
+  itemActiveBg: "#1c2337",
+  itemActiveText: "#ffffff",
+  itemInactiveText: "#8a92a6",
+  itemHoverBg: "rgba(255, 255, 255, 0.05)",
+  groupLabel: "rgba(255, 255, 255, 0.38)",
+  // Badges
+  badge: "#E84040",
+  warnBadge: "#D97706",
+  online: "#22C55E",
+  // Header tokens
+  headerBg: "#FFFFFF",
+  headerBorder: "rgba(206, 216, 229, 0.97)",
+  headerInk: "#0c1e33",
+  headerMuted: "#495d72",
+  inputBg: "#F9FAFB",
+  inputBorder: "#D0D5DD",
+  // Canvas tokens
+  canvasBg: "#f4f6f7",
+  navy: "#0c1e33",
+  slate: "#495d72",
+  line: "#ced8e5",
+  border: "#e4e6e9",
+  chip: "#f5f6f8",
+  faint: "#b3b3b3",
+};
+
+// ─── NavItem Component (100% Shared Design Parity with School Admin) ─────────
+function NavItem({
+  icon: Icon,
+  label,
+  active,
+  badge,
+  badgeVariant = "red",
+  onClick,
+}: {
+  icon: ElementType;
+  label: string;
+  active: boolean;
+  badge?: number;
+  badgeVariant?: "red" | "amber";
+  onClick: () => void;
+}) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        all: "unset",
+        boxSizing: "border-box",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        gap: "11px",
+        height: "40px",
+        padding: "0 12px",
+        borderRadius: "10px",
+        cursor: "pointer",
+        position: "relative",
+        background: active ? S.itemActiveBg : hover ? S.itemHoverBg : "transparent",
+        color: active ? S.itemActiveText : hover ? "#ffffff" : S.itemInactiveText,
+        fontWeight: active ? 600 : 450,
+        fontSize: "13.5px",
+        transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
+      }}
+    >
+      <Icon
+        size={18}
+        strokeWidth={active ? 2 : 1.75}
+        style={{
+          color: active ? "#ffffff" : hover ? "#ffffff" : S.itemInactiveText,
+          flexShrink: 0,
+          transition: "color 0.15s ease",
+        }}
+      />
+      <span
+        style={{
+          flex: 1,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {label}
+      </span>
+
+      {badge !== undefined && (
+        <span
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minWidth: "18px",
+            height: "18px",
+            padding: "0 5px",
+            borderRadius: "999px",
+            fontSize: "10.5px",
+            fontWeight: 700,
+            background: badgeVariant === "amber" ? S.warnBadge : S.badge,
+            color: "#fff",
+            flexShrink: 0,
+          }}
+        >
+          {badge}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// ─── Categorized Flat Navigation Specification ─────────────────────────────────
+const principalNavSections = [
+  {
+    key: "overview",
+    label: "Overview",
+    items: [
+      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    ],
+  },
+  {
+    key: "operations",
+    label: "Academic Operations",
+    items: [
+      { id: "planning", label: "Academic Planning", icon: CalendarCheck },
+      { id: "academics", label: "Academics & Classes", icon: BookOpen },
+      { id: "timetable", label: "Timetable", icon: Clock },
+      { id: "attendance", label: "Attendance", icon: UserCheck },
+      { id: "people", label: "Faculty & Workload", icon: Users },
+    ],
+  },
+  {
+    key: "learning_eval",
+    label: "Student & Learning",
+    items: [
+      { id: "learning", label: "Assignments & Learning", icon: ClipboardList },
+      { id: "assessment", label: "Assessments", icon: GraduationCap },
+      { id: "examinations", label: "Examinations", icon: Award },
+      { id: "students", label: "Students & 360", icon: Users },
+    ],
+  },
+  {
+    key: "governance",
+    label: "Insights & Governance",
+    items: [
+      { id: "communication", label: "Communication", icon: MessageSquare },
+      { id: "analytics", label: "Academic Analytics", icon: BarChart2 },
+      { id: "alerts", label: "Academic Alerts", icon: Bell },
+      { id: "reports", label: "Reports", icon: FileText },
+      { id: "activity", label: "Activity Log", icon: Activity },
+    ],
+  },
+];
+
+const paneTitles: Record<string, string> = {
+  dashboard: "Overview & Health",
+  planning: "Academic Planning",
+  people: "Faculty & Workload",
+  academics: "Academics & Classes",
+  timetable: "Timetable & Scheduling",
+  attendance: "Attendance Registers",
+  learning: "Assignments & Learning",
+  assessment: "Assessments & Question Papers",
+  examinations: "Examinations & Marks",
+  students: "Student Tracking & 360",
+  communication: "Academic Communication",
+  analytics: "Academic Analytics & Audit",
+  alerts: "Academic Alerts",
+  reports: "Academic Reports",
+  activity: "Activity Audit Log",
+};
 
 interface PrincipalWorkspaceProps {
   organization: OrganizationSummary;
   onLogout: () => Promise<void>;
   onSwitchOrganization: (orgId: string) => void;
   organizations: OrganizationSummary[];
+  userProfile?: { id: string; email: string; name?: string; phone?: string | null; isPlatformAdmin?: boolean };
   activePane?: string;
   activeSubTab?: string;
   onNavigate?: (pane: string, subTab?: string) => void;
@@ -72,6 +248,7 @@ interface PrincipalWorkspaceProps {
 export function PrincipalWorkspace({
   organization,
   onLogout,
+  userProfile,
   activePane: activePaneProp,
   activeSubTab: activeSubTabProp,
   onNavigate,
@@ -79,22 +256,10 @@ export function PrincipalWorkspace({
   initialTeacherId,
   initialStudentId,
 }: PrincipalWorkspaceProps) {
+  const principalName = userProfile?.name || (userProfile?.email ? userProfile.email.split("@")[0] : "Principal");
   // Navigation State
   const [activePane, setActivePane] = useState<string>(activePaneProp || "dashboard");
   const [activeSubTab, setActiveSubTab] = useState<string>(activeSubTabProp || "");
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    planning: true,
-    people: false,
-    academics: false,
-    timetable: false,
-    attendance: false,
-    learning: false,
-    assessment: false,
-    examinations: false,
-    students: false,
-    communication: false,
-    analytics: false
-  });
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -104,8 +269,6 @@ export function PrincipalWorkspace({
   const [entitySearchModalOpen, setEntitySearchModalOpen] = useState(false);
   const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(initialTeacherId || null);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(initialStudentId || null);
-  const [healthScore, setHealthScore] = useState<number | null>(null);
-  const [academicYear, setAcademicYear] = useState<string | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [logoutError, setLogoutError] = useState("");
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -150,17 +313,6 @@ export function PrincipalWorkspace({
     finally { setSigningOut(false); }
   };
 
-  useEffect(() => {
-    import("../edops-api").then(({ getPrincipalDashboard }) => {
-      getPrincipalDashboard(organization.id)
-        .then((data) => {
-          setHealthScore(data?.academicHealth?.score ?? null);
-          setAcademicYear(data?.schoolKpis?.activeAcademicYear ?? null);
-        })
-        .catch(() => {});
-    });
-  }, [organization.id]);
-
   // Keyboard shortcut for Cmd+K / Ctrl+K
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -172,10 +324,6 @@ export function PrincipalWorkspace({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
-
-  const toggleSection = (key: string) => {
-    setExpandedSections((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
 
   const navigateTo = (pane: string, subTab: string = "") => {
     setActivePane(pane);
@@ -189,173 +337,6 @@ export function PrincipalWorkspace({
 
   const navigation = useDashboardNavigation(organization.id, "principal");
   const isFeatureEnabled = (key: string) => navigation.sections.some(section => section.items.some(item => item.featureKey === key));
-
-  const baseNavItems: PrincipalNavItem[] = [
-    {
-      id: "dashboard",
-      label: "Dashboard",
-      icon: <LayoutDashboard className="w-4 h-4" />
-    },
-    {
-      id: "planning",
-      label: "Academic Planning",
-      icon: <CalendarCheck className="w-4 h-4" />,
-      subItems: [
-        { id: "app", label: "Annual Academic Plan" },
-        { id: "calendar", label: "Academic Calendar" },
-        { id: "targets", label: "Learning Goals & Targets" },
-        { id: "school_targets", label: "School Academic Targets" }
-      ]
-    },
-    {
-      id: "people",
-      label: "People – Academic",
-      icon: <Users className="w-4 h-4" />,
-      subItems: [
-        { id: "workload", label: "Teacher Workload" },
-        { id: "hods", label: "Department Heads" },
-        { id: "coordinators", label: "Coordinators" },
-        { id: "assignments", label: "Teacher Assignments" },
-        { id: "development", label: "Teacher Development" }
-      ]
-    },
-    {
-      id: "academics",
-      label: "Academics",
-      icon: <BookOpen className="w-4 h-4" />,
-      subItems: [
-        { id: "classes", label: "Classes" },
-        { id: "sections", label: "Sections" },
-        { id: "subjects", label: "Subjects" },
-        { id: "curriculum", label: "Curriculum" },
-        { id: "outcomes", label: "Learning Outcomes" },
-        { id: "lesson_plans", label: "Lesson Plans" },
-        { id: "progress", label: "Teaching Progress" }
-      ]
-    },
-    {
-      id: "timetable",
-      label: "Timetable",
-      icon: <Clock className="w-4 h-4" />,
-      subItems: [
-        { id: "academic_tt", label: "Academic Timetable" },
-        { id: "teacher_tt", label: "Teacher Timetable" },
-        { id: "class_tt", label: "Class Timetable" },
-        { id: "substitution", label: "Substitution Overview" }
-      ]
-    },
-    {
-      id: "attendance",
-      label: "Attendance",
-      icon: <UserCheck className="w-4 h-4" />,
-      subItems: [
-        { id: "student_att", label: "Student Attendance" },
-        { id: "trends", label: "Attendance Trends" },
-        { id: "faculty_att", label: "Teacher Activity and Leave" }
-      ]
-    },
-    {
-      id: "learning",
-      label: "Assignments & Learning",
-      icon: <ClipboardList className="w-4 h-4" />,
-      subItems: [
-        { id: "assignments", label: "Assignments" },
-        { id: "submissions", label: "Submissions" },
-        { id: "study_material", label: "Study Material" },
-        { id: "classroom", label: "Classroom Activities" }
-      ]
-    },
-    {
-      id: "assessment",
-      label: "Assessment",
-      icon: <GraduationCap className="w-4 h-4" />,
-      subItems: [
-        { id: "assessments", label: "Assessments & Question Papers" },
-        { id: "analysis", label: "Assessment Analysis" }
-      ]
-    },
-    {
-      id: "examinations",
-      label: "Examinations",
-      icon: <Award className="w-4 h-4" />,
-      subItems: [
-        { id: "exam_planning", label: "Exam Planning" },
-        { id: "schedule", label: "Exam Schedule & Publishing" },
-        { id: "marks", label: "Marks" },
-        { id: "report_cards", label: "Report Cards" }
-      ]
-    },
-    {
-      id: "students",
-      label: "Students",
-      icon: <Users className="w-4 h-4" />,
-      subItems: [
-        { id: "performance", label: "Student Performance" },
-        { id: "360", label: "Student 360" },
-        { id: "at_risk", label: "At-Risk Students" },
-        { id: "remedial", label: "Remedial Programs" },
-        { id: "enrichment", label: "Enrichment Programs" }
-      ]
-    },
-    {
-      id: "communication",
-      label: "Academic Communication",
-      icon: <MessageSquare className="w-4 h-4" />,
-      subItems: [
-        { id: "inbox", label: "Principal Inbox" },
-        { id: "teacher_msgs", label: "Teacher Directives" },
-        { id: "parent_msgs", label: "Parent Grievances" },
-        { id: "student_msgs", label: "Student Messages" },
-        { id: "announcements", label: "Academic Announcements" },
-        { id: "ptm", label: "PTM Schedule & Minutes" }
-      ]
-    },
-    {
-      id: "analytics",
-      label: "Academic Analytics",
-      icon: <BarChart2 className="w-4 h-4" />,
-      subItems: [
-        { id: "school", label: "School Performance" },
-        { id: "class", label: "Class Performance" },
-        { id: "subject", label: "Subject Performance" },
-        { id: "teacher", label: "Teacher Performance" },
-        { id: "curriculum", label: "Curriculum Progress" },
-        { id: "audit", label: "Academic Execution Audit" }
-      ]
-    },
-    {
-      id: "alerts",
-      label: "Academic Alerts",
-      icon: <Bell className="w-4 h-4 text-red-500" />
-    },
-    {
-      id: "reports",
-      label: "Reports",
-      icon: <FileText className="w-4 h-4" />
-    },
-    {
-      id: "activity",
-      label: "Academic Activity",
-      icon: <Activity className="w-4 h-4" />
-    }
-  ];
-
-  const sourceItems = new Map<string, { paneId: string; subId?: string; icon: ReactNode }>();
-  for (const pane of baseNavItems) {
-    if (pane.subItems?.length) for (const sub of pane.subItems) sourceItems.set(`${pane.id}.${sub.id}`, { paneId: pane.id, subId: sub.id, icon: pane.icon });
-    else sourceItems.set(`${pane.id === "dashboard" ? "overview" : "management"}.${pane.id}`, { paneId: pane.id, icon: pane.icon });
-  }
-  const navItems: PrincipalNavItem[] = navigation.sections.flatMap<PrincipalNavItem>(section => {
-    const entries = section.items.flatMap(item => {
-      const source = sourceItems.get(item.key) ||
-        Array.from(sourceItems.entries()).find(([k]) => k === item.key || k.endsWith(`.${item.key}`) || item.key.endsWith(`.${k}`) || k.endsWith(item.key))?.[1];
-      return source ? [{ source, key: item.key, label: item.label }] : [];
-    });
-    if (!entries.length) return [];
-    if (section.key === "overview" && entries.length === 1 && !entries[0].source.subId) return [{ id: section.key, label: entries[0].label, icon: entries[0].source.icon, paneId: entries[0].source.paneId }];
-    return [{ id: section.key, label: section.label, icon: entries[0].source.icon,
-      subItems: entries.map(entry => ({ id: entry.source.subId ?? entry.key, label: entry.label, paneId: entry.source.paneId })) }];
-  });
 
   // Comprehensive mapping of all alias, slug, and direct IDs so every subtab works seamlessly.
   const paneTabs: Record<string, Record<string, string>> = {
@@ -374,7 +355,7 @@ export function PrincipalWorkspace({
     },
     people: {
       hods: "hods",
-      coordinators: "coordinators",
+      coordinators: "hods",
       assignments: "assignments",
       workload: "workload",
       development: "development",
@@ -470,7 +451,7 @@ export function PrincipalWorkspace({
       audit: "classes",
     },
   };
-  const selectedSubItem = baseNavItems.find((item) => item.id === activePane)?.subItems?.find((sub) => sub.id === activeSubTab);
+  const activeNavLabel = principalNavSections.flatMap((s) => s.items).find((i) => i.id === activePane)?.label || activePane;
   const activeView = paneTabs[activePane]?.[activeSubTab] || activeSubTab || Object.values(paneTabs[activePane] || {})[0] || "";
   const activeKey = activePane === "dashboard" ? "overview.dashboard" : ["alerts", "reports", "activity"].includes(activePane) ? `management.${activePane}` : activePane === "planning" && activeSubTab === "action_plans" ? "planning.app" : `${activePane}.${activeSubTab}`;
 
@@ -483,37 +464,37 @@ export function PrincipalWorkspace({
         fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif',
       }}
     >
-      {/* SIDEBAR NAVIGATION (Executive Dark #0b0f19) */}
+      {/* SIDEBAR NAVIGATION (Matching School Admin exactly: 240px, S.sidebarBg, clean flat layout) */}
       <aside
         className="workspace-aside"
         style={{
-          width: "228px",
+          width: "240px",
           flexShrink: 0,
-          background: "#0b0f19",
-          borderRight: "1px solid rgba(255, 255, 255, 0.06)",
+          background: S.sidebarBg,
+          color: "#fff",
           height: "100vh",
           position: "sticky",
           top: 0,
           alignSelf: "flex-start",
-          overflowY: "auto",
-          overflowX: "hidden",
-          scrollbarWidth: "none",
+          padding: 0,
+          boxSizing: "border-box",
           zIndex: 40,
+          borderRight: `1px solid ${S.sidebarBorder}`,
         }}
       >
-        {/* Brand / Logo - Exactly 68px height matching Student & Teacher Command Centers */}
+        {/* Brand / Logo - Exactly 68px height matching Command Center Spec */}
         <div
           style={{
             height: "68px",
             display: "flex",
             alignItems: "center",
-            padding: "0 18px",
+            padding: "0 20px",
+            cursor: "pointer",
+            flexShrink: 0,
             borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
             boxSizing: "border-box",
-            flexShrink: 0,
-            cursor: "pointer",
           }}
-          onClick={() => setActivePane("overview")}
+          onClick={() => navigateTo("dashboard")}
           title="EDOPS Principal Command Center"
         >
           <img
@@ -533,129 +514,66 @@ export function PrincipalWorkspace({
           />
         </div>
 
-        {/* Scrollable Navigation Items */}
-        <nav style={{ flex: 1, padding: "8px 8px 12px", display: "flex", flexDirection: "column", gap: "2px" }}>
-          {navItems.map((item) => {
-            const hasSub = item.subItems && item.subItems.length > 0;
-            const isSelected = activePane === item.paneId || item.subItems?.some(sub => sub.paneId === activePane) === true;
-            const isExpanded = expandedSections[item.id] !== undefined ? expandedSections[item.id] : isSelected;
-
-            return (
-              <div key={item.id} style={{ display: "flex", flexDirection: "column", gap: "1px" }}>
-                <button
-                  onClick={() => {
-                    if (hasSub) {
-                      toggleSection(item.id);
-                      if (!isSelected) {
-                        navigateTo(item.subItems![0].paneId ?? item.id, item.subItems![0].id);
-                      }
-                    } else {
-                      navigateTo(item.paneId ?? item.id);
-                    }
-                  }}
-                  style={{
-                    all: "unset",
-                    boxSizing: "border-box",
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "7px 12px 7px 14px",
-                    borderRadius: "7px",
-                    cursor: "pointer",
-                    position: "relative",
-                    background: isSelected ? "#1c2337" : "transparent",
-                    transition: "background 0.12s",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = "transparent";
-                  }}
-                >
-                  {isSelected && (
-                    <span
-                      style={{
-                        position: "absolute",
-                        left: 0,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        width: "2px",
-                        height: "16px",
-                        borderRadius: "0 2px 2px 0",
-                        background: "#FFFFFF",
-                      }}
-                    />
-                  )}
-                  <div style={{ display: "flex", alignItems: "center", gap: "9px", overflow: "hidden" }}>
-                    <span style={{ color: isSelected ? "#FFFFFF" : "#8a92a6", display: "flex", alignItems: "center" }}>
-                      {item.icon}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: "13px",
-                        fontWeight: isSelected ? 600 : 400,
-                        color: isSelected ? "#FFFFFF" : "#8a92a6",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {item.label}
-                    </span>
+        {/* Scrollable Navigation Body */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            padding: "12px 12px 14px",
+            overflowY: "auto",
+            overflowX: "hidden",
+            scrollbarWidth: "none",
+          }}
+        >
+          <nav
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              gap: "3px",
+              flex: 1,
+            }}
+            aria-label="Sidebar navigation"
+          >
+            {navigation.error && (
+              <p role="alert" style={{ color: "#FCA5A5", padding: "12px", fontSize: "12px" }}>
+                {navigation.error}
+              </p>
+            )}
+            {principalNavSections.map((section, idx) => {
+              const visibleItems = section.items.filter(
+                (item) => item.id === "dashboard" || navigation.has(item.id)
+              );
+              if (visibleItems.length === 0) return null;
+              return (
+                <div key={section.key}>
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      fontWeight: 700,
+                      color: S.groupLabel,
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      padding: idx === 0 ? "8px 12px 4px" : "14px 12px 4px",
+                      userSelect: "none",
+                    }}
+                  >
+                    {section.label}
                   </div>
-                  {hasSub && (
-                    <ChevronDown
-                      size={13}
-                      style={{
-                        color: isSelected ? "#FFFFFF" : "#8a92a6",
-                        transform: isExpanded ? "rotate(180deg)" : "none",
-                        transition: "transform 0.15s ease",
-                      }}
+                  {visibleItems.map((item) => (
+                    <NavItem
+                      key={item.id}
+                      icon={item.icon}
+                      label={item.label}
+                      active={activePane === item.id}
+                      onClick={() => navigateTo(item.id)}
                     />
-                  )}
-                </button>
-
-                {/* Sub-items */}
-                {hasSub && isExpanded && (
-                  <div style={{ paddingLeft: "26px", display: "flex", flexDirection: "column", gap: "1px", borderLeft: "1px solid rgba(255, 255, 255, 0.08)", marginLeft: "18px", margin: "2px 0 4px 18px" }}>
-                    {item.subItems!.map((sub) => {
-                      const isSubActive = (activePane === sub.paneId || (!sub.paneId && activePane === item.id)) &&
-                        (activeSubTab === sub.id || activeView === sub.id || paneTabs[activePane]?.[sub.id] === activeView || (!activeSubTab && sub === item.subItems![0]));
-                      return (
-                        <button
-                          key={sub.id}
-                          onClick={() => navigateTo(sub.paneId ?? item.id, sub.id)}
-                          style={{
-                            all: "unset",
-                            boxSizing: "border-box",
-                            padding: "6px 10px",
-                            fontSize: "12px",
-                            fontWeight: isSubActive ? 600 : 400,
-                            borderRadius: "5px",
-                            cursor: "pointer",
-                            background: isSubActive ? "#1c2337" : "transparent",
-                            color: isSubActive ? "#FFFFFF" : "#8a92a6",
-                            transition: "background 0.12s, color 0.12s",
-                          }}
-                          onMouseEnter={(e) => {
-                            if (!isSubActive) e.currentTarget.style.background = "rgba(255, 255, 255, 0.04)";
-                          }}
-                          onMouseLeave={(e) => {
-                            if (!isSubActive) e.currentTarget.style.background = "transparent";
-                          }}
-                        >
-                          {sub.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </nav>
+                  ))}
+                </div>
+              );
+            })}
+          </nav>
+        </div>
       </aside>
 
       {/* MAIN CONTENT AREA */}
@@ -664,8 +582,8 @@ export function PrincipalWorkspace({
         <header
           className="workspace-header"
         >
-          {/* Left Title & Hamburger */}
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+          {/* Left Title & Breadcrumb */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", whiteSpace: "nowrap", minWidth: 0 }}>
             <button
               type="button"
               aria-label="Open principal navigation"
@@ -674,51 +592,17 @@ export function PrincipalWorkspace({
             >
               <Menu size={18} />
             </button>
-            <h1
-              style={{
-                margin: 0,
-                fontSize: "16px",
-                fontWeight: 600,
-                color: "#101828",
-                letterSpacing: "-0.02em",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
+            <p style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: S.navy, overflow: "hidden", textOverflow: "ellipsis" }}>
               Principal Command Center
-            </h1>
+            </p>
+            <span className="hidden sm:inline-block" style={{ width: "1px", height: "16px", background: S.line }} />
+            <p className="hidden sm:inline-block" style={{ margin: 0, fontSize: "13px", color: S.slate }}>
+              {paneTitles[activePane] ?? (activePane.charAt(0).toUpperCase() + activePane.slice(1))}
+            </p>
           </div>
 
           {/* Right: Quick Action Buttons */}
           <div className="workspace-header-actions">
-            {/* Quick Academic Health Badge Button */}
-            <button
-              onClick={() => setHealthModalOpen(true)}
-              style={{
-                all: "unset",
-                boxSizing: "border-box",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "6px 10px",
-                background: "#ECFDF3",
-                border: "1px solid #ABEFC6",
-                borderRadius: "8px",
-                fontSize: "12px",
-                fontWeight: 700,
-                color: "#027A48",
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              <HeartPulse size={14} />
-              <span>
-                <span className="hidden sm:inline">Academic Health: </span>
-                {healthScore !== null ? `${healthScore}/100` : "Health"}
-              </span>
-            </button>
-
             {/* Action Plans */}
             <button
               disabled={!navigation.has("planning.app")}
@@ -804,8 +688,8 @@ export function PrincipalWorkspace({
                 }}
               >
                 <img
-                  src={getStudentAvatarUrl("Principal", organization.id)}
-                  alt="Principal"
+                  src={getStudentAvatarUrl(principalName, organization.id)}
+                  alt={principalName}
                   style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                 />
               </div>
@@ -821,10 +705,10 @@ export function PrincipalWorkspace({
                   >
                     <div style={{ padding: "10px 12px", borderBottom: "1px solid #EAECF0", marginBottom: "4px" }}>
                       <p style={{ margin: 0, fontSize: "13px", fontWeight: 700, color: "#101828" }}>
-                        {organization.name || "Principal Office"}
+                        {principalName}
                       </p>
                       <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#64748b" }}>
-                        Head of Institution
+                        {organization.name || "Head of Institution"}
                       </p>
                       <span
                         style={{
@@ -895,7 +779,7 @@ export function PrincipalWorkspace({
           ) : !navigation.has(activePane) && !navigation.has(activeKey) && activePane !== "dashboard" ? (
             <FeatureUnavailableCard
               title="This dashboard feature is unavailable for this school"
-              featureName={selectedSubItem?.label || baseNavItems.find((item) => item.id === activePane)?.label || activePane}
+              featureName={paneTitles[activePane] || activeNavLabel}
               onBackToDashboard={() => navigateTo("dashboard")}
               dashboardLabel="Return to Dashboard"
             />
@@ -904,6 +788,7 @@ export function PrincipalWorkspace({
             <DashboardPane
               key={organization.id}
               organizationId={organization.id}
+              principalName={principalName}
               onNavigate={navigateTo}
               onOpenHealthModal={() => setHealthModalOpen(true)}
               onOpenTeacherProfile={(id) => setSelectedTeacherId(id)}
@@ -936,6 +821,7 @@ export function PrincipalWorkspace({
               organizationId={organization.id}
               initialTab={activeView}
               onOpenTeacherProfile={(id) => setSelectedTeacherId(id)}
+              onOpenStudent360={(id) => setSelectedStudentId(id)}
               onTabChange={(tab) => navigateTo("academics", tab)}
             />
           )}
@@ -1113,42 +999,39 @@ export function PrincipalWorkspace({
               </button>
             </div>
             <nav style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: "3px" }}>
-              {navItems.map((item) => {
-                const active = activePane === item.id;
+              {principalNavSections.map((section, idx) => {
+                const visibleItems = section.items.filter(
+                  (item) => item.id === "dashboard" || navigation.has(item.id)
+                );
+                if (visibleItems.length === 0) return null;
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      if (item.subItems?.length) navigateTo(item.subItems[0].paneId ?? item.id, item.subItems[0].id);
-                      else navigateTo(item.paneId ?? item.id);
-                    }}
-                    className={`drawer-nav-item ${active ? "active" : ""}`}
-                    style={{
-                      all: "unset",
-                      boxSizing: "border-box",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "11px",
-                      width: "100%",
-                      height: "40px",
-                      padding: "0 12px",
-                      borderRadius: "10px",
-                      fontSize: "13.5px",
-                      fontWeight: active ? 600 : 500,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      background: active ? "#131C31" : "transparent",
-                      color: active ? "#ffffff" : "#cbd5e1",
-                      borderLeft: active ? "3px solid #818CF8" : "3px solid transparent",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    <span style={{ color: active ? "#818CF8" : "#94A3B8", display: "grid", placeItems: "center" }}>{item.icon}</span>
-                    <span style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {item.label}
-                    </span>
-                  </button>
+                  <div key={section.key}>
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        color: S.groupLabel,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        padding: idx === 0 ? "8px 12px 4px" : "12px 12px 4px",
+                        userSelect: "none",
+                      }}
+                    >
+                      {section.label}
+                    </div>
+                    {visibleItems.map((item) => (
+                      <NavItem
+                        key={item.id}
+                        icon={item.icon}
+                        label={item.label}
+                        active={activePane === item.id}
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          navigateTo(item.id);
+                        }}
+                      />
+                    ))}
+                  </div>
                 );
               })}
             </nav>

@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, PartialType, PickType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsDateString, IsInt, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
+import { IsBoolean, IsDateString, IsInt, IsOptional, IsString, IsUUID, Matches, Max, MaxLength, Min, MinLength, ValidateIf } from 'class-validator';
 
 export const trim = ({ value }: { value: unknown }) => typeof value === 'string' ? value.trim() : value;
 
@@ -30,8 +30,9 @@ export class SectionDto {
   @ApiProperty({ format: 'uuid' }) @IsUUID() programId!: string;
   @ApiProperty({ maxLength: 120 }) @Transform(trim) @IsString() @MinLength(1) @MaxLength(120) name!: string;
   @ApiProperty({ minimum: 1, maximum: 5000 }) @IsInt() @Min(1) @Max(5000) capacity!: number;
+  @ApiPropertyOptional({ format: 'uuid' }) @IsOptional() @IsUUID() classTeacherUserId?: string;
 }
-export class UpdateSectionDto extends PartialType(PickType(SectionDto, ['name', 'capacity']), { skipNullProperties: false }) {}
+export class UpdateSectionDto extends PartialType(PickType(SectionDto, ['name', 'capacity', 'classTeacherUserId']), { skipNullProperties: false }) {}
 
 export class TeacherAssignmentDto {
   @ApiProperty({ format: 'uuid' }) @IsUUID() sectionId!: string;

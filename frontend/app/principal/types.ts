@@ -49,6 +49,7 @@ export interface TodayAcademicOperations {
   teachersTeaching: number;
   teachersAbsent: number | null;
   substitutionsCovered: number;
+  currentPeriod?: number | null;
   examsToday: number | null;
   assessmentsScheduled: number | null;
   pendingReviews: number;

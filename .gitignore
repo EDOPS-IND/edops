@@ -16,3 +16,4 @@ coverage/
 *.log
 tmp/
 output/
+.brud/

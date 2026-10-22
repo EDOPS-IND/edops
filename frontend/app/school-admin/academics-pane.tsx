@@ -46,6 +46,7 @@ import {
   Edit2,
   Settings,
 } from 'lucide-react';
+import { ClassSectionManager } from '../components/class-command-center';
 
 /* -------------------------------------------------------------------------- */
 /* DESIGN SYSTEM CONSTANTS & TOKENS                                           */
@@ -364,11 +365,13 @@ export function AcademicsPane({
   onOpenQuickAction,
   activeTab,
   onTabChange,
+  onNavigate,
 }: {
   organizationId?: string;
   onOpenQuickAction: (action: string) => void;
   activeTab?: 'structure' | 'sections' | 'subjects' | 'curriculum' | 'calendar' | 'promotions';
   onTabChange?: (tab: 'structure' | 'sections' | 'subjects' | 'curriculum' | 'calendar' | 'promotions') => void;
+  onNavigate?: (tab: any, sub?: string) => void;
 }) {
   const [tab, setTab] = useState<'structure' | 'sections' | 'subjects' | 'curriculum' | 'calendar' | 'promotions'>(
     activeTab || 'structure'
@@ -517,6 +520,24 @@ export function AcademicsPane({
   useEffect(() => {
     load();
   }, [organizationId]);
+
+  useEffect(() => {
+    if (activeModalSubject || showAddChapter) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setActiveModalSubject(null);
+          setShowAddChapter(false);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [activeModalSubject, showAddChapter]);
 
   const sections = data?.sections || [];
   const years = data?.academicYears || [];
@@ -1872,326 +1893,24 @@ export function AcademicsPane({
 
       {/* SUBTAB 2: Sections & Programs */}
       {tab === 'sections' && (
-        <div
-          style={{
-            background: '#FFFFFF',
-            border: `1px solid ${S.border}`,
-            borderRadius: '10px',
-            boxShadow: '0 1px 3px rgba(12, 30, 51, 0.04)',
-            overflow: 'hidden',
+        <ClassSectionManager
+          organizationId={organizationId || ''}
+          role="school-admin"
+          sections={sections}
+          programs={programs}
+          onRefresh={() => {
+            if (organizationId) {
+              getSchoolAdminAcademics(organizationId).then((res) => setData(res));
+            }
           }}
-        >
-          {/* Header & Controls */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '20px 24px 16px',
-              flexWrap: 'wrap',
-              gap: '12px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: S.navy }}>
-                Class Sections
-              </h2>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  background: '#FFFFFF',
-                  border: `1px solid ${S.border}`,
-                  borderRadius: '6px',
-                  padding: '6px 10px',
-                  gap: '6px',
-                }}
-              >
-                <Search size={14} style={{ color: S.muted }} />
-                <input
-                  type="text"
-                  placeholder="Search section or grade..."
-                  value={sectionSearch}
-                  onChange={(e) => setSectionSearch(e.target.value)}
-                  style={{
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: '12.5px',
-                    fontFamily: "'Poppins', sans-serif",
-                    color: S.navy,
-                    width: '180px',
-                  }}
-                />
-                {sectionSearch && (
-                  <button
-                    onClick={() => setSectionSearch('')}
-                    style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}
-                  >
-                    <X size={13} style={{ color: S.muted }} />
-                  </button>
-                )}
-              </div>
-
-              <button
-                onClick={() => onOpenQuickAction('section')}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 14px',
-                  borderRadius: '6px',
-                  background: S.navy,
-                  color: '#FFFFFF',
-                  fontSize: '12.5px',
-                  fontWeight: 600,
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontFamily: "'Poppins', sans-serif",
-                  transition: 'background 0.15s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#1B3554')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
-              >
-                <Plus size={14} strokeWidth={2} />
-                Section
-              </button>
-            </div>
-          </div>
-
-          {/* Program Filter Pills (NO Numbers) */}
-          {programs.length > 0 && (
-            <div
-              style={{
-                display: 'flex',
-                gap: '8px',
-                overflowX: 'auto',
-                padding: '0 24px 16px',
-                alignItems: 'center',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => setSectionProgramFilter('all')}
-                style={{
-                  padding: '4px 12px',
-                  borderRadius: '100px',
-                  border: sectionProgramFilter === 'all' ? `1px solid ${S.navy}` : `1px solid ${S.border}`,
-                  background: sectionProgramFilter === 'all' ? S.navy : '#FFFFFF',
-                  color: sectionProgramFilter === 'all' ? '#FFFFFF' : S.slate,
-                  fontSize: '12px',
-                  fontWeight: sectionProgramFilter === 'all' ? 600 : 500,
-                  cursor: 'pointer',
-                  fontFamily: "'Poppins', sans-serif",
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                All Programs
-              </button>
-              {programs.map((p: any) => {
-                const isSel = sectionProgramFilter.toLowerCase() === p.name.toLowerCase();
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => setSectionProgramFilter(p.name)}
-                    style={{
-                      padding: '4px 12px',
-                      borderRadius: '100px',
-                      border: isSel ? `1px solid ${S.navy}` : `1px solid ${S.border}`,
-                      background: isSel ? S.navy : '#FFFFFF',
-                      color: isSel ? '#FFFFFF' : S.slate,
-                      fontSize: '12px',
-                      fontWeight: isSel ? 600 : 500,
-                      cursor: 'pointer',
-                      fontFamily: "'Poppins', sans-serif",
-                      whiteSpace: 'nowrap',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {p.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-              <thead>
-                <tr
-                  style={{
-                    background: '#F8FAFC',
-                    borderBottom: `1px solid ${S.border}`,
-                    color: S.slate,
-                  }}
-                >
-                  <th style={{ padding: '12px 24px', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Section
-                  </th>
-                  <th style={{ padding: '12px 18px', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Grade Program
-                  </th>
-                  <th style={{ padding: '12px 18px', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Capacity Utilization
-                  </th>
-                  <th style={{ padding: '12px 18px', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Health
-                  </th>
-                  <th style={{ padding: '12px 24px', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'right' }}>
-                    Dossier
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <TableSkeletonRows rows={5} columns={5} />
-                ) : filteredSections.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ padding: '32px' }}>
-                      <NoResultState
-                        title="No Sections Found"
-                        description="No class sections matched your filter criteria. Adjust your search or create a new section."
-                        onReset={
-                          sectionSearch || sectionProgramFilter !== 'all'
-                            ? () => {
-                                setSectionSearch('');
-                                setSectionProgramFilter('all');
-                              }
-                            : undefined
-                        }
-                        actionLabel="Section"
-                        onAction={() => onOpenQuickAction('section')}
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSections.map((sec: any, i: number) => {
-                    const enrolled = Number(sec.enrolledCount || 0);
-                    const cap = Number(sec.capacity || 0);
-                    const pct = cap > 0 ? Math.min(100, Math.round((enrolled / cap) * 100)) : 0;
-                    const isOver = cap > 0 && enrolled > cap;
-                    const isNear = cap > 0 && enrolled >= cap * 0.9 && !isOver;
-
-                    return (
-                      <tr
-                        key={sec.id || i}
-                        onClick={() => setSelectedSectionDossier(sec)}
-
-                        style={{
-                          borderBottom: i === filteredSections.length - 1 ? 'none' : `1px solid ${S.border}`,
-                          cursor: 'pointer',
-                          transition: 'background 0.15s ease',
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = '#F8FAFC')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <td style={{ padding: '14px 24px', fontWeight: 600, color: S.navy }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div
-                              style={{
-                                width: '32px',
-                                height: '32px',
-                                borderRadius: '6px',
-                                background: '#D0EDC0',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                color: '#305E26',
-                                fontWeight: 700,
-                                fontSize: '12px',
-                              }}
-                            >
-                              {sec.name}
-                            </div>
-                            <span>Section {sec.name}</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: '14px 18px', color: S.slate }}>
-                          <span
-                            style={{
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              background: S.chip,
-                              fontSize: '11.5px',
-                              fontWeight: 500,
-                              color: S.navy,
-                            }}
-                          >
-                            {sec.programName || 'Standard'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '14px 18px', width: '260px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11.5px', color: S.slate }}>
-                              <span style={{ fontWeight: 600, color: S.navy }}>
-                                {enrolled > 0 ? enrolled : '-'} / {cap > 0 ? `${cap} seats` : '-'}
-                              </span>
-                              <span>{pct}%</span>
-                            </div>
-                            <div
-                              style={{
-                                width: '100%',
-                                height: '5px',
-                                borderRadius: '3px',
-                                background: '#E2E8F0',
-                                overflow: 'hidden',
-                              }}
-                            >
-                              <div
-                                style={{
-                                  width: `${pct}%`,
-                                  height: '100%',
-                                  background: isOver ? '#DC2626' : isNear ? '#D97706' : '#16A34A',
-                                  borderRadius: '3px',
-                                }}
-                              />
-                            </div>
-                          </div>
-                        </td>
-                        <td style={{ padding: '14px 18px' }}>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              padding: '3px 9px',
-                              borderRadius: '10px',
-                              fontSize: '11px',
-                              fontWeight: 700,
-                              background: isOver ? S.redBg : isNear ? S.amberBg : S.greenBg,
-                              color: isOver ? S.redDk : isNear ? S.amberDk : S.greenDk,
-                            }}
-                          >
-                            {isOver ? 'Over Capacity' : isNear ? 'Near Capacity' : 'Within Limits'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '14px 24px', textAlign: 'right' }}>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '12px',
-                              fontWeight: 600,
-                              color: S.navy,
-                            }}
-                          >
-                            View Dossier <ChevronRight size={14} />
-                          </span>
-                        </td>
-
-
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+          onOpenStudent={(_studentId) => {
+            if (onNavigate) {
+              onNavigate('students');
+            } else if (onOpenQuickAction) {
+              onOpenQuickAction('students');
+            }
+          }}
+        />
       )}
 
       {/* SUBTAB 3: Subjects */}
@@ -2690,7 +2409,7 @@ export function AcademicsPane({
                               {sub.name}
                             </h4>
                             <span style={{ fontSize: '12px', color: S.slate }}>
-                              {selectedClassGrade || 'Standard'}
+                              {selectedClassGrade || 'Class'}
                             </span>
                           </div>
                           <div
@@ -3265,16 +2984,7 @@ export function AcademicsPane({
                 >
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span
-                        style={{
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          background: S.navy,
-                          color: '#FFFFFF',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                        }}
-                      >
+                      <span style={{ padding: '2px 8px', borderRadius: '4px', background: S.navy, color: '#FFFFFF', fontSize: '11px', fontWeight: 700 }}>
                         {selectedClassGrade || 'Class'}
                       </span>
                       <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: S.navy }}>

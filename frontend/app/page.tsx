@@ -694,6 +694,7 @@ export default function Home() {
         onLogout={signOut}
         onSwitchOrganization={switchWorkspace}
         organizations={profile.organizations}
+        userProfile={profile.user}
         activePane={principalPane}
         activeSubTab={route.tab || ""}
         initialModal={route.modal}

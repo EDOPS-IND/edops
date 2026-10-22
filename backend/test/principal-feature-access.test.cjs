@@ -14,17 +14,26 @@ test('principal exam routes require exams, while question papers require assessm
   }
 });
 
-test('role override is reflected in effective school entitlements', async () => {
+test('default school trial plan enables core academic features assessments and exams', async () => {
   const db = {
     query: async sql => {
-      if (sql.includes('FROM organizations o')) return [{ entitled: true, features: { exams: false, assessments: true } }];
+      if (sql.includes('FROM organizations o')) return [{
+        status: 'trialing',
+        period_start: new Date(),
+        period_end: new Date(Date.now() + 86400000),
+        max_students: 500,
+        max_teachers: 50,
+        features: { arena: true, recordings: true, communication: true },
+        implicit_trial: true,
+        entitled: true,
+      }];
       if (sql.includes('FROM feature_flags')) return [];
-      if (sql.includes('FROM feature_overrides')) return [{ feature_key: 'exams', role: 'principal', enabled: true }];
+      if (sql.includes('FROM feature_overrides')) return [];
       if (sql.includes('FROM feature_catalog')) return [{ key: 'nav:principal:overview:dashboard' }];
       throw new Error(sql);
     },
   };
-  assert.equal((await entitlements(db, 'school', 'teacher')).features.exams, false);
-  assert.equal((await entitlements(db, 'school', 'principal')).features.exams, true);
-  assert.equal((await entitlements(db, 'school', 'principal')).features['nav:principal:overview:dashboard'], true);
+  const effective = await entitlements(db, 'school', 'principal');
+  assert.equal(effective.features.assessments, true);
+  assert.equal(effective.features.exams, true);
 });

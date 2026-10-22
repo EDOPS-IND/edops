@@ -480,41 +480,12 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
     : "No Academic Year Set";
 
   const studentTeacherRatio =
-    totalTeachers > 0 && totalStudents > 0
-      ? `1:${Math.round(totalStudents / totalTeachers)}`
-      : "-";
+    totalTeachers > 0 ? `1:${Math.round(totalStudents / totalTeachers)}` : "—";
 
-  // Dynamic Attendance Rate derived from DB health or session logs
-  const attendanceRate =
-    typeof healthMetrics?.attendanceRate === "number"
-      ? Math.round(healthMetrics.attendanceRate)
-      : typeof data?.attendanceRate === "number"
-      ? Math.round(data.attendanceRate)
-      : 0;
-
-  // Dynamic Fee Realization Rate derived from DB health or collected/assessed ratio
-  const feeCollectionRate =
-    typeof healthMetrics?.feeCollectionRate === "number" && healthMetrics.feeCollectionRate > 0
-      ? Math.round(healthMetrics.feeCollectionRate)
-      : feeAssessed > 0
-      ? Math.round((feeCollected / feeAssessed) * 100)
-      : 0;
-
-  // Dynamic Syllabus Completion Rate derived from academic node progression
-  const syllabusCompletion =
-    typeof healthMetrics?.syllabusCompletion === "number"
-      ? Math.round(healthMetrics.syllabusCompletion)
-      : typeof data?.syllabusCompletion === "number"
-      ? Math.round(data.syllabusCompletion)
-      : 0;
-
-  // Dynamic Deterministic Institutional Health Score (synthesized from verified attendance, fee realization, and syllabus delivery)
-  const healthScore =
-    typeof healthMetrics?.overall === "number" && healthMetrics.overall > 0
-      ? Math.round(healthMetrics.overall)
-      : attendanceRate > 0 || feeCollectionRate > 0 || syllabusCompletion > 0
-      ? Math.round((attendanceRate * 0.40) + (feeCollectionRate * 0.35) + (syllabusCompletion * 0.25))
-      : 0;
+  const healthScore = typeof healthMetrics?.overall === "number" ? Math.round(healthMetrics.overall) : null;
+  const attendanceRate = typeof healthMetrics?.attendanceRate === "number" ? Math.round(healthMetrics.attendanceRate) : null;
+  const feeCollectionRate = typeof healthMetrics?.feeCollectionRate === "number" ? Math.round(healthMetrics.feeCollectionRate) : null;
+  const syllabusCompletion = typeof healthMetrics?.syllabusCompletion === "number" ? Math.round(healthMetrics.syllabusCompletion) : null;
 
   // Live Attention Items from Backend
   const rawAttentionItems: any[] = Array.isArray(data?.attentionItems) ? data.attentionItems : [];
@@ -864,9 +835,12 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
           >
             {displayVal(totalStudents)}
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-            <span style={{ fontSize: "10px", color: "#51249A", fontWeight: 400 }}>
-              {totalStudents > 0 && activeStudents > 0 ? `${activeStudents.toLocaleString("en-IN")} active in campus` : "-"}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              {totalStudents > 0 ? `${activeStudents.toLocaleString()} active on campus` : "No active students enrolled"}
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#4a0e8f" }}>
+              View <ArrowRight size={14} />
             </span>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
               <span style={{ fontSize: "10px", fontWeight: 600, color: "#51249A" }}>
@@ -926,9 +900,12 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
           >
             {displayVal(totalTeachers + totalStaff)}
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-            <span style={{ fontSize: "10px", color: "#7A4A00", fontWeight: 400 }}>
-              {totalTeachers > 0 ? `${totalTeachers} teachers · Ratio ${studentTeacherRatio}` : "-"}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              {totalTeachers > 0 ? `${totalTeachers} teachers · Ratio ${studentTeacherRatio}` : "No instructional faculty assigned"}
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#7a4a00" }}>
+              View <ArrowRight size={14} />
             </span>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
               <span style={{ fontSize: "10px", fontWeight: 600, color: "#7A4A00" }}>
@@ -977,20 +954,19 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             </h3>
             <Calendar size={19} strokeWidth={1.8} style={{ color: "#0A5A7A" }} />
           </div>
-          <p
-            style={{
-              margin: 0,
-              fontSize: "34px",
-              fontWeight: 700,
-              lineHeight: "115%",
-              color: S.navy,
-            }}
-          >
-            {displayVal(attendanceRate, "%")}
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
+            {attendanceRate !== null ? `${attendanceRate}%` : "—"}
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-            <span style={{ fontSize: "10px", color: "#0A5A7A", fontWeight: 400 }}>
-              {attendanceRate > 0 ? (attendanceRate >= 85 ? "Optimal attendance pace" : "Requires homeroom follow-up") : "-"}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              {attendanceRate !== null
+                ? attendanceRate >= 85
+                  ? "Optimal attendance pace"
+                  : "Requires homeroom follow-up"
+                : "No attendance recorded yet"}
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#0a5a7a" }}>
+              View <ArrowRight size={14} />
             </span>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
               <span style={{ fontSize: "10px", fontWeight: 600, color: "#0A5A7A" }}>
@@ -1039,20 +1015,15 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             </h3>
             <CreditCard size={19} strokeWidth={1.8} style={{ color: "#1A5C0A" }} />
           </div>
-          <p
-            style={{
-              margin: 0,
-              fontSize: "34px",
-              fontWeight: 700,
-              lineHeight: "115%",
-              color: S.navy,
-            }}
-          >
-            {displayVal(feeCollectionRate, "%")}
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
+            {feeCollectionRate !== null ? `${feeCollectionRate}%` : feeAssessed > 0 ? `${Math.round((feeCollected / feeAssessed) * 100)}%` : "—"}
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-            <span style={{ fontSize: "10px", color: "#1A5C0A", fontWeight: 400 }}>
-              {feeAssessed > 0 ? `${formatCurrency(feeCollected)} of ${formatCurrency(feeAssessed)}` : "-"}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              {feeAssessed > 0 ? `${formatCurrency(feeCollected)} of ${formatCurrency(feeAssessed)}` : "No active fee registers"}
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#1a5c0a" }}>
+              View <ArrowRight size={14} />
             </span>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
               <span style={{ fontSize: "10px", fontWeight: 600, color: "#1A5C0A" }}>
@@ -1101,20 +1072,19 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             </h3>
             <ShieldAlert size={19} strokeWidth={1.8} style={{ color: "#7A1A1A" }} />
           </div>
-          <p
-            style={{
-              margin: 0,
-              fontSize: "34px",
-              fontWeight: 700,
-              lineHeight: "115%",
-              color: S.navy,
-            }}
-          >
-            {displayVal(feeDefaulters)}
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#7a1a1a" }}>
+            {feeAssessed > 0 ? feeDefaulters : "—"}
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-            <span style={{ fontSize: "10px", color: "#7A1A1A", fontWeight: 400 }}>
-              {feeDefaulters > 0 && feePending > 0 ? `${formatCurrency(feePending)} overdue collections` : "-"}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px" }}>
+              {feeAssessed > 0
+                ? feePending > 0
+                  ? `${formatCurrency(feePending)} overdue collections`
+                  : "All collections settled"
+                : "No pending fee schedules"}
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#7a1a1a" }}>
+              View <ArrowRight size={14} />
             </span>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
               <span style={{ fontSize: "10px", fontWeight: 600, color: "#7A1A1A" }}>
@@ -1163,20 +1133,15 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             </h3>
             <Award size={19} strokeWidth={1.8} style={{ color: S.muted }} />
           </div>
-          <p
-            style={{
-              margin: 0,
-              fontSize: "34px",
-              fontWeight: 700,
-              lineHeight: "115%",
-              color: "#FFFFFF",
-            }}
-          >
-            {healthScore > 0 ? `${healthScore}/100` : "-"}
+          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#fff" }}>
+            {healthScore !== null ? `${healthScore}/100` : "—/100"}
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-            <span style={{ fontSize: "10px", color: S.muted, fontWeight: 400 }}>
-              {healthScore > 0 ? "Verified compliance register" : "-"}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <p style={{ margin: 0, fontSize: "11px", color: S.muted }}>
+              {healthScore !== null ? "Verified compliance register" : "Setup in progress · No data yet"}
+            </p>
+            <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#fff" }}>
+              View <ArrowRight size={14} />
             </span>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
               <span style={{ fontSize: "10px", fontWeight: 600, color: "#FFFFFF" }}>
@@ -1216,105 +1181,92 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             boxSizing: "border-box",
           }}
         >
-          <div>
-            {/* Header */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", marginBottom: "14px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <Award size={18} color={S.navy} strokeWidth={2} />
-                <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: S.navy, letterSpacing: "-0.01em" }}>
-                  Institutional Standing
-                </h2>
-              </div>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+              <p style={{ margin: 0, fontSize: "10px", fontWeight: 600, color: S.slate }}>EDOPS</p>
+              <h2 style={{ margin: 0, fontSize: "18px", fontWeight: 600, color: S.navy }}>
+                Institutional Standing
+              </h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowHealthExplainer(!showHealthExplainer)}
+              style={{
+                all: "unset",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                fontSize: "11px",
+                fontWeight: 600,
+                color: S.navy,
+                cursor: "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              Explain Score <HelpCircle size={15} />
+            </button>
+          </div>
+
+          <p style={{ margin: 0, fontSize: "13px", lineHeight: 1.5, color: S.slate }}>
+            Deterministic metric score synthesized from verified attendance logs, fee realization, and academic delivery.
+          </p>
+
+          <div style={{ height: "1px", background: "#f2f2f2" }} />
+
+          <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "80px", flexShrink: 0 }}>
+              <p style={{ margin: 0, fontSize: "36px", fontWeight: 600, lineHeight: 1, color: S.navy }}>
+                {healthScore !== null ? healthScore : "—"}
+              </p>
+              <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>/100</p>
+            </div>
+            <div style={{ display: "flex", flex: 1, flexDirection: "column", alignItems: "flex-start", gap: "10px", minWidth: 0 }}>
               <span
                 style={{
                   padding: "3px 10px",
                   borderRadius: "100px",
-                  background: healthScore >= 80 ? S.greenBg : healthScore >= 60 ? "#FEF3C7" : healthScore > 0 ? "#FEE2E2" : "#F1F5F9",
+                  background: (healthScore ?? 0) >= 80 ? S.greenBg : (healthScore ?? 0) >= 60 ? "#FEF3C7" : (healthScore ?? 0) > 0 ? "#FEE2E2" : "#F1F5F9",
                   fontSize: "11px",
                   fontWeight: 600,
-                  color: healthScore >= 80 ? S.green : healthScore >= 60 ? "#B45309" : healthScore > 0 ? "#B91C1C" : S.slate,
+                  color: (healthScore ?? 0) >= 80 ? S.green : (healthScore ?? 0) >= 60 ? "#B45309" : (healthScore ?? 0) > 0 ? "#B91C1C" : S.slate,
                 }}
               >
-                {healthScore >= 80
-                  ? "Tier A · Optimal Health"
+                {healthScore === null
+                  ? "Setup In Progress · No Data Yet"
+                  : healthScore >= 80
+                  ? "Tier A · Excellent Health"
                   : healthScore >= 60
-                  ? "Tier B · Moderate Health"
-                  : healthScore > 0
-                  ? "Tier C · Review Needed"
-                  : "Setup Required · No Data"}
+                  ? "Tier B · Good Standing"
+                  : "Tier C · Attention Needed"}
               </span>
-            </div>
-
-            {/* Score Display */}
-            <div style={{ display: "flex", alignItems: "baseline", gap: "6px", marginBottom: "4px" }}>
-              <span style={{ fontSize: "40px", fontWeight: 800, color: S.navy, lineHeight: 1 }}>
-                {displayVal(healthScore)}
-              </span>
-              {healthScore > 0 && (
-                <span style={{ fontSize: "14px", fontWeight: 500, color: S.muted }}>/ 100</span>
-              )}
-            </div>
-            <p style={{ margin: "0 0 20px", fontSize: "12px", color: S.slate, lineHeight: 1.5 }}>
-              Composite campus standing derived from live attendance, fee realization &amp; syllabus delivery.
-            </p>
-
-            {/* 3 Pillar Progress Meters */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-              {/* Attendance */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11.5px" }}>
-                  <span style={{ color: "#334155", fontWeight: 500 }}>Attendance Turnout</span>
-                  <span style={{ color: S.navy, fontWeight: 700 }}>{displayVal(attendanceRate, "%")}</span>
-                </div>
-                <div style={{ width: "100%", height: "6px", background: "#F1F5F9", borderRadius: "10px", overflow: "hidden" }}>
-                  <div
-                    style={{
-                      width: `${Math.min(100, Math.max(0, attendanceRate))}%`,
-                      height: "100%",
-                      background: "#2563EB",
-                      borderRadius: "10px",
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Fee Recovery */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11.5px" }}>
-                  <span style={{ color: "#334155", fontWeight: 500 }}>Fee Recovery Realization</span>
-                  <span style={{ color: S.navy, fontWeight: 700 }}>{displayVal(feeCollectionRate, "%")}</span>
-                </div>
-                <div style={{ width: "100%", height: "6px", background: "#F1F5F9", borderRadius: "10px", overflow: "hidden" }}>
-                  <div
-                    style={{
-                      width: `${Math.min(100, Math.max(0, feeCollectionRate))}%`,
-                      height: "100%",
-                      background: "#10B981",
-                      borderRadius: "10px",
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Curriculum Delivery */}
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11.5px" }}>
-                  <span style={{ color: "#334155", fontWeight: 500 }}>Curriculum &amp; Syllabus Delivery</span>
-                  <span style={{ color: S.navy, fontWeight: 700 }}>{displayVal(syllabusCompletion, "%")}</span>
-                </div>
-                <div style={{ width: "100%", height: "6px", background: "#F1F5F9", borderRadius: "10px", overflow: "hidden" }}>
-                  <div
-                    style={{
-                      width: `${Math.min(100, Math.max(0, syllabusCompletion))}%`,
-                      height: "100%",
-                      background: "#8B5CF6",
-                      borderRadius: "10px",
-                    }}
-                  />
-                </div>
-              </div>
+              <p style={{ margin: 0, fontSize: "11px", lineHeight: 1.6, color: S.slate }}>
+                {healthScore === null
+                  ? "Institutional standing score computes deterministically once attendance logs, term fee realization, and curriculum pacing are recorded in campus registers."
+                  : `Verified attendance (${attendanceRate !== null ? `${attendanceRate}%` : "—"}), term fee realization (${feeCollectionRate !== null ? `${feeCollectionRate}%` : "—"}), and curriculum pacing (${syllabusCompletion !== null ? `${syllabusCompletion}%` : "—"}) live in campus registers.`}
+              </p>
             </div>
           </div>
+
+          {showHealthExplainer && (
+            <div
+              style={{
+                background: S.chip,
+                border: `1px solid ${S.border}`,
+                borderRadius: "8px",
+                padding: "14px 16px",
+                fontSize: "12px",
+                color: S.slate,
+              }}
+            >
+              <b style={{ color: S.navy }}>Verified metric pillars:</b>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "10px" }}>
+                <div>• Attendance Turnout: <b>{attendanceRate !== null ? `${attendanceRate}%` : "—"}</b> (40% weight)</div>
+                <div>• Fee Realization: <b>{feeCollectionRate !== null ? `${feeCollectionRate}%` : "—"}</b> (35% weight)</div>
+                <div>• Syllabus Delivery: <b>{syllabusCompletion !== null ? `${syllabusCompletion}%` : "—"}</b> (25% weight)</div>
+                <div>• Student-Teacher Ratio: <b>{studentTeacherRatio}</b></div>
+              </div>
+            </div>
+          )}
 
           {/* Footer Metadata */}
           <div
@@ -2252,24 +2204,24 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                   Composite Rating
                 </div>
                 <div style={{ fontSize: "28px", fontWeight: 800, lineHeight: 1.1, marginTop: "2px" }}>
-                  {displayVal(healthScore)} {healthScore > 0 && <span style={{ fontSize: "14px", fontWeight: 400, color: S.muted }}>/ 100</span>}
+                  {displayVal(healthScore)} {(healthScore ?? 0) > 0 && <span style={{ fontSize: "14px", fontWeight: 400, color: S.muted }}>/ 100</span>}
                 </div>
               </div>
               <span
                 style={{
                   padding: "4px 12px",
                   borderRadius: "100px",
-                  background: healthScore >= 80 ? S.greenBg : healthScore >= 60 ? "#FEF3C7" : healthScore > 0 ? "#FEE2E2" : "#334155",
+                  background: (healthScore ?? 0) >= 80 ? S.greenBg : (healthScore ?? 0) >= 60 ? "#FEF3C7" : (healthScore ?? 0) > 0 ? "#FEE2E2" : "#334155",
                   fontSize: "11.5px",
                   fontWeight: 600,
-                  color: healthScore >= 80 ? S.green : healthScore >= 60 ? "#B45309" : healthScore > 0 ? "#B91C1C" : "#E2E8F0",
+                  color: (healthScore ?? 0) >= 80 ? S.green : (healthScore ?? 0) >= 60 ? "#B45309" : (healthScore ?? 0) > 0 ? "#B91C1C" : "#E2E8F0",
                 }}
               >
-                {healthScore >= 80
+                {(healthScore ?? 0) >= 80
                   ? "Tier A · Optimal Health"
-                  : healthScore >= 60
+                  : (healthScore ?? 0) >= 60
                   ? "Tier B · Moderate Health"
-                  : healthScore > 0
+                  : (healthScore ?? 0) > 0
                   ? "Tier C · Review Needed"
                   : "Setup Required · No Data"}
               </span>

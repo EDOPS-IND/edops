@@ -1,10 +1,16 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { randomBytes } from 'crypto';
-import { AuditService } from '../audit/audit.service';
-import { tokenHash } from '../auth/password';
-import { User } from '../auth/user.entity';
-import { MailService } from '../notifications/mail.service';
-import { Membership, Organization } from '../tenants/tenant.entity';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { randomBytes } from "crypto";
+import { AuditService } from "../audit/audit.service";
+import { tokenHash } from "../auth/password";
+import { User } from "../auth/user.entity";
+import { MailService } from "../notifications/mail.service";
+import { Membership, Organization } from "../tenants/tenant.entity";
 import {
   BatchFeeReminderDto,
   BulkCreateCurriculumDto,
@@ -29,10 +35,10 @@ import {
   UpdateSchoolConfigDto,
   UpdateTeacherEmploymentDto,
   UpdateTimetableEntryDto,
-} from './school-admin.dto';
+} from "./school-admin.dto";
 
-import { DrizzleService } from '../../database/drizzle.service';
-import { Queryable } from '../billing/entitlements';
+import { DrizzleService } from "../../database/drizzle.service";
+import { Queryable } from "../billing/entitlements";
 
 @Injectable()
 export class SchoolAdminService {
@@ -42,7 +48,12 @@ export class SchoolAdminService {
     private readonly mail: MailService,
   ) {}
 
-  private async authorize(manager: Queryable, orgId: string, actor: User, principalTimetable = false): Promise<Organization> {
+  private async authorize(
+    manager: Queryable,
+    orgId: string,
+    actor: User,
+    principalTimetable = false,
+  ): Promise<Organization> {
     const [row] = await manager.query(
       `SELECT o.*, m.role AS "memberRole"
        FROM organizations o
@@ -51,14 +62,18 @@ export class SchoolAdminService {
       [orgId, actor.id],
     );
 
-    if (!row) throw new NotFoundException('Organization not found');
-    if (row.status !== 'active') throw new ForbiddenException('School is suspended');
+    if (!row) throw new NotFoundException("Organization not found");
+    if (row.status !== "active")
+      throw new ForbiddenException("School is suspended");
     if (actor.isPlatformAdmin) return row;
 
     const role = (actor as any).roles?.[orgId] || row.memberRole;
-    if (!role) throw new NotFoundException('Organization not found');
-    if (role !== 'school_admin' && !(principalTimetable && role === 'principal')) {
-      throw new ForbiddenException('School administrator access required');
+    if (!role) throw new NotFoundException("Organization not found");
+    if (
+      role !== "school_admin" &&
+      !(principalTimetable && role === "principal")
+    ) {
+      throw new ForbiddenException("School administrator access required");
     }
     return row;
   }
@@ -68,151 +83,164 @@ export class SchoolAdminService {
     const manager = this.drizzle;
     await this.authorize(manager, orgId, actor);
 
-      // Counts from real DB tables
-      const [membersCount] = await manager.query(
-        `SELECT
+    // Counts from real DB tables
+    const [membersCount] = await manager.query(
+      `SELECT
           COUNT(*) FILTER (WHERE role = 'student')::int as "totalStudents",
           COUNT(*) FILTER (WHERE role = 'student' AND status = 'active')::int as "activeStudents",
           COUNT(*) FILTER (WHERE role = 'teacher' AND status = 'active')::int as "totalTeachers",
           COUNT(*) FILTER (WHERE role IN ('staff', 'school_admin') AND status = 'active')::int as "totalStaff",
           COUNT(*) FILTER (WHERE role = 'parent' AND status = 'active')::int as "totalParents"
          FROM memberships WHERE organization_id = $1`,
-        [orgId],
-      );
+      [orgId],
+    );
 
-      const [sectionsCount] = await manager.query(
-        `SELECT COUNT(*)::int as total FROM sections WHERE organization_id = $1`,
-        [orgId],
-      );
+    const [sectionsCount] = await manager.query(
+      `SELECT COUNT(*)::int as total FROM sections WHERE organization_id = $1`,
+      [orgId],
+    );
 
-      const [programsCount] = await manager.query(
-        `SELECT COUNT(*)::int as total FROM programs WHERE organization_id = $1`,
-        [orgId],
-      );
+    const [programsCount] = await manager.query(
+      `SELECT COUNT(*)::int as total FROM programs WHERE organization_id = $1`,
+      [orgId],
+    );
 
-      const [invitesCount] = await manager.query(
-        `SELECT COUNT(*)::int as total FROM invitations WHERE organization_id = $1 AND accepted_at IS NULL AND revoked_at IS NULL`,
-        [orgId],
-      );
+    const [invitesCount] = await manager.query(
+      `SELECT COUNT(*)::int as total FROM invitations WHERE organization_id = $1 AND accepted_at IS NULL AND revoked_at IS NULL`,
+      [orgId],
+    );
 
-      const [feeSummary] = await manager.query(
-        `SELECT
+    const [feeSummary] = await manager.query(
+      `SELECT
           COALESCE(SUM(total_due), 0)::bigint as "assessed",
           COALESCE(SUM(amount_paid), 0)::bigint as "collected",
           COALESCE(SUM(amount_pending), 0)::bigint as "pending",
           COUNT(*) FILTER (WHERE days_overdue > 0)::int as "defaulters"
          FROM student_fee_dues WHERE organization_id = $1`,
-        [orgId],
-      );
+      [orgId],
+    );
 
-      const totalStudents = Number(membersCount?.totalStudents ?? 0);
-      const activeStudents = Number(membersCount?.activeStudents ?? 0);
-      const totalTeachers = Number(membersCount?.totalTeachers ?? 0);
-      const totalStaff = Number(membersCount?.totalStaff ?? 0);
-      const totalParents = Number(membersCount?.totalParents ?? 0);
-      const totalSections = Number(sectionsCount?.total ?? 0);
-      const totalClasses = Number(programsCount?.total ?? 0);
-      const pendingInvites = Number(invitesCount?.total ?? 0);
+    const totalStudents = Number(membersCount?.totalStudents ?? 0);
+    const activeStudents = Number(membersCount?.activeStudents ?? 0);
+    const totalTeachers = Number(membersCount?.totalTeachers ?? 0);
+    const totalStaff = Number(membersCount?.totalStaff ?? 0);
+    const totalParents = Number(membersCount?.totalParents ?? 0);
+    const totalSections = Number(sectionsCount?.total ?? 0);
+    const totalClasses = Number(programsCount?.total ?? 0);
+    const pendingInvites = Number(invitesCount?.total ?? 0);
 
-      const [realAttendance] = await manager.query(
-        `SELECT
+    const [realAttendance] = await manager.query(
+      `SELECT
           COUNT(*)::int as total_records,
           COUNT(*) FILTER (WHERE ar.status IN ('present', 'late'))::int as present_records
          FROM attendance_records ar
          JOIN attendance_sessions as_sess ON ar.attendance_session_id = as_sess.id
          WHERE as_sess.organization_id = $1`,
-        [orgId],
-      );
-      const totalAtt = Number(realAttendance?.total_records ?? 0);
-      const presentAtt = Number(realAttendance?.present_records ?? 0);
-      const realAttRate = totalAtt > 0 ? Number(((presentAtt / totalAtt) * 100).toFixed(1)) : 0;
+      [orgId],
+    );
+    const totalAtt = Number(realAttendance?.total_records ?? 0);
+    const presentAtt = Number(realAttendance?.present_records ?? 0);
+    const realAttRate =
+      totalAtt > 0 ? Number(((presentAtt / totalAtt) * 100).toFixed(1)) : 0;
 
-      const feeAssessed = Number(feeSummary?.assessed ?? 0);
-      const feeCollected = Number(feeSummary?.collected ?? 0);
-      const feePending = Number(feeSummary?.pending ?? 0);
-      const feeDefaulters = Number(feeSummary?.defaulters ?? 0);
-      const realFeeCollectionRate = feeAssessed > 0 ? Number(((feeCollected / feeAssessed) * 100).toFixed(1)) : 0;
+    const feeAssessed = Number(feeSummary?.assessed ?? 0);
+    const feeCollected = Number(feeSummary?.collected ?? 0);
+    const feePending = Number(feeSummary?.pending ?? 0);
+    const feeDefaulters = Number(feeSummary?.defaulters ?? 0);
+    const realFeeCollectionRate =
+      feeAssessed > 0
+        ? Number(((feeCollected / feeAssessed) * 100).toFixed(1))
+        : 0;
 
-      const [curriculum] = await manager.query(`SELECT AVG(actual_completion_percentage) AS progress FROM principal_curriculum_nodes WHERE organization_id=$1`, [orgId]);
-      const syllabusCompletion = curriculum.progress==null?0:Number(curriculum.progress);
+    const [curriculum] = await manager.query(
+      `SELECT AVG(actual_completion_percentage) AS progress FROM principal_curriculum_nodes WHERE organization_id=$1`,
+      [orgId],
+    );
+    const syllabusCompletion =
+      curriculum.progress == null ? 0 : Number(curriculum.progress);
 
-      // Deterministic explainable school health score (0-100)
-      const overallHealth = Math.round(
-        (realAttRate * 0.40) +
-        (realFeeCollectionRate * 0.35) +
-        (syllabusCompletion * 0.25)
-      );
+    // Deterministic explainable school health score (0-100)
+    const overallHealth = Math.round(
+      realAttRate * 0.4 +
+        realFeeCollectionRate * 0.35 +
+        syllabusCompletion * 0.25,
+    );
 
-      const healthMetrics = {
-        overall: overallHealth,
-        attendanceRate: realAttRate,
-        feeCollectionRate: realFeeCollectionRate,
-        syllabusCompletion,
-        staffRetention: null,
-        governanceCompliance: null,
-        infrastructureIndex: null,
-      };
+    const healthMetrics = {
+      overall: overallHealth,
+      attendanceRate: realAttRate,
+      feeCollectionRate: realFeeCollectionRate,
+      syllabusCompletion,
+      staffRetention: null,
+      governanceCompliance: null,
+      infrastructureIndex: null,
+    };
 
-      // Live attention items from real DB state
-      const [pendingLeavesRes] = await manager.query(
-        `SELECT COUNT(*)::int as count FROM leave_requests WHERE organization_id = $1 AND status = 'pending'`,
-        [orgId],
-      );
-      const pendingLeaves = Number(pendingLeavesRes?.count ?? 0);
+    // Live attention items from real DB state
+    const [pendingLeavesRes] = await manager.query(
+      `SELECT COUNT(*)::int as count FROM leave_requests WHERE organization_id = $1 AND status = 'pending'`,
+      [orgId],
+    );
+    const pendingLeaves = Number(pendingLeavesRes?.count ?? 0);
 
-      const [todayAttRes] = await manager.query(
-        `SELECT COUNT(DISTINCT section_id)::int as count FROM attendance_sessions WHERE organization_id = $1 AND date = CURRENT_DATE`,
-        [orgId],
-      );
-      const sectionsMarkedToday = Number(todayAttRes?.count ?? 0);
-      const missingAttendanceCount = Math.max(0, totalSections - sectionsMarkedToday);
+    const [todayAttRes] = await manager.query(
+      `SELECT COUNT(DISTINCT section_id)::int as count FROM attendance_sessions WHERE organization_id = $1 AND date = CURRENT_DATE`,
+      [orgId],
+    );
+    const sectionsMarkedToday = Number(todayAttRes?.count ?? 0);
+    const missingAttendanceCount = Math.max(
+      0,
+      totalSections - sectionsMarkedToday,
+    );
 
-      const attentionItems: any[] = [];
-      if (missingAttendanceCount > 0 && totalSections > 0) {
-        attentionItems.push({
-          id: 'att-attendance',
-          severity: 'high',
-          title: `${missingAttendanceCount} Class Section(s) Awaiting Today's Register`,
-          description: `${sectionsMarkedToday} of ${totalSections} section registers submitted for today.`,
-          action: 'Send Alert to Class Teachers',
-          time: 'Today',
-        });
-      }
-      if (feeDefaulters > 0) {
-        attentionItems.push({
-          id: 'att-fees',
-          severity: 'medium',
-          title: `${feeDefaulters} Overdue Fee Account(s) (>30 Days)`,
-          description: `Outstanding student fee dues totaling ₹${feePending.toLocaleString('en-IN')}.`,
-          action: 'Open Defaulters Desk',
-          time: 'Active',
-        });
-      }
-      if (pendingLeaves > 0) {
-        attentionItems.push({
-          id: 'att-leaves',
-          severity: 'low',
-          title: `${pendingLeaves} Staff Leave Request(s) Pending Approval`,
-          description: 'Faculty and staff leave applications awaiting review.',
-          action: 'Review Applications',
-          time: 'Pending',
-        });
-      }
-      if (pendingInvites > 0) {
-        attentionItems.push({
-          id: 'att-invites',
-          severity: 'low',
-          title: `${pendingInvites} Pending User Onboarding Invitation(s)`,
-          description: 'Invited staff or parent members who have not yet activated accounts.',
-          action: 'View Invitations',
-          time: 'Pending',
-        });
-      }
+    const attentionItems: any[] = [];
+    if (missingAttendanceCount > 0 && totalSections > 0) {
+      attentionItems.push({
+        id: "att-attendance",
+        severity: "high",
+        title: `${missingAttendanceCount} Class Section(s) Awaiting Today's Register`,
+        description: `${sectionsMarkedToday} of ${totalSections} section registers submitted for today.`,
+        action: "Send Alert to Class Teachers",
+        time: "Today",
+      });
+    }
+    if (feeDefaulters > 0) {
+      attentionItems.push({
+        id: "att-fees",
+        severity: "medium",
+        title: `${feeDefaulters} Overdue Fee Account(s) (>30 Days)`,
+        description: `Outstanding student fee dues totaling ₹${feePending.toLocaleString("en-IN")}.`,
+        action: "Open Defaulters Desk",
+        time: "Active",
+      });
+    }
+    if (pendingLeaves > 0) {
+      attentionItems.push({
+        id: "att-leaves",
+        severity: "low",
+        title: `${pendingLeaves} Staff Leave Request(s) Pending Approval`,
+        description: "Faculty and staff leave applications awaiting review.",
+        action: "Review Applications",
+        time: "Pending",
+      });
+    }
+    if (pendingInvites > 0) {
+      attentionItems.push({
+        id: "att-invites",
+        severity: "low",
+        title: `${pendingInvites} Pending User Onboarding Invitation(s)`,
+        description:
+          "Invited staff or parent members who have not yet activated accounts.",
+        action: "View Invitations",
+        time: "Pending",
+      });
+    }
 
-      // Operational timeline derived from today's timetable sessions (day_of_week smallint 1..6)
-      const currentDayNumber = new Date().getDay() === 0 ? 1 : new Date().getDay(); // 1=Mon..6=Sat
-      const dailyTimeline = await manager.query(
-        `SELECT
+    // Operational timeline derived from today's timetable sessions (day_of_week smallint 1..6)
+    const currentDayNumber =
+      new Date().getDay() === 0 ? 1 : new Date().getDay(); // 1=Mon..6=Sat
+    const dailyTimeline = await manager.query(
+      `SELECT
           t.id,
           COALESCE(t.start_time::text, '09:00') as time,
           CONCAT(p.name, ' ', s.name, ' · ', sub.name) as event,
@@ -227,12 +255,12 @@ export class SchoolAdminService {
          WHERE t.organization_id = $1 AND (t.day_of_week = $2 OR t.day_of_week = 1)
          ORDER BY t.start_time, t.period_number
          LIMIT 6`,
-        [orgId, currentDayNumber],
-      );
+      [orgId, currentDayNumber],
+    );
 
-      // Live audit activity from real audit_events
-      const recentActivity = await manager.query(
-        `SELECT
+    // Live audit activity from real audit_events
+    const recentActivity = await manager.query(
+      `SELECT
           a.id,
           COALESCE(u.name, u.email, 'School Admin') as actor,
           a.action,
@@ -243,89 +271,117 @@ export class SchoolAdminService {
          WHERE a.organization_id = $1
          ORDER BY a.created_at DESC
          LIMIT 5`,
-        [orgId],
-      );
-      // Platform announcements
-      const [org] = await manager.query(
-        `SELECT o.status, p.name as plan_name
+      [orgId],
+    );
+    // Platform announcements
+    const [org] = await manager.query(
+      `SELECT o.status, p.name as plan_name
          FROM organizations o
          LEFT JOIN subscriptions s ON s.organization_id = o.id AND s.status IN ('active', 'trialing')
          LEFT JOIN plans p ON p.id = s.plan_id
-         WHERE o.id = $1`, [orgId]
-      );
-      const status = org?.status;
-      const plan = org?.plan_name?.toLowerCase() || '';
-      let audienceCond = "audience = 'all'";
-      if (status === 'active') audienceCond += " OR audience = 'active'";
-      if (plan.includes('trial')) audienceCond += " OR audience = 'trial'";
-      if (plan.includes('enterprise')) audienceCond += " OR audience = 'enterprise'";
+         WHERE o.id = $1`,
+      [orgId],
+    );
+    const status = org?.status;
+    const plan = org?.plan_name?.toLowerCase() || "";
+    let audienceCond = "audience = 'all'";
+    if (status === "active") audienceCond += " OR audience = 'active'";
+    if (plan.includes("trial")) audienceCond += " OR audience = 'trial'";
+    if (plan.includes("enterprise"))
+      audienceCond += " OR audience = 'enterprise'";
 
-      const platformAnnouncements = await manager.query(
-        `SELECT id, title, message, type, priority, created_at AS "createdAt" FROM platform_announcements WHERE ${audienceCond} AND status = 'published' ORDER BY created_at DESC LIMIT 5`
-      );
+    const platformAnnouncements = await manager.query(
+      `SELECT id, title, message, type, priority, created_at AS "createdAt" FROM platform_announcements WHERE ${audienceCond} AND status = 'published' ORDER BY created_at DESC LIMIT 5`,
+    );
 
-      const [curYear] = await manager.query(
-        `SELECT name, is_current AS "isCurrent"
+    const [curYear] = await manager.query(
+      `SELECT name, is_current AS "isCurrent"
          FROM academic_years
          WHERE organization_id = $1
          ORDER BY is_current DESC, start_date DESC
          LIMIT 1`,
-        [orgId],
-      );
+      [orgId],
+    );
 
-      return {
-        platformAnnouncements,
-        academicYear: curYear?.name ?? null,
-        metrics: {
-          totalStudents,
-          activeStudents,
-          totalTeachers,
-          totalStaff,
-          totalParents,
-          totalSections,
-          totalClasses,
-          pendingInvites,
-          feeAssessed,
-          feeCollected,
-          feePending,
-          feeDefaulters,
-        },
-        health: healthMetrics,
-        attentionItems,
-        dailyTimeline,
-        recentActivity: recentActivity.map((r: any) => {
-          const act = String(r.action || 'system.event').toLowerCase();
-          const d = (typeof r.details === 'object' && r.details) ? r.details : {};
-          let humanDetail = 'Administrative operational record';
-          if (act.includes('invitation.accepted')) humanDetail = `${r.actor} accepted onboarding invitation`;
-          else if (act.includes('invitations.created')) humanDetail = `Issued ${d.count || 1} member onboarding invitation${(d.count || 1) > 1 ? 's' : ''}`;
-          else if (act.includes('school.onboarded_complete')) humanDetail = d.slug ? `Completed school onboarding for ${d.slug}` : 'Completed school onboarding';
-          else if (act.includes('organization.created')) humanDetail = 'Campus organization created';
-          else if (act.includes('organization.updated')) humanDetail = 'Updated school configuration and details';
-          else if (act.includes('auth.login')) humanDetail = `${r.actor} signed in to campus portal`;
-          else if (act.includes('department.created')) humanDetail = d.name ? `Created department: ${d.name}` : 'Created academic department';
-          else if (act.includes('timetable.created')) humanDetail = 'Created new timetable period schedule';
-          else if (act.includes('fee.payment_recorded')) humanDetail = 'Recorded student fee payment';
-          else if (act.includes('attendance.finalized')) humanDetail = 'Finalized daily classroom attendance';
-          else if (act.includes('assignment.published')) humanDetail = 'Published coursework assignment to students';
-          else humanDetail = String(r.action || 'Administrative action recorded').replace(/[._]/g, ' ');
+    return {
+      platformAnnouncements,
+      academicYear: curYear?.name ?? null,
+      metrics: {
+        totalStudents,
+        activeStudents,
+        totalTeachers,
+        totalStaff,
+        totalParents,
+        totalSections,
+        totalClasses,
+        pendingInvites,
+        feeAssessed,
+        feeCollected,
+        feePending,
+        feeDefaulters,
+      },
+      health: healthMetrics,
+      attentionItems,
+      dailyTimeline,
+      recentActivity: recentActivity.map((r: any) => {
+        const act = String(r.action || "system.event").toLowerCase();
+        const d = typeof r.details === "object" && r.details ? r.details : {};
+        let humanDetail = "Administrative operational record";
+        if (act.includes("invitation.accepted"))
+          humanDetail = `${r.actor} accepted onboarding invitation`;
+        else if (act.includes("invitations.created"))
+          humanDetail = `Issued ${d.count || 1} member onboarding invitation${(d.count || 1) > 1 ? "s" : ""}`;
+        else if (act.includes("school.onboarded_complete"))
+          humanDetail = d.slug
+            ? `Completed school onboarding for ${d.slug}`
+            : "Completed school onboarding";
+        else if (act.includes("organization.created"))
+          humanDetail = "Campus organization created";
+        else if (act.includes("organization.updated"))
+          humanDetail = "Updated school configuration and details";
+        else if (act.includes("auth.login"))
+          humanDetail = `${r.actor} signed in to campus portal`;
+        else if (act.includes("department.created"))
+          humanDetail = d.name
+            ? `Created department: ${d.name}`
+            : "Created academic department";
+        else if (act.includes("timetable.created"))
+          humanDetail = "Created new timetable period schedule";
+        else if (act.includes("fee.payment_recorded"))
+          humanDetail = "Recorded student fee payment";
+        else if (act.includes("attendance.finalized"))
+          humanDetail = "Finalized daily classroom attendance";
+        else if (act.includes("assignment.published"))
+          humanDetail = "Published coursework assignment to students";
+        else
+          humanDetail = String(
+            r.action || "Administrative action recorded",
+          ).replace(/[._]/g, " ");
 
-          return {
-            id: r.id,
-            actor: r.actor,
-            action: String(r.action || 'system.event').replace(/\./g, ' '),
-            detail: humanDetail,
-            time: new Date(r.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          };
-        }),
-      };
+        return {
+          id: r.id,
+          actor: r.actor,
+          action: String(r.action || "system.event").replace(/\./g, " "),
+          detail: humanDetail,
+          time: new Date(r.createdAt).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        };
+      }),
+    };
   }
 
   // 2. PEOPLE — STUDENTS & 360 PROFILE
   async getStudents(
     orgId: string,
     actor: User,
-    query?: { search?: string; sectionId?: string; limit?: number; offset?: number },
+    query?: {
+      search?: string;
+      sectionId?: string;
+      limit?: number;
+      offset?: number;
+    },
   ) {
     const limit = Math.min(Math.max(Number(query?.limit) || 50, 1), 100);
     const offset = Math.max(Number(query?.offset) || 0, 0);
@@ -430,7 +486,11 @@ export class SchoolAdminService {
     });
   }
 
-  async directAdmitStudent(orgId: string, actor: User, dto: DirectAdmitStudentDto) {
+  async directAdmitStudent(
+    orgId: string,
+    actor: User,
+    dto: DirectAdmitStudentDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
@@ -439,18 +499,21 @@ export class SchoolAdminService {
       const phone = dto.phone?.trim() || null;
 
       // 1. Check or create user
-      let [user] = await manager.query('SELECT id, name, email FROM users WHERE email = $1 LIMIT 1', [email]);
+      let [user] = await manager.query(
+        "SELECT id, name, email FROM users WHERE email = $1 LIMIT 1",
+        [email],
+      );
       if (!user) {
         [user] = await manager.query(
           `INSERT INTO users (email, name, phone, password_hash)
            VALUES ($1, $2, $3, '')
            RETURNING id, name, email`,
-          [email, name, phone]
+          [email, name, phone],
         );
       } else {
         await manager.query(
           `UPDATE users SET name = COALESCE(NULLIF(name, ''), $1), phone = COALESCE(phone, $2) WHERE id = $3`,
-          [name, phone, user.id]
+          [name, phone, user.id],
         );
       }
 
@@ -459,36 +522,50 @@ export class SchoolAdminService {
         `INSERT INTO memberships (organization_id, user_id, role)
          VALUES ($1, $2, 'student')
          ON CONFLICT (organization_id, user_id) DO UPDATE SET role = 'student'`,
-        [orgId, user.id]
+        [orgId, user.id],
       );
 
       // 3. Enrollment into section if provided
-      let rollNo = '';
+      let rollNo = "";
       if (dto.sectionId) {
         const [academicYear] = await manager.query(
-          'SELECT id FROM academic_years WHERE organization_id = $1 AND is_current = true LIMIT 1',
-          [orgId]
+          "SELECT id FROM academic_years WHERE organization_id = $1 AND is_current = true LIMIT 1",
+          [orgId],
         );
-        const yearId = academicYear?.id || (await manager.query('SELECT id FROM academic_years WHERE organization_id = $1 ORDER BY start_date DESC LIMIT 1', [orgId]))[0]?.id;
+        const yearId =
+          academicYear?.id ||
+          (
+            await manager.query(
+              "SELECT id FROM academic_years WHERE organization_id = $1 ORDER BY start_date DESC LIMIT 1",
+              [orgId],
+            )
+          )[0]?.id;
         if (yearId) {
           const [cnt] = await manager.query(
-            'SELECT COUNT(*)::int as count FROM enrollments WHERE organization_id = $1 AND section_id = $2',
+            "SELECT COUNT(*)::int as count FROM enrollments WHERE organization_id = $1 AND section_id = $2",
             [orgId, dto.sectionId],
           );
-          rollNo = dto.rollNo?.trim() || String((cnt?.count || 0) + 1).padStart(3, '0');
+          rollNo =
+            dto.rollNo?.trim() ||
+            String((cnt?.count || 0) + 1).padStart(3, "0");
           await manager.query(
             `INSERT INTO enrollments (organization_id, student_user_id, section_id, academic_year_id, roll_number, status)
              VALUES ($1, $2, $3, $4, $5, 'active')
              ON CONFLICT DO NOTHING`,
-            [orgId, user.id, dto.sectionId, yearId, rollNo]
+            [orgId, user.id, dto.sectionId, yearId, rollNo],
           );
         }
       }
 
       // 4. Student Profile with invitation_status = 'not_sent'
-      const [admCount] = await manager.query('SELECT COUNT(*)::int as count FROM student_profiles WHERE organization_id = $1', [orgId]);
-      const admNo = dto.admissionNo?.trim() || `ADM-${String((admCount?.count || 0) + 1).padStart(4, '0')}`;
-      const gender = dto.gender?.trim() || 'Not Specified';
+      const [admCount] = await manager.query(
+        "SELECT COUNT(*)::int as count FROM student_profiles WHERE organization_id = $1",
+        [orgId],
+      );
+      const admNo =
+        dto.admissionNo?.trim() ||
+        `ADM-${String((admCount?.count || 0) + 1).padStart(4, "0")}`;
+      const gender = dto.gender?.trim() || "Not Specified";
       const dob = dto.dob?.trim() || null;
       await manager.query(
         `INSERT INTO student_profiles (organization_id, student_user_id, admission_number, gender, dob, emergency_contact, status, invitation_status)
@@ -497,17 +574,28 @@ export class SchoolAdminService {
            gender = CASE WHEN EXCLUDED.gender <> 'Not Specified' THEN EXCLUDED.gender ELSE student_profiles.gender END,
            dob = COALESCE(EXCLUDED.dob, student_profiles.dob),
            invitation_status = 'not_sent'`,
-        [orgId, user.id, admNo, gender, dob]
+        [orgId, user.id, admNo, gender, dob],
       );
 
       await this.audit.record(manager, {
         organizationId: orgId,
         actorId: actor.id,
-        action: 'student.direct_admit',
-        details: { studentUserId: user.id, email, admissionNo: admNo, sectionId: dto.sectionId },
+        action: "student.direct_admit",
+        details: {
+          studentUserId: user.id,
+          email,
+          admissionNo: admNo,
+          sectionId: dto.sectionId,
+        },
       });
 
-      return { success: true, studentId: user.id, admissionNo: admNo, rollNo, inviteStatus: 'not_sent' };
+      return {
+        success: true,
+        studentId: user.id,
+        admissionNo: admNo,
+        rollNo,
+        inviteStatus: "not_sent",
+      };
     });
   }
 
@@ -522,7 +610,7 @@ export class SchoolAdminService {
          LEFT JOIN enrollments e ON e.student_user_id = u.id AND e.organization_id = $1
          WHERE u.id = $2 AND m.role = 'student'
          LIMIT 1`,
-        [orgId, studentId]
+        [orgId, studentId],
       );
 
       let targetEmail = student?.email;
@@ -533,7 +621,7 @@ export class SchoolAdminService {
       if (!student) {
         const [inviteRow] = await manager.query(
           `SELECT id, email, name, phone, section_id as "sectionId" FROM invitations WHERE organization_id = $1 AND id = $2 LIMIT 1`,
-          [orgId, studentId]
+          [orgId, studentId],
         );
         if (inviteRow) {
           targetEmail = inviteRow.email;
@@ -541,20 +629,20 @@ export class SchoolAdminService {
           targetPhone = inviteRow.phone;
           targetSectionId = inviteRow.sectionId;
         } else {
-          throw new NotFoundException('Student record not found');
+          throw new NotFoundException("Student record not found");
         }
       }
 
-      const token = randomBytes(32).toString('hex');
+      const token = randomBytes(32).toString("hex");
       const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
       const [batch] = await manager.query(
-        'INSERT INTO invitation_batches (organization_id, created_by, count) VALUES ($1, $2, 1) RETURNING id',
-        [orgId, actor.id]
+        "INSERT INTO invitation_batches (organization_id, created_by, count) VALUES ($1, $2, 1) RETURNING id",
+        [orgId, actor.id],
       );
 
       await manager.query(
         `UPDATE invitations SET revoked_at = NOW() WHERE organization_id = $1 AND email = $2 AND accepted_at IS NULL AND revoked_at IS NULL`,
-        [orgId, targetEmail]
+        [orgId, targetEmail],
       );
 
       const [invitation] = await manager.query(
@@ -572,27 +660,44 @@ export class SchoolAdminService {
           expiresAt,
           tokenHash(token),
           token,
-        ]
+        ],
       );
 
       if (student?.id) {
         await manager.query(
           `UPDATE student_profiles SET invitation_status = 'pending' WHERE organization_id = $1 AND student_user_id = $2`,
-          [orgId, student.id]
+          [orgId, student.id],
         );
       }
 
-      const [orgData] = await manager.query('SELECT name FROM organizations WHERE id = $1 LIMIT 1', [orgId]);
-      this.mail.sendInvitationEmail(targetEmail, token, 'student', orgData?.name, targetName).catch(() => {});
+      const [orgData] = await manager.query(
+        "SELECT name FROM organizations WHERE id = $1 LIMIT 1",
+        [orgId],
+      );
+      this.mail
+        .sendInvitationEmail(
+          targetEmail,
+          token,
+          "student",
+          orgData?.name,
+          targetName,
+        )
+        .catch(() => {});
 
       await this.audit.record(manager, {
         organizationId: orgId,
         actorId: actor.id,
-        action: 'invitations.sent',
+        action: "invitations.sent",
         details: { studentId, email: targetEmail },
       });
 
-      return { success: true, invitationId: invitation.id, token, expiresAt, inviteStatus: 'pending' };
+      return {
+        success: true,
+        invitationId: invitation.id,
+        token,
+        expiresAt,
+        inviteStatus: "pending",
+      };
     });
   }
 
@@ -664,7 +769,7 @@ export class SchoolAdminService {
         );
 
         if (!invitation) {
-          throw new NotFoundException('Student profile not found');
+          throw new NotFoundException("Student profile not found");
         }
         student = invitation;
         isInvited = true;
@@ -676,7 +781,7 @@ export class SchoolAdminService {
            FROM school_broadcasts
            WHERE organization_id = $1
            ORDER BY created_at DESC LIMIT 5`,
-          [orgId]
+          [orgId],
         );
 
         const activity = await manager.query(
@@ -695,20 +800,25 @@ export class SchoolAdminService {
                OR (a.details->>'email')::text = $3
              )
            ORDER BY a.created_at DESC LIMIT 20`,
-          [orgId, studentUserId, student.email]
+          [orgId, studentUserId, student.email],
         );
 
         return {
           profile: student,
           academic: {
             enrollmentId: null,
-            academicYear: 'Current Academic Session',
-            category: 'General',
-            status: 'Pending Invite',
-            classTeacher: 'Class Faculty Lead',
+            academicYear: "Current Academic Session",
+            category: "General",
+            status: "Pending Invite",
+            classTeacher: "Class Faculty Lead",
           },
           parents: [],
-          attendance: { totalSchoolDays: 0, daysPresent: 0, daysAbsent: 0, overallPercentage: 100 },
+          attendance: {
+            totalSchoolDays: 0,
+            daysPresent: 0,
+            daysAbsent: 0,
+            overallPercentage: 100,
+          },
           assignments: [],
           exams: [],
           fees: { totalAssessed: 0, totalPaid: 0, balanceDue: 0 },
@@ -726,15 +836,16 @@ export class SchoolAdminService {
            COALESCE(ay.name, 'Current Academic Session') as "academicYear",
            COALESCE(sp.category, 'General') as "category",
            COALESCE(sp.status, 'active') as "status",
-           (SELECT tu.name FROM class_subject_assignments csa JOIN users tu ON tu.id = csa.teacher_user_id WHERE csa.organization_id = $1 AND csa.section_id = e.section_id LIMIT 1) as "classTeacher"
+           COALESCE(ctu.name, (SELECT tu.name FROM class_subject_assignments csa JOIN users tu ON tu.id = csa.teacher_user_id WHERE csa.organization_id = $1 AND csa.section_id = e.section_id LIMIT 1)) as "classTeacher"
          FROM enrollments e
          LEFT JOIN sections s ON s.id = e.section_id
+         LEFT JOIN users ctu ON ctu.id = s.class_teacher_user_id
          LEFT JOIN programs p ON p.id = s.program_id
          LEFT JOIN academic_years ay ON ay.id = e.academic_year_id
          LEFT JOIN student_profiles sp ON sp.student_user_id = e.student_user_id AND sp.organization_id = e.organization_id
          WHERE e.organization_id = $1 AND e.student_user_id = $2
          ORDER BY e.created_at DESC LIMIT 1`,
-        [orgId, studentUserId]
+        [orgId, studentUserId],
       );
 
       const parents = await manager.query(
@@ -745,7 +856,7 @@ export class SchoolAdminService {
          FROM parent_student_relationships psr
          JOIN users u ON u.id = psr.parent_id
          WHERE psr.school_id = $1 AND psr.student_id = $2`,
-        [orgId, studentUserId]
+        [orgId, studentUserId],
       );
 
       const [attendance] = await manager.query(
@@ -756,7 +867,7 @@ export class SchoolAdminService {
            ROUND(AVG(CASE WHEN ar.status IN ('present','late') THEN 100.0 ELSE 0.0 END),1) AS "overallPercentage"
          FROM attendance_records ar
          WHERE ar.organization_id = $1 AND ar.student_id = $2`,
-        [orgId, studentUserId]
+        [orgId, studentUserId],
       );
 
       const assignments = await manager.query(
@@ -769,7 +880,7 @@ export class SchoolAdminService {
          LEFT JOIN submissions sub ON sub.assignment_id = a.id AND sub.student_id = $2 AND sub.organization_id = $1
          WHERE a.organization_id = $1 AND a.section_id = e.section_id
          ORDER BY a.created_at DESC LIMIT 10`,
-        [orgId, studentUserId]
+        [orgId, studentUserId],
       );
 
       const [fees] = await manager.query(
@@ -780,7 +891,7 @@ export class SchoolAdminService {
            MIN(due_date) FILTER (WHERE amount_pending>0) AS "nextDueDate"
          FROM student_fee_dues
          WHERE organization_id=$1 AND student_user_id=$2`,
-        [orgId, studentUserId]
+        [orgId, studentUserId],
       );
 
       const exams = await manager.query(
@@ -788,7 +899,7 @@ export class SchoolAdminService {
          FROM principal_exam_results
          WHERE organization_id=$1 AND student_user_id=$2 AND status='Published'
          ORDER BY published_at DESC LIMIT 10`,
-        [orgId, studentUserId]
+        [orgId, studentUserId],
       );
 
       const leave = await manager.query(
@@ -796,7 +907,7 @@ export class SchoolAdminService {
          FROM leave_requests
          WHERE organization_id = $1 AND user_id = $2
          ORDER BY created_at DESC LIMIT 10`,
-        [orgId, studentUserId]
+        [orgId, studentUserId],
       );
 
       const discipline = await manager.query(
@@ -804,7 +915,7 @@ export class SchoolAdminService {
          FROM discipline_incidents
          WHERE organization_id = $1 AND student_user_id = $2
          ORDER BY incident_date DESC LIMIT 10`,
-        [orgId, studentUserId]
+        [orgId, studentUserId],
       );
 
       const broadcasts = await manager.query(
@@ -812,7 +923,7 @@ export class SchoolAdminService {
          FROM school_broadcasts
          WHERE organization_id = $1
          ORDER BY created_at DESC LIMIT 5`,
-        [orgId]
+        [orgId],
       );
 
       const activity = await manager.query(
@@ -832,18 +943,23 @@ export class SchoolAdminService {
              OR (a.details->>'email')::text = $3
            )
          ORDER BY a.created_at DESC LIMIT 20`,
-        [orgId, student.id, student.email]
+        [orgId, student.id, student.email],
       );
 
       return {
         profile: student,
         academic: academic || {
-          academicYear: 'Current Academic Session',
-          category: 'General',
-          classTeacher: 'Class Faculty Lead',
+          academicYear: "Current Academic Session",
+          category: "General",
+          classTeacher: "Class Faculty Lead",
         },
         parents: parents || [],
-        attendance: attendance || { totalSchoolDays: 0, daysPresent: 0, daysAbsent: 0, overallPercentage: 100 },
+        attendance: attendance || {
+          totalSchoolDays: 0,
+          daysPresent: 0,
+          daysAbsent: 0,
+          overallPercentage: 100,
+        },
         assignments: assignments || [],
         exams: exams || [],
         fees: fees || { totalAssessed: 0, totalPaid: 0, balanceDue: 0 },
@@ -925,7 +1041,12 @@ export class SchoolAdminService {
     });
   }
 
-  async updateTeacherEmployment(orgId: string, actor: User, teacherId: string, dto: UpdateTeacherEmploymentDto) {
+  async updateTeacherEmployment(
+    orgId: string,
+    actor: User,
+    teacherId: string,
+    dto: UpdateTeacherEmploymentDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
       const [m] = await manager.query(
@@ -934,7 +1055,12 @@ export class SchoolAdminService {
              employment_type = COALESCE($4, employment_type)
          WHERE organization_id = $1 AND user_id = $2
          RETURNING employee_id as "empId", employment_type as "employmentType"`,
-        [orgId, teacherId, dto.employeeId?.trim() ?? null, dto.employmentType?.trim() ?? null],
+        [
+          orgId,
+          teacherId,
+          dto.employeeId?.trim() ?? null,
+          dto.employmentType?.trim() ?? null,
+        ],
       );
       if (!m) {
         await manager.query(
@@ -942,7 +1068,12 @@ export class SchoolAdminService {
            SET employee_id = COALESCE($3, employee_id),
                employment_type = COALESCE($4, employment_type)
            WHERE organization_id = $1 AND id = $2`,
-          [orgId, teacherId, dto.employeeId?.trim() ?? null, dto.employmentType?.trim() ?? null],
+          [
+            orgId,
+            teacherId,
+            dto.employeeId?.trim() ?? null,
+            dto.employmentType?.trim() ?? null,
+          ],
         );
       }
       return { success: true };
@@ -1153,26 +1284,32 @@ export class SchoolAdminService {
     });
   }
 
-  async updateParentChildren(orgId: string, actor: User, parentId: string, studentUserIds: string[]) {
+  async updateParentChildren(
+    orgId: string,
+    actor: User,
+    parentId: string,
+    studentUserIds: string[],
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
       // 1. Check if parentId is an invitation
       const [invite] = await manager.query(
-        'SELECT id FROM invitations WHERE organization_id = $1 AND id = $2',
+        "SELECT id FROM invitations WHERE organization_id = $1 AND id = $2",
         [orgId, parentId],
       );
 
       if (invite) {
         await manager.query(
-          'UPDATE invitations SET child_student_ids = $1 WHERE id = $2',
+          "UPDATE invitations SET child_student_ids = $1 WHERE id = $2",
           [JSON.stringify(studentUserIds), parentId],
         );
         return { success: true, count: studentUserIds.length };
       }
 
       // 2. Active parent user
-      const validStudentIds = studentUserIds && studentUserIds.length > 0 ? studentUserIds : [];
+      const validStudentIds =
+        studentUserIds && studentUserIds.length > 0 ? studentUserIds : [];
 
       if (validStudentIds.length === 0) {
         await manager.query(
@@ -1329,10 +1466,12 @@ export class SchoolAdminService {
           `SELECT DISTINCT specialty as name FROM memberships WHERE organization_id = $1 AND role = 'teacher' AND specialty IS NOT NULL AND specialty != ''`,
           [orgId],
         );
-        const deptNames = Array.from(new Set([
-          ...existingSubjects.map((s: any) => s.name?.trim()),
-          ...teacherSpecialties.map((t: any) => t.name?.trim()),
-        ])).filter(Boolean);
+        const deptNames = Array.from(
+          new Set([
+            ...existingSubjects.map((s: any) => s.name?.trim()),
+            ...teacherSpecialties.map((t: any) => t.name?.trim()),
+          ]),
+        ).filter(Boolean);
 
         if (deptNames.length > 0) {
           for (const rawName of deptNames) {
@@ -1359,7 +1498,12 @@ export class SchoolAdminService {
     });
   }
 
-  async updateDepartmentSubjects(orgId: string, actor: User, departmentId: string, subjectIds: string[]) {
+  async updateDepartmentSubjects(
+    orgId: string,
+    actor: User,
+    departmentId: string,
+    subjectIds: string[],
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
       // Unlink subjects currently mapped to this department
@@ -1396,7 +1540,7 @@ export class SchoolAdminService {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
-      let headName = dto.headTeacherName || 'Department Head';
+      let headName = dto.headTeacherName || "Department Head";
       if (dto.headTeacherId) {
         const [t] = await manager.query(
           `SELECT COALESCE(NULLIF(name, ''), split_part(email, '@', 1)) as name FROM users WHERE id = $1`,
@@ -1405,7 +1549,8 @@ export class SchoolAdminService {
         if (t?.name) headName = t.name;
       }
 
-      const subjectIds = dto.subjectIds && dto.subjectIds.length > 0 ? dto.subjectIds : [];
+      const subjectIds =
+        dto.subjectIds && dto.subjectIds.length > 0 ? dto.subjectIds : [];
       let facultyCount = 0;
       let studentLoad = 0;
 
@@ -1428,7 +1573,16 @@ export class SchoolAdminService {
         `INSERT INTO school_departments (organization_id, name, code, head_teacher_id, head_teacher_name, faculty_count, student_load, location)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          RETURNING *`,
-        [orgId, dto.name, dto.code.toUpperCase(), dto.headTeacherId || null, headName, facultyCount, studentLoad, dto.location || null],
+        [
+          orgId,
+          dto.name,
+          dto.code.toUpperCase(),
+          dto.headTeacherId || null,
+          headName,
+          facultyCount,
+          studentLoad,
+          dto.location || null,
+        ],
       );
 
       if (subjectIds.length > 0) {
@@ -1438,7 +1592,11 @@ export class SchoolAdminService {
         );
       }
 
-      await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: 'department.created' });
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "department.created",
+      });
       return dept;
     });
   }
@@ -1453,19 +1611,41 @@ export class SchoolAdminService {
         [orgId],
       );
 
-      const sections = await manager.query(
+      const rawSections = await manager.query(
         `SELECT
           s.id, s.name, s.capacity, p.name as "programName",
-          COUNT(e.id) as "enrolledCount",
-          (COUNT(e.id) > s.capacity) as "isOverCapacity"
+          s.class_teacher_user_id as "classTeacherUserId",
+          ctu.name as "classTeacherName",
+          ctu.email as "classTeacherEmail",
+          (SELECT COUNT(*)::int FROM enrollments e WHERE e.section_id = s.id AND e.status = 'active') as "enrolledCount",
+          (SELECT COUNT(*)::int FROM class_subject_assignments csa WHERE csa.section_id = s.id AND csa.organization_id = $1) as "subjectsCount",
+          (SELECT ROUND(AVG(CASE WHEN ar.status IN ('present','late') THEN 100.0 ELSE 0.0 END), 0)::int
+           FROM attendance_records ar
+           JOIN attendance_sessions ats ON ats.id = ar.attendance_session_id AND ats.organization_id = ar.organization_id
+           WHERE ar.organization_id = $1 AND ats.section_id = s.id AND ats.status = 'finalized') as "attendanceRate"
          FROM sections s
          JOIN programs p ON p.id = s.program_id
-         LEFT JOIN enrollments e ON e.section_id = s.id AND e.status = 'active'
+         LEFT JOIN users ctu ON ctu.id = s.class_teacher_user_id
          WHERE s.organization_id = $1
-         GROUP BY s.id, s.name, s.capacity, p.name
-         ORDER BY p.name, s.name`,
+         ORDER BY p.sequence_order ASC, p.name ASC, s.name ASC`,
         [orgId],
       );
+
+      const sections = rawSections.map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        capacity: Number(s.capacity || 40),
+        programName: s.programName,
+        code: `${s.programName?.replace(/^Class\s*/i, "") || ""} ${s.name}`.trim(),
+        enrolledCount: Number(s.enrolledCount || 0),
+        isOverCapacity: Number(s.enrolledCount || 0) > Number(s.capacity || 40),
+        classTeacherUserId: s.classTeacherUserId || null,
+        classTeacherName: s.classTeacherName || null,
+        classTeacherEmail: s.classTeacherEmail || null,
+        subjectsCount: Number(s.subjectsCount || 0),
+        attendanceRate:
+          s.attendanceRate != null ? Number(s.attendanceRate) : 95,
+      }));
 
       const subjects = await manager.query(
         `SELECT s.*,
@@ -1488,23 +1668,230 @@ export class SchoolAdminService {
          ORDER BY grade, subject_name, expected_completion_week ASC, created_at ASC`,
         [orgId],
       );
-      const events=await manager.query(`SELECT id,title,event_date AS date,start_time AS time FROM ptm_schedules WHERE organization_id=$1 ORDER BY event_date`,[orgId]);
+      const events = await manager.query(
+        `SELECT id,title,event_date AS date,start_time AS time FROM ptm_schedules WHERE organization_id=$1 ORDER BY event_date`,
+        [orgId],
+      );
       const programs = await manager.query(
         `SELECT id, name, sequence_order as "sequenceOrder" FROM programs WHERE organization_id = $1 ORDER BY sequence_order, name`,
         [orgId],
       );
+      const assignments = await manager.query(
+        `SELECT csa.section_id AS "sectionId", csa.subject_id AS "subjectId", 
+                csa.teacher_user_id AS "teacherUserId", COALESCE(u.name, u.email) AS "teacherName"
+         FROM class_subject_assignments csa
+         JOIN users u ON u.id = csa.teacher_user_id
+         WHERE csa.organization_id = $1`,
+        [orgId],
+      );
       return {
-        curriculum,events,
+        curriculum,
+        events,
         currentYear: years.find((y: any) => y.is_current) || years[0] || null,
         academicYears: years,
         programs,
         sections,
         subjects,
+        assignments,
       };
     });
   }
 
-  async createCurriculumNode(orgId: string, actor: User, dto: CreateCurriculumNodeDto) {
+  async getSectionDetail(orgId: string, actor: User, sectionId: string) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+      const [section] = await manager.query(
+        `SELECT s.id, s.name, s.capacity, p.name as "programName",
+                s.class_teacher_user_id as "classTeacherUserId",
+                ctu.name as "classTeacherName", ctu.email as "classTeacherEmail",
+                (SELECT COUNT(*)::int FROM enrollments e WHERE e.section_id = s.id AND e.organization_id = $1 AND e.status = 'active') as "enrolledCount"
+         FROM sections s
+         JOIN programs p ON p.id = s.program_id
+         LEFT JOIN users ctu ON ctu.id = s.class_teacher_user_id
+         WHERE s.organization_id = $1 AND s.id = $2`,
+        [orgId, sectionId],
+      );
+      if (!section) throw new NotFoundException("Section not found");
+
+      const subjects = await manager.query(
+        `SELECT 
+           sub.id as "subjectId", sub.name as "subjectName", sub.code as "subjectCode",
+           csa.teacher_user_id as "teacherUserId", u.name as "teacherName", u.email as "teacherEmail",
+           (SELECT COUNT(*)::int FROM principal_curriculum_nodes pcn WHERE pcn.organization_id = $1 AND pcn.subject_name = sub.name AND (pcn.grade = prog.name OR pcn.grade = REPLACE(prog.name, 'Class ', ''))) as "totalChapters",
+           (SELECT ROUND(AVG(pcn.actual_completion_percentage), 0)::int FROM principal_curriculum_nodes pcn WHERE pcn.organization_id = $1 AND pcn.subject_name = sub.name AND (pcn.grade = prog.name OR pcn.grade = REPLACE(prog.name, 'Class ', ''))) as "completionPct",
+           (SELECT COUNT(*)::int FROM timetable_entries te WHERE te.organization_id = $1 AND te.section_id = sec.id AND te.subject_id = sub.id) as "weeklyPeriodsCount",
+           (SELECT COALESCE(tu.name, tu.email) FROM timetable_entries te JOIN users tu ON tu.id = te.teacher_user_id WHERE te.organization_id = $1 AND te.section_id = sec.id AND te.subject_id = sub.id GROUP BY te.teacher_user_id, tu.name, tu.email ORDER BY COUNT(*) DESC LIMIT 1) as "timetableTeacherName",
+           (SELECT te.teacher_user_id FROM timetable_entries te WHERE te.organization_id = $1 AND te.section_id = sec.id AND te.subject_id = sub.id GROUP BY te.teacher_user_id ORDER BY COUNT(*) DESC LIMIT 1) as "timetableTeacherUserId"
+         FROM subjects sub
+         JOIN sections sec ON sec.id = $2 AND sec.organization_id = $1
+         JOIN programs prog ON prog.id = sec.program_id
+         LEFT JOIN class_subject_assignments csa ON csa.section_id = sec.id AND csa.subject_id = sub.id AND csa.organization_id = $1
+         LEFT JOIN users u ON u.id = csa.teacher_user_id
+         WHERE sub.organization_id = $1
+           AND (csa.id IS NOT NULL OR EXISTS (SELECT 1 FROM timetable_entries te WHERE te.organization_id = $1 AND te.section_id = sec.id AND te.subject_id = sub.id))
+         ORDER BY sub.name`,
+        [orgId, sectionId],
+      );
+
+      const availableSubjects = await manager.query(
+        `SELECT s.id, s.name, s.code
+         FROM subjects s
+         WHERE s.organization_id = $1
+         ORDER BY s.name ASC`,
+        [orgId],
+      );
+
+      const students = await manager.query(
+        `SELECT 
+           u.id as "studentId", u.name, u.email, COALESCE(u.phone, '') as "phone",
+           e.roll_number as "rollNo", sp.admission_number as "admissionNo",
+           sp.guardian_name as "parentName", sp.guardian_phone as "parentPhone",
+           (SELECT ROUND(AVG(CASE WHEN ar.status IN ('present','late') THEN 100.0 ELSE 0.0 END), 0)::int 
+            FROM attendance_records ar 
+            JOIN attendance_sessions ats ON ats.id = ar.attendance_session_id AND ats.organization_id = ar.organization_id
+            WHERE ar.organization_id = $1 AND ar.student_id = u.id AND ats.section_id = $2 AND ats.status = 'finalized') as "attendanceRate"
+         FROM enrollments e
+         JOIN users u ON u.id = e.student_user_id
+         LEFT JOIN student_profiles sp ON sp.student_user_id = u.id AND sp.organization_id = $1
+         WHERE e.organization_id = $1 AND e.section_id = $2 AND e.status = 'active'
+         ORDER BY e.roll_number ASC, u.name ASC`,
+        [orgId, sectionId],
+      );
+
+      const teachers = await manager.query(
+        `SELECT u.id, u.name, u.email, COALESCE(u.phone, '') as "phone"
+         FROM users u
+         JOIN memberships m ON m.user_id = u.id AND m.organization_id = $1 AND m.role = 'teacher' AND m.status = 'active'
+         ORDER BY u.name ASC`,
+        [orgId],
+      );
+
+      return {
+        section: {
+          id: section.id,
+          name: section.name,
+          programName: section.programName,
+          code: `${section.programName?.replace(/^Class\s*/i, "") || ""} ${section.name}`.trim(),
+          capacity: Number(section.capacity || 40),
+          enrolledCount: Number(section.enrolledCount || 0),
+          classTeacherUserId: section.classTeacherUserId || null,
+          classTeacherName: section.classTeacherName || null,
+          classTeacherEmail: section.classTeacherEmail || null,
+        },
+        subjects: subjects.map((s: any) => ({
+          subjectId: s.subjectId,
+          subjectName: s.subjectName,
+          subjectCode: s.subjectCode || "SUB",
+          teacherUserId: s.teacherUserId || null,
+          teacherName: s.teacherName || null,
+          teacherEmail: s.teacherEmail || null,
+          totalChapters: Number(s.totalChapters || 0),
+          completionPct: s.completionPct != null ? Number(s.completionPct) : 0,
+          weeklyPeriodsCount: Number(s.weeklyPeriodsCount || 0),
+          timetableTeacherName: s.timetableTeacherName || null,
+          timetableTeacherUserId: s.timetableTeacherUserId || null,
+        })),
+        availableSubjects: (availableSubjects || []).map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          code: s.code || "SUB",
+        })),
+        students: students.map((st: any) => ({
+          studentId: st.studentId,
+          name: st.name,
+          email: st.email,
+          phone: st.phone,
+          rollNo: (st.rollNo || "").replace(/^ROLL-?/i, ""),
+          admissionNo: st.admissionNo || "",
+          parentName: st.parentName || "Not assigned",
+          parentPhone: st.parentPhone || "-",
+          attendanceRate:
+            st.attendanceRate != null ? Number(st.attendanceRate) : 100,
+        })),
+        teachers,
+      };
+    });
+  }
+
+  async updateClassTeacher(
+    orgId: string,
+    actor: User,
+    sectionId: string,
+    teacherUserId: string | null,
+  ) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+      if (teacherUserId) {
+        const [t] = await manager.query(
+          `SELECT u.id, u.name FROM users u JOIN memberships m ON m.user_id = u.id WHERE m.organization_id = $1 AND u.id = $2 AND m.role = 'teacher'`,
+          [orgId, teacherUserId],
+        );
+        if (!t) throw new NotFoundException("Teacher not found in this school");
+      }
+      const [row] = await manager.query(
+        `UPDATE sections SET class_teacher_user_id = $1 WHERE organization_id = $2 AND id = $3 RETURNING id, class_teacher_user_id as "classTeacherUserId"`,
+        [teacherUserId || null, orgId, sectionId],
+      );
+      if (!row) throw new NotFoundException("Section not found");
+      return { success: true, sectionId, classTeacherUserId: teacherUserId };
+    });
+  }
+
+  async assignSectionSubjectTeacher(
+    orgId: string,
+    actor: User,
+    sectionId: string,
+    subjectId: string,
+    teacherUserId: string,
+  ) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+      const [t] = await manager.query(
+        `SELECT u.id, u.name FROM users u JOIN memberships m ON m.user_id = u.id WHERE m.organization_id = $1 AND u.id = $2 AND m.role = 'teacher'`,
+        [orgId, teacherUserId],
+      );
+      if (!t) throw new NotFoundException("Teacher not found in this school");
+      await manager.query(
+        `INSERT INTO class_subject_assignments (organization_id, section_id, subject_id, teacher_user_id)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (organization_id, section_id, subject_id)
+         DO UPDATE SET teacher_user_id = EXCLUDED.teacher_user_id`,
+        [orgId, sectionId, subjectId, teacherUserId],
+      );
+      return { success: true, sectionId, subjectId, teacherUserId };
+    });
+  }
+
+  async removeSectionSubject(
+    orgId: string,
+    actor: User,
+    sectionId: string,
+    subjectId: string,
+  ) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+      await manager.query(
+        `DELETE FROM timetable_entries WHERE organization_id = $1 AND section_id = $2 AND subject_id = $3`,
+        [orgId, sectionId, subjectId],
+      );
+      await manager.query(
+        `DELETE FROM class_subject_assignments WHERE organization_id = $1 AND section_id = $2 AND subject_id = $3`,
+        [orgId, sectionId, subjectId],
+      );
+      return {
+        success: true,
+        sectionId,
+        subjectId,
+        message: "Subject successfully unallocated from class section",
+      };
+    });
+  }
+
+  async createCurriculumNode(
+    orgId: string,
+    actor: User,
+    dto: CreateCurriculumNodeDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
@@ -1522,7 +1909,7 @@ export class SchoolAdminService {
         if (subRow) subjectId = subRow.id;
       }
 
-      const formattedGrade = dto.grade.trim().startsWith('Class ')
+      const formattedGrade = dto.grade.trim().startsWith("Class ")
         ? dto.grade.trim()
         : `Class ${dto.grade.trim()}`;
 
@@ -1550,7 +1937,11 @@ export class SchoolAdminService {
     });
   }
 
-  async bulkCreateCurriculumNodes(orgId: string, actor: User, dto: BulkCreateCurriculumDto) {
+  async bulkCreateCurriculumNodes(
+    orgId: string,
+    actor: User,
+    dto: BulkCreateCurriculumDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
@@ -1568,7 +1959,7 @@ export class SchoolAdminService {
         if (subRow) subjectId = subRow.id;
       }
 
-      const formattedGrade = dto.grade.trim().startsWith('Class ')
+      const formattedGrade = dto.grade.trim().startsWith("Class ")
         ? dto.grade.trim()
         : `Class ${dto.grade.trim()}`;
 
@@ -1588,7 +1979,7 @@ export class SchoolAdminService {
                        actual_completion_percentage AS "completionPct", status,
                        learning_outcomes AS "learningOutcomes"`,
             [
-              ch.unitName?.trim() || 'General',
+              ch.unitName?.trim() || "General",
               ch.chapterName.trim(),
               ch.expectedCompletionWeek || 10,
               ch.learningOutcomes || [],
@@ -1616,7 +2007,7 @@ export class SchoolAdminService {
               formattedGrade,
               subjectId,
               dto.subjectName.trim(),
-              ch.unitName?.trim() || 'General',
+              ch.unitName?.trim() || "General",
               ch.chapterName.trim(),
               ch.expectedCompletionWeek || 10,
               ch.learningOutcomes || [],
@@ -1702,11 +2093,17 @@ export class SchoolAdminService {
     });
   }
 
-  async createTimetableEntry(orgId: string, actor: User, dto: CreateTimetableEntryDto) {
+  async createTimetableEntry(
+    orgId: string,
+    actor: User,
+    dto: CreateTimetableEntryDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor, true);
       // ponytail: one school-wide lock makes clash checks atomic; split by period if contention grows.
-      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [orgId]);
+      await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        orgId,
+      ]);
 
       let academicYearId = dto.academicYearId;
       if (!academicYearId) {
@@ -1716,10 +2113,23 @@ export class SchoolAdminService {
         );
         academicYearId = year?.id;
       }
-      if (!academicYearId) throw new BadRequestException('Create an active academic year first');
-      if (dto.startTime >= dto.endTime) throw new BadRequestException('End time must be after start time');
-      await this.validateTimetableSlot(manager, orgId, academicYearId, dto.sectionId, dto.subjectId,
-        dto.teacherUserId, dto.dayOfWeek, dto.periodNumber, dto.startTime, dto.endTime, dto.roomNumber || '');
+      if (!academicYearId)
+        throw new BadRequestException("Create an active academic year first");
+      if (dto.startTime >= dto.endTime)
+        throw new BadRequestException("End time must be after start time");
+      await this.validateTimetableSlot(
+        manager,
+        orgId,
+        academicYearId,
+        dto.sectionId,
+        dto.subjectId,
+        dto.teacherUserId,
+        dto.dayOfWeek,
+        dto.periodNumber,
+        dto.startTime,
+        dto.endTime,
+        dto.roomNumber || "",
+      );
 
       const [entry] = await manager.query(
         `INSERT INTO timetable_entries
@@ -1736,35 +2146,57 @@ export class SchoolAdminService {
           dto.periodNumber,
           dto.startTime,
           dto.endTime,
-          dto.roomNumber || '',
+          dto.roomNumber || "",
         ],
       );
 
-      await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: 'timetable.created' });
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "timetable.created",
+      });
       return entry;
     });
   }
 
-  async updateTimetableEntry(orgId: string, actor: User, id: string, dto: UpdateTimetableEntryDto) {
+  async updateTimetableEntry(
+    orgId: string,
+    actor: User,
+    id: string,
+    dto: UpdateTimetableEntryDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor, true);
-      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [orgId]);
+      await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
+        orgId,
+      ]);
 
       const [existing] = await manager.query(
         `SELECT * FROM timetable_entries WHERE id = $1 AND organization_id = $2`,
         [id, orgId],
       );
       if (!existing) {
-        throw new NotFoundException('Timetable entry not found');
+        throw new NotFoundException("Timetable entry not found");
       }
 
       const startTime = dto.startTime || existing.start_time;
       const endTime = dto.endTime || existing.end_time;
-      if (startTime >= endTime) throw new BadRequestException('End time must be after start time');
-      await this.validateTimetableSlot(manager, orgId, dto.academicYearId || existing.academic_year_id,
-        dto.sectionId || existing.section_id, dto.subjectId || existing.subject_id,
-        dto.teacherUserId || existing.teacher_user_id, dto.dayOfWeek ?? existing.day_of_week,
-        dto.periodNumber ?? existing.period_number, startTime, endTime, dto.roomNumber ?? existing.room_number, id);
+      if (startTime >= endTime)
+        throw new BadRequestException("End time must be after start time");
+      await this.validateTimetableSlot(
+        manager,
+        orgId,
+        dto.academicYearId || existing.academic_year_id,
+        dto.sectionId || existing.section_id,
+        dto.subjectId || existing.subject_id,
+        dto.teacherUserId || existing.teacher_user_id,
+        dto.dayOfWeek ?? existing.day_of_week,
+        dto.periodNumber ?? existing.period_number,
+        startTime,
+        endTime,
+        dto.roomNumber ?? existing.room_number,
+        id,
+      );
 
       const [updated] = await manager.query(
         `UPDATE timetable_entries
@@ -1794,7 +2226,11 @@ export class SchoolAdminService {
         ],
       );
 
-      await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: 'timetable.updated' });
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "timetable.updated",
+      });
       return updated;
     });
   }
@@ -1808,30 +2244,66 @@ export class SchoolAdminService {
         [id, orgId],
       );
       if (!deleted) {
-        throw new NotFoundException('Timetable entry not found');
+        throw new NotFoundException("Timetable entry not found");
       }
 
-      await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: 'timetable.deleted' });
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "timetable.deleted",
+      });
       return { success: true, id };
     });
   }
 
-  private async validateTimetableSlot(manager: Queryable, orgId: string, yearId: string,
-    sectionId: string, subjectId: string, teacherId: string, day: number, period: number,
-    startTime: string, endTime: string, room: string, excludeId?: string) {
-    const [valid] = await manager.query(`SELECT 1 FROM sections s JOIN subjects sub ON sub.id = $4 AND sub.organization_id = $1
+  private async validateTimetableSlot(
+    manager: Queryable,
+    orgId: string,
+    yearId: string,
+    sectionId: string,
+    subjectId: string,
+    teacherId: string,
+    day: number,
+    period: number,
+    startTime: string,
+    endTime: string,
+    room: string,
+    excludeId?: string,
+  ) {
+    const [valid] = await manager.query(
+      `SELECT 1 FROM sections s JOIN subjects sub ON sub.id = $4 AND sub.organization_id = $1
       JOIN memberships m ON m.user_id = $5 AND m.organization_id = $1 AND m.role = 'teacher' AND m.status = 'active'
       JOIN users u ON u.id = m.user_id AND u.is_active = true
       WHERE s.id = $3 AND s.organization_id = $1 AND s.academic_year_id = $2`,
-      [orgId, yearId, sectionId, subjectId, teacherId]);
-    if (!valid) throw new BadRequestException('Choose a class, subject and active teacher from this school and academic year');
-    const [clash] = await manager.query(`SELECT id FROM timetable_entries WHERE organization_id = $1
+      [orgId, yearId, sectionId, subjectId, teacherId],
+    );
+    if (!valid)
+      throw new BadRequestException(
+        "Choose a class, subject and active teacher from this school and academic year",
+      );
+    const [clash] = await manager.query(
+      `SELECT id FROM timetable_entries WHERE organization_id = $1
       AND academic_year_id = $2 AND day_of_week = $3
       AND (period_number = $4 OR (start_time < $9 AND end_time > $8))
       AND (teacher_user_id = $5 OR section_id = $6 OR (BTRIM($7) <> '' AND LOWER(BTRIM(room_number)) = LOWER(BTRIM($7))))
       AND ($10::uuid IS NULL OR id <> $10::uuid) LIMIT 1`,
-      [orgId, yearId, day, period, teacherId, sectionId, room, startTime, endTime, excludeId || null]);
-    if (clash) throw new ConflictException('Teacher, class or room is already booked for this period');
+      [
+        orgId,
+        yearId,
+        day,
+        period,
+        teacherId,
+        sectionId,
+        room,
+        startTime,
+        endTime,
+        excludeId || null,
+      ],
+    );
+    if (clash)
+      throw new ConflictException(
+        "Teacher, class or room is already booked for this period",
+      );
   }
 
   // 6. ATTENDANCE & LEAVES
@@ -1888,7 +2360,11 @@ export class SchoolAdminService {
     });
   }
 
-  async createLeaveRequest(orgId: string, actor: User, dto: CreateLeaveRequestDto) {
+  async createLeaveRequest(
+    orgId: string,
+    actor: User,
+    dto: CreateLeaveRequestDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
       const [req] = await manager.query(
@@ -1900,7 +2376,7 @@ export class SchoolAdminService {
           orgId,
           actor.id,
           dto.applicantName || actor.email,
-          dto.applicantRole || 'student',
+          dto.applicantRole || "student",
           dto.leaveType,
           dto.startDate,
           dto.endDate,
@@ -1908,12 +2384,21 @@ export class SchoolAdminService {
           dto.reason,
         ],
       );
-      await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: 'leave.requested' });
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "leave.requested",
+      });
       return req;
     });
   }
 
-  async updateLeaveStatus(orgId: string, actor: User, id: string, dto: UpdateLeaveStatusDto) {
+  async updateLeaveStatus(
+    orgId: string,
+    actor: User,
+    id: string,
+    dto: UpdateLeaveStatusDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
       const [updated] = await manager.query(
@@ -1923,8 +2408,12 @@ export class SchoolAdminService {
          RETURNING *`,
         [dto.status, actor.id, dto.reviewNotes || null, id, orgId],
       );
-      if (!updated) throw new NotFoundException('Leave request not found');
-      await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: `leave.${dto.status}` });
+      if (!updated) throw new NotFoundException("Leave request not found");
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: `leave.${dto.status}`,
+      });
       return updated;
     });
   }
@@ -1973,10 +2462,19 @@ export class SchoolAdminService {
     });
   }
 
-  async createFeeStructure(orgId: string, actor: User, dto: CreateFeeStructureDto) {
+  async createFeeStructure(
+    orgId: string,
+    actor: User,
+    dto: CreateFeeStructureDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
-      const total = dto.tuitionFee + dto.developmentFee + dto.labFee + dto.libraryFee + dto.transportFee;
+      const total =
+        dto.tuitionFee +
+        dto.developmentFee +
+        dto.labFee +
+        dto.libraryFee +
+        dto.transportFee;
       const [res] = await manager.query(
         `INSERT INTO fee_structures
           (organization_id, name, grade, academic_year_id, tuition_fee, development_fee, lab_fee, library_fee, transport_fee, total_annual, installments_count)
@@ -1996,27 +2494,72 @@ export class SchoolAdminService {
           dto.installmentsCount || 4,
         ],
       );
-      await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: 'fee_structure.created' });
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "fee_structure.created",
+      });
       return res;
     });
   }
 
   async sendFeeReminder(orgId: string, actor: User, dto: SendFeeReminderDto) {
-    if (dto.channel && dto.channel!=='in_app') throw new BadRequestException('External delivery is not configured; use the parent inbox');
-    return this.drizzle.transaction(async m=>{
-      await this.authorize(m,orgId,actor);
-      const [due]=await m.query(`SELECT * FROM student_fee_dues WHERE organization_id=$1 AND id=$2 FOR UPDATE`,[orgId,dto.dueId]);
-      if (!due) throw new NotFoundException('Fee record not found');
-      const recipients=await m.query(`SELECT DISTINCT psr.parent_id FROM parent_student_relationships psr JOIN memberships mem ON mem.organization_id=psr.school_id AND mem.user_id=psr.parent_id AND mem.role='parent' AND mem.status='active' WHERE psr.school_id=$1 AND psr.student_id=$2 AND psr.verification_status='verified' AND psr.status='active'`,[orgId,due.student_user_id]);
-      if (!recipients.length) throw new NotFoundException('No verified parent inbox is linked to this student');
-      for (const recipient of recipients) await m.query(`INSERT INTO teacher_messages (organization_id,sender_id,recipient_id,recipient_role,subject_line,body) VALUES ($1,$2,$3,'parent','School fee reminder',$4)`,[orgId,actor.id,recipient.parent_id,`Outstanding fee for ${due.student_name}: ₹${Number(due.amount_pending).toLocaleString('en-IN')}. Due date: ${String(due.due_date).slice(0,10)}.`]);
-      await m.query(`UPDATE student_fee_dues SET last_reminder_sent_at=now() WHERE organization_id=$1 AND id=$2`,[orgId,dto.dueId]);
-      await this.audit.record(m,{organizationId:orgId,actorId:actor.id,action:'fee.reminder_sent',details:{dueId:dto.dueId,channel:'in_app',recipients:recipients.length}});
-      return {success:true,channel:'in_app',recipientCount:recipients.length};
+    if (dto.channel && dto.channel !== "in_app")
+      throw new BadRequestException(
+        "External delivery is not configured; use the parent inbox",
+      );
+    return this.drizzle.transaction(async (m) => {
+      await this.authorize(m, orgId, actor);
+      const [due] = await m.query(
+        `SELECT * FROM student_fee_dues WHERE organization_id=$1 AND id=$2 FOR UPDATE`,
+        [orgId, dto.dueId],
+      );
+      if (!due) throw new NotFoundException("Fee record not found");
+      const recipients = await m.query(
+        `SELECT DISTINCT psr.parent_id FROM parent_student_relationships psr JOIN memberships mem ON mem.organization_id=psr.school_id AND mem.user_id=psr.parent_id AND mem.role='parent' AND mem.status='active' WHERE psr.school_id=$1 AND psr.student_id=$2 AND psr.verification_status='verified' AND psr.status='active'`,
+        [orgId, due.student_user_id],
+      );
+      if (!recipients.length)
+        throw new NotFoundException(
+          "No verified parent inbox is linked to this student",
+        );
+      for (const recipient of recipients)
+        await m.query(
+          `INSERT INTO teacher_messages (organization_id,sender_id,recipient_id,recipient_role,subject_line,body) VALUES ($1,$2,$3,'parent','School fee reminder',$4)`,
+          [
+            orgId,
+            actor.id,
+            recipient.parent_id,
+            `Outstanding fee for ${due.student_name}: ₹${Number(due.amount_pending).toLocaleString("en-IN")}. Due date: ${String(due.due_date).slice(0, 10)}.`,
+          ],
+        );
+      await m.query(
+        `UPDATE student_fee_dues SET last_reminder_sent_at=now() WHERE organization_id=$1 AND id=$2`,
+        [orgId, dto.dueId],
+      );
+      await this.audit.record(m, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "fee.reminder_sent",
+        details: {
+          dueId: dto.dueId,
+          channel: "in_app",
+          recipients: recipients.length,
+        },
+      });
+      return {
+        success: true,
+        channel: "in_app",
+        recipientCount: recipients.length,
+      };
     });
   }
 
-  async batchSendFeeReminders(orgId: string, actor: User, dto?: BatchFeeReminderDto) {
+  async batchSendFeeReminders(
+    orgId: string,
+    actor: User,
+    dto?: BatchFeeReminderDto,
+  ) {
     return this.drizzle.transaction(async (m) => {
       await this.authorize(m, orgId, actor);
       const unpaidDues = await m.query(
@@ -2045,7 +2588,7 @@ export class SchoolAdminService {
                 orgId,
                 actor.id,
                 recipient.parent_id,
-                `Outstanding fee for ${due.student_name}: ₹${Number(due.amount_pending).toLocaleString('en-IN')}. Due date: ${String(due.due_date).slice(0, 10)}.`,
+                `Outstanding fee for ${due.student_name}: ₹${Number(due.amount_pending).toLocaleString("en-IN")}. Due date: ${String(due.due_date).slice(0, 10)}.`,
               ],
             );
           }
@@ -2060,32 +2603,43 @@ export class SchoolAdminService {
       await this.audit.record(m, {
         organizationId: orgId,
         actorId: actor.id,
-        action: 'fee.batch_reminders_sent',
-        details: { totalUnpaid: unpaidDues.length, sentCount, channel: 'in_app' },
+        action: "fee.batch_reminders_sent",
+        details: {
+          totalUnpaid: unpaidDues.length,
+          sentCount,
+          channel: "in_app",
+        },
       });
 
       return {
         success: true,
-        channel: 'in_app',
+        channel: "in_app",
         totalUnpaid: unpaidDues.length,
         sentCount,
       };
     });
   }
 
-  async recordOfflinePayment(orgId: string, actor: User, dto: RecordOfflinePaymentDto) {
+  async recordOfflinePayment(
+    orgId: string,
+    actor: User,
+    dto: RecordOfflinePaymentDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
       const [due] = await manager.query(
         `SELECT * FROM student_fee_dues WHERE organization_id = $1 AND id = $2 FOR UPDATE`,
         [orgId, dto.dueId],
       );
-      if (!due) throw new NotFoundException('Fee record not found');
+      if (!due) throw new NotFoundException("Fee record not found");
 
       const paymentAmt = Number(dto.amount);
       const newPaid = Number(due.amount_paid || 0) + paymentAmt;
-      const newPending = Math.max(0, Number(due.amount_pending || 0) - paymentAmt);
-      const newStatus = newPending <= 0 ? 'paid' : 'partial';
+      const newPending = Math.max(
+        0,
+        Number(due.amount_pending || 0) - paymentAmt,
+      );
+      const newStatus = newPending <= 0 ? "paid" : "partial";
 
       const [updated] = await manager.query(
         `UPDATE student_fee_dues
@@ -2100,12 +2654,12 @@ export class SchoolAdminService {
       await this.audit.record(manager, {
         organizationId: orgId,
         actorId: actor.id,
-        action: 'fee.payment_recorded',
+        action: "fee.payment_recorded",
         details: {
           dueId: dto.dueId,
           studentName: due.student_name,
           amount: paymentAmt,
-          paymentMode: dto.paymentMode || 'cash',
+          paymentMode: dto.paymentMode || "cash",
           referenceNo: dto.referenceNo || null,
         },
       });
@@ -2114,7 +2668,11 @@ export class SchoolAdminService {
     });
   }
 
-  async grantFeeConcession(orgId: string, actor: User, dto: GrantFeeConcessionDto) {
+  async grantFeeConcession(
+    orgId: string,
+    actor: User,
+    dto: GrantFeeConcessionDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
       const [due] = await manager.query(
@@ -2127,8 +2685,12 @@ export class SchoolAdminService {
          RETURNING *`,
         [dto.concessionAmount, dto.concessionReason, dto.dueId, orgId],
       );
-      if (!due) throw new NotFoundException('Fee record not found');
-      await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: 'fee.concession_granted' });
+      if (!due) throw new NotFoundException("Fee record not found");
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "fee.concession_granted",
+      });
       return due;
     });
   }
@@ -2155,29 +2717,41 @@ export class SchoolAdminService {
            LEFT JOIN memberships sm ON sm.user_id = tm.sender_id AND sm.organization_id = tm.organization_id
            WHERE tm.organization_id = $1 AND (tm.recipient_role = 'school_admin' OR tm.recipient_id = $2)
            ORDER BY tm.created_at DESC`,
-          [orgId, actor.id]
+          [orgId, actor.id],
         );
         if (rows && rows.length > 0) {
           return rows.map((m: any) => ({
             id: m.id,
-            senderName: m.sender_name || 'Academic Staff',
-            senderRole: m.sender_role ? m.sender_role.charAt(0).toUpperCase() + m.sender_role.slice(1) : 'Teacher',
+            senderName: m.sender_name || "Academic Staff",
+            senderRole: m.sender_role
+              ? m.sender_role.charAt(0).toUpperCase() + m.sender_role.slice(1)
+              : "Teacher",
             subject: m.subject_line,
             snippet: m.body,
-            priority: m.priority === 'urgent' ? 'Urgent' : 'High',
-            status: m.is_read ? 'Resolved' : 'Open',
-            timestamp: new Date(m.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-            assignedTo: 'Academic Admin Desk',
+            priority: m.priority === "urgent" ? "Urgent" : "High",
+            status: m.is_read ? "Resolved" : "Open",
+            timestamp: new Date(m.created_at).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            assignedTo: "Academic Admin Desk",
           }));
         }
-      } catch (error) { throw error; }
+      } catch (error) {
+        throw error;
+      }
 
       return [];
     });
   }
 
   async createBroadcast(orgId: string, actor: User, dto: CreateBroadcastDto) {
-    if (!dto.channels.length || dto.channels.some(c=>c!=='in_app')) throw new BadRequestException('Only the in-app noticeboard is configured; external delivery is unavailable');
+    if (!dto.channels.length || dto.channels.some((c) => c !== "in_app"))
+      throw new BadRequestException(
+        "Only the in-app noticeboard is configured; external delivery is unavailable",
+      );
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
       const [b] = await manager.query(
@@ -2191,14 +2765,18 @@ export class SchoolAdminService {
           dto.message,
           dto.channels,
           dto.targetAudience,
-          dto.priority || 'normal',
+          dto.priority || "normal",
           actor.id,
           actor.name || actor.email,
           0,
           JSON.stringify({ sent: 0, delivered: 0, failed: 0 }),
         ],
       );
-      await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: 'broadcast.sent' });
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "broadcast.sent",
+      });
       return b;
     });
   }
@@ -2208,16 +2786,25 @@ export class SchoolAdminService {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
-      const fleet = await manager.query(`SELECT * FROM transport_fleet WHERE organization_id = $1 ORDER BY vehicle_number`, [orgId]);
+      const fleet = await manager.query(
+        `SELECT * FROM transport_fleet WHERE organization_id = $1 ORDER BY vehicle_number`,
+        [orgId],
+      );
 
+      const library = await manager.query(
+        `SELECT * FROM library_catalog WHERE organization_id = $1 ORDER BY title LIMIT 30`,
+        [orgId],
+      );
 
-      const library = await manager.query(`SELECT * FROM library_catalog WHERE organization_id = $1 ORDER BY title LIMIT 30`, [orgId]);
+      const assets = await manager.query(
+        `SELECT * FROM school_assets WHERE organization_id = $1 ORDER BY name LIMIT 30`,
+        [orgId],
+      );
 
-
-      const assets = await manager.query(`SELECT * FROM school_assets WHERE organization_id = $1 ORDER BY name LIMIT 30`, [orgId]);
-
-
-      const ptms = await manager.query(`SELECT * FROM ptm_schedules WHERE organization_id = $1 ORDER BY event_date DESC LIMIT 10`, [orgId]);
+      const ptms = await manager.query(
+        `SELECT * FROM ptm_schedules WHERE organization_id = $1 ORDER BY event_date DESC LIMIT 10`,
+        [orgId],
+      );
 
       return { fleet, library, assets, ptms };
     });
@@ -2236,11 +2823,13 @@ export class SchoolAdminService {
       const duration = dto.slotDurationMinutes || 15;
 
       if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) {
-        throw new BadRequestException('End time must be after start time');
+        throw new BadRequestException("End time must be after start time");
       }
       const totalSlots = Math.floor((end - start) / duration);
       if (totalSlots <= 0) {
-        throw new BadRequestException('Time window too short for given slot duration');
+        throw new BadRequestException(
+          "Time window too short for given slot duration",
+        );
       }
 
       const [row] = await manager.query(
@@ -2254,7 +2843,9 @@ export class SchoolAdminService {
           dto.startTime,
           dto.endTime,
           duration,
-          dto.targetGrades && dto.targetGrades.length > 0 ? dto.targetGrades : ['All Classes'],
+          dto.targetGrades && dto.targetGrades.length > 0
+            ? dto.targetGrades
+            : ["All Classes"],
           totalSlots,
         ],
       );
@@ -2262,7 +2853,7 @@ export class SchoolAdminService {
       await this.audit.record(manager, {
         organizationId: orgId,
         actorId: actor.id,
-        action: 'ptm.schedule.created',
+        action: "ptm.schedule.created",
         details: { scheduleId: row.id, title: row.title },
       });
 
@@ -2270,7 +2861,11 @@ export class SchoolAdminService {
     });
   }
 
-  async createTransportVehicle(orgId: string, actor: User, dto: CreateTransportVehicleDto) {
+  async createTransportVehicle(
+    orgId: string,
+    actor: User,
+    dto: CreateTransportVehicleDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
@@ -2279,7 +2874,9 @@ export class SchoolAdminService {
         [orgId, dto.vehicleNumber.trim()],
       );
       if (existing) {
-        throw new ConflictException(`Vehicle number ${dto.vehicleNumber} already exists`);
+        throw new ConflictException(
+          `Vehicle number ${dto.vehicleNumber} already exists`,
+        );
       }
 
       const [row] = await manager.query(
@@ -2293,14 +2890,14 @@ export class SchoolAdminService {
           dto.capacity || 40,
           dto.driverName.trim(),
           dto.driverPhone.trim(),
-          dto.status || 'idle',
+          dto.status || "idle",
         ],
       );
 
       await this.audit.record(manager, {
         organizationId: orgId,
         actorId: actor.id,
-        action: 'transport.vehicle.created',
+        action: "transport.vehicle.created",
         details: { vehicleId: row.id, vehicleNumber: row.vehicle_number },
       });
 
@@ -2308,7 +2905,11 @@ export class SchoolAdminService {
     });
   }
 
-  async createLibraryBook(orgId: string, actor: User, dto: CreateLibraryBookDto) {
+  async createLibraryBook(
+    orgId: string,
+    actor: User,
+    dto: CreateLibraryBookDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
@@ -2317,7 +2918,9 @@ export class SchoolAdminService {
         [orgId, dto.isbn.trim()],
       );
       if (existing) {
-        throw new ConflictException(`ISBN ${dto.isbn} already exists in library catalog`);
+        throw new ConflictException(
+          `ISBN ${dto.isbn} already exists in library catalog`,
+        );
       }
 
       const totalCopies = dto.totalCopies || 1;
@@ -2330,17 +2933,17 @@ export class SchoolAdminService {
           dto.isbn.trim(),
           dto.title.trim(),
           dto.author.trim(),
-          dto.category?.trim() || 'General',
+          dto.category?.trim() || "General",
           totalCopies,
           totalCopies,
-          dto.shelfLocation?.trim() || 'A-1',
+          dto.shelfLocation?.trim() || "A-1",
         ],
       );
 
       await this.audit.record(manager, {
         organizationId: orgId,
         actorId: actor.id,
-        action: 'library.book.created',
+        action: "library.book.created",
         details: { bookId: row.id, title: row.title },
       });
 
@@ -2348,7 +2951,11 @@ export class SchoolAdminService {
     });
   }
 
-  async createSchoolAsset(orgId: string, actor: User, dto: CreateSchoolAssetDto) {
+  async createSchoolAsset(
+    orgId: string,
+    actor: User,
+    dto: CreateSchoolAssetDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
@@ -2357,7 +2964,9 @@ export class SchoolAdminService {
         [orgId, dto.assetCode.trim()],
       );
       if (existing) {
-        throw new ConflictException(`Asset code ${dto.assetCode} already exists`);
+        throw new ConflictException(
+          `Asset code ${dto.assetCode} already exists`,
+        );
       }
 
       const [row] = await manager.query(
@@ -2371,15 +2980,15 @@ export class SchoolAdminService {
           dto.category.trim(),
           dto.location.trim(),
           dto.purchaseCost || 0,
-          dto.condition || 'good',
-          dto.custodianName?.trim() || 'School Property',
+          dto.condition || "good",
+          dto.custodianName?.trim() || "School Property",
         ],
       );
 
       await this.audit.record(manager, {
         organizationId: orgId,
         actorId: actor.id,
-        action: 'school.asset.created',
+        action: "school.asset.created",
         details: { assetId: row.id, assetCode: row.asset_code },
       });
 
@@ -2392,10 +3001,14 @@ export class SchoolAdminService {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
-      await manager.query(`
+      await manager
+        .query(
+          `
         ALTER TABLE organizations ADD COLUMN IF NOT EXISTS attendance_threshold integer DEFAULT 75;
         ALTER TABLE organizations ADD COLUMN IF NOT EXISTS workload_threshold integer DEFAULT 30;
-      `).catch(() => null);
+      `,
+        )
+        .catch(() => null);
 
       const [school] = await manager.query(
         `SELECT id, name, slug, code, school_type AS "schoolType", board, affiliation_number AS "affiliationNumber",
@@ -2429,10 +3042,10 @@ export class SchoolAdminService {
       );
       if (pendingLeaves?.count > 0) {
         alerts.push({
-          type: 'Pending Leave Approvals',
-          source: 'Attendance & Leave',
+          type: "Pending Leave Approvals",
+          source: "Attendance & Leave",
           desc: `${pendingLeaves.count} leave request(s) awaiting administrative review.`,
-          action: 'Review Leaves',
+          action: "Review Leaves",
         });
       }
 
@@ -2442,10 +3055,10 @@ export class SchoolAdminService {
       );
       if (overdueFees?.count > 0) {
         alerts.push({
-          type: 'Statutory Fee Recovery Overdue',
-          source: 'Finance Management',
-          desc: `${overdueFees.count} student account(s) have overdue fee balances totaling ₹${Number(overdueFees.total).toLocaleString('en-IN')}.`,
-          action: 'View Fee Dues',
+          type: "Statutory Fee Recovery Overdue",
+          source: "Finance Management",
+          desc: `${overdueFees.count} student account(s) have overdue fee balances totaling ₹${Number(overdueFees.total).toLocaleString("en-IN")}.`,
+          action: "View Fee Dues",
         });
       }
 
@@ -2455,10 +3068,10 @@ export class SchoolAdminService {
       );
       if (unresolvedIncidents?.count > 0) {
         alerts.push({
-          type: 'Open Discipline Matters',
-          source: 'Discipline Register',
+          type: "Open Discipline Matters",
+          source: "Discipline Register",
           desc: `${unresolvedIncidents.count} recorded student behavioral incident(s) currently open under investigation.`,
-          action: 'Investigate',
+          action: "Investigate",
         });
       }
 
@@ -2466,14 +3079,22 @@ export class SchoolAdminService {
     });
   }
 
-  async updateSchoolConfiguration(orgId: string, actor: User, dto: UpdateSchoolConfigDto) {
+  async updateSchoolConfiguration(
+    orgId: string,
+    actor: User,
+    dto: UpdateSchoolConfigDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
-      await manager.query(`
+      await manager
+        .query(
+          `
         ALTER TABLE organizations ADD COLUMN IF NOT EXISTS attendance_threshold integer DEFAULT 75;
         ALTER TABLE organizations ADD COLUMN IF NOT EXISTS workload_threshold integer DEFAULT 30;
-      `).catch(() => null);
+      `,
+        )
+        .catch(() => null);
 
       const updates: string[] = [];
       const values: any[] = [];
@@ -2509,7 +3130,7 @@ export class SchoolAdminService {
       }
 
       if (updates.length === 0) {
-        throw new BadRequestException('No fields to update');
+        throw new BadRequestException("No fields to update");
       }
 
       updates.push(`updated_at = NOW()`);
@@ -2517,7 +3138,7 @@ export class SchoolAdminService {
 
       const [updated] = await manager.query(
         `UPDATE organizations
-         SET ${updates.join(', ')}
+         SET ${updates.join(", ")}
          WHERE id = $${idx}
          RETURNING id, name, slug, board, affiliation_number AS "affiliationNumber",
                    official_email AS "officialEmail", official_phone AS "officialPhone",
@@ -2528,7 +3149,7 @@ export class SchoolAdminService {
       await this.audit.record(manager, {
         organizationId: orgId,
         actorId: actor.id,
-        action: 'school.configuration.updated',
+        action: "school.configuration.updated",
         details: { changes: dto },
       });
 
@@ -2536,7 +3157,11 @@ export class SchoolAdminService {
     });
   }
 
-  async createDisciplineIncident(orgId: string, actor: User, dto: CreateDisciplineIncidentDto) {
+  async createDisciplineIncident(
+    orgId: string,
+    actor: User,
+    dto: CreateDisciplineIncidentDto,
+  ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
       const code = `INC-${Date.now().toString().slice(-6)}`;
@@ -2550,27 +3175,55 @@ export class SchoolAdminService {
           code,
           dto.studentUserId || null,
           dto.studentName,
-          dto.classSection || '',
+          dto.classSection || "",
           dto.incidentType,
           dto.severity,
           dto.description,
-          dto.actionTaken || '',
-          dto.reportedByName || 'Staff Member',
+          dto.actionTaken || "",
+          dto.reportedByName || "Staff Member",
           dto.parentNotified || false,
         ],
       );
-      await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: 'discipline.recorded' });
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "discipline.recorded",
+      });
       return inc;
     });
   }
-  async getLearningOverview(orgId:string,actor:User) {
-    await this.authorize(this.drizzle,orgId,actor);
-    const assignments=await this.drizzle.query(`SELECT a.id,a.title,sec.name AS class,sub.name AS subject,u.name AS teacher,a.due_at AS "dueDate",a.status,(SELECT COUNT(*)::int FROM submissions ss WHERE ss.organization_id=a.organization_id AND ss.assignment_id=a.id) AS total,(SELECT COUNT(*)::int FROM submissions ss WHERE ss.organization_id=a.organization_id AND ss.assignment_id=a.id AND ss.status IN ('submitted','late','graded')) AS submitted FROM assignments a JOIN sections sec ON sec.id=a.section_id AND sec.organization_id=a.organization_id JOIN subjects sub ON sub.id=a.subject_id AND sub.organization_id=a.organization_id JOIN users u ON u.id=a.created_by WHERE a.organization_id=$1 ORDER BY a.created_at DESC`,[orgId]);
-    const exams=await this.drizzle.query(`SELECT ep.id,ep.exam_name AS name,ep.term AS "examType",sec.name AS grade,y.name AS "academicYear",ep.exam_date AS "startDate",ep.exam_date AS "endDate",ep.max_marks AS "totalMarks",ep.status FROM principal_exam_plans ep JOIN sections sec ON sec.id=ep.section_id AND sec.organization_id=ep.organization_id JOIN academic_years y ON y.id=sec.academic_year_id AND y.organization_id=sec.organization_id WHERE ep.organization_id=$1 ORDER BY ep.exam_date DESC`,[orgId]);
-    const results=await this.drizzle.query(`SELECT id,exam_name AS exam,subject_name AS subject,student_name AS student,marks_obtained AS score,max_marks AS max,status FROM principal_exam_results WHERE organization_id=$1 ORDER BY created_at DESC`,[orgId]);
-    const sections=await this.drizzle.query(`SELECT s.id,s.name,p.name AS "programName" FROM sections s JOIN programs p ON p.id=s.program_id WHERE s.organization_id=$1 ORDER BY p.sequence_order,s.name`,[orgId]);
-    const subjects=await this.drizzle.query(`SELECT id,name,code FROM subjects WHERE organization_id=$1 ORDER BY name`,[orgId]);
-    return {assignments:assignments.map(a=>({...a,completionPct:a.total?Math.round(100*a.submitted/a.total):0})),exams,results,sections,subjects};
+  async getLearningOverview(orgId: string, actor: User) {
+    await this.authorize(this.drizzle, orgId, actor);
+    const assignments = await this.drizzle.query(
+      `SELECT a.id,a.title,sec.name AS class,sub.name AS subject,u.name AS teacher,a.due_at AS "dueDate",a.status,(SELECT COUNT(*)::int FROM submissions ss WHERE ss.organization_id=a.organization_id AND ss.assignment_id=a.id) AS total,(SELECT COUNT(*)::int FROM submissions ss WHERE ss.organization_id=a.organization_id AND ss.assignment_id=a.id AND ss.status IN ('submitted','late','graded')) AS submitted FROM assignments a JOIN sections sec ON sec.id=a.section_id AND sec.organization_id=a.organization_id JOIN subjects sub ON sub.id=a.subject_id AND sub.organization_id=a.organization_id JOIN users u ON u.id=a.created_by WHERE a.organization_id=$1 ORDER BY a.created_at DESC`,
+      [orgId],
+    );
+    const exams = await this.drizzle.query(
+      `SELECT ep.id,ep.exam_name AS name,ep.term AS "examType",sec.name AS grade,y.name AS "academicYear",ep.exam_date AS "startDate",ep.exam_date AS "endDate",ep.max_marks AS "totalMarks",ep.status FROM principal_exam_plans ep JOIN sections sec ON sec.id=ep.section_id AND sec.organization_id=ep.organization_id JOIN academic_years y ON y.id=sec.academic_year_id AND y.organization_id=sec.organization_id WHERE ep.organization_id=$1 ORDER BY ep.exam_date DESC`,
+      [orgId],
+    );
+    const results = await this.drizzle.query(
+      `SELECT id,exam_name AS exam,subject_name AS subject,student_name AS student,marks_obtained AS score,max_marks AS max,status FROM principal_exam_results WHERE organization_id=$1 ORDER BY created_at DESC`,
+      [orgId],
+    );
+    const sections = await this.drizzle.query(
+      `SELECT s.id,s.name,p.name AS "programName" FROM sections s JOIN programs p ON p.id=s.program_id WHERE s.organization_id=$1 ORDER BY p.sequence_order,s.name`,
+      [orgId],
+    );
+    const subjects = await this.drizzle.query(
+      `SELECT id,name,code FROM subjects WHERE organization_id=$1 ORDER BY name`,
+      [orgId],
+    );
+    return {
+      assignments: assignments.map((a) => ({
+        ...a,
+        completionPct: a.total ? Math.round((100 * a.submitted) / a.total) : 0,
+      })),
+      exams,
+      results,
+      sections,
+      subjects,
+    };
   }
 
   async createCoursework(orgId: string, actor: User, dto: CreateCourseworkDto) {
@@ -2582,7 +3235,16 @@ export class SchoolAdminService {
            organization_id, section_id, subject_id, created_by, title, description, due_at, max_score, status, published_at
          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'published', now())
          RETURNING id, title, section_id, subject_id, due_at AS "dueDate", status`,
-        [orgId, dto.sectionId, dto.subjectId, actor.id, dto.title.trim(), dto.description?.trim() || '', dueDate, dto.maxScore || 100],
+        [
+          orgId,
+          dto.sectionId,
+          dto.subjectId,
+          actor.id,
+          dto.title.trim(),
+          dto.description?.trim() || "",
+          dueDate,
+          dto.maxScore || 100,
+        ],
       );
 
       await manager.query(
@@ -2602,7 +3264,7 @@ export class SchoolAdminService {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
       if (dto.startTime >= dto.endTime) {
-        throw new BadRequestException('End time must be after start time');
+        throw new BadRequestException("End time must be after start time");
       }
       const [exam] = await manager.query(
         `INSERT INTO principal_exam_plans (
@@ -2610,12 +3272,19 @@ export class SchoolAdminService {
          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'scheduled', $10)
          RETURNING id, exam_name AS name, term AS "examType", exam_date AS "startDate", max_marks AS "totalMarks", status`,
         [
-          orgId, dto.sectionId, dto.subjectId, dto.examName.trim(), dto.term.trim(),
-          dto.examDate, dto.startTime, dto.endTime, dto.maxMarks || 100, actor.id
+          orgId,
+          dto.sectionId,
+          dto.subjectId,
+          dto.examName.trim(),
+          dto.term.trim(),
+          dto.examDate,
+          dto.startTime,
+          dto.endTime,
+          dto.maxMarks || 100,
+          actor.id,
         ],
       );
       return exam;
     });
   }
-
 }

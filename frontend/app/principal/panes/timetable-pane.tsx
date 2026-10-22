@@ -54,7 +54,7 @@ type Uncovered = {
 };
 type Option = { id: string; name: string; email?: string };
 type Data = { entries: Entry[]; substitutions: Substitute[]; uncovered: Uncovered[] };
-type People = { teachers: Option[]; sections: Option[]; subjects: Option[] };
+type People = { teachers: Option[]; sections: Option[]; subjects: Option[]; assignments?: any[] };
 type View = "academic" | "teacher" | "class" | "substitutions";
 const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const date = (value: string) => value?.slice(0, 10) || "—";
@@ -189,20 +189,34 @@ export function TimetablePane({
   const openEntry = (entry: Entry | null) => {
     setEditing(entry);
     setError("");
-    setForm(
-      entry
-        ? {
-            sectionId: entry.section_id,
-            subjectId: entry.subject_id,
-            teacherUserId: entry.teacher_user_id,
-            dayOfWeek: String(entry.day_of_week),
-            periodNumber: String(entry.period_number),
-            startTime: entry.start_time,
-            endTime: entry.end_time,
-            roomNumber: entry.room_number,
-          }
-        : {}
-    );
+    if (entry) {
+      setForm({
+        sectionId: entry.section_id,
+        subjectId: entry.subject_id,
+        teacherUserId: entry.teacher_user_id,
+        dayOfWeek: String(entry.day_of_week),
+        periodNumber: String(entry.period_number),
+        startTime: entry.start_time,
+        endTime: entry.end_time,
+        roomNumber: entry.room_number,
+      });
+    } else {
+      const defSecId = sectionId || people?.sections[0]?.id || "";
+      const defSubId = people?.subjects[0]?.id || "";
+      const match = people?.assignments?.find(
+        (a: any) => a.sectionId === defSecId && a.subjectId === defSubId
+      );
+      setForm({
+        sectionId: defSecId,
+        subjectId: defSubId,
+        teacherUserId: match?.teacherUserId || teacherId || people?.teachers[0]?.id || "",
+        dayOfWeek: "1",
+        periodNumber: "1",
+        startTime: "08:30",
+        endTime: "09:15",
+        roomNumber: "Room 101",
+      });
+    }
     setFormOpen(true);
   };
 
@@ -759,7 +773,17 @@ export function TimetablePane({
                   <select
                     required
                     value={form.sectionId ?? ""}
-                    onChange={(e) => field("sectionId", e.target.value)}
+                    onChange={(e) => {
+                      const newSec = e.target.value;
+                      const match = people?.assignments?.find(
+                        (a: any) => a.sectionId === newSec && a.subjectId === form.subjectId
+                      );
+                      setForm((prev) => ({
+                        ...prev,
+                        sectionId: newSec,
+                        ...(match?.teacherUserId ? { teacherUserId: match.teacherUserId } : {}),
+                      }));
+                    }}
                     style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
                   >
                     <option value="">Select class</option>
@@ -773,7 +797,17 @@ export function TimetablePane({
                   <select
                     required
                     value={form.subjectId ?? ""}
-                    onChange={(e) => field("subjectId", e.target.value)}
+                    onChange={(e) => {
+                      const newSub = e.target.value;
+                      const match = people?.assignments?.find(
+                        (a: any) => a.sectionId === form.sectionId && a.subjectId === newSub
+                      );
+                      setForm((prev) => ({
+                        ...prev,
+                        subjectId: newSub,
+                        ...(match?.teacherUserId ? { teacherUserId: match.teacherUserId } : {}),
+                      }));
+                    }}
                     style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
                   >
                     <option value="">Select subject</option>
@@ -785,7 +819,45 @@ export function TimetablePane({
               </div>
 
               <div>
-                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>Faculty Member *</label>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <label style={{ fontSize: "11px", fontWeight: 700, color: "#475569" }}>
+                    Faculty Member *
+                  </label>
+                  {(() => {
+                    const match = people?.assignments?.find(
+                      (a: any) => a.sectionId === form.sectionId && a.subjectId === form.subjectId
+                    );
+                    if (!match) return null;
+                    const isPrimary = form.teacherUserId === match.teacherUserId;
+                    return (
+                      <span style={{ fontSize: "11px", color: isPrimary ? "#059669" : "#b45309", fontWeight: 600 }}>
+                        {isPrimary ? (
+                          `Primary: ${match.teacherName}`
+                        ) : (
+                          <span>
+                            Primary: {match.teacherName}{" "}
+                            <button
+                              type="button"
+                              onClick={() => field("teacherUserId", match.teacherUserId)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                color: "#0284c7",
+                                textDecoration: "underline",
+                                cursor: "pointer",
+                                fontSize: "11px",
+                                padding: 0,
+                                fontWeight: 600,
+                              }}
+                            >
+                              (Use)
+                            </button>
+                          </span>
+                        )}
+                      </span>
+                    );
+                  })()}
+                </div>
                 <select
                   required
                   value={form.teacherUserId ?? ""}

@@ -15,7 +15,7 @@ import {
 } from "../../edops-api";
 
 type View = "hods" | "coordinators" | "assignments" | "workload" | "development";
-type Action = "observation" | "development" | "department" | "head" | "coordinator" | "assignment";
+type Action = "observation" | "development" | "department" | "head";
 type Teacher = {
   id: string;
   name: string;
@@ -155,17 +155,6 @@ export function TeachersPane({
         await assignPrincipalDepartmentHead(organizationId, {
           teacherUserId: form.teacherUserId,
           departmentId: form.departmentId,
-        });
-      } else if (action === "coordinator") {
-        await assignPrincipalCoordinator(organizationId, {
-          teacherUserId: form.teacherUserId,
-          departmentId: form.departmentId,
-        });
-      } else {
-        await assignPrincipalTeacher(organizationId, {
-          teacherUserId: form.teacherUserId,
-          sectionId: form.sectionId,
-          subjectId: form.subjectId,
         });
       }
       await reload();
@@ -340,8 +329,7 @@ export function TeachersPane({
           {[
             { id: "workload", label: "Faculty Workload" },
             { id: "hods", label: "Department Heads (HODs)" },
-            { id: "coordinators", label: "Academic Coordinators" },
-            { id: "assignments", label: "Class Assignments" },
+            { id: "assignments", label: "Class & Subject Allocations" },
             { id: "development", label: "Professional Development" },
           ].map((item) => {
             const isActive = currentView === item.id;
@@ -460,47 +448,25 @@ export function TeachersPane({
             </>
           )}
 
-          {currentView === "coordinators" && departments.length > 0 && (
-            <button
-              type="button"
-              onClick={() => open("coordinator")}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "8px 14px",
-                borderRadius: "8px",
-                background: "#0c1e33",
-                color: "#ffffff",
-                fontSize: "12px",
-                fontWeight: 600,
-                border: "none",
-                cursor: "pointer",
-              }}
-            >
-              <Plus size={14} /> Assign Coordinator
-            </button>
-          )}
-
           {currentView === "assignments" && (
             <button
               type="button"
-              onClick={() => open("assignment")}
+              onClick={() => onTabChange?.("academics")}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
                 padding: "8px 14px",
                 borderRadius: "8px",
-                background: "#0c1e33",
-                color: "#ffffff",
+                background: "#f8fafc",
+                color: "#0c1e33",
                 fontSize: "12px",
                 fontWeight: 600,
-                border: "none",
+                border: "1px solid #ced8e5",
                 cursor: "pointer",
               }}
             >
-              <Plus size={14} /> Assign Teacher
+              Configure in Academics &amp; Classes →
             </button>
           )}
 
@@ -716,56 +682,29 @@ export function TeachersPane({
         </div>
       )}
 
-      {currentView === "coordinators" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                <th style={{ padding: "12px 16px" }}>Coordinator Name</th>
-                <th style={{ padding: "12px 16px" }}>Department / Domain</th>
-                <th style={{ padding: "12px 16px" }}>Assignment Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {coordinators.length === 0 ? (
-                <tr>
-                  <td colSpan={3} style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>
-                    No coordinators assigned yet.
-                  </td>
-                </tr>
-              ) : (
-                coordinators.map((item) => (
-                  <tr key={item.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "12px 16px" }}>
-                      <button
-                        type="button"
-                        onClick={() => onOpenProfile(item.teacherUserId)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          fontWeight: 700,
-                          color: "#0c1e33",
-                          cursor: "pointer",
-                          textDecoration: "underline",
-                        }}
-                      >
-                        {item.teacherName}
-                      </button>
-                    </td>
-                    <td style={{ padding: "12px 16px", color: "#475569" }}>{item.departmentName}</td>
-                    <td style={{ padding: "12px 16px", color: "#64748b" }}>
-                      {new Date(item.assignedAt).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
-
       {currentView === "assignments" && (
         <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
+          <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+            <span style={{ fontSize: "12px", color: "#64748b" }}>
+              Active instructional allocations mapped across classes and subjects.
+            </span>
+            <button
+              type="button"
+              onClick={() => onTabChange?.("academics")}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                color: "#0c1e33",
+                fontSize: "11.5px",
+                fontWeight: 650,
+                cursor: "pointer",
+                textDecoration: "underline",
+              }}
+            >
+              Configure in Academics &amp; Classes →
+            </button>
+          </div>
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
@@ -938,8 +877,6 @@ export function TeachersPane({
                     development: "Assign Teacher Training",
                     department: "Add Academic Department",
                     head: "Assign Department Head",
-                    coordinator: "Assign Academic Coordinator",
-                    assignment: "Assign Teacher to Class",
                   }[action]
                 }
               </h2>
@@ -1012,7 +949,7 @@ export function TeachersPane({
                 </div>
               )}
 
-              {(action === "head" || action === "coordinator") && (
+              {action === "head" && (
                 <div>
                   <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
                     Department *
@@ -1079,59 +1016,6 @@ export function TeachersPane({
                         fontSize: "12px",
                       }}
                     />
-                  </div>
-                </>
-              )}
-
-              {action === "assignment" && (
-                <>
-                  <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Class / Section *
-                    </label>
-                    <select
-                      required
-                      value={form.sectionId ?? ""}
-                      onChange={(e) => field("sectionId", e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
-                        fontSize: "12px",
-                      }}
-                    >
-                      <option value="">Select class</option>
-                      {sections.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Subject *
-                    </label>
-                    <select
-                      required
-                      value={form.subjectId ?? ""}
-                      onChange={(e) => field("subjectId", e.target.value)}
-                      style={{
-                        width: "100%",
-                        padding: "8px 12px",
-                        borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
-                        fontSize: "12px",
-                      }}
-                    >
-                      <option value="">Select subject</option>
-                      {subjects.map((sub) => (
-                        <option key={sub.id} value={sub.id}>
-                          {sub.name}
-                        </option>
-                      ))}
-                    </select>
                   </div>
                 </>
               )}
