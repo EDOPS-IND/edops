@@ -1,4 +1,12 @@
-import { IsDateString, IsInt, IsNotEmpty, IsString, IsUUID, Min, MaxLength } from 'class-validator';
+import {
+  IsDateString,
+  IsInt,
+  IsNotEmpty,
+  IsString,
+  IsUUID,
+  Min,
+  MaxLength,
+} from "class-validator";
 
 export class ParentLeaveDto {
   @IsString() @IsNotEmpty() @MaxLength(50) leaveType!: string;

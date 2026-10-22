@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, GraduationCap, AlertTriangle, CheckCircle2, TrendingUp, TrendingDown, BookOpen, Clock, ShieldCheck, HeartHandshake } from "lucide-react";
+import { X, GraduationCap, AlertTriangle, CheckCircle2, TrendingUp, TrendingDown, BookOpen, Clock, ShieldCheck, HeartHandshake, RefreshCw } from "lucide-react";
 import { getPrincipalStudent360 } from "../../edops-api";
 
 export function Student360Modal({
@@ -23,11 +23,7 @@ export function Student360Modal({
   const [loadedData, setLoadedData] = useState<any>(initialStudentData || null);
   const [loading, setLoading] = useState<boolean>(!initialStudentData && !!studentId);
 
-  useEffect(() => {
-    if (initialStudentData) {
-      setLoadedData(initialStudentData);
-      return;
-    }
+  const fetchDossier = () => {
     if (studentId && organizationId) {
       setLoading(true);
       getPrincipalStudent360(organizationId, studentId)
@@ -39,26 +35,62 @@ export function Student360Modal({
         })
         .finally(() => setLoading(false));
     }
+  };
+
+  useEffect(() => {
+    if (initialStudentData) {
+      setLoadedData(initialStudentData);
+      return;
+    }
+    fetchDossier();
   }, [initialStudentData, studentId, organizationId]);
 
-  const studentData = loadedData;
+  // Keyboard accessibility and body scroll lock
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", handleKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [onClose]);
 
-  if (!studentData) return null;
-  const { overview = {}, academics = [], attendance = {}, assignments = {}, learningOutcomes = [], competencies = [], interventions = [], holisticProgress = {} } = studentData;
+  const studentData = loadedData;
+  const overview = studentData?.overview || {};
+  const academics = studentData?.academics || [];
+  const attendance = studentData?.attendance || {};
+  const assignments = studentData?.assignments || {};
+  const learningOutcomes = studentData?.learningOutcomes || [];
+  const competencies = studentData?.competencies || [];
+  const interventions = studentData?.interventions || [];
+  const holisticProgress = studentData?.holisticProgress || {};
 
   return (
-    <div className="modal-backdrop" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px" }}>
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="student-360-title"
+      className="modal-backdrop"
+      style={{ position: "fixed", inset: 0, backgroundColor: "rgba(12, 30, 51, 0.65)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 10000, padding: "16px" }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div
         className="modal-card"
         style={{
           background: "#FFFFFF",
           borderRadius: "14px",
           width: "100%",
-          maxWidth: "840px",
+          maxWidth: "860px",
           maxHeight: "92vh",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
           overflow: "hidden",
         }}
       >
@@ -69,20 +101,22 @@ export function Student360Modal({
               <GraduationCap size={22} />
             </div>
             <div>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <h2 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#1E293B" }}>
-                  {overview.name} — Student 360° Academic Profile
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                <h2 id="student-360-title" style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#0C1E33" }}>
+                  {loading ? "Loading Student Dossier..." : overview.name ? `${overview.name} — Student 360° Profile` : "Student 360° Academic Profile"}
                 </h2>
-                <span style={{ background: "#F1F5F9", color: "#475569", padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 600 }}>
-                  {overview.className} - {overview.section} (Roll {overview.rollNumber})
-                </span>
+                {overview.className && (
+                  <span style={{ background: "#0C1E33", color: "#FFFFFF", padding: "2px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700 }}>
+                    {overview.className} - {overview.section} (Roll {overview.rollNumber || "—"})
+                  </span>
+                )}
               </div>
               <span style={{ fontSize: "12px", color: "#64748B" }}>
-                Admission No: {overview.admissionNumber} · Guardian: {overview.guardianName} ({overview.guardianPhone})
+                Admission No: {overview.admissionNumber || "—"} · Guardian: {overview.guardianName || "Not assigned"} ({overview.guardianPhone || "—"})
               </span>
             </div>
           </div>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", cursor: "pointer", color: "#64748B" }}>
+          <button onClick={onClose} aria-label="Close dialog" style={{ background: "transparent", border: "none", cursor: "pointer", color: "#64748B", padding: "6px" }}>
             <X size={20} />
           </button>
         </div>
@@ -91,9 +125,9 @@ export function Student360Modal({
         <div style={{ display: "flex", borderBottom: "1px solid #E2E8F0", background: "#FFFFFF", padding: "0 20px", overflowX: "auto" }}>
           {[
             { id: "overview", label: "Academic Snapshot" },
-            { id: "academics", label: "Subject Performance & Trend" },
+            { id: "academics", label: "Subject Breakdown & Trends" },
             { id: "attendance", label: "Attendance & Defaulters" },
-            { id: "learning_outcomes", label: "Learning Outcomes & Competencies" },
+            { id: "learning_outcomes", label: "Competencies & LOs" },
             { id: "interventions", label: "Intervention Dossier" },
             { id: "holistic", label: "Holistic Progress Card" },
           ].map((t) => (
@@ -104,12 +138,13 @@ export function Student360Modal({
                 padding: "12px 14px",
                 border: "none",
                 background: "transparent",
-                borderBottom: activeTab === t.id ? "2px solid #064E3B" : "2px solid transparent",
-                color: activeTab === t.id ? "#064E3B" : "#64748B",
+                borderBottom: activeTab === t.id ? "2px solid #0C1E33" : "2px solid transparent",
+                color: activeTab === t.id ? "#0C1E33" : "#64748B",
                 fontWeight: activeTab === t.id ? 700 : 500,
                 fontSize: "13px",
                 cursor: "pointer",
                 whiteSpace: "nowrap",
+                transition: "color 0.15s ease",
               }}
             >
               {t.label}
@@ -119,6 +154,44 @@ export function Student360Modal({
 
         {/* Modal Body */}
         <div style={{ flex: 1, padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "20px" }}>
+          {loading ? (
+            /* Skeleton Loading State */
+            <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} style={{ height: "76px", background: "#F1F5F9", borderRadius: "8px" }} />
+                ))}
+              </div>
+              <div style={{ height: "240px", background: "#F8FAFC", borderRadius: "10px", border: "1px solid #E2E8F0" }} />
+            </div>
+          ) : !studentData ? (
+            /* Error / Empty State */
+            <div style={{ padding: "48px 20px", textAlign: "center", color: "#64748B" }}>
+              <AlertTriangle size={36} style={{ margin: "0 auto 12px", color: "#D97706" }} />
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0C1E33" }}>Student Records Not Available</h3>
+              <p style={{ margin: "6px 0 16px", fontSize: "13px" }}>Academic dossier could not be retrieved from campus telemetry.</p>
+              <button
+                type="button"
+                onClick={fetchDossier}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "7px 16px",
+                  borderRadius: "6px",
+                  background: "#0C1E33",
+                  color: "#FFFFFF",
+                  border: "none",
+                  fontSize: "12.5px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                <RefreshCw size={13} /> Retry Loading
+              </button>
+            </div>
+          ) : (
+            <>
           {/* 1. Overview Tab */}
           {activeTab === "overview" && (
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -204,7 +277,7 @@ export function Student360Modal({
             <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
               <div style={{ background: attendance?.isDefaulter ? "#FEF2F2" : "#F0FDF4", border: "1px solid", borderColor: attendance?.isDefaulter ? "#FCA5A5" : "#BBF7D0", borderRadius: "8px", padding: "14px" }}>
                 <div style={{ fontSize: "14px", fontWeight: 700, color: attendance?.isDefaulter ? "#991B1B" : "#166534" }}>
-                  {attendance?.isDefaulter ? "⚠️ Attendance Defaulter (<75% Threshold)" : "✓ Good Attendance Standing"}
+                  {attendance?.isDefaulter ? "Attendance Defaulter (<75% Threshold)" : "Good Attendance Standing"}
                 </div>
                 <div style={{ fontSize: "12px", color: attendance?.isDefaulter ? "#B91C1C" : "#15803D", marginTop: "2px" }}>
                   Present: <b>{attendance?.presentDays} / {attendance?.totalWorkingDays} days</b> ({attendance?.attendancePercentage}%)
@@ -291,6 +364,8 @@ export function Student360Modal({
                 </div>
               </div>
             </div>
+          )}
+          </>
           )}
         </div>
 

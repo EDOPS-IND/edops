@@ -448,6 +448,24 @@ export function deleteCurriculumChapter(orgId: string, chapterId: string) {
   });
 }
 
+export function getSchoolAdminSectionOverview(orgId: string, sectionId: string) {
+  return api<any>(`/organizations/${orgId}/school-admin/academics/sections/${sectionId}/overview`);
+}
+
+export function updateSchoolAdminClassTeacher(orgId: string, sectionId: string, teacherUserId: string | null) {
+  return api<any>(`/organizations/${orgId}/school-admin/academics/sections/${sectionId}/class-teacher`, {
+    method: "PATCH",
+    body: { teacherUserId },
+  });
+}
+
+export function assignSchoolAdminSectionTeacher(orgId: string, sectionId: string, data: { subjectId: string; teacherUserId: string }) {
+  return api<any>(`/organizations/${orgId}/school-admin/academics/sections/${sectionId}/assign-teacher`, {
+    method: "POST",
+    body: data,
+  });
+}
+
 export function createSchoolAdminCoursework(
   orgId: string,
   payload: {
@@ -613,6 +631,45 @@ export function assignPrincipalTeacher(orgId: string, data: any) { return api<an
 
 export async function getPrincipalAcademics(orgId: string) {
   return api<any>(`/organizations/${orgId}/principal/academics`);
+}
+
+export function getPrincipalSectionOverview(orgId: string, sectionId: string) {
+  return api<any>(`/organizations/${orgId}/principal/academics/sections/${sectionId}/overview`);
+}
+
+export function updatePrincipalClassTeacher(orgId: string, sectionId: string, teacherUserId: string | null) {
+  return api<any>(`/organizations/${orgId}/principal/academics/sections/${sectionId}/class-teacher`, {
+    method: "PATCH",
+    body: { teacherUserId },
+  });
+}
+
+export function allocatePrincipalSectionSubject(
+  orgId: string,
+  sectionId: string,
+  payload: {
+    subjectId?: string;
+    teacherUserId?: string | null;
+    newSubjectName?: string;
+    newSubjectCode?: string;
+  },
+) {
+  return api<any>(`/organizations/${orgId}/principal/academics/sections/${sectionId}/subjects`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function removePrincipalSectionSubject(orgId: string, sectionId: string, subjectId: string) {
+  return api<any>(`/organizations/${orgId}/principal/academics/sections/${sectionId}/subjects/${subjectId}`, {
+    method: "DELETE",
+  });
+}
+
+export function removeSchoolAdminSectionSubject(orgId: string, sectionId: string, subjectId: string) {
+  return api<any>(`/organizations/${orgId}/school-admin/academics/sections/${sectionId}/subjects/${subjectId}`, {
+    method: "DELETE",
+  });
 }
 
 export async function getPrincipalTimetable(orgId: string) {

@@ -29,6 +29,7 @@ import {
   List,
   Grid,
 } from 'lucide-react';
+import { ClassSectionManager } from '../components/class-command-center';
 
 const S = {
   navy: '#0c1e33',
@@ -50,11 +51,13 @@ export function AcademicsPane({
   onOpenQuickAction,
   activeTab,
   onTabChange,
+  onNavigate,
 }: {
   organizationId?: string;
   onOpenQuickAction: (action: string) => void;
   activeTab?: 'structure' | 'sections' | 'subjects' | 'curriculum' | 'calendar' | 'promotions';
   onTabChange?: (tab: 'structure' | 'sections' | 'subjects' | 'curriculum' | 'calendar' | 'promotions') => void;
+  onNavigate?: (tab: any, sub?: string) => void;
 }) {
   const [tab, setTab] = useState<'structure' | 'sections' | 'subjects' | 'curriculum' | 'calendar' | 'promotions'>(activeTab || 'structure');
 
@@ -131,6 +134,24 @@ export function AcademicsPane({
   useEffect(() => {
     load();
   }, [organizationId]);
+
+  useEffect(() => {
+    if (activeModalSubject || showAddChapter) {
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') {
+          setActiveModalSubject(null);
+          setShowAddChapter(false);
+        }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [activeModalSubject, showAddChapter]);
 
   const sections = data?.sections || [];
   const years = data?.academicYears || [];
@@ -502,10 +523,10 @@ export function AcademicsPane({
             <Award size={18} />
           </div>
           <p style={{ margin: 0, fontSize: '36px', fontWeight: 700, lineHeight: 1, color: '#782a00' }}>
-            {curriculum.length > 0 ? curriculum.length : '18'}
+            {curriculum.length}
           </p>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '11px' }}>Tracked learning outcomes</span>
+            <span style={{ fontSize: '11px' }}>{curriculum.length > 0 ? 'Tracked learning outcomes' : 'No curriculum registered'}</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600 }}>
               View <ArrowRight size={13} />
             </span>
@@ -617,57 +638,24 @@ export function AcademicsPane({
 
       {/* Sections */}
       {tab === 'sections' && (
-        <div style={{ background: '#FFFFFF', border: `1px solid ${S.border}`, borderRadius: '10px', padding: '20px' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: '16px', fontWeight: 600, color: S.navy }}>
-            Class Sections &amp; Capacity
-          </h3>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ borderBottom: `2px solid ${S.border}`, color: S.slate }}>
-                  <th style={{ padding: '10px' }}>Section</th>
-                  <th style={{ padding: '10px' }}>Program / Grade</th>
-                  <th style={{ padding: '10px' }}>Max Capacity</th>
-                  <th style={{ padding: '10px' }}>Enrolled Count</th>
-                  <th style={{ padding: '10px' }}>Capacity Health</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sections.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: S.slate }}>No sections registered yet.</td>
-                  </tr>
-                ) : (
-                  sections.map((sec: any, i: number) => {
-                    const enrolled = Number(sec.enrolledCount || 0);
-                    const cap = Number(sec.capacity || 0);
-                    const over = cap > 0 && enrolled > cap;
-                    return (
-                      <tr key={sec.id || i} style={{ borderBottom: `1px solid ${S.chip}` }}>
-                        <td style={{ padding: '12px 10px', fontWeight: 600, color: S.navy }}>Section {sec.name}</td>
-                        <td style={{ padding: '12px 10px', color: S.slate }}>{sec.programName || 'Standard'}</td>
-                        <td style={{ padding: '12px 10px', color: S.slate }}>{cap > 0 ? `${cap} students` : '—'}</td>
-                        <td style={{ padding: '12px 10px', fontWeight: 600, color: S.navy }}>{enrolled}</td>
-                        <td style={{ padding: '12px 10px' }}>
-                          <span style={{
-                            padding: '3px 8px',
-                            borderRadius: '10px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            background: over ? '#FEF3F2' : S.greenBg,
-                            color: over ? '#B42318' : S.greenDk,
-                          }}>
-                            {over ? 'Over Capacity' : 'Within Limits'}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <ClassSectionManager
+          organizationId={organizationId || ''}
+          role="school-admin"
+          sections={sections}
+          programs={programs}
+          onRefresh={() => {
+            if (organizationId) {
+              getSchoolAdminAcademics(organizationId).then((res) => setData(res));
+            }
+          }}
+          onOpenStudent={(_studentId) => {
+            if (onNavigate) {
+              onNavigate('students');
+            } else if (onOpenQuickAction) {
+              onOpenQuickAction('students');
+            }
+          }}
+        />
       )}
 
       {/* Subjects */}
@@ -902,7 +890,7 @@ export function AcademicsPane({
                               {sub.name}
                             </h4>
                             <span style={{ fontSize: '12px', color: S.slate }}>
-                              {selectedClassGrade || 'Class 10'}
+                              {selectedClassGrade || 'Class'}
                             </span>
                           </div>
                           <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: S.chip, display: 'flex', alignItems: 'center', justifyContent: 'center', color: S.navy }}>
@@ -1061,7 +1049,7 @@ export function AcademicsPane({
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <span style={{ padding: '2px 8px', borderRadius: '4px', background: S.navy, color: '#FFFFFF', fontSize: '11px', fontWeight: 700 }}>
-                        {selectedClassGrade || 'Class 10'}
+                        {selectedClassGrade || 'Class'}
                       </span>
                       <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: S.navy }}>
                         {activeModalSubject.name} ({activeModalSubject.code || 'SUB'}) Syllabus Builder

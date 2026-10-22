@@ -109,7 +109,11 @@ export class CreateAcademicTargetDto {
 }
 
 export class UpdateAcademicTargetDto {
-  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(50) currentValue!: string;
+  @Transform(trim)
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(50)
+  currentValue!: string;
   @Type(() => Number) @IsInt() @Min(0) @Max(100) progressPercentage!: number;
 }
 
@@ -117,7 +121,11 @@ export class AssignTimetableSubstituteDto {
   @IsUUID() timetableEntryId!: string;
   @IsDateString() eventDate!: string;
   @IsUUID() substituteTeacherUserId!: string;
-  @Transform(trim) @IsOptional() @IsString() @MaxLength(1000) impactNote?: string;
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000)
+  impactNote?: string;
 }
 
 export class CreateActionPlanDto {
@@ -220,8 +228,13 @@ export class RecordAcademicMeetingDto {
 // 2. Teacher Academic Management DTOs
 export class PrincipalDepartmentDto {
   @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(100) name!: string;
-  @Transform(({ value }) => typeof value === 'string' ? value.trim().toUpperCase() : value)
-  @IsString() @IsNotEmpty() @MaxLength(30) code!: string;
+  @Transform(({ value }) =>
+    typeof value === "string" ? value.trim().toUpperCase() : value,
+  )
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(30)
+  code!: string;
 }
 
 export class PrincipalTeacherLinkDto {
@@ -565,7 +578,7 @@ export class CreateExamPlanDto {
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) startTime!: string;
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) endTime!: string;
   @Type(() => Number) @IsNumber() @Min(0.01) @Max(999.99) maxMarks!: number;
-  @IsIn(['draft', 'scheduled']) status!: 'draft' | 'scheduled';
+  @IsIn(["draft", "scheduled"]) status!: "draft" | "scheduled";
 }
 
 export class UpdateExamPlanDto extends PartialType(CreateExamPlanDto) {}
@@ -573,7 +586,9 @@ export class UpdateExamPlanDto extends PartialType(CreateExamPlanDto) {}
 export class ReviewExamResultDto {
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) marksObtained?: number;
   @IsOptional() @Transform(trim) @IsString() @MaxLength(10) grade?: string;
-  @IsOptional() @IsIn(['Verified', 'Approved']) status?: 'Verified' | 'Approved';
+  @IsOptional() @IsIn(["Verified", "Approved"]) status?:
+    | "Verified"
+    | "Approved";
 }
 
 // 5. Students & Intervention DTOs
@@ -798,4 +813,52 @@ export class ResolveAcademicAlertDto {
   @IsOptional()
   @IsString()
   resolutionNotes?: string;
+}
+
+export class UpdateClassTeacherDto {
+  @ApiPropertyOptional({
+    example: "d3b07384-d113-4944-9c88-c75c87901001",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsUUID()
+  teacherUserId?: string | null;
+}
+
+export class AllocateSectionSubjectDto {
+  @ApiPropertyOptional({
+    example: "d3b07384-d113-4944-9c88-c75c87901001",
+    description: "Existing subject ID to map to this section",
+  })
+  @IsOptional()
+  @IsUUID()
+  subjectId?: string;
+
+  @ApiPropertyOptional({
+    example: "d3b07384-d113-4944-9c88-c75c87901002",
+    description: "Faculty teacher user ID assigned to teach this subject",
+  })
+  @IsOptional()
+  @IsUUID()
+  teacherUserId?: string | null;
+
+  @ApiPropertyOptional({
+    example: "Robotics & AI",
+    description: "New subject name if creating inline",
+  })
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  newSubjectName?: string;
+
+  @ApiPropertyOptional({
+    example: "ROB",
+    description: "New subject code if creating inline",
+  })
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  newSubjectCode?: string;
 }

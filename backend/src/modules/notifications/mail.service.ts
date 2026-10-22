@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from "@nestjs/common";
 
 @Injectable()
 export class MailService {
@@ -9,29 +9,41 @@ export class MailService {
    * If BREVO_API_KEY is not set (e.g. in local development or test), it logs the
    * reset URL to the console so developers and admins can test the flow immediately.
    */
-  async sendPasswordResetEmail(to: string, resetToken: string, userName?: string): Promise<{ success: boolean; messageId?: string }> {
+  async sendPasswordResetEmail(
+    to: string,
+    resetToken: string,
+    userName?: string,
+  ): Promise<{ success: boolean; messageId?: string }> {
     const apiKey = process.env.BREVO_API_KEY?.trim();
-    const fromEmail = process.env.MAIL_FROM?.trim() || 'no-reply@edops.app';
-    const fromName = process.env.MAIL_FROM_NAME?.trim() || 'EDOPS Platform';
-    const appUrl = (process.env.APP_URL?.trim() || 'http://localhost:3000').replace(/\/$/, '');
+    const fromEmail = process.env.MAIL_FROM?.trim() || "no-reply@edops.app";
+    const fromName = process.env.MAIL_FROM_NAME?.trim() || "EDOPS Platform";
+    const appUrl = (
+      process.env.APP_URL?.trim() || "http://localhost:3000"
+    ).replace(/\/$/, "");
     const resetUrl = `${appUrl}/?reset=${encodeURIComponent(resetToken)}`;
 
     if (!apiKey) {
-      this.logger.warn(`BREVO_API_KEY is not set. Falling back to local console delivery.`);
-      console.log(`\n================= [EDOPS PASSWORD RESET] =================`);
-      console.log(`Recipient: ${to} (${userName || 'User'})`);
+      this.logger.warn(
+        `BREVO_API_KEY is not set. Falling back to local console delivery.`,
+      );
+      console.log(
+        `\n================= [EDOPS PASSWORD RESET] =================`,
+      );
+      console.log(`Recipient: ${to} (${userName || "User"})`);
       console.log(`Action: Password Reset Requested`);
       console.log(`Reset URL: ${resetUrl}`);
       console.log(`Token: ${resetToken}`);
       console.log(`Expires in: 30 minutes`);
-      console.log(`==========================================================\n`);
-      return { success: true, messageId: 'dev-console-fallback' };
+      console.log(
+        `==========================================================\n`,
+      );
+      return { success: true, messageId: "dev-console-fallback" };
     }
 
     const payload = {
       sender: { name: fromName, email: fromEmail },
-      to: [{ email: to, name: userName || to.split('@')[0] }],
-      subject: 'Reset your EDOPS account password',
+      to: [{ email: to, name: userName || to.split("@")[0] }],
+      subject: "Reset your EDOPS account password",
       htmlContent: `
         <!DOCTYPE html>
         <html>
@@ -55,7 +67,7 @@ export class MailService {
                       <h1 style="font-size: 20px; font-weight: 600; color: #0f172a; margin: 0 0 16px 0;">Password Reset Request</h1>
                       
                       <p style="font-size: 14px; line-height: 22px; color: #475569; margin: 0 0 20px 0;">
-                        Hello${userName ? ' ' + userName : ''},<br/>
+                        Hello${userName ? " " + userName : ""},<br/>
                         We received a request to reset your password for your EDOPS account (<b>${to}</b>).
                       </p>
 
@@ -93,29 +105,39 @@ export class MailService {
     };
 
     try {
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
         headers: {
-          'accept': 'application/json',
-          'api-key': apiKey,
-          'content-type': 'application/json',
+          accept: "application/json",
+          "api-key": apiKey,
+          "content-type": "application/json",
         },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         const errorBody = await response.text();
-        this.logger.error(`Brevo API returned error status ${response.status}: ${errorBody}`);
-        console.log(`\n[FALLBACK CONSOLE RESET LINK] Brevo delivery failed. Direct reset URL for ${to}:\n${resetUrl}\n`);
+        this.logger.error(
+          `Brevo API returned error status ${response.status}: ${errorBody}`,
+        );
+        console.log(
+          `\n[FALLBACK CONSOLE RESET LINK] Brevo delivery failed. Direct reset URL for ${to}:\n${resetUrl}\n`,
+        );
         return { success: false };
       }
 
-      const result = await response.json() as { messageId?: string };
-      this.logger.log(`Password reset email successfully dispatched via Brevo to ${to}. MessageId: ${result.messageId}`);
+      const result = (await response.json()) as { messageId?: string };
+      this.logger.log(
+        `Password reset email successfully dispatched via Brevo to ${to}. MessageId: ${result.messageId}`,
+      );
       return { success: true, messageId: result.messageId };
     } catch (error) {
-      this.logger.error(`Failed to send password reset email via Brevo: ${error instanceof Error ? error.message : String(error)}`);
-      console.log(`\n[FALLBACK CONSOLE RESET LINK] Delivery error. Direct reset URL for ${to}:\n${resetUrl}\n`);
+      this.logger.error(
+        `Failed to send password reset email via Brevo: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      console.log(
+        `\n[FALLBACK CONSOLE RESET LINK] Delivery error. Direct reset URL for ${to}:\n${resetUrl}\n`,
+      );
       return { success: false };
     }
   }
@@ -124,30 +146,46 @@ export class MailService {
    * Sends an invitation email to a new member (admin, teacher, student, parent) via Brevo.
    * Falls back to logging the invitation URL if Brevo is not configured or in development.
    */
-  async sendInvitationEmail(to: string, token: string, role: string, schoolName?: string, name?: string): Promise<{ success: boolean; messageId?: string }> {
+  async sendInvitationEmail(
+    to: string,
+    token: string,
+    role: string,
+    schoolName?: string,
+    name?: string,
+  ): Promise<{ success: boolean; messageId?: string }> {
     const apiKey = process.env.BREVO_API_KEY?.trim();
-    const fromEmail = process.env.MAIL_FROM?.trim() || 'no-reply@edops.app';
-    const fromName = process.env.MAIL_FROM_NAME?.trim() || 'EDOPS Platform';
-    const appUrl = (process.env.APP_URL?.trim() || 'http://localhost:3000').replace(/\/$/, '');
+    const fromEmail = process.env.MAIL_FROM?.trim() || "no-reply@edops.app";
+    const fromName = process.env.MAIL_FROM_NAME?.trim() || "EDOPS Platform";
+    const appUrl = (
+      process.env.APP_URL?.trim() || "http://localhost:3000"
+    ).replace(/\/$/, "");
     const inviteUrl = `${appUrl}/?invite=${encodeURIComponent(token)}`;
-    const roleLabel = role.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+    const roleLabel = role
+      .replace(/_/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
 
     if (!apiKey) {
-      this.logger.warn(`BREVO_API_KEY is not set. Falling back to console delivery.`);
-      console.log(`\n================= [EDOPS INVITATION LINK] =================`);
-      console.log(`Recipient: ${to} (${name || 'Member'})`);
-      console.log(`Role: ${roleLabel} | School: ${schoolName || 'Campus'}`);
+      this.logger.warn(
+        `BREVO_API_KEY is not set. Falling back to console delivery.`,
+      );
+      console.log(
+        `\n================= [EDOPS INVITATION LINK] =================`,
+      );
+      console.log(`Recipient: ${to} (${name || "Member"})`);
+      console.log(`Role: ${roleLabel} | School: ${schoolName || "Campus"}`);
       console.log(`Invite URL: ${inviteUrl}`);
       console.log(`Token: ${token}`);
       console.log(`Expires in: 48 hours`);
-      console.log(`==========================================================\n`);
-      return { success: true, messageId: 'dev-console-fallback' };
+      console.log(
+        `==========================================================\n`,
+      );
+      return { success: true, messageId: "dev-console-fallback" };
     }
 
     const payload = {
       sender: { name: fromName, email: fromEmail },
-      to: [{ email: to, name: name || to.split('@')[0] }],
-      subject: `Invitation to join ${schoolName || 'EDOPS'} as ${roleLabel}`,
+      to: [{ email: to, name: name || to.split("@")[0] }],
+      subject: `Invitation to join ${schoolName || "EDOPS"} as ${roleLabel}`,
       htmlContent: `
         <!DOCTYPE html>
         <html>
@@ -160,8 +198,8 @@ export class MailService {
                   <span style="font-size:22px;font-weight:700;color:#020617;">EDOPS</span>
                   <h1 style="font-size:20px;font-weight:600;color:#0f172a;margin:20px 0 16px 0;">You're Invited!</h1>
                   <p style="font-size:14px;line-height:22px;color:#475569;margin:0 0 20px 0;">
-                    Hello${name ? ' ' + name : ''},<br/>
-                    You have been invited to join <b>${schoolName || 'EDOPS Campus'}</b> as a <b>${roleLabel}</b>.
+                    Hello${name ? " " + name : ""},<br/>
+                    You have been invited to join <b>${schoolName || "EDOPS Campus"}</b> as a <b>${roleLabel}</b>.
                   </p>
                   <p style="font-size:14px;line-height:22px;color:#475569;margin:0 0 28px 0;">
                     Click the button below to accept your invitation and create your account password.
@@ -184,25 +222,39 @@ export class MailService {
     };
 
     try {
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: { 'accept': 'application/json', 'api-key': apiKey, 'content-type': 'application/json' },
+      const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          accept: "application/json",
+          "api-key": apiKey,
+          "content-type": "application/json",
+        },
         body: JSON.stringify(payload),
       });
 
       if (!response.ok) {
         const errorBody = await response.text();
-        this.logger.error(`Brevo invitation email error status ${response.status}: ${errorBody}`);
-        console.log(`\n[FALLBACK CONSOLE INVITATION LINK] Brevo delivery failed. Direct invite URL for ${to}:\n${inviteUrl}\n`);
+        this.logger.error(
+          `Brevo invitation email error status ${response.status}: ${errorBody}`,
+        );
+        console.log(
+          `\n[FALLBACK CONSOLE INVITATION LINK] Brevo delivery failed. Direct invite URL for ${to}:\n${inviteUrl}\n`,
+        );
         return { success: false };
       }
 
-      const result = await response.json() as { messageId?: string };
-      this.logger.log(`Invitation email sent via Brevo to ${to}. MessageId: ${result.messageId}`);
+      const result = (await response.json()) as { messageId?: string };
+      this.logger.log(
+        `Invitation email sent via Brevo to ${to}. MessageId: ${result.messageId}`,
+      );
       return { success: true, messageId: result.messageId };
     } catch (error) {
-      this.logger.error(`Failed to send invitation email via Brevo: ${error instanceof Error ? error.message : String(error)}`);
-      console.log(`\n[FALLBACK CONSOLE INVITATION LINK] Delivery error. Direct invite URL for ${to}:\n${inviteUrl}\n`);
+      this.logger.error(
+        `Failed to send invitation email via Brevo: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      console.log(
+        `\n[FALLBACK CONSOLE INVITATION LINK] Delivery error. Direct invite URL for ${to}:\n${inviteUrl}\n`,
+      );
       return { success: false };
     }
   }

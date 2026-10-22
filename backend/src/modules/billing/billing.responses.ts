@@ -31,7 +31,8 @@ export class EntitlementView {
   entitled!: boolean;
   @ApiProperty() maxStudents!: number;
   @ApiProperty() maxTeachers!: number;
-  @ApiProperty({ type: 'object', additionalProperties: { type: 'boolean' } }) features!: Record<string, boolean>;
+  @ApiProperty({ type: "object", additionalProperties: { type: "boolean" } })
+  features!: Record<string, boolean>;
 }
 class OverrideView {
   @ApiProperty({ enum: ["arena", "recordings", "communication"] })

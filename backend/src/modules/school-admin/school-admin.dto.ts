@@ -413,7 +413,10 @@ export class CreateDepartmentDto {
   @IsString()
   headTeacherName?: string;
 
-  @ApiPropertyOptional({ type: [String], description: "List of subject UUIDs mapped to this department" })
+  @ApiPropertyOptional({
+    type: [String],
+    description: "List of subject UUIDs mapped to this department",
+  })
   @IsOptional()
   @IsArray()
   @IsUUID("4", { each: true })
@@ -426,7 +429,10 @@ export class CreateDepartmentDto {
 }
 
 export class UpdateParentChildrenDto {
-  @ApiProperty({ type: [String], description: "List of student user UUIDs mapped to this parent" })
+  @ApiProperty({
+    type: [String],
+    description: "List of student user UUIDs mapped to this parent",
+  })
   @IsArray()
   @IsUUID("4", { each: true })
   studentUserIds!: string[];
@@ -478,7 +484,10 @@ export class CreateCurriculumNodeDto {
   @Min(1)
   expectedCompletionWeek?: number;
 
-  @ApiPropertyOptional({ type: [String], example: ["Solve quadratic equations"] })
+  @ApiPropertyOptional({
+    type: [String],
+    example: ["Solve quadratic equations"],
+  })
   @IsOptional()
   @IsArray()
   learningOutcomes?: string[];
@@ -506,7 +515,10 @@ export class BulkCurriculumChapterItemDto {
   @Min(1)
   expectedCompletionWeek?: number;
 
-  @ApiPropertyOptional({ type: [String], example: ["Solve quadratic equations"] })
+  @ApiPropertyOptional({
+    type: [String],
+    example: ["Solve quadratic equations"],
+  })
   @IsOptional()
   @IsArray()
   learningOutcomes?: string[];
@@ -706,7 +718,7 @@ export class CreateSchoolAssetDto {
   @IsNotEmpty()
   assetCode!: string;
 
-  @ApiProperty({ example: "Interactive Smart Board 75\"" })
+  @ApiProperty({ example: 'Interactive Smart Board 75"' })
   @IsString()
   @IsNotEmpty()
   name!: string;
@@ -784,4 +796,24 @@ export class UpdateSchoolConfigDto {
   workloadThreshold?: number;
 }
 
+export class UpdateSchoolAdminClassTeacherDto {
+  @ApiPropertyOptional({
+    example: "d3b07384-d113-4944-9c88-c75c87901001",
+    nullable: true,
+  })
+  @IsOptional()
+  @IsUUID()
+  teacherUserId?: string | null;
+}
 
+export class AssignSchoolAdminTeacherDto {
+  @ApiProperty({ example: "d3b07384-d113-4944-9c88-c75c87901001" })
+  @IsUUID()
+  @IsNotEmpty()
+  subjectId!: string;
+
+  @ApiProperty({ example: "d3b07384-d113-4944-9c88-c75c87901002" })
+  @IsUUID()
+  @IsNotEmpty()
+  teacherUserId!: string;
+}

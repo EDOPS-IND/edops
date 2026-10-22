@@ -37,18 +37,30 @@ export class StudentDashboardController {
   ) {
     return this.dashboardService.getDashboard(organizationId, req.user?.id);
   }
-  @Get('profile')
-  getProfile(@Param('organizationId',ParseUUIDPipe) org:string,@Req() req:AuthenticatedRequest) {return this.dashboardService.getProfile(org,req.user.id);}
-  @Patch('profile')
-  @ApiOperation({ summary: 'Update student profile details (blood group, address, emergency contact, etc.)' })
+  @Get("profile")
+  getProfile(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.dashboardService.getProfile(org, req.user.id);
+  }
+  @Patch("profile")
+  @ApiOperation({
+    summary:
+      "Update student profile details (blood group, address, emergency contact, etc.)",
+  })
   updateProfile(
-    @Param('organizationId', ParseUUIDPipe) org: string,
+    @Param("organizationId", ParseUUIDPipe) org: string,
     @Req() req: AuthenticatedRequest,
     @Body() body: any,
   ) {
     return this.dashboardService.updateProfile(org, req.user.id, body);
   }
-  @Get('calendar')
-  getCalendar(@Param('organizationId',ParseUUIDPipe) org:string,@Req() req:AuthenticatedRequest) {return this.dashboardService.getCalendar(org,req.user.id);}
-
+  @Get("calendar")
+  getCalendar(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.dashboardService.getCalendar(org, req.user.id);
+  }
 }

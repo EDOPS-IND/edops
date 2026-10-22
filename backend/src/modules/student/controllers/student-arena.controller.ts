@@ -56,7 +56,9 @@ export class StudentArenaController {
   }
 
   @Post("arena/attempt")
-  @ApiOperation({ summary: "Submit attempt for an Arena question activity (fallback)" })
+  @ApiOperation({
+    summary: "Submit attempt for an Arena question activity (fallback)",
+  })
   submitAttemptFallback(
     @Param("organizationId", ParseUUIDPipe) organizationId: string,
     @Body() dto: SubmitArenaAttemptDto,
@@ -65,7 +67,7 @@ export class StudentArenaController {
     return this.arenaService.submitAttempt(
       organizationId,
       req.user?.id,
-      (dto as any).activityId || 'default',
+      (dto as any).activityId || "default",
       dto,
     );
   }

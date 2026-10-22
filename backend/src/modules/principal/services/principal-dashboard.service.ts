@@ -1,13 +1,14 @@
-import { DrizzleService } from '../../../database/drizzle.service';
-import { Injectable } from '@nestjs/common';
-import { User } from '../../auth/user.entity';
+import { DrizzleService } from "../../../database/drizzle.service";
+import { Injectable } from "@nestjs/common";
+import { User } from "../../auth/user.entity";
 
 @Injectable()
 export class PrincipalDashboardService {
   constructor(private readonly drizzle: DrizzleService) {}
 
   async getLearningRoster(orgId: string) {
-    return this.drizzle.query(`SELECT a.id, a.title, a.due_at AS "dueAt", a.published_at AS "publishedAt",
+    return this.drizzle.query(
+      `SELECT a.id, a.title, a.due_at AS "dueAt", a.published_at AS "publishedAt",
       p.name || ' - ' || sec.name AS "className",
       subj.name AS "subjectName", COALESCE(u.name, u.email) AS "teacherName",
       (SELECT COUNT(*)::int FROM enrollments e WHERE e.organization_id = a.organization_id
@@ -27,13 +28,17 @@ export class PrincipalDashboardService {
           AND e.academic_year_id = sec.academic_year_id AND e.status = 'active')
       WHERE a.organization_id = $1 AND a.status = 'published'
       GROUP BY a.id, sec.academic_year_id, p.name, sec.name, subj.name, u.name, u.email
-      ORDER BY p.name, sec.name, subj.name`, [orgId]);
+      ORDER BY p.name, sec.name, subj.name`,
+      [orgId],
+    );
   }
 
   async getLearningOverview(orgId: string) {
-    const [assignments, submissions, materials, activities] = await Promise.all([
-      this.getLearningRoster(orgId),
-      this.drizzle.query(`SELECT sub.id, a.id AS "assignmentId", a.title AS "assignmentTitle",
+    const [assignments, submissions, materials, activities] = await Promise.all(
+      [
+        this.getLearningRoster(orgId),
+        this.drizzle.query(
+          `SELECT sub.id, a.id AS "assignmentId", a.title AS "assignmentTitle",
         p.name || ' - ' || sec.name AS "className", COALESCE(u.name, u.email) AS "studentName",
         sub.status, sub.submitted_at AS "submittedAt", sub.graded_at AS "gradedAt",
         sub.score, a.max_score AS "maxScore", a.due_at AS "dueAt"
@@ -46,8 +51,11 @@ export class PrincipalDashboardService {
           AND e.section_id = a.section_id AND e.academic_year_id = sec.academic_year_id AND e.status = 'active'
         JOIN users u ON u.id = sub.student_id
         WHERE sub.organization_id = $1 AND sub.submitted_at IS NOT NULL
-        ORDER BY sub.submitted_at DESC LIMIT 100`, [orgId]),
-      this.drizzle.query(`SELECT m.id, m.title, m.description, m.chapter, m.topic,
+        ORDER BY sub.submitted_at DESC LIMIT 100`,
+          [orgId],
+        ),
+        this.drizzle.query(
+          `SELECT m.id, m.title, m.description, m.chapter, m.topic,
         m.file_type AS "fileType", m.file_url AS "fileUrl", m.created_at AS "createdAt",
         p.name || ' - ' || sec.name AS "className", subj.name AS "subjectName",
         COALESCE(u.name, u.email) AS "teacherName"
@@ -57,8 +65,11 @@ export class PrincipalDashboardService {
         JOIN programs p ON p.id = sec.program_id AND p.organization_id = m.organization_id
         JOIN subjects subj ON subj.id = m.subject_id AND subj.organization_id = m.organization_id
         JOIN users u ON u.id = m.teacher_user_id
-        WHERE m.organization_id = $1 ORDER BY m.created_at DESC LIMIT 100`, [orgId]),
-      this.drizzle.query(`SELECT d.id, TO_CHAR(d.delivery_date, 'YYYY-MM-DD') AS date,
+        WHERE m.organization_id = $1 ORDER BY m.created_at DESC LIMIT 100`,
+          [orgId],
+        ),
+        this.drizzle.query(
+          `SELECT d.id, TO_CHAR(d.delivery_date, 'YYYY-MM-DD') AS date,
         d.period_number AS period, d.topics_covered AS "topicsCovered",
         d.participation_pct AS "participationPct", d.homework_assigned AS "homeworkAssigned",
         d.reflection, d.status, p.name || ' - ' || sec.name AS "className",
@@ -69,13 +80,17 @@ export class PrincipalDashboardService {
         JOIN programs p ON p.id = sec.program_id AND p.organization_id = d.organization_id
         JOIN subjects subj ON subj.id = d.subject_id AND subj.organization_id = d.organization_id
         JOIN users u ON u.id = d.teacher_user_id
-        WHERE d.organization_id = $1 ORDER BY d.delivery_date DESC, d.period_number DESC LIMIT 100`, [orgId]),
-    ]);
+        WHERE d.organization_id = $1 ORDER BY d.delivery_date DESC, d.period_number DESC LIMIT 100`,
+          [orgId],
+        ),
+      ],
+    );
     return { assignments, submissions, materials, activities };
   }
 
   async getAttendance(orgId: string) {
-    const [summary] = await this.drizzle.query(`WITH school_day AS (
+    const [summary] = await this.drizzle.query(
+      `WITH school_day AS (
       SELECT (NOW() AT TIME ZONE time_zone)::date AS day FROM organizations WHERE id = $1
     ), roster AS (
       SELECT e.student_user_id, e.section_id FROM enrollments e
@@ -96,9 +111,12 @@ export class PrincipalDashboardService {
       (SELECT COUNT(*)::int FROM scheduled sc WHERE NOT EXISTS (
         SELECT 1 FROM attendance_sessions s WHERE s.organization_id = $1 AND s.section_id = sc.section_id
           AND s.period = sc.period_number AND s.date = (SELECT day FROM school_day) AND s.status = 'finalized')) AS "pendingRegisters",
-      (SELECT TO_CHAR(day, 'YYYY-MM-DD') FROM school_day) AS date`, [orgId]);
+      (SELECT TO_CHAR(day, 'YYYY-MM-DD') FROM school_day) AS date`,
+      [orgId],
+    );
 
-    const students = await this.drizzle.query(`SELECT e.student_user_id AS id,
+    const students = await this.drizzle.query(
+      `SELECT e.student_user_id AS id,
       COALESCE(u.name, u.email) AS name, p.name || ' - ' || sec.name AS "className", e.roll_number AS roll,
       COUNT(ar.id)::int AS "markedRecords",
       COUNT(ar.id) FILTER (WHERE ar.status IN ('present', 'late'))::int AS "presentRecords",
@@ -115,13 +133,24 @@ export class PrincipalDashboardService {
         AND ar.student_id = e.student_user_id
       WHERE e.organization_id = $1 AND e.status = 'active'
       GROUP BY e.student_user_id, u.name, u.email, p.name, sec.name, e.roll_number
-      ORDER BY p.name, sec.name, u.name, u.email`, [orgId]);
-    const atRisk = students.filter((student: any) => student.markedRecords > 0 &&
-      student.presentRecords / student.markedRecords < 0.75).map((student: any) => ({
-      ...student, attendanceRate: Number((100 * student.presentRecords / student.markedRecords).toFixed(1)),
-    }));
+      ORDER BY p.name, sec.name, u.name, u.email`,
+      [orgId],
+    );
+    const atRisk = students
+      .filter(
+        (student: any) =>
+          student.markedRecords > 0 &&
+          student.presentRecords / student.markedRecords < 0.75,
+      )
+      .map((student: any) => ({
+        ...student,
+        attendanceRate: Number(
+          ((100 * student.presentRecords) / student.markedRecords).toFixed(1),
+        ),
+      }));
 
-    const trend = await this.drizzle.query(`WITH school_day AS (
+    const trend = await this.drizzle.query(
+      `WITH school_day AS (
       SELECT (NOW() AT TIME ZONE time_zone)::date AS day FROM organizations WHERE id = $1
     ), days AS (SELECT generate_series((SELECT day FROM school_day) - 13,
       (SELECT day FROM school_day), interval '1 day')::date AS date), marked AS (
@@ -136,9 +165,12 @@ export class PrincipalDashboardService {
         COUNT(ar.id) FILTER (WHERE ar.status IN ('present', 'late'))::int AS "presentRecords"
       FROM days d
       LEFT JOIN marked ar ON ar.date = d.date
-      GROUP BY d.date ORDER BY d.date`, [orgId]);
+      GROUP BY d.date ORDER BY d.date`,
+      [orgId],
+    );
 
-    const teachers = await this.drizzle.query(`WITH school_day AS (
+    const teachers = await this.drizzle.query(
+      `WITH school_day AS (
       SELECT (NOW() AT TIME ZONE time_zone)::date AS day FROM organizations WHERE id = $1
     ) SELECT u.id, COALESCE(u.name, u.email) AS name,
       EXISTS (SELECT 1 FROM leave_requests l WHERE l.organization_id = $1 AND l.user_id = u.id
@@ -147,18 +179,26 @@ export class PrincipalDashboardService {
         AND s.date = (SELECT day FROM school_day) AND s.status = 'finalized') AS "recordedClasses"
       FROM memberships m JOIN users u ON u.id = m.user_id
       WHERE m.organization_id = $1 AND m.role = 'teacher' AND m.status = 'active' AND u.is_active = true
-      ORDER BY u.name, u.email`, [orgId]);
+      ORDER BY u.name, u.email`,
+      [orgId],
+    );
 
     const marked = Number(summary?.markedRecords ?? 0);
     return {
       date: summary?.date,
       enrolledStudents: Number(summary?.enrolledStudents ?? 0),
       markedRecords: marked,
-      studentAttendanceRate: marked ? Number((100 * Number(summary.presentRecords) / marked).toFixed(1)) : null,
+      studentAttendanceRate: marked
+        ? Number(((100 * Number(summary.presentRecords)) / marked).toFixed(1))
+        : null,
       pendingRegisters: Number(summary?.pendingRegisters ?? 0),
       atRisk,
-      trend: trend.map((day: any) => ({ ...day,
-        attendanceRate: day.markedRecords ? Number((100 * day.presentRecords / day.markedRecords).toFixed(1)) : null })),
+      trend: trend.map((day: any) => ({
+        ...day,
+        attendanceRate: day.markedRecords
+          ? Number(((100 * day.presentRecords) / day.markedRecords).toFixed(1))
+          : null,
+      })),
       teachers,
     };
   }
@@ -212,7 +252,8 @@ export class PrincipalDashboardService {
 
     const totalAtt = Number(attStats?.total_records ?? 0);
     const presentAtt = Number(attStats?.present_records ?? 0);
-    const studentAttendanceRate = totalAtt > 0 ? Number(((presentAtt / totalAtt) * 100).toFixed(1)) : null;
+    const studentAttendanceRate =
+      totalAtt > 0 ? Number(((presentAtt / totalAtt) * 100).toFixed(1)) : null;
     const [riskStats] = await manager.query(
       `SELECT COUNT(*)::int as students FROM (
          SELECT ar.student_id FROM attendance_records ar
@@ -220,7 +261,8 @@ export class PrincipalDashboardService {
          WHERE sess.organization_id = $1
          GROUP BY ar.student_id
          HAVING COUNT(*) FILTER (WHERE ar.status IN ('present', 'late')) * 100.0 / COUNT(*) < 75
-       ) at_risk`, [orgId],
+       ) at_risk`,
+      [orgId],
     );
     const studentsBelowThreshold = Number(riskStats?.students ?? 0);
 
@@ -229,11 +271,21 @@ export class PrincipalDashboardService {
       `SELECT ROUND(AVG(actual_completion_percentage), 1) as completion,
               ROUND(AVG(actual_completion_percentage) FILTER (WHERE cardinality(learning_outcomes) > 0), 1) as learning,
               ROUND(AVG(actual_completion_percentage) FILTER (WHERE cardinality(competencies) > 0), 1) as competency
-       FROM principal_curriculum_nodes WHERE organization_id = $1`, [orgId],
+       FROM principal_curriculum_nodes WHERE organization_id = $1`,
+      [orgId],
     );
-    const curriculumCompletion = curriculumStats?.completion == null ? null : Number(curriculumStats.completion);
-    const learningProgress = curriculumStats?.learning == null ? null : Number(curriculumStats.learning);
-    const competencyProgress = curriculumStats?.competency == null ? null : Number(curriculumStats.competency);
+    const curriculumCompletion =
+      curriculumStats?.completion == null
+        ? null
+        : Number(curriculumStats.completion);
+    const learningProgress =
+      curriculumStats?.learning == null
+        ? null
+        : Number(curriculumStats.learning);
+    const competencyProgress =
+      curriculumStats?.competency == null
+        ? null
+        : Number(curriculumStats.competency);
 
     const [submissionsStats] = await manager.query(
       `SELECT
@@ -249,50 +301,74 @@ export class PrincipalDashboardService {
 
     const totalSubs = Number(submissionsStats?.total_submissions ?? 0);
     const gradedSubs = Number(submissionsStats?.graded_submissions ?? 0);
-    const averageAssessmentScore = submissionsStats?.average_score == null ? null : Number(submissionsStats.average_score);
-    const assignmentCompletion = totalSubs > 0 ? Number(((gradedSubs / totalSubs) * 100).toFixed(1)) : null;
+    const averageAssessmentScore =
+      submissionsStats?.average_score == null
+        ? null
+        : Number(submissionsStats.average_score);
+    const assignmentCompletion =
+      totalSubs > 0
+        ? Number(((gradedSubs / totalSubs) * 100).toFixed(1))
+        : null;
 
     const [resultStats] = await manager.query(
       `SELECT ROUND(AVG(percentage) FILTER (WHERE status = 'Published'), 1) as average,
               COUNT(*) FILTER (WHERE status = 'Published')::int as published,
               COUNT(*) FILTER (WHERE status = 'Published' AND is_locked)::int as locked,
               COUNT(*) FILTER (WHERE status IN ('Entered', 'Verified', 'Approved'))::int as pending
-       FROM principal_exam_results WHERE organization_id = $1`, [orgId],
+       FROM principal_exam_results WHERE organization_id = $1`,
+      [orgId],
     );
-    const schoolAverage = resultStats?.average == null ? null : Number(resultStats.average);
+    const schoolAverage =
+      resultStats?.average == null ? null : Number(resultStats.average);
 
     const [paperStats] = await manager.query(
       `SELECT COUNT(*)::int as total,
               COUNT(*) FILTER (WHERE status = 'Published')::int as published,
               COUNT(*) FILTER (WHERE status IN ('Submitted', 'Under Review'))::int as pending
-       FROM principal_question_papers WHERE organization_id = $1`, [orgId],
+       FROM principal_question_papers WHERE organization_id = $1`,
+      [orgId],
     );
-    const assessmentCompletion = Number(paperStats?.total) > 0
-      ? Math.round(100 * Number(paperStats.published) / Number(paperStats.total)) : null;
+    const assessmentCompletion =
+      Number(paperStats?.total) > 0
+        ? Math.round(
+            (100 * Number(paperStats.published)) / Number(paperStats.total),
+          )
+        : null;
 
     const [planStats] = await manager.query(
       `SELECT COUNT(*)::int as total,
               COUNT(*) FILTER (WHERE status IN ('Approved', 'Completed'))::int as completed,
               COUNT(*) FILTER (WHERE status IN ('Submitted', 'Needs Revision'))::int as pending
-       FROM principal_lesson_plans WHERE organization_id = $1`, [orgId],
+       FROM principal_lesson_plans WHERE organization_id = $1`,
+      [orgId],
     );
-    const teacherActivity = Number(planStats?.total) > 0
-      ? Math.round(100 * Number(planStats.completed) / Number(planStats.total)) : null;
+    const teacherActivity =
+      Number(planStats?.total) > 0
+        ? Math.round(
+            (100 * Number(planStats.completed)) / Number(planStats.total),
+          )
+        : null;
 
     const [interventionStats] = await manager.query(
       `SELECT COUNT(*)::int as total,
               COUNT(*) FILTER (WHERE status IN ('Improved', 'Closed'))::int as completed
-       FROM principal_student_interventions WHERE organization_id = $1`, [orgId],
+       FROM principal_student_interventions WHERE organization_id = $1`,
+      [orgId],
     );
-    const interventionCompletion = Number(interventionStats?.total) > 0
-      ? Math.round(100 * Number(interventionStats.completed) / Number(interventionStats.total)) : null;
+    const interventionCompletion =
+      Number(interventionStats?.total) > 0
+        ? Math.round(
+            (100 * Number(interventionStats.completed)) /
+              Number(interventionStats.total),
+          )
+        : null;
 
     const [todayStats] = await manager.query(
       `WITH local_now AS (
          SELECT NOW() AT TIME ZONE time_zone AS at_school FROM organizations WHERE id = $1
        ), slots AS (
          SELECT t.section_id, COALESCE(ps.substitute_teacher_user_id, t.teacher_user_id) AS teacher_user_id,
-           ps.id IS NOT NULL AS is_substitution, t.start_time, t.end_time
+           ps.id IS NOT NULL AS is_substitution, t.start_time, t.end_time, t.period_number
          FROM timetable_entries t
          JOIN academic_years y ON y.id = t.academic_year_id AND y.organization_id = t.organization_id AND y.is_current = true
          CROSS JOIN local_now
@@ -303,10 +379,12 @@ export class PrincipalDashboardService {
        )
        SELECT COUNT(DISTINCT section_id)::int as classes,
               COUNT(DISTINCT teacher_user_id)::int as teachers,
-              COUNT(*) FILTER (WHERE is_substitution)::int as substitutions
+              COUNT(*) FILTER (WHERE is_substitution)::int as substitutions,
+              (SELECT period_number FROM slots, local_now WHERE start_time <= TO_CHAR(local_now.at_school, 'HH24:MI') AND end_time > TO_CHAR(local_now.at_school, 'HH24:MI') LIMIT 1) AS "currentPeriod"
        FROM slots, local_now
        WHERE start_time <= TO_CHAR(local_now.at_school, 'HH24:MI')
-         AND end_time > TO_CHAR(local_now.at_school, 'HH24:MI')`, [orgId],
+         AND end_time > TO_CHAR(local_now.at_school, 'HH24:MI')`,
+      [orgId],
     );
 
     // Live exams stats
@@ -342,7 +420,12 @@ export class PrincipalDashboardService {
     const healthFactors = Object.values(healthBreakdown);
     const healthWeights = [0.2, 0.15, 0.2, 0.15, 0.15, 0.1, 0.05];
     const overallHealthScore = healthFactors.every((value) => value !== null)
-      ? Math.round(healthFactors.reduce((sum, value, index) => sum + Number(value) * healthWeights[index], 0))
+      ? Math.round(
+          healthFactors.reduce(
+            (sum, value, index) => sum + Number(value) * healthWeights[index],
+            0,
+          ),
+        )
       : null;
 
     // Live recent activity from audit_events
@@ -359,8 +442,11 @@ export class PrincipalDashboardService {
     const recentActivity = recentAuditRows.map((r: any) => ({
       id: r.id,
       title: r.title,
-      category: 'Activity',
-      time: new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      category: "Activity",
+      time: new Date(r.created_at).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
       author: r.author,
     }));
 
@@ -383,7 +469,12 @@ export class PrincipalDashboardService {
       },
       academicHealth: {
         score: overallHealthScore,
-        status: overallHealthScore === null ? 'Insufficient data' : overallHealthScore >= 80 ? 'Strong Academic Health' : 'Intervention Needed',
+        status:
+          overallHealthScore === null
+            ? "Insufficient data"
+            : overallHealthScore >= 80
+              ? "Strong Academic Health"
+              : "Intervention Needed",
         breakdown: healthBreakdown,
       },
       todayOperations: {
@@ -391,9 +482,11 @@ export class PrincipalDashboardService {
         teachersTeaching: Number(todayStats?.teachers ?? 0),
         teachersAbsent: null,
         substitutionsCovered: Number(todayStats?.substitutions ?? 0),
+        currentPeriod: todayStats?.currentPeriod != null ? Number(todayStats.currentPeriod) : null,
         examsToday: null,
         assessmentsScheduled: null,
-        pendingReviews: Number(planStats?.pending ?? 0) + Number(paperStats?.pending ?? 0),
+        pendingReviews:
+          Number(planStats?.pending ?? 0) + Number(paperStats?.pending ?? 0),
         openAlerts: Number(alertsCount?.openAlerts || 0),
       },
       attendance: {
@@ -419,8 +512,8 @@ export class PrincipalDashboardService {
         internalAssessmentsPending: Number(paperStats?.pending ?? 0),
       },
       recentActivity,
+      principalName: _actor?.name || (_actor?.email ? _actor.email.split("@")[0] : null),
     };
-
   }
 
   async getAcademicHealth(orgId: string, actor: User) {
@@ -428,33 +521,71 @@ export class PrincipalDashboardService {
     const score = dash.academicHealth.score;
     const bd = dash.academicHealth.breakdown;
     const components = [
-      { name: 'Curriculum Execution', score: bd.curriculumExecution, weight: '20%' },
-      { name: 'Papers Published', score: bd.assessmentCompletion, weight: '15%' },
-      { name: 'Published Exam Average', score: bd.studentPerformance, weight: '20%' },
-      { name: 'Lesson Plan Completion', score: bd.teacherAcademicActivity, weight: '15%' },
-      { name: 'Attendance Stability', score: bd.attendanceRate, weight: '15%' },
-      { name: 'Assignment Completion', score: bd.assignmentCompletion, weight: '10%' },
-      { name: 'Interventions Completed', score: bd.interventionCompletion, weight: '5%' },
+      {
+        name: "Curriculum Execution",
+        score: bd.curriculumExecution,
+        weight: "20%",
+      },
+      {
+        name: "Papers Published",
+        score: bd.assessmentCompletion,
+        weight: "15%",
+      },
+      {
+        name: "Published Exam Average",
+        score: bd.studentPerformance,
+        weight: "20%",
+      },
+      {
+        name: "Lesson Plan Completion",
+        score: bd.teacherAcademicActivity,
+        weight: "15%",
+      },
+      { name: "Attendance Stability", score: bd.attendanceRate, weight: "15%" },
+      {
+        name: "Assignment Completion",
+        score: bd.assignmentCompletion,
+        weight: "10%",
+      },
+      {
+        name: "Interventions Completed",
+        score: bd.interventionCompletion,
+        weight: "5%",
+      },
     ].map((b) => ({
       name: b.name,
       score: b.score,
       weight: b.weight,
-      status: b.score === null ? 'No data' : b.score >= 80 ? 'Good' : 'Needs Focus',
-      underlyingMetric: b.score === null ? 'No recorded evidence yet' : `${b.score}% from recorded school data`,
+      status:
+        b.score === null ? "No data" : b.score >= 80 ? "Good" : "Needs Focus",
+      underlyingMetric:
+        b.score === null
+          ? "No recorded evidence yet"
+          : `${b.score}% from recorded school data`,
       flaggedClasses: [],
-      recommendedAction: b.score === null ? 'Record activity to calculate this factor.' : b.score < 80 ? 'Review performance metrics and schedule support session.' : 'Maintain current instructional pace.',
+      recommendedAction:
+        b.score === null
+          ? "Record activity to calculate this factor."
+          : b.score < 80
+            ? "Review performance metrics and schedule support session."
+            : "Maintain current instructional pace.",
     }));
 
     return {
       overallScore: score,
       benchmark: 80,
-      status: score === null ? 'Insufficient data' : score >= 80 ? 'Strong Academic Health' : 'Intervention Needed',
+      status:
+        score === null
+          ? "Insufficient data"
+          : score >= 80
+            ? "Strong Academic Health"
+            : "Intervention Needed",
       components,
     };
   }
 
   async globalSearch(orgId: string, _actor: User, query: string) {
-    const q = (query || '').toLowerCase().trim();
+    const q = (query || "").toLowerCase().trim();
     if (!q) return { results: [] };
 
     const manager = this.drizzle;
@@ -495,10 +626,34 @@ export class PrincipalDashboardService {
     return {
       query: q,
       results: [
-        ...students.map((s: any) => ({ id: s.id, title: s.name || s.email, subtitle: `Student · ${s.email}`, category: 'Students', type: 'student' })),
-        ...teachers.map((t: any) => ({ id: t.id, title: t.name || t.email, subtitle: `Faculty · ${t.email}`, category: 'Teachers', type: 'teacher' })),
-        ...subjects.map((s: any) => ({ id: s.id, title: s.name, subtitle: `Subject Code: ${s.code}`, category: 'Subjects', type: 'subject' })),
-        ...classes.map((c: any) => ({ id: c.id, title: c.name, subtitle: 'Class Section', category: 'Classes', type: 'class' })),
+        ...students.map((s: any) => ({
+          id: s.id,
+          title: s.name || s.email,
+          subtitle: `Student · ${s.email}`,
+          category: "Students",
+          type: "student",
+        })),
+        ...teachers.map((t: any) => ({
+          id: t.id,
+          title: t.name || t.email,
+          subtitle: `Faculty · ${t.email}`,
+          category: "Teachers",
+          type: "teacher",
+        })),
+        ...subjects.map((s: any) => ({
+          id: s.id,
+          title: s.name,
+          subtitle: `Subject Code: ${s.code}`,
+          category: "Subjects",
+          type: "subject",
+        })),
+        ...classes.map((c: any) => ({
+          id: c.id,
+          title: c.name,
+          subtitle: "Class Section",
+          category: "Classes",
+          type: "class",
+        })),
       ],
     };
   }

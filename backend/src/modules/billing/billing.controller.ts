@@ -313,7 +313,9 @@ export class PlatformBillingController {
     return this.billing.dashboardNavigation(org, req.user, role, true);
   }
 
-  @Post("organizations/:organizationId/dashboard-navigation/:role/sections/:key")
+  @Post(
+    "organizations/:organizationId/dashboard-navigation/:role/sections/:key",
+  )
   saveDashboardSection(
     @Req() req: AuthenticatedRequest,
     @Param("organizationId", ParseUUIDPipe) org: string,
@@ -330,7 +332,13 @@ export class PlatformBillingController {
     @Param("organizationId", ParseUUIDPipe) org: string,
     @Param("role") role: string,
     @Param("key") key: string,
-    @Body() body: { label?: string; sectionKey?: string; sortOrder?: number; enabled?: boolean },
+    @Body()
+    body: {
+      label?: string;
+      sectionKey?: string;
+      sortOrder?: number;
+      enabled?: boolean;
+    },
   ) {
     return this.billing.saveDashboardItem(req.user, org, role, key, body);
   }
@@ -339,16 +347,27 @@ export class PlatformBillingController {
   updateRoleFeatureMatrix(
     @Req() req: AuthenticatedRequest,
     @Param("organizationId", ParseUUIDPipe) org: string,
-    @Body() dto: { featureKey: string; role?: string | null; enabled: boolean | null; reason?: string },
+    @Body()
+    dto: {
+      featureKey: string;
+      role?: string | null;
+      enabled: boolean | null;
+      reason?: string;
+    },
   ) {
     if (dto.enabled === null) {
-      return this.billing.removeDetailedOverride(req.user, org, dto.featureKey, dto.role);
+      return this.billing.removeDetailedOverride(
+        req.user,
+        org,
+        dto.featureKey,
+        dto.role,
+      );
     }
     return this.billing.setDetailedOverride(req.user, org, {
       featureKey: dto.featureKey,
       role: dto.role ?? undefined,
       enabled: dto.enabled,
-      reason: dto.reason || 'Configured via Platform Admin matrix',
+      reason: dto.reason || "Configured via Platform Admin matrix",
     });
   }
 
@@ -497,20 +516,30 @@ export class SchoolBillingController {
     return this.billing.invoices(org, req.user, q, false);
   }
 }
-@Controller({ path: 'organizations/:organizationId/dashboard-navigation', version: '1' })
+@Controller({
+  path: "organizations/:organizationId/dashboard-navigation",
+  version: "1",
+})
 export class DashboardNavigationController {
   constructor(private readonly billing: BillingService) {}
 
-  @Get(':role')
-  get(@Param('organizationId', ParseUUIDPipe) org: string,
-    @Param('role') role: string, @Req() req: AuthenticatedRequest) {
+  @Get(":role")
+  get(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Param("role") role: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
     return this.billing.dashboardNavigation(org, req.user, role);
   }
 }
 
 @Module({
   imports: [TenantsModule, AuditModule, AuthModule],
-  controllers: [PlatformBillingController, SchoolBillingController, DashboardNavigationController],
+  controllers: [
+    PlatformBillingController,
+    SchoolBillingController,
+    DashboardNavigationController,
+  ],
   providers: [BillingService],
 })
 export class BillingModule {}

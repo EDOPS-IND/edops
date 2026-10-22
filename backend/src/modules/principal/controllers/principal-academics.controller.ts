@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseUUIDPipe,
@@ -12,7 +13,9 @@ import {
 import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { AuthenticatedRequest } from "../../../common/auth.guard";
 import {
+  AllocateSectionSubjectDto,
   ReviewLessonPlanDto,
+  UpdateClassTeacherDto,
   UpdateCurriculumProgressDto,
 } from "../dto/principal.dto";
 import { PrincipalGuard } from "../guards/principal.guard";
@@ -51,6 +54,64 @@ export class PrincipalAcademicsController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.service.getClassPerformance(orgId, req.user, classId);
+  }
+
+  @Get("sections/:sectionId/overview")
+  @ApiParam({ name: "sectionId", format: "uuid" })
+  @ApiOperation({
+    summary:
+      "Get Section 360 overview: live faculty allocations, syllabus progress, and student roster",
+  })
+  sectionDetail(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("sectionId", ParseUUIDPipe) sectionId: string,
+  ) {
+    return this.service.getSectionDetail(orgId, sectionId);
+  }
+
+  @Patch("sections/:sectionId/class-teacher")
+  @ApiParam({ name: "sectionId", format: "uuid" })
+  @ApiOperation({
+    summary: "Assign or update Class Teacher for a section",
+  })
+  updateClassTeacher(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("sectionId", ParseUUIDPipe) sectionId: string,
+    @Body() dto: UpdateClassTeacherDto,
+  ) {
+    return this.service.updateClassTeacher(
+      orgId,
+      sectionId,
+      dto.teacherUserId ?? null,
+    );
+  }
+
+  @Post("sections/:sectionId/subjects")
+  @ApiParam({ name: "sectionId", format: "uuid" })
+  @ApiOperation({
+    summary:
+      "Allocate an existing subject or create and map a new subject to this class section",
+  })
+  allocateSectionSubject(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("sectionId", ParseUUIDPipe) sectionId: string,
+    @Body() dto: AllocateSectionSubjectDto,
+  ) {
+    return this.service.allocateSectionSubject(orgId, sectionId, dto);
+  }
+
+  @Delete("sections/:sectionId/subjects/:subjectId")
+  @ApiParam({ name: "sectionId", format: "uuid" })
+  @ApiParam({ name: "subjectId", format: "uuid" })
+  @ApiOperation({
+    summary: "Remove/unallocate a subject from this class section",
+  })
+  removeSectionSubject(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("sectionId", ParseUUIDPipe) sectionId: string,
+    @Param("subjectId", ParseUUIDPipe) subjectId: string,
+  ) {
+    return this.service.removeSectionSubject(orgId, sectionId, subjectId);
   }
 
   @Patch("curriculum/progress")

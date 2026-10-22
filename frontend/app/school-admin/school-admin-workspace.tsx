@@ -266,13 +266,30 @@ export function SchoolAdminWorkspace({
         e.preventDefault();
         setSearchModalOpen((prev) => !prev);
       } else if (e.key === "Escape") {
-        setProfileMenuOpen(false);
-        setMobileMenuOpen(false);
+        if (quickActionModal) {
+          setQuickActionModal(null);
+          setCreatedInvite(null);
+        } else if (searchModalOpen) {
+          setSearchModalOpen(false);
+        } else {
+          setProfileMenuOpen(false);
+          setMobileMenuOpen(false);
+        }
       }
     };
     window.addEventListener("keydown", handleGlobalKey);
     return () => window.removeEventListener("keydown", handleGlobalKey);
-  }, []);
+  }, [quickActionModal, searchModalOpen]);
+
+  React.useEffect(() => {
+    if (quickActionModal || mobileMenuOpen || searchModalOpen) {
+      const original = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = original;
+      };
+    }
+  }, [quickActionModal, mobileMenuOpen, searchModalOpen]);
 
   const go = (tab: SchoolAdminTab, subTab?: string) => {
     if (tab === "assignments") {
@@ -986,6 +1003,7 @@ export function SchoolAdminWorkspace({
                   activeTab={currentSubTab as any}
                   onTabChange={(st) => go("academics", st)}
                   onOpenQuickAction={triggerAction}
+                  onNavigate={go}
                 />
               )}
               {currentTab === "timetable" && (

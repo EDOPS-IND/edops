@@ -153,12 +153,12 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
     : "No Academic Year Set";
 
   const studentTeacherRatio =
-    totalTeachers > 0 ? `1:${Math.round(totalStudents / totalTeachers)}` : "N/A";
+    totalTeachers > 0 ? `1:${Math.round(totalStudents / totalTeachers)}` : "—";
 
-  const healthScore = typeof healthMetrics?.overall === "number" ? Math.round(healthMetrics.overall) : 0;
-  const attendanceRate = typeof healthMetrics?.attendanceRate === "number" ? Math.round(healthMetrics.attendanceRate) : 0;
-  const feeCollectionRate = typeof healthMetrics?.feeCollectionRate === "number" ? Math.round(healthMetrics.feeCollectionRate) : 0;
-  const syllabusCompletion = typeof healthMetrics?.syllabusCompletion === "number" ? Math.round(healthMetrics.syllabusCompletion) : 0;
+  const healthScore = typeof healthMetrics?.overall === "number" ? Math.round(healthMetrics.overall) : null;
+  const attendanceRate = typeof healthMetrics?.attendanceRate === "number" ? Math.round(healthMetrics.attendanceRate) : null;
+  const feeCollectionRate = typeof healthMetrics?.feeCollectionRate === "number" ? Math.round(healthMetrics.feeCollectionRate) : null;
+  const syllabusCompletion = typeof healthMetrics?.syllabusCompletion === "number" ? Math.round(healthMetrics.syllabusCompletion) : null;
 
   // Live Attention Items from Backend
   const rawAttentionItems: any[] = Array.isArray(data?.attentionItems) ? data.attentionItems : [];
@@ -429,7 +429,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
             <p style={{ margin: 0, fontSize: "11px" }}>
-              {activeStudents.toLocaleString()} active in campus
+              {totalStudents > 0 ? `${activeStudents.toLocaleString()} active on campus` : "No active students enrolled"}
             </p>
             <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#4a0e8f" }}>
               View <ArrowRight size={14} />
@@ -468,7 +468,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
             <p style={{ margin: 0, fontSize: "11px" }}>
-              {totalTeachers} teachers · Ratio {studentTeacherRatio}
+              {totalTeachers > 0 ? `${totalTeachers} teachers · Ratio ${studentTeacherRatio}` : "No instructional faculty assigned"}
             </p>
             <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#7a4a00" }}>
               View <ArrowRight size={14} />
@@ -503,11 +503,15 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             <Calendar size={18} />
           </div>
           <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
-            {attendanceRate}%
+            {attendanceRate !== null ? `${attendanceRate}%` : "—"}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
             <p style={{ margin: 0, fontSize: "11px" }}>
-              {attendanceRate >= 85 ? "Optimal attendance pace" : "Requires homeroom follow-up"}
+              {attendanceRate !== null
+                ? attendanceRate >= 85
+                  ? "Optimal attendance pace"
+                  : "Requires homeroom follow-up"
+                : "No attendance recorded yet"}
             </p>
             <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#0a5a7a" }}>
               View <ArrowRight size={14} />
@@ -542,11 +546,11 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             <CreditCard size={18} />
           </div>
           <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
-            {feeCollectionRate}%
+            {feeCollectionRate !== null ? `${feeCollectionRate}%` : feeAssessed > 0 ? `${Math.round((feeCollected / feeAssessed) * 100)}%` : "—"}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
             <p style={{ margin: 0, fontSize: "11px" }}>
-              {formatCurrency(feeCollected)} of {formatCurrency(feeAssessed)}
+              {feeAssessed > 0 ? `${formatCurrency(feeCollected)} of ${formatCurrency(feeAssessed)}` : "No active fee registers"}
             </p>
             <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#1a5c0a" }}>
               View <ArrowRight size={14} />
@@ -581,11 +585,15 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             <ShieldAlert size={18} />
           </div>
           <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#7a1a1a" }}>
-            {feeDefaulters}
+            {feeAssessed > 0 ? feeDefaulters : "—"}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
             <p style={{ margin: 0, fontSize: "11px" }}>
-              {formatCurrency(feePending)} overdue collections
+              {feeAssessed > 0
+                ? feePending > 0
+                  ? `${formatCurrency(feePending)} overdue collections`
+                  : "All collections settled"
+                : "No pending fee schedules"}
             </p>
             <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#7a1a1a" }}>
               View <ArrowRight size={14} />
@@ -620,11 +628,11 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             <Award size={18} color={S.muted} />
           </div>
           <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#fff" }}>
-            {healthScore}/100
+            {healthScore !== null ? `${healthScore}/100` : "—/100"}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
             <p style={{ margin: 0, fontSize: "11px", color: S.muted }}>
-              Verified compliance register
+              {healthScore !== null ? "Verified compliance register" : "Setup in progress · No data yet"}
             </p>
             <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#fff" }}>
               View <ArrowRight size={14} />
@@ -687,7 +695,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
           <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "80px", flexShrink: 0 }}>
               <p style={{ margin: 0, fontSize: "36px", fontWeight: 600, lineHeight: 1, color: S.navy }}>
-                {healthScore}
+                {healthScore !== null ? healthScore : "—"}
               </p>
               <p style={{ margin: 0, fontSize: "11px", color: S.slate }}>/100</p>
             </div>
@@ -702,16 +710,18 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                   color: S.navy,
                 }}
               >
-                {healthScore >= 80
+                {healthScore === null
+                  ? "Setup In Progress · No Data Yet"
+                  : healthScore >= 80
                   ? "Tier A · Excellent Health"
                   : healthScore >= 60
                   ? "Tier B · Good Standing"
-                  : healthScore > 0
-                  ? "Tier C · Attention Needed"
-                  : "Setup Required · No Data Yet"}
+                  : "Tier C · Attention Needed"}
               </span>
               <p style={{ margin: 0, fontSize: "11px", lineHeight: 1.6, color: S.slate }}>
-                Verified attendance ({attendanceRate}%), term fee realization ({feeCollectionRate}%), and curriculum pacing ({syllabusCompletion}%) live in campus registers.
+                {healthScore === null
+                  ? "Institutional standing score computes deterministically once attendance logs, term fee realization, and curriculum pacing are recorded in campus registers."
+                  : `Verified attendance (${attendanceRate !== null ? `${attendanceRate}%` : "—"}), term fee realization (${feeCollectionRate !== null ? `${feeCollectionRate}%` : "—"}), and curriculum pacing (${syllabusCompletion !== null ? `${syllabusCompletion}%` : "—"}) live in campus registers.`}
               </p>
             </div>
           </div>
@@ -729,9 +739,9 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             >
               <b style={{ color: S.navy }}>Verified metric pillars:</b>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "10px" }}>
-                <div>• Attendance Turnout: <b>{attendanceRate}%</b> (40% weight)</div>
-                <div>• Fee Realization: <b>{feeCollectionRate}%</b> (35% weight)</div>
-                <div>• Syllabus Delivery: <b>{syllabusCompletion}%</b> (25% weight)</div>
+                <div>• Attendance Turnout: <b>{attendanceRate !== null ? `${attendanceRate}%` : "—"}</b> (40% weight)</div>
+                <div>• Fee Realization: <b>{feeCollectionRate !== null ? `${feeCollectionRate}%` : "—"}</b> (35% weight)</div>
+                <div>• Syllabus Delivery: <b>{syllabusCompletion !== null ? `${syllabusCompletion}%` : "—"}</b> (25% weight)</div>
                 <div>• Student-Teacher Ratio: <b>{studentTeacherRatio}</b></div>
               </div>
             </div>

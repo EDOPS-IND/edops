@@ -41,7 +41,7 @@ export class CreatePlanDto {
   amountMinor!: number;
   @ApiProperty() @IsInt() @Min(1) @Max(100000) maxStudents!: number;
   @ApiProperty() @IsInt() @Min(1) @Max(10000) maxTeachers!: number;
-  @ApiProperty({ type: 'object', additionalProperties: { type: 'boolean' } })
+  @ApiProperty({ type: "object", additionalProperties: { type: "boolean" } })
   @IsObject()
   features!: Record<string, boolean>;
 }

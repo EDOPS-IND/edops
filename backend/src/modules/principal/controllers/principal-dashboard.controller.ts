@@ -37,13 +37,19 @@ export class PrincipalDashboardController {
   }
 
   @Get("learning-overview")
-  @ApiOperation({ summary: "Published assignments, submissions, study materials, and lesson activities" })
+  @ApiOperation({
+    summary:
+      "Published assignments, submissions, study materials, and lesson activities",
+  })
   learningOverview(@Param("organizationId", ParseUUIDPipe) orgId: string) {
     return this.service.getLearningOverview(orgId);
   }
 
   @Get("attendance")
-  @ApiOperation({ summary: "Student attendance, daily trend, register gaps, and faculty activity" })
+  @ApiOperation({
+    summary:
+      "Student attendance, daily trend, register gaps, and faculty activity",
+  })
   attendance(@Param("organizationId", ParseUUIDPipe) orgId: string) {
     return this.service.getAttendance(orgId);
   }

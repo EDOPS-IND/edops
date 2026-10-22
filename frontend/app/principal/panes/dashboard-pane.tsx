@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { PrincipalSchoolKpis, TodayAcademicOperations } from "../types";
 import { formatAuditMessage } from "../../components/audit-formatter";
+import { RadarPillarsChart, SegmentedDonut, StackedProgressBar } from "../components/telemetry-charts";
 
 // Unified design tokens strictly matching Student & Teacher Dashboard specification
 const S = {
@@ -59,6 +60,7 @@ export function DashboardPane({
   onNavigate,
   onTriggerAction,
   organizationId,
+  principalName,
 }: {
   schoolKpis?: PrincipalSchoolKpis;
   academicHealth?: { score: number; status: string; breakdown: any };
@@ -74,6 +76,7 @@ export function DashboardPane({
   organizationId?: string;
   onOpenTeacherProfile?: (id: string) => void;
   onOpenStudent360?: (id: string) => void;
+  principalName?: string;
 }) {
   const [liveData, setLiveData] = React.useState<any>(null);
   const [loadError, setLoadError] = React.useState(false);
@@ -155,181 +158,169 @@ export function DashboardPane({
       >
         <div
           style={{
-            flex: 1,
-            padding: "24px 28px",
             display: "flex",
+            flex: 1,
             flexDirection: "column",
-            justifyContent: "space-between",
+            alignItems: "flex-start",
+            gap: "12px",
             minWidth: 0,
+            padding: "24px clamp(16px, 3vw, 32px)",
           }}
         >
-          <div>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "8px" }}>
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 700,
-                  padding: "3px 9px",
-                  borderRadius: "6px",
-                  background: "#ffffff",
-                  color: S.navy,
-                  border: "1px solid #ced8e5",
-                  letterSpacing: "0.04em",
-                  textTransform: "uppercase",
-                }}
-              >
-                Executive Command
-              </span>
-              <span
-                style={{
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  padding: "3px 9px",
-                  borderRadius: "6px",
-                  background: S.greenBg,
-                  color: S.greenDk,
-                }}
-              >
-                Academic Year {kpis.activeAcademicYear || "2026–2027"}
-              </span>
-              <span style={{ fontSize: "12px", color: S.slate, fontWeight: 500 }}>
-                • Connected Campus Telemetry
-              </span>
-            </div>
-
+          {/* Greeting Row */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <h1
               id="principal-greeting"
               style={{
                 margin: 0,
-                fontSize: "24px",
-                fontWeight: 700,
+                fontSize: "26px",
+                fontWeight: 600,
                 color: S.navy,
                 letterSpacing: "-0.02em",
-                lineHeight: 1.25,
               }}
             >
-              Principal Academic Command Center
+              {(() => {
+                const hour = new Date().getHours();
+                const timeGreeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
+                const name = (principalName || liveData?.principalName || "Principal").replace(/\s*\(Principal\)|\s*\(Admin\)/gi, "").trim();
+                return `${timeGreeting}, ${name}!`;
+              })()}
             </h1>
-
-            <p
-              style={{
-                margin: "8px 0 0",
-                fontSize: "13px",
-                lineHeight: 1.5,
-                color: S.slate,
-                maxWidth: "680px",
-              }}
-            >
-              Institutional pedagogical oversight, faculty workload balancing, syllabus progress, and real-time student outcomes across all active classes.
-            </p>
           </div>
 
-          <div style={{ display: "flex", gap: "10px", marginTop: "16px", flexWrap: "wrap" }}>
+          {/* Details & Badges */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              fontSize: "13px",
+              color: S.slate,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontWeight: 600, color: S.navy }}>
+              Principal Academic Console
+            </span>
+            <span style={{ color: "#5c6b80" }}>/</span>
+            <span>Academic Year {kpis.activeAcademicYear || "2026–2027"}</span>
+            <span
+              style={{
+                padding: "4px 8px",
+                borderRadius: "4px",
+                background: "rgba(12, 30, 51, 0.05)",
+                fontSize: "11px",
+                fontWeight: 600,
+                color: S.navy,
+              }}
+            >
+              All Academic Systems Normal
+            </span>
+          </div>
+
+          {/* Action Buttons */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginTop: "2px" }}>
+            {/* Academic Health Dossier */}
             <button
               type="button"
               onClick={onOpenHealthModal}
               style={{
-                all: "unset",
-                display: "inline-flex",
+                display: "flex",
                 alignItems: "center",
-                gap: "6px",
-                padding: "8px 14px",
-                borderRadius: "7px",
-                background: S.navy,
-                color: "#ffffff",
-                fontSize: "12.5px",
+                gap: "8px",
+                padding: "10px 16px",
+                border: `1px solid ${S.line}`,
+                borderRadius: "6px",
+                background: "#fff",
+                fontSize: "13px",
                 fontWeight: 600,
+                color: S.navy,
                 cursor: "pointer",
-                boxShadow: "0 1px 2px rgba(12, 30, 51, 0.12)",
-                transition: "background 0.15s ease",
+                whiteSpace: "nowrap",
+                transition: "all 0.15s ease",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#1a365d")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#98A2B3";
+                e.currentTarget.style.background = "#FAF8F5";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = S.line;
+                e.currentTarget.style.background = "#fff";
+              }}
             >
-              <HeartPulse size={14} />
+              <HeartPulse size={16} />
               <span>Academic Health Dossier</span>
             </button>
 
+            {/* Live Campus Timetable */}
             <button
               type="button"
               onClick={() => nav("timetable")}
               style={{
-                all: "unset",
-                display: "inline-flex",
+                display: "flex",
                 alignItems: "center",
-                gap: "6px",
-                padding: "8px 14px",
-                borderRadius: "7px",
-                background: "#ffffff",
-                border: "1px solid #ced8e5",
-                color: S.navy,
-                fontSize: "12.5px",
+                gap: "8px",
+                padding: "10px 16px",
+                border: `1px solid ${S.line}`,
+                borderRadius: "6px",
+                background: "#fff",
+                fontSize: "13px",
                 fontWeight: 600,
+                color: S.navy,
                 cursor: "pointer",
-                transition: "background 0.15s ease",
+                whiteSpace: "nowrap",
+                transition: "all 0.15s ease",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#98A2B3";
+                e.currentTarget.style.background = "#FAF8F5";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = S.line;
+                e.currentTarget.style.background = "#fff";
+              }}
             >
-              <Clock size={14} />
+              <Clock size={16} />
               <span>Live Campus Timetable</span>
             </button>
 
+            {/* Annual Academic Plan */}
             <button
               type="button"
               onClick={() => nav("planning")}
               style={{
-                all: "unset",
-                display: "inline-flex",
+                display: "flex",
                 alignItems: "center",
-                gap: "6px",
-                padding: "8px 14px",
-                borderRadius: "7px",
-                background: "#ffffff",
-                border: "1px solid #ced8e5",
-                color: S.navy,
-                fontSize: "12.5px",
+                gap: "8px",
+                padding: "10px 16px",
+                border: `1px solid ${S.navy}`,
+                borderRadius: "6px",
+                background: S.navy,
+                fontSize: "13px",
                 fontWeight: 600,
+                color: "#fff",
                 cursor: "pointer",
+                whiteSpace: "nowrap",
                 transition: "background 0.15s ease",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f8fafc")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#132840")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = S.navy)}
             >
-              <Calendar size={14} />
+              <Calendar size={16} />
               <span>Annual Academic Plan</span>
             </button>
           </div>
         </div>
 
-        {/* Stylized SVG Administrative Artwork Illustration */}
-        <div
-          aria-hidden="true"
-          style={{
-            width: "280px",
-            flexShrink: 0,
-            display: "none",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "16px 24px",
-            background: "linear-gradient(135deg, rgba(255,255,255,0.4) 0%, rgba(206,216,229,0.3) 100%)",
-            borderLeft: "1px solid #d8dee6",
-          }}
-          className="lg-artwork"
-        >
-          <svg width="220" height="150" viewBox="0 0 220 150" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="20" y="25" width="180" height="105" rx="10" fill="#ffffff" stroke="#ced8e5" strokeWidth="2" />
-            <rect x="35" y="40" width="50" height="8" rx="4" fill="#0c1e33" />
-            <rect x="35" y="55" width="150" height="4" rx="2" fill="#e4e6e9" />
-            <rect x="35" y="65" width="120" height="4" rx="2" fill="#e4e6e9" />
-            <rect x="35" y="75" width="90" height="4" rx="2" fill="#e4e6e9" />
-            <circle cx="160" cy="44" r="14" fill="#ccefbf" stroke="#1a5c0a" strokeWidth="1.5" />
-            <path d="M155 44L158 47L166 40" stroke="#1a5c0a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <rect x="35" y="92" width="60" height="24" rx="6" fill="#e1d2ff" />
-            <rect x="42" y="100" width="46" height="8" rx="3" fill="#4a0e8f" />
-            <rect x="105" y="92" width="75" height="24" rx="6" fill="#bae5f5" />
-            <rect x="115" y="100" width="55" height="8" rx="3" fill="#0a5a7a" />
-          </svg>
+        {/* Dashboard Artwork Illustration */}
+        <div className="dashboard-hero-illustration" style={{ flexShrink: 0, width: "251px", height: "196px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <img
+            src="/studentdashboard.svg"
+            alt="Principal Academic Console"
+            width={251}
+            height={196}
+            style={{ width: "100%", height: "100%", display: "block", objectFit: "contain" }}
+          />
         </div>
       </section>
 
@@ -404,7 +395,7 @@ export function DashboardPane({
             {metric(kpis.totalStudents)}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "11px" }}>Across {kpis.totalClasses ?? 0} grades &amp; {kpis.totalSections ?? 0} sections</span>
+            <span style={{ fontSize: "11px" }}>Across {kpis.totalClasses != null ? kpis.totalClasses : "—"} grades &amp; {kpis.totalSections != null ? kpis.totalSections : "—"} sections</span>
             <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
               Roster <ArrowRight size={13} />
             </span>
@@ -440,7 +431,7 @@ export function DashboardPane({
             {metric(kpis.totalTeachers)}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "11px" }}>{operations?.teachersTeaching ?? 0} active teaching this period</span>
+            <span style={{ fontSize: "11px" }}>{operations?.teachersTeaching != null ? `${operations.teachersTeaching} active teaching this period` : "Schedule monitored live"}</span>
             <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
               Faculty <ArrowRight size={13} />
             </span>
@@ -476,7 +467,7 @@ export function DashboardPane({
             {metric(execution?.syllabusCompletion, "%")}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "11px" }}>{execution?.lessonPlansCompleted ?? 0} lesson plans delivered</span>
+            <span style={{ fontSize: "11px" }}>{execution?.lessonPlansCompleted != null ? `${execution.lessonPlansCompleted} lesson plans delivered` : "Curriculum pacing on track"}</span>
             <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600 }}>
               Curriculum <ArrowRight size={13} />
             </span>
@@ -543,6 +534,34 @@ export function DashboardPane({
             >
               Open Dossier <ArrowRight size={12} />
             </button>
+          </div>
+
+          {/* Visual Pedagogical Radar Canvas */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", padding: "12px 14px", background: "#f8fafc", borderRadius: "10px", border: `1px solid ${S.border}`, marginBottom: "16px" }}>
+            <RadarPillarsChart
+              points={[
+                { label: "Curriculum", value: healthBreakdown?.curriculumExecution },
+                { label: "Assessments", value: healthBreakdown?.assessmentCompletion },
+                { label: "Exam Scores", value: healthBreakdown?.studentPerformance },
+                { label: "Teacher Activity", value: healthBreakdown?.teacherAcademicActivity },
+                { label: "Attendance", value: healthBreakdown?.attendanceRate },
+                { label: "Interventions", value: healthBreakdown?.interventionCompletion },
+              ]}
+              size={150}
+            />
+            <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+                <span style={{ fontSize: "12px", fontWeight: 600, color: S.slate }}>Overall Health Score</span>
+                <span style={{ fontSize: "20px", fontWeight: 800, color: healthScore != null && healthScore >= 80 ? S.greenDk : S.navy }}>
+                  {healthScore != null ? `${healthScore}/100` : "—/100"}
+                </span>
+              </div>
+              <p style={{ margin: 0, fontSize: "11px", color: S.slate, lineHeight: 1.4 }}>
+                {healthScore != null
+                  ? "Real-time pedagogical balance across 6 institutional registers."
+                  : "Geometric radar will populate automatically as attendance, syllabus logs, and assessment scores are recorded."}
+              </p>
+            </div>
           </div>
 
           {/* Pillars List with visual percentage progress */}
@@ -651,6 +670,23 @@ export function DashboardPane({
                 </div>
               ))}
             </div>
+
+            {/* Real-time schedule session badge */}
+            <div style={{ marginTop: "12px", padding: "10px 14px", background: "#f8fafc", border: `1px solid ${S.border}`, borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "11.5px", fontWeight: 600, color: S.navy, display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ width: "7px", height: "7px", borderRadius: "50%", background: (operations?.classesRunning ?? 0) > 0 ? "#22c55e" : S.slate }} />
+                {(operations?.currentPeriod ?? null) !== null
+                  ? `Period ${operations.currentPeriod} Live Telemetry`
+                  : (operations?.classesRunning ?? 0) > 0
+                  ? "Active Instructional Session"
+                  : "Campus Timetable Synchronized"}
+              </span>
+              <span style={{ fontSize: "11px", color: S.slate, fontWeight: 500 }}>
+                {(operations?.substitutionsCovered ?? 0) > 0
+                  ? `${operations.substitutionsCovered} substitution active`
+                  : "Roster on schedule"}
+              </span>
+            </div>
           </div>
 
           <div
@@ -702,6 +738,17 @@ export function DashboardPane({
               Details ↗
             </button>
           </div>
+
+          {performance?.overallSchoolAverage != null && (
+            <div style={{ marginBottom: "12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: S.slate, marginBottom: "4px" }}>
+                <span>Performance Ratio</span>
+                <span style={{ fontWeight: 600, color: S.navy }}>{performance.overallSchoolAverage}%</span>
+              </div>
+              <StackedProgressBar segments={[{ label: "Average", value: performance.overallSchoolAverage, color: S.navy }]} height={5} />
+            </div>
+          )}
+
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12.5px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: S.slate }}>Overall Average:</span>
@@ -734,6 +781,23 @@ export function DashboardPane({
               Details ↗
             </button>
           </div>
+
+          {((execution?.lessonsDelivered ?? 0) > 0 || (execution?.pendingLessonPlans ?? 0) > 0) && (
+            <div style={{ marginBottom: "12px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: S.slate, marginBottom: "4px" }}>
+                <span>Delivery vs Pending Review</span>
+                <span style={{ fontWeight: 600, color: S.greenDk }}>{execution?.lessonsDelivered ?? 0} delivered</span>
+              </div>
+              <StackedProgressBar
+                segments={[
+                  { label: "Delivered", value: execution?.lessonsDelivered ?? 0, color: S.greenDk },
+                  { label: "Pending", value: execution?.pendingLessonPlans ?? 0, color: "#D97706" },
+                ]}
+                height={5}
+              />
+            </div>
+          )}
+
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12.5px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: S.slate }}>Lesson Plans Completed:</span>
@@ -768,6 +832,25 @@ export function DashboardPane({
               Details ↗
             </button>
           </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "12px", padding: "10px", background: "#f8fafc", borderRadius: "8px", border: `1px solid ${S.border}` }}>
+            <SegmentedDonut
+              segments={[
+                { label: "Published", value: exams?.resultsPublished ?? 0, color: S.greenDk },
+                { label: "Locked", value: exams?.resultsLocked ?? 0, color: S.navy },
+                { label: "Pending", value: exams?.resultsPending ?? 0, color: "#DC2626" },
+              ]}
+              size={44}
+              strokeWidth={5}
+              centerText={exams?.resultsPublished ? `${exams.resultsPublished}` : undefined}
+            />
+            <div style={{ fontSize: "11px", color: S.slate, lineHeight: 1.4 }}>
+              {(exams?.resultsPublished ?? 0) + (exams?.resultsLocked ?? 0) + (exams?.resultsPending ?? 0) > 0
+                ? "Breakdown of published, locked, and pending approval results."
+                : "No examination results entered yet for this academic year."}
+            </div>
+          </div>
+
           <div style={{ display: "flex", flexDirection: "column", gap: "10px", fontSize: "12.5px" }}>
             <div style={{ display: "flex", justifyContent: "space-between" }}>
               <span style={{ color: S.slate }}>Published Results:</span>

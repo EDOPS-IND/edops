@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { ClassPerformanceItem, SubjectPerformanceItem, CurriculumNodeItem, LessonPlanItem } from "../types";
 import { Search, Layers, BookOpen, CheckCircle2, AlertTriangle, ArrowRight, MessageSquare, Award, BookMarked, GraduationCap } from "lucide-react";
 import { api, getPrincipalAcademics } from "../../edops-api";
+import { ClassSectionManager } from "../../components/class-command-center";
 
 export function AcademicsPane({
   classes = [],
@@ -14,6 +15,8 @@ export function AcademicsPane({
   onNavigateClass,
   organizationId,
   initialTab,
+  onOpenTeacherProfile,
+  onOpenStudent360,
   onTabChange,
 }: {
   classes?: ClassPerformanceItem[];
@@ -25,6 +28,7 @@ export function AcademicsPane({
   organizationId?: string;
   initialTab?: string;
   onOpenTeacherProfile?: (id: string) => void;
+  onOpenStudent360?: (studentId: string) => void;
   onTabChange?: (tab: string) => void;
 }) {
   const [liveData, setLiveData] = useState<any>(null);
@@ -58,8 +62,10 @@ export function AcademicsPane({
 
   // KPI calculations
   const totalClasses = classList.length;
-  const avgScore = totalClasses > 0 ? Math.round(classList.reduce((acc: number, c: any) => acc + (c.averageScore || 0), 0) / totalClasses) : 76;
-  const avgPassRate = totalClasses > 0 ? Math.round(classList.reduce((acc: number, c: any) => acc + (c.passRate || 0), 0) / totalClasses) : 92;
+  const scoredClasses = classList.filter((c: any) => c.averageScore != null);
+  const avgScore = scoredClasses.length > 0 ? Math.round(scoredClasses.reduce((acc: number, c: any) => acc + Number(c.averageScore), 0) / scoredClasses.length) : null;
+  const passRateClasses = classList.filter((c: any) => c.passRate != null);
+  const avgPassRate = passRateClasses.length > 0 ? Math.round(passRateClasses.reduce((acc: number, c: any) => acc + Number(c.passRate), 0) / passRateClasses.length) : null;
   const totalChapters = nodeList.length;
 
   const availableGrades = React.useMemo(() => {
@@ -154,9 +160,11 @@ export function AcademicsPane({
             <Award size={16} color="#4a0e8f" />
           </div>
           <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#360a69", lineHeight: 1 }}>{avgScore}%</div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#360a69", lineHeight: 1 }}>
+              {avgScore != null ? `${avgScore}%` : "—"}
+            </div>
             <div style={{ fontSize: "11px", color: "#5d1cb3", marginTop: "6px", fontWeight: 600 }}>
-              Term Assessment Average
+              {avgScore != null ? "Term Assessment Average" : "No assessment scores recorded yet"}
             </div>
           </div>
         </div>
@@ -182,9 +190,11 @@ export function AcademicsPane({
             <CheckCircle2 size={16} color="#0a5a7a" />
           </div>
           <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#074158", lineHeight: 1 }}>{avgPassRate}%</div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#074158", lineHeight: 1 }}>
+              {avgPassRate != null ? `${avgPassRate}%` : "—"}
+            </div>
             <div style={{ fontSize: "11px", color: "#0d6e94", marginTop: "6px", fontWeight: 600 }}>
-              Students Meeting Benchmark
+              {avgPassRate != null ? "Students Meeting Benchmark" : "Awaiting term results"}
             </div>
           </div>
         </div>
@@ -272,86 +282,19 @@ export function AcademicsPane({
 
       {/* 1. Classes & Sections Tab */}
       {subTab === "classes" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                <th style={{ padding: "12px 16px" }}>Class / Section</th>
-                <th style={{ padding: "12px 16px" }}>Student Count</th>
-                <th style={{ padding: "12px 16px" }}>Average Score</th>
-                <th style={{ padding: "12px 16px" }}>Pass Rate</th>
-                <th style={{ padding: "12px 16px" }}>Attendance</th>
-                <th style={{ padding: "12px 16px" }}>Assignment %</th>
-                <th style={{ padding: "12px 16px" }}>Curriculum %</th>
-                <th style={{ padding: "12px 16px" }}>Performance Trend</th>
-                <th style={{ padding: "12px 16px", textAlign: "right" }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {classList.length === 0 ? (
-                <tr>
-                  <td colSpan={9} style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>
-                    No classes or sections found.
-                  </td>
-                </tr>
-              ) : (
-                classList.map((c: any, idx: number) => (
-                  <tr
-                    key={idx}
-                    style={{ borderBottom: "1px solid #f1f5f9", transition: "background 0.15s ease" }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "#fbfcfd")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
-                  >
-                    <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1e293b" }}>
-                      {c.displayName || `${c.className || ""} - ${c.sectionName || ""}`}
-                    </td>
-                    <td style={{ padding: "12px 16px", color: "#64748b" }}>{c.studentCount} students</td>
-                    <td style={{ padding: "12px 16px", fontWeight: 800, color: c.averageScore < 75 ? "#dc2626" : "#1e293b" }}>
-                      {percent(c.averageScore)}
-                    </td>
-                    <td style={{ padding: "12px 16px", fontWeight: 600, color: "#15803d" }}>{percent(c.passRate)}</td>
-                    <td style={{ padding: "12px 16px", fontWeight: 600, color: c.attendanceRate < 90 ? "#d97706" : "#475569" }}>
-                      {percent(c.attendanceRate)}
-                    </td>
-                    <td style={{ padding: "12px 16px", color: "#475569" }}>{percent(c.assignmentCompletion)}</td>
-                    <td style={{ padding: "12px 16px", fontWeight: 700, color: "#0c1e33" }}>{percent(c.curriculumCompletion)}</td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <span
-                        style={{
-                          padding: "3px 8px",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          background: c.trend === "Requires intervention" ? "#fee2e2" : c.trend === "Improving" ? "#dcfce7" : "#f1f5f9",
-                          color: c.trend === "Requires intervention" ? "#991b1b" : c.trend === "Improving" ? "#166534" : "#475569",
-                        }}
-                      >
-                        {c.trend || "—"}
-                      </span>
-                    </td>
-                    <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                      <button
-                        onClick={() => onNavigateClass && onNavigateClass(c.id)}
-                        style={{
-                          background: "#ffffff",
-                          border: "1px solid #e4e6e9",
-                          borderRadius: "6px",
-                          padding: "5px 10px",
-                          fontSize: "11px",
-                          fontWeight: 600,
-                          color: "#0c1e33",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Inspect Class
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        <ClassSectionManager
+          organizationId={organizationId || ""}
+          role="principal"
+          sections={classList}
+          onRefresh={() => {
+            if (organizationId) {
+              getPrincipalAcademics(organizationId).then((data) => setLiveData(data));
+            }
+          }}
+          onOpenStudent={(studentId) => {
+            if (onOpenStudent360) onOpenStudent360(studentId);
+          }}
+        />
       )}
 
       {/* 2. Subjects Performance Tab */}

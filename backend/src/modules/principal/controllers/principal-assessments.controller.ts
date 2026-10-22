@@ -10,7 +10,10 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
-import { AuthenticatedRequest, RequireFeature } from "../../../common/auth.guard";
+import {
+  AuthenticatedRequest,
+  RequireFeature,
+} from "../../../common/auth.guard";
 import {
   CreateQuestionPaperDto,
   CreateExamPlanDto,
@@ -46,7 +49,9 @@ export class PrincipalAssessmentsController {
 
   @Post("question-papers")
   @RequireFeature("assessments")
-  @ApiOperation({ summary: "Register or draft Question Paper for blueprint review" })
+  @ApiOperation({
+    summary: "Register or draft Question Paper for blueprint review",
+  })
   createQuestionPaper(
     @Param("organizationId", ParseUUIDPipe) orgId: string,
     @Req() req: AuthenticatedRequest,
@@ -82,29 +87,40 @@ export class PrincipalAssessmentsController {
 
   @Post("examinations/plans")
   @RequireFeature("exams")
-  createExamPlan(@Param("organizationId", ParseUUIDPipe) orgId: string,
-    @Req() req: AuthenticatedRequest, @Body() dto: CreateExamPlanDto) {
+  createExamPlan(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateExamPlanDto,
+  ) {
     return this.service.createExamPlan(orgId, req.user, dto);
   }
 
   @Patch("examinations/plans/:id")
   @RequireFeature("exams")
-  updateExamPlan(@Param("organizationId", ParseUUIDPipe) orgId: string,
-    @Param("id", ParseUUIDPipe) id: string, @Body() dto: UpdateExamPlanDto) {
+  updateExamPlan(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateExamPlanDto,
+  ) {
     return this.service.updateExamPlan(orgId, id, dto);
   }
 
   @Post("examinations/evaluations/:id/import")
   @RequireFeature("exams")
-  importTeacherMarks(@Param("organizationId", ParseUUIDPipe) orgId: string,
-    @Param("id", ParseUUIDPipe) id: string) {
+  importTeacherMarks(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
     return this.service.importTeacherMarks(orgId, id);
   }
 
   @Patch("examinations/results/:id")
   @RequireFeature("exams")
-  reviewExamResult(@Param("organizationId", ParseUUIDPipe) orgId: string,
-    @Param("id", ParseUUIDPipe) id: string, @Body() dto: ReviewExamResultDto) {
+  reviewExamResult(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ReviewExamResultDto,
+  ) {
     return this.service.reviewExamResult(orgId, id, dto);
   }
 

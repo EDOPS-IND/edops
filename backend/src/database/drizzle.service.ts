@@ -49,6 +49,7 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
       await this.pool.query(`ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS invitation_status varchar(32) DEFAULT 'accepted';`);
       await this.pool.query(`ALTER TABLE subjects ADD COLUMN IF NOT EXISTS department_id uuid REFERENCES school_departments(id) ON DELETE SET NULL;`);
       await this.pool.query(`ALTER TABLE school_departments ADD COLUMN IF NOT EXISTS location varchar(120);`);
+      await this.pool.query(`ALTER TABLE sections ADD COLUMN IF NOT EXISTS class_teacher_user_id uuid REFERENCES users(id) ON DELETE SET NULL;`);
       await this.pool.query(`
         CREATE TABLE IF NOT EXISTS parent_student_relationships (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

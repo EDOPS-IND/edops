@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export abstract class AcademicRecord {
   @ApiProperty({ format: 'uuid' }) id!: string;
@@ -28,6 +28,7 @@ export class Section extends AcademicRecord {
   @ApiProperty({ format: 'uuid' }) programId!: string;
   @ApiProperty() name!: string;
   @ApiProperty() capacity!: number;
+  @ApiPropertyOptional({ format: 'uuid' }) classTeacherUserId?: string | null;
 }
 
 export class ClassSubjectAssignment extends AcademicRecord {

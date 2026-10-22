@@ -99,6 +99,7 @@ export const sections = pgTable('sections', {
   programId: uuid('program_id').references(() => programs.id).notNull(),
   name: varchar('name', { length: 120 }).notNull(),
   capacity: integer('capacity').notNull(),
+  classTeacherUserId: uuid('class_teacher_user_id').references(() => users.id),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
