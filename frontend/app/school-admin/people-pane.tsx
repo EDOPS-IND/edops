@@ -622,7 +622,7 @@ export function PeoplePane({
   // Selected Student for 360° Profile Modal
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
   const [student360Tab, setStudent360Tab] = useState<
-    "personal" | "academic" | "parents" | "attendance" | "assignments" | "exams" | "results" | "fees" | "leave" | "discipline" | "documents" | "communication"
+    "personal" | "academic" | "parents" | "attendance" | "assignments" | "exams" | "results" | "fees" | "leave" | "discipline" | "documents" | "communication" | "activity"
   >("personal");
   const [student360Dossier, setStudent360Dossier] = useState<any>(null);
   const [loading360, setLoading360] = useState(false);
@@ -5994,10 +5994,85 @@ export function PeoplePane({
 
               {/* TAB 12: ACTIVITY / AUDIT LOGS */}
               {student360Tab === "activity" && (
-                <StudentProfileEmptyState
-                  title="No Audit Modifications"
-                  description={`No security profile edits or credential modifications logged for ${selectedStudent.name}.`}
-                />
+                <div>
+                  {student360Dossier?.activity && student360Dossier.activity.length > 0 ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                      {student360Dossier.activity.map((act: any, idx: number) => {
+                        const eventDate = act.createdAt
+                          ? new Date(act.createdAt).toLocaleString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
+                          : "Recent";
+                        const actionName = (act.action || "activity.logged").replace(/[._]/g, " ").toUpperCase();
+
+                        return (
+                          <div
+                            key={act.id || idx}
+                            style={{
+                              padding: "14px 16px",
+                              background: "#FFFFFF",
+                              border: "1px solid #E2E8F0",
+                              borderRadius: "8px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "8px",
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+                              <span
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: 700,
+                                  padding: "3px 8px",
+                                  borderRadius: "4px",
+                                  background: "#F1F5F9",
+                                  color: "#0C1E33",
+                                  letterSpacing: "0.5px",
+                                }}
+                              >
+                                {actionName}
+                              </span>
+                              <span style={{ fontSize: "11.5px", color: "#64748B", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                                <Clock size={12} />
+                                {eventDate}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: "12.5px", color: "#334155", display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ color: "#64748B" }}>Initiated by:</span>
+                              <span style={{ fontWeight: 600, color: "#0C1E33" }}>{act.actorName || "System Actor"}</span>
+                            </div>
+                            {act.details && Object.keys(act.details).length > 0 && (
+                              <div
+                                style={{
+                                  marginTop: "2px",
+                                  padding: "8px 10px",
+                                  background: "#F8FAFC",
+                                  border: "1px solid #F1F5F9",
+                                  borderRadius: "6px",
+                                  fontSize: "11.5px",
+                                  color: "#475569",
+                                  fontFamily: "monospace",
+                                  wordBreak: "break-word",
+                                }}
+                              >
+                                {typeof act.details === "string" ? act.details : JSON.stringify(act.details, null, 2)}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <StudentProfileEmptyState
+                      title="No Audit Modifications"
+                      description={`No security profile edits or credential modifications logged for ${selectedStudent.name}.`}
+                    />
+                  )}
+                </div>
               )}
             </div>
 

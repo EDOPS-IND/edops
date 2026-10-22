@@ -600,7 +600,7 @@ export class SchoolAdminService {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
-      const [student] = await manager.query(
+      let [student] = await manager.query(
         `SELECT
           u.id,
           u.email,
@@ -618,18 +618,107 @@ export class SchoolAdminService {
           COALESCE(sp.medical_notes, '') as "medicalNotes",
           COALESCE(e.roll_number, '') as "rollNo",
           COALESCE(s.name, '') as "section",
-          COALESCE(p.name, '') as "grade"
+          COALESCE(p.name, '') as "grade",
+          'active' as "inviteStatus"
          FROM users u
          JOIN memberships m ON m.user_id = u.id AND m.organization_id = $1
          LEFT JOIN student_profiles sp ON sp.student_user_id = u.id AND sp.organization_id = $1
          LEFT JOIN enrollments e ON e.student_user_id = u.id AND e.organization_id = $1
          LEFT JOIN sections s ON s.id = e.section_id
          LEFT JOIN programs p ON p.id = s.program_id
-         WHERE u.id = $2`,
+         WHERE (u.id = $2 OR sp.id = $2)`,
         [orgId, studentUserId],
       );
 
-      if (!student) throw new NotFoundException('Student profile not found');
+      let isInvited = false;
+      if (!student) {
+        const [invitation] = await manager.query(
+          `SELECT
+            i.id,
+            i.email,
+            COALESCE(NULLIF(i.name, ''), split_part(i.email, '@', 1)) as "name",
+            COALESCE(i.phone, '') as "phone",
+            '' as "admissionNo",
+            '' as "dob",
+            'Not Specified' as "gender",
+            '' as "bloodGroup",
+            '' as "parentName",
+            '' as "parentPhone",
+            '' as "parentEmail",
+            '' as "address",
+            '' as "emergencyContact",
+            '' as "medicalNotes",
+            '' as "rollNo",
+            COALESCE(s.name, '') as "section",
+            COALESCE(p.name, '') as "grade",
+            'Pending Invite' as "status",
+            i.raw_token as "inviteToken",
+            i.expires_at as "inviteExpiresAt",
+            'pending' as "inviteStatus"
+           FROM invitations i
+           LEFT JOIN sections s ON s.id = i.section_id
+           LEFT JOIN programs p ON p.id = s.program_id
+           WHERE i.organization_id = $1 AND i.id = $2
+           LIMIT 1`,
+          [orgId, studentUserId],
+        );
+
+        if (!invitation) {
+          throw new NotFoundException('Student profile not found');
+        }
+        student = invitation;
+        isInvited = true;
+      }
+
+      if (isInvited) {
+        const broadcasts = await manager.query(
+          `SELECT title, message, target_audience as "audience", priority, created_at as "createdAt"
+           FROM school_broadcasts
+           WHERE organization_id = $1
+           ORDER BY created_at DESC LIMIT 5`,
+          [orgId]
+        );
+
+        const activity = await manager.query(
+          `SELECT
+             a.id,
+             a.action,
+             a.details,
+             a.created_at as "createdAt",
+             COALESCE(u.name, split_part(u.email, '@', 1), 'System') as "actorName"
+           FROM audit_events a
+           LEFT JOIN users u ON u.id = a.actor_id
+           WHERE a.organization_id = $1
+             AND (
+               a.actor_id = $2
+               OR (a.details->>'studentId')::text = $2::text
+               OR (a.details->>'email')::text = $3
+             )
+           ORDER BY a.created_at DESC LIMIT 20`,
+          [orgId, studentUserId, student.email]
+        );
+
+        return {
+          profile: student,
+          academic: {
+            enrollmentId: null,
+            academicYear: 'Current Academic Session',
+            category: 'General',
+            status: 'Pending Invite',
+            classTeacher: 'Class Faculty Lead',
+          },
+          parents: [],
+          attendance: { totalSchoolDays: 0, daysPresent: 0, daysAbsent: 0, overallPercentage: 100 },
+          assignments: [],
+          exams: [],
+          fees: { totalAssessed: 0, totalPaid: 0, balanceDue: 0 },
+          leave: [],
+          discipline: [],
+          communication: broadcasts || [],
+          documents: [],
+          activity: activity || [],
+        };
+      }
 
       const [academic] = await manager.query(
         `SELECT
@@ -726,6 +815,26 @@ export class SchoolAdminService {
         [orgId]
       );
 
+      const activity = await manager.query(
+        `SELECT
+           a.id,
+           a.action,
+           a.details,
+           a.created_at as "createdAt",
+           COALESCE(u.name, split_part(u.email, '@', 1), 'System') as "actorName"
+         FROM audit_events a
+         LEFT JOIN users u ON u.id = a.actor_id
+         WHERE a.organization_id = $1
+           AND (
+             a.actor_id = $2
+             OR (a.details->>'studentId')::text = $2::text
+             OR (a.details->>'studentUserId')::text = $2::text
+             OR (a.details->>'email')::text = $3
+           )
+         ORDER BY a.created_at DESC LIMIT 20`,
+        [orgId, student.id, student.email]
+      );
+
       return {
         profile: student,
         academic: academic || {
@@ -742,6 +851,7 @@ export class SchoolAdminService {
         discipline: discipline || [],
         communication: broadcasts || [],
         documents: [],
+        activity: activity || [],
       };
     });
   }
