@@ -1225,10 +1225,10 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                 style={{
                   padding: "3px 10px",
                   borderRadius: "100px",
-                  background: healthScore >= 80 ? S.greenBg : healthScore >= 60 ? "#FEF3C7" : healthScore > 0 ? "#FEE2E2" : "#F1F5F9",
+                  background: (healthScore ?? 0) >= 80 ? S.greenBg : (healthScore ?? 0) >= 60 ? "#FEF3C7" : (healthScore ?? 0) > 0 ? "#FEE2E2" : "#F1F5F9",
                   fontSize: "11px",
                   fontWeight: 600,
-                  color: healthScore >= 80 ? S.green : healthScore >= 60 ? "#B45309" : healthScore > 0 ? "#B91C1C" : S.slate,
+                  color: (healthScore ?? 0) >= 80 ? S.green : (healthScore ?? 0) >= 60 ? "#B45309" : (healthScore ?? 0) > 0 ? "#B91C1C" : S.slate,
                 }}
               >
                 {healthScore === null
@@ -1245,6 +1245,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                   : `Verified attendance (${attendanceRate !== null ? `${attendanceRate}%` : "—"}), term fee realization (${feeCollectionRate !== null ? `${feeCollectionRate}%` : "—"}), and curriculum pacing (${syllabusCompletion !== null ? `${syllabusCompletion}%` : "—"}) live in campus registers.`}
               </p>
             </div>
+          </div>
 
           {showHealthExplainer && (
             <div
@@ -1265,7 +1266,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                 <div>• Student-Teacher Ratio: <b>{studentTeacherRatio}</b></div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Footer Metadata */}
           <div
@@ -2203,24 +2204,24 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                   Composite Rating
                 </div>
                 <div style={{ fontSize: "28px", fontWeight: 800, lineHeight: 1.1, marginTop: "2px" }}>
-                  {displayVal(healthScore)} {healthScore > 0 && <span style={{ fontSize: "14px", fontWeight: 400, color: S.muted }}>/ 100</span>}
+                  {displayVal(healthScore)} {(healthScore ?? 0) > 0 && <span style={{ fontSize: "14px", fontWeight: 400, color: S.muted }}>/ 100</span>}
                 </div>
               </div>
               <span
                 style={{
                   padding: "4px 12px",
                   borderRadius: "100px",
-                  background: healthScore >= 80 ? S.greenBg : healthScore >= 60 ? "#FEF3C7" : healthScore > 0 ? "#FEE2E2" : "#334155",
+                  background: (healthScore ?? 0) >= 80 ? S.greenBg : (healthScore ?? 0) >= 60 ? "#FEF3C7" : (healthScore ?? 0) > 0 ? "#FEE2E2" : "#334155",
                   fontSize: "11.5px",
                   fontWeight: 600,
-                  color: healthScore >= 80 ? S.green : healthScore >= 60 ? "#B45309" : healthScore > 0 ? "#B91C1C" : "#E2E8F0",
+                  color: (healthScore ?? 0) >= 80 ? S.green : (healthScore ?? 0) >= 60 ? "#B45309" : (healthScore ?? 0) > 0 ? "#B91C1C" : "#E2E8F0",
                 }}
               >
-                {healthScore >= 80
+                {(healthScore ?? 0) >= 80
                   ? "Tier A · Optimal Health"
-                  : healthScore >= 60
+                  : (healthScore ?? 0) >= 60
                   ? "Tier B · Moderate Health"
-                  : healthScore > 0
+                  : (healthScore ?? 0) > 0
                   ? "Tier C · Review Needed"
                   : "Setup Required · No Data"}
               </span>

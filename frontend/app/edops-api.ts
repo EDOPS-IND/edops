@@ -448,6 +448,49 @@ export function deleteCurriculumChapter(orgId: string, chapterId: string) {
   });
 }
 
+export function createAcademicSubject(
+  orgId: string,
+  payload: { name: string; code: string; isElective?: boolean },
+) {
+  return api<any>(`/organizations/${orgId}/academics/subjects`, {
+    method: "POST",
+    body: payload,
+  });
+}
+
+export function updateAcademicSubject(
+  orgId: string,
+  subjectId: string,
+  payload: { name?: string; code?: string; isElective?: boolean },
+) {
+  return api<any>(`/organizations/${orgId}/academics/subjects/${subjectId}`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export function updateAcademicSection(
+  orgId: string,
+  sectionId: string,
+  payload: { name?: string; capacity?: number },
+) {
+  return api<any>(`/organizations/${orgId}/academics/sections/${sectionId}`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
+export function updateAcademicYear(
+  orgId: string,
+  yearId: string,
+  payload: { name?: string; startDate?: string; endDate?: string; isCurrent?: boolean },
+) {
+  return api<any>(`/organizations/${orgId}/academics/years/${yearId}`, {
+    method: "PATCH",
+    body: payload,
+  });
+}
+
 export function getSchoolAdminSectionOverview(orgId: string, sectionId: string) {
   return api<any>(`/organizations/${orgId}/school-admin/academics/sections/${sectionId}/overview`);
 }

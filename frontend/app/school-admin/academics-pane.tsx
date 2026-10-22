@@ -1709,36 +1709,29 @@ export function AcademicsPane({
             overflow: 'hidden',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Curriculum Units
-            </span>
-            <Award size={18} />
-          </div>
-          <p style={{ margin: 0, fontSize: '36px', fontWeight: 700, lineHeight: 1, color: '#782a00' }}>
-            {curriculum.length}
-          </p>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: '11px' }}>{curriculum.length > 0 ? 'Tracked learning outcomes' : 'No curriculum registered'}</span>
-            <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600 }}>
-              View <ArrowRight size={13} />
-            </span>
-          </div>
-        </article>
-      </section>
-
-      {/* ── 3. SUBTAB SELECTOR ── */}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${S.border}`, paddingBottom: '10px', gap: '6px', overflowX: 'auto' }}>
-        {[
-          { id: 'structure', label: 'Academic Years' },
-          { id: 'sections', label: `Sections & Programs (${sections.length})` },
-          { id: 'subjects', label: `Subjects (${subjects.length})` },
-          { id: 'curriculum', label: 'Curriculum & LOs' },
-          { id: 'calendar', label: 'Academic Calendar' },
-          { id: 'promotions', label: 'Batch Rollover & Promotion' },
-        ].map((item) => {
-          const active = tab === item.id;
-          return (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '20px 24px',
+              borderBottom: `1px solid ${S.border}`,
+              flexWrap: 'wrap',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '16px',
+                  fontWeight: 600,
+                  color: S.navy,
+                }}
+              >
+                Institutional Academic Sessions
+              </h2>
+            </div>
             <button
               onClick={() => onOpenQuickAction('year')}
               style={{
