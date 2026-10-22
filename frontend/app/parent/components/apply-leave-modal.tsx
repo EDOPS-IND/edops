@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { WardInfo, LeaveApplication } from "../types";
 import { Calendar, X } from "lucide-react";
 
@@ -17,6 +17,19 @@ export function ApplyLeaveModal({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -63,6 +76,7 @@ export function ApplyLeaveModal({
           </div>
           <button
             type="button"
+            aria-label="Close dialog"
             onClick={onClose}
             style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px" }}
           >
@@ -108,10 +122,11 @@ export function ApplyLeaveModal({
           )}
 
           <div>
-            <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+            <label htmlFor="leave-type" style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
               Leave Type *
             </label>
             <select
+              id="leave-type"
               name="type"
               required
               style={{
@@ -132,10 +147,11 @@ export function ApplyLeaveModal({
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
             <div>
-              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+              <label htmlFor="leave-start" style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
                 Start Date *
               </label>
               <input
+                id="leave-start"
                 name="start"
                 type="date"
                 required
@@ -149,10 +165,11 @@ export function ApplyLeaveModal({
               />
             </div>
             <div>
-              <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+              <label htmlFor="leave-end" style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
                 End Date *
               </label>
               <input
+                id="leave-end"
                 name="end"
                 type="date"
                 required
@@ -168,10 +185,11 @@ export function ApplyLeaveModal({
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+            <label htmlFor="leave-reason" style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
               Reason for Absence *
             </label>
             <textarea
+              id="leave-reason"
               name="reason"
               required
               rows={3}

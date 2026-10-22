@@ -1376,10 +1376,11 @@ function LoginScreen({
               )}
 
               <div className="flex flex-col gap-1.5">
-                <label className="block text-sm text-[#212121] font-medium">
-                  Email
+                <label htmlFor="login-email" className="block text-sm text-[#212121] font-medium">
+                  Email or Username
                 </label>
                 <input
+                  id="login-email"
                   name="email"
                   type="text"
                   autoComplete="username"
@@ -1393,7 +1394,7 @@ function LoginScreen({
 
               <div className="flex flex-col gap-1.5">
                 <div className="flex justify-between items-center">
-                  <label className="block text-sm text-[#212121] font-medium">
+                  <label htmlFor="login-password" className="block text-sm text-[#212121] font-medium">
                     Password
                   </label>
                   <button
@@ -1406,6 +1407,7 @@ function LoginScreen({
                 </div>
                 <div className="relative flex items-center">
                   <input
+                    id="login-password"
                     name="password"
                     type={showPassword ? "text" : "password"}
                     autoComplete="current-password"
@@ -3446,7 +3448,7 @@ function Metric({
         <p>{label}</p>
         <strong>{value.toLocaleString()}</strong>
       </div>
-      <span className={`metric-icon ${tone}`} aria-label={icon}>
+      <span className={`metric-icon ${tone}`} aria-hidden="true">
         <NavIcon id={id} />
       </span>
       <small>{note}</small>

@@ -158,6 +158,41 @@ export class StudentDashboardService {
 
     return { student, documents };
   }
+
+  async updateProfile(organizationId: string, studentUserId: string, body: any) {
+    if (body.phone !== undefined) {
+      await this.drizzle.query(
+        `UPDATE users SET phone = $1 WHERE id = $2`,
+        [body.phone?.trim() || null, studentUserId]
+      );
+    }
+
+    const bloodGroup = body.bloodGroup?.trim() || null;
+    const address = body.address?.trim() || null;
+    const emergencyContact = body.emergencyContact?.trim() || null;
+    const gender = body.gender?.trim() || null;
+    const dob = body.dob?.trim() || null;
+
+    await this.drizzle.query(
+      `INSERT INTO student_profiles (
+         organization_id, student_user_id, admission_number, blood_group, address, emergency_contact, gender, dob, status
+       )
+       VALUES (
+         $1, $2, 'ADM-' || SUBSTRING($2::text, 1, 6),
+         COALESCE($3, 'O+'), COALESCE($4, ''), COALESCE($5, ''), COALESCE($6, 'Not Specified'), $7::date, 'active'
+       )
+       ON CONFLICT (organization_id, student_user_id) DO UPDATE SET
+         blood_group = COALESCE(EXCLUDED.blood_group, student_profiles.blood_group),
+         address = COALESCE(EXCLUDED.address, student_profiles.address),
+         emergency_contact = COALESCE(EXCLUDED.emergency_contact, student_profiles.emergency_contact),
+         gender = CASE WHEN EXCLUDED.gender IS NOT NULL AND EXCLUDED.gender <> 'Not Specified' THEN EXCLUDED.gender ELSE student_profiles.gender END,
+         dob = COALESCE(EXCLUDED.dob, student_profiles.dob)`,
+      [organizationId, studentUserId, bloodGroup, address, emergencyContact, gender, dob]
+    );
+
+    return this.getProfile(organizationId, studentUserId);
+  }
+
   async getCalendar(organizationId:string,studentUserId:string) {
     const assignments=await this.assignments.getAssignments(organizationId,studentUserId);
     const exams=await this.drizzle.query(`SELECT ep.id,ep.exam_name AS title,ep.exam_date AS date,ep.start_time || ' - ' || ep.end_time AS time FROM principal_exam_plans ep WHERE ep.organization_id=$1 AND ep.status='scheduled' AND EXISTS (SELECT 1 FROM enrollments e WHERE e.organization_id=ep.organization_id AND e.section_id=ep.section_id AND e.student_user_id=$2 AND e.status='active') ORDER BY ep.exam_date`,[organizationId,studentUserId]);

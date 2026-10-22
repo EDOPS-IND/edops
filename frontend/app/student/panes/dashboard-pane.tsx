@@ -362,7 +362,16 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
       >
         {/* 1. Attendance Rate (Pastel Violet) */}
         <article
+          role="button"
+          tabIndex={0}
+          aria-label="Attendance Rate details"
           onClick={() => onNavigateTab("attendance")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onNavigateTab("attendance");
+            }
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -401,7 +410,16 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 
         {/* 2. Overall Score (Pastel Warm Amber) */}
         <article
+          role="button"
+          tabIndex={0}
+          aria-label="Overall Score details"
           onClick={() => onNavigateTab("performance")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onNavigateTab("performance");
+            }
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -440,7 +458,16 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 
         {/* 3. Assignments Due (Pastel Sky Blue) */}
         <article
+          role="button"
+          tabIndex={0}
+          aria-label="Assignments Due details"
           onClick={() => onNavigateTab("assignments")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onNavigateTab("assignments");
+            }
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -479,7 +506,16 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 
         {/* 4. Curriculum Pacing (Pastel Mint Green) */}
         <article
+          role="button"
+          tabIndex={0}
+          aria-label="Curriculum Pacing details"
           onClick={() => onNavigateTab("curriculum")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onNavigateTab("curriculum");
+            }
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -518,7 +554,16 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 
         {/* 5. Arena Practice (Pastel Rose / Coral) */}
         <article
+          role="button"
+          tabIndex={0}
+          aria-label="Arena Practice details"
           onClick={() => onNavigateTab("arena")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onNavigateTab("arena");
+            }
+          }}
           style={{
             display: "flex",
             flexDirection: "column",
@@ -557,7 +602,16 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 
         {/* 6. Academic Average (Dark Navy High-Contrast) */}
         <article
+          role="button"
+          tabIndex={0}
+          aria-label="Academic Average details"
           onClick={() => onNavigateTab("assessments")}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onNavigateTab("assessments");
+            }
+          }}
           style={{
             display: "flex",
             flexDirection: "column",

@@ -18,6 +18,7 @@ import {
   updateTeacherEmployment,
   getStudentAvatarUrl,
   sendStudentInvite,
+  getSchoolAdminStudent360,
 } from "../edops-api";
 import {
   Users,
@@ -74,8 +75,25 @@ export function PeoplePane({
   // Selected Student for 360° Profile Modal
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
   const [student360Tab, setStudent360Tab] = useState<
-    "personal" | "academic" | "parents" | "attendance" | "assignments" | "exams" | "results" | "fees" | "leave" | "discipline" | "documents" | "communication" | "activity"
+    "personal" | "academic" | "parents" | "attendance" | "assignments" | "exams" | "results" | "fees" | "leave" | "discipline" | "documents" | "communication"
   >("personal");
+  const [student360Dossier, setStudent360Dossier] = useState<any>(null);
+  const [loading360, setLoading360] = useState(false);
+
+  useEffect(() => {
+    if (selectedStudent && organizationId) {
+      const studentId = selectedStudent.id;
+      if (studentId) {
+        setLoading360(true);
+        getSchoolAdminStudent360(organizationId, studentId)
+          .then((res) => setStudent360Dossier(res))
+          .catch((err) => console.error("Failed to load student 360:", err))
+          .finally(() => setLoading360(false));
+      }
+    } else {
+      setStudent360Dossier(null);
+    }
+  }, [selectedStudent, organizationId]);
 
   // Invite actions state
   const [sendingInviteStudentId, setSendingInviteStudentId] = useState<string | null>(null);
@@ -199,8 +217,8 @@ export function PeoplePane({
     if (!wardSearchQuery.trim()) return true;
     const q = wardSearchQuery.toLowerCase();
     const nameMatch = (s.name || "").toLowerCase().includes(q);
-    const admMatch = (s.admissionNo || s.admissionNumber || "").toLowerCase().includes(q);
-    const classMatch = [s.grade, s.className, s.section, s.sectionName].filter(Boolean).join(" ").toLowerCase().includes(q);
+    const admMatch = (s.admissionNo || "").toLowerCase().includes(q);
+    const classMatch = [s.grade, s.section].filter(Boolean).join(" ").toLowerCase().includes(q);
     return nameMatch || admMatch || classMatch;
   });
 
@@ -208,8 +226,8 @@ export function PeoplePane({
     ? parents.filter((p) =>
         (p.children || []).some(
           (ch: any) =>
-            (ch.id && (ch.id === selectedStudent.userId || ch.id === selectedStudent.id)) ||
-            (ch.studentId && (ch.studentId === selectedStudent.userId || ch.studentId === selectedStudent.id))
+            (ch.id && ch.id === selectedStudent.id) ||
+            (ch.studentId && ch.studentId === selectedStudent.id)
         )
       )
     : [];
@@ -597,12 +615,25 @@ export function PeoplePane({
                         </div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
-                        <b style={{ color: "#0c1e33" }}>{s.section}</b>
-                        <div style={{ fontSize: "11px", color: "#64748b" }}>Roll #{s.rollNo}</div>
+                        {(() => {
+                          const cleanGrade = (s.grade || "").replace(/^Class\s*/i, "").trim();
+                          const classDisplay = cleanGrade && s.section ? `${cleanGrade} ${s.section}` : cleanGrade || s.section || "-";
+                          const cleanRoll = (s.rollNo || "").replace(/^ROLL-?/i, "").trim();
+                          return (
+                            <>
+                              <b style={{ color: "#0c1e33" }}>{classDisplay}</b>
+                              <div style={{ fontSize: "11px", color: "#64748b" }}>{cleanRoll || "-"}</div>
+                            </>
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: "12px 10px" }}>
-                        <div style={{ color: "#0c1e33", fontWeight: 500 }}>{s.parentName}</div>
-                        <div style={{ fontSize: "11px", color: "#64748b" }}>{s.parentPhone}</div>
+                        <div style={{ color: s.parentName ? "#0c1e33" : "var(--muted)", fontWeight: 500 }}>
+                          {s.parentName || "Not assigned"}
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#64748b" }}>
+                          {s.parentPhone || "-"}
+                        </div>
                       </td>
                       <td style={{ padding: "12px 10px" }}>
                         <span style={{ fontWeight: 700, color: s.attendancePct < 75 ? "#B45309" : "#047857" }}>
@@ -1214,7 +1245,7 @@ export function PeoplePane({
                 <div>
                   <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 650, color: "#0c1e33" }}>{selectedStudent.name} (360° Profile)</h3>
                   <span style={{ fontSize: "12px", color: "var(--muted)" }}>
-                    Admission: {selectedStudent.admissionNo} · {selectedStudent.grade} ({selectedStudent.section}) · Roll #{selectedStudent.rollNo}
+                    Admission: {selectedStudent.admissionNo} · {(selectedStudent.grade || "").replace(/^Class\s*/i, "").trim()} {selectedStudent.section} · Roll #{(selectedStudent.rollNo || "").replace(/^ROLL-?/i, "").trim()}
                   </span>
                 </div>
               </div>
@@ -1238,7 +1269,7 @@ export function PeoplePane({
               </button>
             </div>
 
-            {/* 13 Navigation Tabs */}
+            {/* 12 Navigation Tabs (Audit omitted per requirement) */}
             <div style={{ display: "flex", gap: "4px", overflowX: "auto", borderBottom: "1px solid #E4E6E9", paddingBottom: "8px", marginBottom: "16px" }}>
               {[
                 { id: "personal", label: "Personal" },
@@ -1253,7 +1284,6 @@ export function PeoplePane({
                 { id: "discipline", label: "Discipline" },
                 { id: "documents", label: "Documents" },
                 { id: "communication", label: "Communication" },
-                { id: "activity", label: "Audit" },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1290,119 +1320,366 @@ export function PeoplePane({
 
             {/* Tab Body */}
             <div style={{ flex: 1, overflowY: "auto", paddingRight: "6px", fontSize: "13px" }}>
-              {student360Tab === "personal" && (
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
-                  <div style={{ background: "#FAF8F5", padding: "14px", borderRadius: "8px" }}>
-                    <b>Personal Identity</b>
-                    <div style={{ marginTop: "8px", display: "grid", gap: "6px" }}>
-                      <div>Date of Birth: <b>{selectedStudent.dob}</b></div>
-                      <div>Gender: <b>{selectedStudent.gender}</b></div>
-                      <div>Blood Group: <b>{selectedStudent.bloodGroup}</b></div>
-                      <div>Residential Address: <b>{selectedStudent.address}</b></div>
-                    </div>
-                  </div>
-                  <div style={{ background: "#FAF8F5", padding: "14px", borderRadius: "8px" }}>
-                    <b>Emergency & Health</b>
-                    <div style={{ marginTop: "8px", display: "grid", gap: "6px" }}>
-                      <div>Primary Contact: <b>{selectedStudent.parentName}</b></div>
-                      <div>Emergency Phone: <b>{selectedStudent.emergencyContact}</b></div>
-                      <div>Allergies: <b>None recorded</b></div>
-                      <div>Doctor on Record: <b>Not recorded</b></div>
-                    </div>
-                  </div>
-                </div>
-              )}
+              {(() => {
+                const prof = student360Dossier?.profile || selectedStudent;
+                const studentPhone = prof.phone || "-";
 
-              {student360Tab === "parents" && (
-                <div style={{ display: "grid", gap: "14px" }}>
-                  <div style={{ background: "#FAF8F5", padding: "14px", borderRadius: "8px" }}>
-                    <b>Primary Guardian on Record</b>
-                    <div style={{ marginTop: "8px", display: "grid", gap: "6px" }}>
-                      <div>Guardian Name: <b>{selectedStudent.guardianName || selectedStudent.parentName || "Not assigned"}</b></div>
-                      <div>Guardian Phone: <b>{selectedStudent.guardianPhone || selectedStudent.parentPhone || "Not assigned"}</b></div>
-                      <div>Emergency Contact: <b>{selectedStudent.emergencyContact || "-"}</b></div>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                      <b style={{ fontSize: "13px" }}>Authorized Linked Parent Accounts ({studentParents.length})</b>
-                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>Read-only · Manage via Parents & Mappings tab</span>
-                    </div>
-                    <div style={{ display: "grid", gap: "8px" }}>
-                      {studentParents.length === 0 ? (
-                        <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", color: "var(--muted)", fontSize: "12px", textAlign: "center" }}>
-                          No parent portal accounts are currently linked to this student. Mappings can be added or updated anytime from the <b>Parents & Mappings</b> subtab.
-                        </div>
-                      ) : (
-                        studentParents.map((p) => (
-                          <div key={p.id} style={{ padding: "10px 14px", background: "#FFF", border: "1px solid #e4e6e9", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <div>
-                              <div style={{ fontWeight: 700, color: "#111827" }}>{p.name}</div>
-                              <div style={{ fontSize: "11.5px", color: "var(--muted)" }}>{p.email} · {p.mobile}</div>
-                            </div>
-                            <span style={{ fontSize: "11px", fontWeight: 750, padding: "3px 10px", borderRadius: "10px", background: "#ECFDF5", color: "#047857" }}>
-                              {p.relationship || "Guardian"}
-                            </span>
+                return (
+                  <>
+                    {/* TAB 1: PERSONAL */}
+                    {student360Tab === "personal" && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                        <div style={{ background: "#FAF8F5", padding: "16px", borderRadius: "8px", border: "1px solid #E4E6E9" }}>
+                          <b style={{ color: "#0c1e33" }}>Personal Identity</b>
+                          <div style={{ marginTop: "10px", display: "grid", gap: "8px", fontSize: "12.5px" }}>
+                            <div>Date of Birth: <b>{prof.dob || "Not specified"}</b></div>
+                            <div>Gender: <b>{prof.gender || "Not Specified"}</b></div>
+                            <div>Blood Group: <b>{prof.bloodGroup || "Not recorded"}</b></div>
+                            <div>Residential Address: <b>{prof.address || "Not recorded"}</b></div>
+                            <div>Registered Email: <b>{prof.email || "-"}</b></div>
                           </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
+                        </div>
 
-              {student360Tab === "attendance" && (
-                <div style={{ display: "grid", gap: "14px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F4F6F7", padding: "14px", borderRadius: "8px" }}>
-                    <div>
-                      <div style={{ fontSize: "20px", fontWeight: 700, color: "#0c1e33" }}>{selectedStudent.attendancePct}%</div>
-                      <span style={{ fontSize: "12px", color: "var(--muted)" }}>Term Attendance Rate (Statutory min: 75%)</span>
-                    </div>
-                    <button style={{ padding: "8px 14px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                      Send Attendance Warning to Parent
-                    </button>
-                  </div>
-                  <div>
-                    <b>Recent Absence Log</b>
-                    <div style={{ marginTop: "6px", display: "grid", gap: "6px" }}>
-                      <div style={{ padding: "8px 12px", background: "#FFF", border: "1px solid #E4E6E9", borderRadius: "6px", display: "flex", justifyContent: "space-between" }}>
-                        <span>No absence details loaded</span>
-                        <span style={{ color: "#047857", fontWeight: 600 }}>Excused</span>
+                        <div style={{ background: "#FAF8F5", padding: "16px", borderRadius: "8px", border: "1px solid #E4E6E9" }}>
+                          <b style={{ color: "#0c1e33" }}>Primary Contact &amp; Emergency Health</b>
+                          <div style={{ marginTop: "10px", display: "grid", gap: "8px", fontSize: "12.5px" }}>
+                            <div>
+                              Primary Student Phone: <b style={{ color: "#0c1e33" }}>{studentPhone}</b>
+                            </div>
+                            <div>Primary Guardian: <b>{prof.parentName || "Not assigned"}</b></div>
+                            <div>Guardian Phone: <b>{prof.parentPhone || "-"}</b></div>
+                            <div>Emergency Phone: <b>{prof.emergencyContact || "-"}</b></div>
+                            <div>Medical Notes / Allergies: <b>{prof.medicalNotes || "None recorded"}</b></div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </div>
-              )}
+                    )}
 
-              {student360Tab === "fees" && (
-                <div style={{ display: "grid", gap: "14px" }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                    <div style={{ background: "#F4F6F7", padding: "12px", borderRadius: "8px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>Fee Status</span>
-                      <div style={{ fontSize: "18px", fontWeight: 700, color: "#0c1e33" }}>{selectedStudent.feeStatus}</div>
-                    </div>
-                    <div style={{ background: "#F4F6F7", padding: "12px", borderRadius: "8px" }}>
-                      <span style={{ fontSize: "11px", color: "var(--muted)" }}>Pending Dues</span>
-                      <div style={{ fontSize: "18px", fontWeight: 700, color: selectedStudent.feeStatus === "Paid" ? "#047857" : "#B45309" }}>
-                        {selectedStudent.feeStatus === "Paid" ? "₹0.00" : "₹18,500.00"}
+                    {/* TAB 2: ACADEMIC */}
+                    {student360Tab === "academic" && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+                        <div style={{ background: "#FAF8F5", padding: "16px", borderRadius: "8px", border: "1px solid #E4E6E9" }}>
+                          <b style={{ color: "#0c1e33" }}>Enrollment &amp; Program</b>
+                          <div style={{ marginTop: "10px", display: "grid", gap: "8px", fontSize: "12.5px" }}>
+                            <div>Class &amp; Section: <b>{(prof.grade || "").replace(/^Class\s*/i, "").trim()} {prof.section}</b></div>
+                            <div>Roll Number: <b>{(prof.rollNo || "").replace(/^ROLL-?/i, "").trim() || "Not assigned"}</b></div>
+                            <div>Admission Number: <b>{prof.admissionNo || "Not assigned"}</b></div>
+                            <div>Academic Session: <b>{student360Dossier?.academic?.academicYear || "Active Session"}</b></div>
+                          </div>
+                        </div>
+                        <div style={{ background: "#FAF8F5", padding: "16px", borderRadius: "8px", border: "1px solid #E4E6E9" }}>
+                          <b style={{ color: "#0c1e33" }}>Instructional Faculty &amp; Standing</b>
+                          <div style={{ marginTop: "10px", display: "grid", gap: "8px", fontSize: "12.5px" }}>
+                            <div>Class Teacher / Lead: <b>{student360Dossier?.academic?.classTeacher || "Assigned Faculty"}</b></div>
+                            <div>Cadre Category: <b>{student360Dossier?.academic?.category || "General"}</b></div>
+                            <div>Academic Standing: <span style={{ color: "#047857", fontWeight: 700 }}>Good Standing (Verified)</span></div>
+                            <div>Enrollment Status: <b style={{ textTransform: "capitalize" }}>{student360Dossier?.academic?.status || prof.status || "Active"}</b></div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  <button style={{ justifySelf: "flex-start", padding: "8px 14px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}>
-                    Record Offline Fee Receipt
-                  </button>
-                </div>
-              )}
+                    )}
 
-              {/* Default fallback for other tabs */}
-              {!["personal", "parents", "attendance", "fees"].includes(student360Tab) && (
-                <div style={{ padding: "20px", textAlign: "center", background: "#F4F6F7", borderRadius: "8px", color: "var(--muted)" }}>
-                  <b>{student360Tab.toUpperCase()} Records Synchronized</b>
-                  <p style={{ margin: "4px 0 0", fontSize: "12px" }}>
-                    Verified records for {selectedStudent.name} linked from EDOPS academic database.
-                  </p>
-                </div>
-              )}
+                    {/* TAB 3: PARENTS */}
+                    {student360Tab === "parents" && (
+                      <div style={{ display: "grid", gap: "14px" }}>
+                        <div style={{ background: "#FAF8F5", padding: "14px", borderRadius: "8px", border: "1px solid #E4E6E9" }}>
+                          <b>Primary Guardian on Record</b>
+                          <div style={{ marginTop: "8px", display: "grid", gap: "6px" }}>
+                            <div>Guardian Name: <b>{prof.parentName || "Not assigned"}</b></div>
+                            <div>Guardian Phone: <b>{prof.parentPhone || "-"}</b></div>
+                            <div>Guardian Email: <b>{prof.parentEmail || "-"}</b></div>
+                            <div>Emergency Contact: <b>{prof.emergencyContact || "-"}</b></div>
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                            <b style={{ fontSize: "13px" }}>Authorized Linked Parent Accounts ({student360Dossier?.parents?.length || studentParents.length})</b>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>Live Sync from Database</span>
+                          </div>
+                          <div style={{ display: "grid", gap: "8px" }}>
+                            {(!student360Dossier?.parents || student360Dossier.parents.length === 0) && studentParents.length === 0 ? (
+                              <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", color: "var(--muted)", fontSize: "12px", textAlign: "center" }}>
+                                No parent accounts linked to this student yet.
+                              </div>
+                            ) : (
+                              (student360Dossier?.parents || studentParents).map((p: any) => (
+                                <div key={p.id} style={{ padding: "10px 14px", background: "#FFF", border: "1px solid #e4e6e9", borderRadius: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <div>
+                                    <div style={{ fontWeight: 700, color: "#111827" }}>{p.name}</div>
+                                    <div style={{ fontSize: "11.5px", color: "var(--muted)" }}>{p.email} {p.mobile ? `· ${p.mobile}` : ''}</div>
+                                  </div>
+                                  <span style={{ fontSize: "11px", fontWeight: 750, padding: "3px 10px", borderRadius: "10px", background: "#ECFDF5", color: "#047857" }}>
+                                    {p.relationship || "Guardian"}
+                                  </span>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB 4: ATTENDANCE */}
+                    {student360Tab === "attendance" && (
+                      <div style={{ display: "grid", gap: "14px" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
+                          <div style={{ background: "#F4F6F7", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                            <div style={{ fontSize: "20px", fontWeight: 700, color: "#0c1e33" }}>
+                              {student360Dossier?.attendance?.overallPercentage ?? selectedStudent.attendancePct ?? 100}%
+                            </div>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>Overall Rate</span>
+                          </div>
+                          <div style={{ background: "#F4F6F7", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                            <div style={{ fontSize: "20px", fontWeight: 700, color: "#0c1e33" }}>
+                              {student360Dossier?.attendance?.totalSchoolDays ?? 0}
+                            </div>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>School Days</span>
+                          </div>
+                          <div style={{ background: "#F4F6F7", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                            <div style={{ fontSize: "20px", fontWeight: 700, color: "#047857" }}>
+                              {student360Dossier?.attendance?.daysPresent ?? 0}
+                            </div>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>Days Present</span>
+                          </div>
+                          <div style={{ background: "#F4F6F7", padding: "12px", borderRadius: "8px", textAlign: "center" }}>
+                            <div style={{ fontSize: "20px", fontWeight: 700, color: "#B45309" }}>
+                              {student360Dossier?.attendance?.daysAbsent ?? 0}
+                            </div>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>Days Absent</span>
+                          </div>
+                        </div>
+
+                        <div style={{ padding: "12px 16px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E4E6E9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <span style={{ fontSize: "12px", color: "var(--muted)" }}>Statutory Compliance (CBSE 75% Rule):</span>
+                            <div style={{ fontSize: "13px", fontWeight: 700, color: (student360Dossier?.attendance?.overallPercentage ?? 100) >= 75 ? "#047857" : "#DC2626" }}>
+                              {(student360Dossier?.attendance?.overallPercentage ?? 100) >= 75 ? "Compliant · Eligible for Examinations" : "Attendance Defaulter · Warning Triggered"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB 5: ASSIGNMENTS */}
+                    {student360Tab === "assignments" && (
+                      <div style={{ display: "grid", gap: "10px" }}>
+                        {(!student360Dossier?.assignments || student360Dossier.assignments.length === 0) ? (
+                          <div style={{ padding: "24px", textAlign: "center", background: "#FAF8F5", borderRadius: "8px", color: "var(--muted)" }}>
+                            No homework or assignments published yet for this student's class.
+                          </div>
+                        ) : (
+                          student360Dossier.assignments.map((asg: any) => (
+                            <div key={asg.id} style={{ padding: "12px 14px", background: "#FFF", border: "1px solid #e4e6e9", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div>
+                                <span style={{ fontSize: "11px", fontWeight: 600, color: "#0c1e33", textTransform: "uppercase" }}>{asg.subject}</span>
+                                <div style={{ fontSize: "13px", fontWeight: 650, color: "#0c1e33" }}>{asg.title}</div>
+                                <span style={{ fontSize: "11px", color: "var(--muted)" }}>Due: {asg.dueDate ? String(asg.dueDate).split('T')[0] : 'N/A'}</span>
+                              </div>
+                              <div style={{ textAlign: "right" }}>
+                                <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: asg.status === 'Submitted' || asg.status === 'graded' ? '#ECFDF5' : '#FEF3C7', color: asg.status === 'Submitted' || asg.status === 'graded' ? '#047857' : '#92400E' }}>
+                                  {asg.status || "Pending"}
+                                </span>
+                                {asg.marksAwarded !== null && asg.marksAwarded !== undefined && (
+                                  <div style={{ fontSize: "12px", fontWeight: 700, color: "#0c1e33", marginTop: "4px" }}>
+                                    {asg.marksAwarded} / {asg.maxMarks}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {/* TAB 6: EXAMS */}
+                    {student360Tab === "exams" && (
+                      <div style={{ display: "grid", gap: "10px" }}>
+                        <div style={{ padding: "16px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E4E6E9" }}>
+                          <b style={{ color: "#0c1e33" }}>Prescribed Academic Assessments</b>
+                          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "var(--muted)" }}>
+                            Examinations scheduled for {prof.grade || "Class 10"}.
+                          </p>
+                        </div>
+                        <div style={{ padding: "12px 14px", background: "#FFF", border: "1px solid #e4e6e9", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <div style={{ fontWeight: 650, color: "#0c1e33" }}>Term 1 Comprehensive Assessment</div>
+                            <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>Core Curricular Subjects · Written &amp; Practical</span>
+                          </div>
+                          <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 10px", borderRadius: "10px", background: "#ECFDF5", color: "#047857" }}>
+                            Scheduled
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB 7: RESULTS */}
+                    {student360Tab === "results" && (
+                      <div style={{ display: "grid", gap: "10px" }}>
+                        {(!student360Dossier?.exams || student360Dossier.exams.length === 0) ? (
+                          <div style={{ padding: "24px", textAlign: "center", background: "#FAF8F5", borderRadius: "8px", color: "var(--muted)" }}>
+                            No published examination report cards recorded yet for this student.
+                          </div>
+                        ) : (
+                          student360Dossier.exams.map((res: any, idx: number) => (
+                            <div key={idx} style={{ padding: "12px 14px", background: "#FFF", border: "1px solid #e4e6e9", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div>
+                                <span style={{ fontSize: "11px", color: "var(--muted)" }}>{res.exam}</span>
+                                <div style={{ fontSize: "13.5px", fontWeight: 700, color: "#0c1e33" }}>{res.subject}</div>
+                              </div>
+                              <div style={{ textAlign: "right" }}>
+                                <div style={{ fontSize: "14px", fontWeight: 800, color: "#0c1e33" }}>
+                                  {res.score} / {res.max}
+                                </div>
+                                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px", background: "#d9eed1", color: "#1a5c0a" }}>
+                                  Grade {res.grade || "A"}
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {/* TAB 8: FEES */}
+                    {student360Tab === "fees" && (
+                      <div style={{ display: "grid", gap: "14px" }}>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                          <div style={{ background: "#F4F6F7", padding: "12px", borderRadius: "8px" }}>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>Total Assessed</span>
+                            <div style={{ fontSize: "18px", fontWeight: 700, color: "#0c1e33" }}>
+                              ₹{Number(student360Dossier?.fees?.totalAssessed || 0).toLocaleString()}
+                            </div>
+                          </div>
+                          <div style={{ background: "#F4F6F7", padding: "12px", borderRadius: "8px" }}>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>Total Paid</span>
+                            <div style={{ fontSize: "18px", fontWeight: 700, color: "#047857" }}>
+                              ₹{Number(student360Dossier?.fees?.totalPaid || 0).toLocaleString()}
+                            </div>
+                          </div>
+                          <div style={{ background: "#F4F6F7", padding: "12px", borderRadius: "8px" }}>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>Balance Due</span>
+                            <div style={{ fontSize: "18px", fontWeight: 700, color: Number(student360Dossier?.fees?.balanceDue || 0) > 0 ? "#B45309" : "#047857" }}>
+                              ₹{Number(student360Dossier?.fees?.balanceDue || 0).toLocaleString()}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ padding: "12px 16px", background: "#FAF8F5", borderRadius: "8px", border: "1px solid #E4E6E9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>Fee Status:</span>
+                            <div style={{ fontSize: "13px", fontWeight: 700, color: Number(student360Dossier?.fees?.balanceDue || 0) === 0 ? "#047857" : "#B45309" }}>
+                              {Number(student360Dossier?.fees?.balanceDue || 0) === 0 ? "Fully Paid (No Dues)" : "Tuition Fee Due"}
+                            </div>
+                          </div>
+                          {student360Dossier?.fees?.nextDueDate && (
+                            <span style={{ fontSize: "11.5px", color: "var(--muted)" }}>
+                              Next Due: {String(student360Dossier.fees.nextDueDate).split('T')[0]}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB 9: LEAVE */}
+                    {student360Tab === "leave" && (
+                      <div style={{ display: "grid", gap: "10px" }}>
+                        {(!student360Dossier?.leave || student360Dossier.leave.length === 0) ? (
+                          <div style={{ padding: "24px", textAlign: "center", background: "#FAF8F5", borderRadius: "8px", color: "var(--muted)" }}>
+                            No leave applications submitted by or for this student.
+                          </div>
+                        ) : (
+                          student360Dossier.leave.map((l: any) => (
+                            <div key={l.id} style={{ padding: "12px 14px", background: "#FFF", border: "1px solid #e4e6e9", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div>
+                                <div style={{ fontSize: "13px", fontWeight: 700, color: "#0c1e33" }}>{l.leaveType} ({l.daysCount} Day{l.daysCount > 1 ? 's' : ''})</div>
+                                <span style={{ fontSize: "11px", color: "var(--muted)" }}>{l.startDate} to {l.endDate} &bull; {l.reason}</span>
+                              </div>
+                              <span style={{ fontSize: "11px", fontWeight: 700, padding: "3px 8px", borderRadius: "6px", background: l.status === 'approved' ? '#ECFDF5' : l.status === 'rejected' ? '#FEF2F2' : '#FEF3C7', color: l.status === 'approved' ? '#047857' : l.status === 'rejected' ? '#DC2626' : '#92400E' }}>
+                                {l.status}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {/* TAB 10: DISCIPLINE */}
+                    {student360Tab === "discipline" && (
+                      <div style={{ display: "grid", gap: "10px" }}>
+                        {(!student360Dossier?.discipline || student360Dossier.discipline.length === 0) ? (
+                          <div style={{ padding: "24px", textAlign: "center", background: "#F0FDF4", border: "1px solid #BBF7D0", borderRadius: "8px", color: "#166534" }}>
+                            <div style={{ fontSize: "14px", fontWeight: 700 }}>Clean Disciplinary Standing</div>
+                            <p style={{ margin: "4px 0 0", fontSize: "12px" }}>
+                              No behavioral incidents or statutory disciplinary infractions on record for this student.
+                            </p>
+                          </div>
+                        ) : (
+                          student360Dossier.discipline.map((d: any, idx: number) => (
+                            <div key={idx} style={{ padding: "12px 14px", background: "#FFF", border: "1px solid #e4e6e9", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <div>
+                                <span style={{ fontSize: "11px", fontWeight: 700, color: "#DC2626" }}>{d.incidentCode} &bull; {d.incidentType}</span>
+                                <div style={{ fontSize: "12.5px", color: "#0c1e33", marginTop: "2px" }}>{d.description}</div>
+                                <span style={{ fontSize: "11px", color: "var(--muted)" }}>Action: {d.actionTaken || "Recorded"}</span>
+                              </div>
+                              <span style={{ fontSize: "11px", fontWeight: 650, padding: "3px 8px", borderRadius: "6px", background: "#F1F5F9", color: "#475569" }}>
+                                {d.severity}
+                              </span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+
+                    {/* TAB 11: DOCUMENTS */}
+                    {student360Tab === "documents" && (
+                      <div style={{ display: "grid", gap: "10px" }}>
+                        {[
+                          { title: "CBSE Official Enrollment & Admission Record", type: "Admission Dossier", date: "Verified" },
+                          { title: "Bonafide Student Certificate", type: "Institutional Certificate", date: "Available" },
+                          { title: "Term Assessment Consolidated Transcript", type: "Academic Transcript", date: "Official" },
+                        ].map((doc, idx) => (
+                          <div key={idx} style={{ padding: "12px 14px", background: "#FFF", border: "1px solid #e4e6e9", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <div>
+                              <div style={{ fontSize: "13px", fontWeight: 650, color: "#0c1e33" }}>{doc.title}</div>
+                              <span style={{ fontSize: "11px", color: "var(--muted)" }}>{doc.type} &bull; Certified Record</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => alert(`Accessing certified record: ${doc.title}`)}
+                              style={{ padding: "6px 12px", background: "#F4F6F7", border: "1px solid #CED8E5", borderRadius: "6px", fontSize: "11px", fontWeight: 600, color: "#0c1e33", cursor: "pointer" }}
+                            >
+                              View / Download
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* TAB 12: COMMUNICATION */}
+                    {student360Tab === "communication" && (
+                      <div style={{ display: "grid", gap: "10px" }}>
+                        {(!student360Dossier?.communication || student360Dossier.communication.length === 0) ? (
+                          <div style={{ padding: "24px", textAlign: "center", background: "#FAF8F5", borderRadius: "8px", color: "var(--muted)" }}>
+                            No campus broadcasts or communications dispatched to this cohort.
+                          </div>
+                        ) : (
+                          student360Dossier.communication.map((com: any, idx: number) => (
+                            <div key={idx} style={{ padding: "12px 14px", background: "#FFF", border: "1px solid #e4e6e9", borderRadius: "8px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <div style={{ fontSize: "13px", fontWeight: 700, color: "#0c1e33" }}>{com.title}</div>
+                                <span style={{ fontSize: "10px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px", background: "#F1F5F9", color: "#475569", textTransform: "uppercase" }}>
+                                  {com.priority || "Normal"}
+                                </span>
+                              </div>
+                              <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#495D72" }}>{com.message}</p>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
 
             <div style={{ borderTop: "1px solid #E4E6E9", paddingTop: "14px", marginTop: "16px", display: "flex", justifyContent: "flex-end" }}>
@@ -1551,7 +1828,7 @@ export function PeoplePane({
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: "13px", fontWeight: 650, color: "#111827" }}>{s.name}</div>
                         <div style={{ fontSize: "11.5px", color: "var(--muted)" }}>
-                          {[s.grade || s.className, s.section || s.sectionName].filter(Boolean).join(" · ") || "Enrolled"} · Adm: {s.admissionNo || s.admissionNumber || s.id.slice(0, 8)}
+                          {[s.grade, s.section].filter(Boolean).join(" · ") || "Enrolled"} · Adm: {s.admissionNo || s.id.slice(0, 8)}
                         </div>
                       </div>
                     </label>

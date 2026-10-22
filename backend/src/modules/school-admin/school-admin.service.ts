@@ -7,6 +7,7 @@ import { MailService } from '../notifications/mail.service';
 import { Membership, Organization } from '../tenants/tenant.entity';
 import {
   BatchFeeReminderDto,
+  BulkCreateCurriculumDto,
   CreateBroadcastDto,
   CreateCourseworkDto,
   CreateCurriculumNodeDto,
@@ -356,24 +357,18 @@ export class SchoolAdminService {
       const items = await manager.query(
         `SELECT
           u.id,
-          u.id as "userId",
           u.email,
           COALESCE(NULLIF(u.name, ''), split_part(u.email, '@', 1)) as "name",
+          COALESCE(u.phone, '') as "phone",
           sp.admission_number as "admissionNo",
-          sp.admission_number as "admissionNumber",
           COALESCE(e.roll_number, '') as "rollNo",
-          COALESCE(e.roll_number, '') as "rollNumber",
           COALESCE(s.name, '') as "section",
-          COALESCE(s.name, '') as "sectionName",
           COALESCE(p.name, '') as "grade",
-          COALESCE(p.name, '') as "className",
           CASE WHEN sp.status = 'active' THEN 'Active' ELSE COALESCE(sp.status, 'Active') END as "status",
           COALESCE(sp.gender, '') as "gender",
           COALESCE(sp.blood_group, '') as "bloodGroup",
           sp.guardian_name as "parentName",
-          sp.guardian_name as "guardianName",
           COALESCE(sp.guardian_phone, '') as "parentPhone",
-          COALESCE(sp.guardian_phone, '') as "guardianPhone",
           COALESCE(sp.dob::text, '') as "dob",
           COALESCE(sp.address, '') as "address",
           COALESCE(sp.emergency_contact, '') as "emergencyContact",
@@ -398,27 +393,21 @@ export class SchoolAdminService {
 
          SELECT
           i.id,
-          i.id as "userId",
           i.email,
           COALESCE(NULLIF(i.name, ''), split_part(i.email, '@', 1)) as "name",
+          COALESCE(i.phone, '') as "phone",
           NULL::text as "admissionNo",
-          NULL::text as "admissionNumber",
           '' as "rollNo",
-          '' as "rollNumber",
           COALESCE(sec.name, '') as "section",
-          COALESCE(sec.name, '') as "sectionName",
           COALESCE(prog.name, '') as "grade",
-          COALESCE(prog.name, '') as "className",
           'Pending Invite' as "status",
           '' as "gender",
           '' as "bloodGroup",
           NULL::text as "parentName",
-          NULL::text as "guardianName",
-          COALESCE(i.phone, '') as "parentPhone",
-          COALESCE(i.phone, '') as "guardianPhone",
+          '' as "parentPhone",
           '' as "dob",
           '' as "address",
-          COALESCE(i.phone, '') as "emergencyContact",
+          '' as "emergencyContact",
           NULL as "house",
           'Pending' as "feeStatus",
           NULL as "academicStatus",
@@ -482,8 +471,11 @@ export class SchoolAdminService {
         );
         const yearId = academicYear?.id || (await manager.query('SELECT id FROM academic_years WHERE organization_id = $1 ORDER BY start_date DESC LIMIT 1', [orgId]))[0]?.id;
         if (yearId) {
-          const [cnt] = await manager.query('SELECT COUNT(*)::int as count FROM enrollments WHERE organization_id = $1', [orgId]);
-          rollNo = `ROLL-${String((cnt?.count || 0) + 1).padStart(3, '0')}`;
+          const [cnt] = await manager.query(
+            'SELECT COUNT(*)::int as count FROM enrollments WHERE organization_id = $1 AND section_id = $2',
+            [orgId, dto.sectionId],
+          );
+          rollNo = dto.rollNo?.trim() || String((cnt?.count || 0) + 1).padStart(3, '0');
           await manager.query(
             `INSERT INTO enrollments (organization_id, student_user_id, section_id, academic_year_id, roll_number, status)
              VALUES ($1, $2, $3, $4, $5, 'active')
@@ -496,11 +488,16 @@ export class SchoolAdminService {
       // 4. Student Profile with invitation_status = 'not_sent'
       const [admCount] = await manager.query('SELECT COUNT(*)::int as count FROM student_profiles WHERE organization_id = $1', [orgId]);
       const admNo = dto.admissionNo?.trim() || `ADM-${String((admCount?.count || 0) + 1).padStart(4, '0')}`;
+      const gender = dto.gender?.trim() || 'Not Specified';
+      const dob = dto.dob?.trim() || null;
       await manager.query(
-        `INSERT INTO student_profiles (organization_id, student_user_id, admission_number, status, invitation_status)
-         VALUES ($1, $2, $3, 'active', 'not_sent')
-         ON CONFLICT (organization_id, student_user_id) DO UPDATE SET invitation_status = 'not_sent'`,
-        [orgId, user.id, admNo]
+        `INSERT INTO student_profiles (organization_id, student_user_id, admission_number, gender, dob, emergency_contact, status, invitation_status)
+         VALUES ($1, $2, $3, $4, $5, '', 'active', 'not_sent')
+         ON CONFLICT (organization_id, student_user_id) DO UPDATE SET
+           gender = CASE WHEN EXCLUDED.gender <> 'Not Specified' THEN EXCLUDED.gender ELSE student_profiles.gender END,
+           dob = COALESCE(EXCLUDED.dob, student_profiles.dob),
+           invitation_status = 'not_sent'`,
+        [orgId, user.id, admNo, gender, dob]
       );
 
       await this.audit.record(manager, {
@@ -605,20 +602,23 @@ export class SchoolAdminService {
 
       const [student] = await manager.query(
         `SELECT
-          u.id as "userId", u.email,
+          u.id,
+          u.email,
           COALESCE(NULLIF(u.name, ''), split_part(u.email, '@', 1)) as "name",
-          sp.admission_number as "admissionNumber",
+          COALESCE(u.phone, '') as "phone",
+          sp.admission_number as "admissionNo",
           COALESCE(sp.dob::text, '') as "dob",
-          COALESCE(sp.gender, '') as "gender",
+          COALESCE(sp.gender, 'Not Specified') as "gender",
           COALESCE(sp.blood_group, '') as "bloodGroup",
-          COALESCE(sp.guardian_name, '') as "guardianName",
-          COALESCE(sp.guardian_phone, '') as "guardianPhone",
-          COALESCE(sp.guardian_email, '') as "guardianEmail",
+          COALESCE(sp.guardian_name, '') as "parentName",
+          COALESCE(sp.guardian_phone, '') as "parentPhone",
+          COALESCE(sp.guardian_email, '') as "parentEmail",
           COALESCE(sp.address, '') as "address",
+          COALESCE(sp.emergency_contact, '') as "emergencyContact",
           COALESCE(sp.medical_notes, '') as "medicalNotes",
-          COALESCE(e.roll_number, '') as "rollNumber",
-          COALESCE(s.name, '') as "sectionName",
-          COALESCE(p.name, '') as "className"
+          COALESCE(e.roll_number, '') as "rollNo",
+          COALESCE(s.name, '') as "section",
+          COALESCE(p.name, '') as "grade"
          FROM users u
          JOIN memberships m ON m.user_id = u.id AND m.organization_id = $1
          LEFT JOIN student_profiles sp ON sp.student_user_id = u.id AND sp.organization_id = $1
@@ -631,10 +631,118 @@ export class SchoolAdminService {
 
       if (!student) throw new NotFoundException('Student profile not found');
 
-      const [attendance] = await manager.query(`SELECT COUNT(*)::int AS "totalSchoolDays",COUNT(*) FILTER (WHERE ar.status IN ('present','late'))::int AS "daysPresent",COUNT(*) FILTER (WHERE ar.status='absent')::int AS "daysAbsent",ROUND(AVG(CASE WHEN ar.status IN ('present','late') THEN 100.0 ELSE 0.0 END),1) AS "overallPercentage" FROM attendance_records ar JOIN attendance_sessions ats ON ats.id=ar.attendance_session_id AND ats.organization_id=ar.organization_id WHERE ar.organization_id=$1 AND ar.student_id=$2 AND ats.status='finalized'`, [orgId,studentUserId]);
-      const [fees] = await manager.query(`SELECT COALESCE(SUM(total_due),0) AS "totalAssessed",COALESCE(SUM(amount_paid),0) AS "totalPaid",COALESCE(SUM(amount_pending),0) AS "balanceDue",MIN(due_date) FILTER (WHERE amount_pending>0) AS "nextDueDate" FROM student_fee_dues WHERE organization_id=$1 AND student_user_id=$2`, [orgId,studentUserId]);
-      const exams = await manager.query(`SELECT exam_name AS exam,subject_name AS subject,marks_obtained AS score,max_marks AS max,grade FROM principal_exam_results WHERE organization_id=$1 AND student_user_id=$2 AND status='Published' ORDER BY published_at DESC`, [orgId,studentUserId]);
-      return { profile:student,academic:{},attendance,fees,exams,documents:[] };
+      const [academic] = await manager.query(
+        `SELECT
+           e.id as "enrollmentId",
+           COALESCE(ay.name, 'Current Academic Session') as "academicYear",
+           COALESCE(sp.category, 'General') as "category",
+           COALESCE(sp.status, 'active') as "status",
+           (SELECT tu.name FROM class_subject_assignments csa JOIN users tu ON tu.id = csa.teacher_user_id WHERE csa.organization_id = $1 AND csa.section_id = e.section_id LIMIT 1) as "classTeacher"
+         FROM enrollments e
+         LEFT JOIN sections s ON s.id = e.section_id
+         LEFT JOIN programs p ON p.id = s.program_id
+         LEFT JOIN academic_years ay ON ay.id = e.academic_year_id
+         LEFT JOIN student_profiles sp ON sp.student_user_id = e.student_user_id AND sp.organization_id = e.organization_id
+         WHERE e.organization_id = $1 AND e.student_user_id = $2
+         ORDER BY e.created_at DESC LIMIT 1`,
+        [orgId, studentUserId]
+      );
+
+      const parents = await manager.query(
+        `SELECT
+           u.id, u.name, u.email, COALESCE(u.phone, '') as "mobile",
+           COALESCE(psr.relationship, 'Guardian') as "relationship",
+           true as "isPrimary"
+         FROM parent_student_relationships psr
+         JOIN users u ON u.id = psr.parent_id
+         WHERE psr.school_id = $1 AND psr.student_id = $2`,
+        [orgId, studentUserId]
+      );
+
+      const [attendance] = await manager.query(
+        `SELECT
+           COUNT(*)::int AS "totalSchoolDays",
+           COUNT(*) FILTER (WHERE ar.status IN ('present','late'))::int AS "daysPresent",
+           COUNT(*) FILTER (WHERE ar.status='absent')::int AS "daysAbsent",
+           ROUND(AVG(CASE WHEN ar.status IN ('present','late') THEN 100.0 ELSE 0.0 END),1) AS "overallPercentage"
+         FROM attendance_records ar
+         WHERE ar.organization_id = $1 AND ar.student_id = $2`,
+        [orgId, studentUserId]
+      );
+
+      const assignments = await manager.query(
+        `SELECT
+           a.id, a.title, s.name as "subject", a.due_at as "dueDate", a.max_score as "maxMarks",
+           COALESCE(sub.status, 'pending') as "status", sub.score as "marksAwarded", sub.submitted_at as "submittedAt"
+         FROM assignments a
+         JOIN enrollments e ON e.student_user_id = $2 AND e.organization_id = $1 AND e.status = 'active'
+         JOIN subjects s ON s.id = a.subject_id
+         LEFT JOIN submissions sub ON sub.assignment_id = a.id AND sub.student_id = $2 AND sub.organization_id = $1
+         WHERE a.organization_id = $1 AND a.section_id = e.section_id
+         ORDER BY a.created_at DESC LIMIT 10`,
+        [orgId, studentUserId]
+      );
+
+      const [fees] = await manager.query(
+        `SELECT
+           COALESCE(SUM(total_due),0) AS "totalAssessed",
+           COALESCE(SUM(amount_paid),0) AS "totalPaid",
+           COALESCE(SUM(amount_pending),0) AS "balanceDue",
+           MIN(due_date) FILTER (WHERE amount_pending>0) AS "nextDueDate"
+         FROM student_fee_dues
+         WHERE organization_id=$1 AND student_user_id=$2`,
+        [orgId, studentUserId]
+      );
+
+      const exams = await manager.query(
+        `SELECT exam_name AS exam, subject_name AS subject, marks_obtained AS score, max_marks AS max, grade
+         FROM principal_exam_results
+         WHERE organization_id=$1 AND student_user_id=$2 AND status='Published'
+         ORDER BY published_at DESC LIMIT 10`,
+        [orgId, studentUserId]
+      );
+
+      const leave = await manager.query(
+        `SELECT id, leave_type as "leaveType", start_date as "startDate", end_date as "endDate", days_count as "daysCount", reason, status
+         FROM leave_requests
+         WHERE organization_id = $1 AND user_id = $2
+         ORDER BY created_at DESC LIMIT 10`,
+        [orgId, studentUserId]
+      );
+
+      const discipline = await manager.query(
+        `SELECT incident_code as "incidentCode", incident_type as "incidentType", severity, description, action_taken as "actionTaken", status, incident_date as "incidentDate"
+         FROM discipline_incidents
+         WHERE organization_id = $1 AND student_user_id = $2
+         ORDER BY incident_date DESC LIMIT 10`,
+        [orgId, studentUserId]
+      );
+
+      const broadcasts = await manager.query(
+        `SELECT title, message, target_audience as "audience", priority, created_at as "createdAt"
+         FROM school_broadcasts
+         WHERE organization_id = $1
+         ORDER BY created_at DESC LIMIT 5`,
+        [orgId]
+      );
+
+      return {
+        profile: student,
+        academic: academic || {
+          academicYear: 'Current Academic Session',
+          category: 'General',
+          classTeacher: 'Class Faculty Lead',
+        },
+        parents: parents || [],
+        attendance: attendance || { totalSchoolDays: 0, daysPresent: 0, daysAbsent: 0, overallPercentage: 100 },
+        assignments: assignments || [],
+        exams: exams || [],
+        fees: fees || { totalAssessed: 0, totalPaid: 0, balanceDue: 0 },
+        leave: leave || [],
+        discipline: discipline || [],
+        communication: broadcasts || [],
+        documents: [],
+      };
     });
   }
 
@@ -1090,7 +1198,16 @@ export class SchoolAdminService {
         [orgId],
       );
 
-      const curriculum=await manager.query(`SELECT id,grade,subject_name AS subject,unit_name AS unit,chapter_name AS chapter,actual_completion_percentage AS "completionPct",status FROM principal_curriculum_nodes WHERE organization_id=$1 ORDER BY grade,subject_name,created_at`,[orgId]);
+      const curriculum = await manager.query(
+        `SELECT id, grade, subject_id AS "subjectId", subject_name AS subject, unit_name AS unit,
+                chapter_name AS chapter, expected_completion_week AS "expectedWeek",
+                actual_completion_percentage AS "completionPct", status,
+                learning_outcomes AS "learningOutcomes", created_at AS "createdAt"
+         FROM principal_curriculum_nodes
+         WHERE organization_id = $1
+         ORDER BY grade, subject_name, expected_completion_week ASC, created_at ASC`,
+        [orgId],
+      );
       const events=await manager.query(`SELECT id,title,event_date AS date,start_time AS time FROM ptm_schedules WHERE organization_id=$1 ORDER BY event_date`,[orgId]);
       const programs = await manager.query(
         `SELECT id, name, sequence_order as "sequenceOrder" FROM programs WHERE organization_id = $1 ORDER BY sequence_order, name`,
@@ -1150,6 +1267,103 @@ export class SchoolAdminService {
         ],
       );
       return node;
+    });
+  }
+
+  async bulkCreateCurriculumNodes(orgId: string, actor: User, dto: BulkCreateCurriculumDto) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+
+      const [currentYear] = await manager.query(
+        `SELECT id FROM academic_years WHERE organization_id = $1 AND is_current = true LIMIT 1`,
+        [orgId],
+      );
+
+      let subjectId = dto.subjectId || null;
+      if (!subjectId && dto.subjectName) {
+        const [subRow] = await manager.query(
+          `SELECT id FROM subjects WHERE organization_id = $1 AND name ILIKE $2 LIMIT 1`,
+          [orgId, dto.subjectName.trim()],
+        );
+        if (subRow) subjectId = subRow.id;
+      }
+
+      const formattedGrade = dto.grade.trim().startsWith('Class ')
+        ? dto.grade.trim()
+        : `Class ${dto.grade.trim()}`;
+
+      const savedNodes = [];
+      for (const ch of dto.chapters || []) {
+        if (!ch.chapterName || !ch.chapterName.trim()) continue;
+
+        if (ch.id) {
+          // Update existing chapter node
+          const [updated] = await manager.query(
+            `UPDATE principal_curriculum_nodes
+             SET unit_name = $1, chapter_name = $2, expected_completion_week = $3,
+                 learning_outcomes = $4, subject_id = COALESCE($5, subject_id)
+             WHERE id = $6 AND organization_id = $7
+             RETURNING id, grade, subject_id AS "subjectId", subject_name AS subject, unit_name AS unit,
+                       chapter_name AS chapter, expected_completion_week AS "expectedWeek",
+                       actual_completion_percentage AS "completionPct", status,
+                       learning_outcomes AS "learningOutcomes"`,
+            [
+              ch.unitName?.trim() || 'General',
+              ch.chapterName.trim(),
+              ch.expectedCompletionWeek || 10,
+              ch.learningOutcomes || [],
+              subjectId,
+              ch.id,
+              orgId,
+            ],
+          );
+          if (updated) savedNodes.push(updated);
+        } else {
+          // Insert new chapter node
+          const [inserted] = await manager.query(
+            `INSERT INTO principal_curriculum_nodes (
+               organization_id, academic_year_id, board, grade, subject_id, subject_name,
+               unit_name, chapter_name, expected_completion_week, actual_completion_percentage,
+               learning_outcomes, status
+             ) VALUES ($1, $2, 'CBSE', $3, $4, $5, $6, $7, $8, 0, $9, 'On Track')
+             RETURNING id, grade, subject_id AS "subjectId", subject_name AS subject, unit_name AS unit,
+                       chapter_name AS chapter, expected_completion_week AS "expectedWeek",
+                       actual_completion_percentage AS "completionPct", status,
+                       learning_outcomes AS "learningOutcomes"`,
+            [
+              orgId,
+              currentYear?.id || null,
+              formattedGrade,
+              subjectId,
+              dto.subjectName.trim(),
+              ch.unitName?.trim() || 'General',
+              ch.chapterName.trim(),
+              ch.expectedCompletionWeek || 10,
+              ch.learningOutcomes || [],
+            ],
+          );
+          if (inserted) savedNodes.push(inserted);
+        }
+      }
+
+      return {
+        success: true,
+        count: savedNodes.length,
+        grade: formattedGrade,
+        subjectName: dto.subjectName,
+        chapters: savedNodes,
+      };
+    });
+  }
+
+  async deleteCurriculumNode(orgId: string, actor: User, chapterId: string) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+      await manager.query(
+        `DELETE FROM principal_curriculum_nodes WHERE id = $1 AND organization_id = $2`,
+        [chapterId, orgId],
+      );
+      return { success: true, chapterId };
     });
   }
 

@@ -34,7 +34,10 @@ h1,h2,h3 { letter-spacing: -.025em; }
 button,input,select,textarea { font: inherit; }
 button { transition: background .15s, border-color .15s, box-shadow .15s; }
 button:disabled { cursor: not-allowed; }
-button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible { outline: 3px solid rgba(6, 78, 59, 0.35); outline-offset: 3px; }
+button:focus-visible,summary:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[role="button"]:focus-visible {
+  outline: 2px solid #0c1e33 !important;
+  outline-offset: 2px !important;
+}
 svg { flex-shrink: 0; }
 .eyebrow,.date-line,.section-kicker { color: var(--muted); font-size: 11px; font-weight: 650; letter-spacing: .07em; }
 .topbar { height: 72px; grid-template-columns: 212px 1fr auto; padding: 0 28px; gap: 24px; background: #fff; z-index: 35; }
@@ -1014,6 +1017,12 @@ table {
 }
 
 /* Mobile Drawer Overlay & Content */
+html:has(.workspace-drawer-backdrop),
+body:has(.workspace-drawer-backdrop),
+html:has(.modal-backdrop),
+body:has(.modal-backdrop) {
+  overflow: hidden !important;
+}
 .workspace-drawer-backdrop {
   position: fixed;
   inset: 0;
@@ -1027,6 +1036,7 @@ table {
   backdrop-filter: blur(4px);
   border: 0;
   cursor: pointer;
+  touch-action: none;
 }
 .workspace-drawer {
   position: relative;

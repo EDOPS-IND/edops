@@ -3,6 +3,7 @@ import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedRequest } from '../../common/auth.guard';
 import {
   BatchFeeReminderDto,
+  BulkCreateCurriculumDto,
   CreateBroadcastDto,
   CreateCourseworkDto,
   CreateCurriculumNodeDto,
@@ -170,6 +171,26 @@ export class SchoolAdminController {
     @Body() dto: CreateCurriculumNodeDto,
   ) {
     return this.service.createCurriculumNode(orgId, req.user, dto);
+  }
+
+  @Post('curriculum/bulk')
+  @ApiOperation({ summary: 'Bulk create or update curriculum chapters for a class and subject' })
+  bulkCreateCurriculum(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: BulkCreateCurriculumDto,
+  ) {
+    return this.service.bulkCreateCurriculumNodes(orgId, req.user, dto);
+  }
+
+  @Delete('curriculum/:chapterId')
+  @ApiOperation({ summary: 'Delete a curriculum chapter node' })
+  deleteCurriculum(
+    @Param('organizationId', ParseUUIDPipe) orgId: string,
+    @Param('chapterId', ParseUUIDPipe) chapterId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.deleteCurriculumNode(orgId, req.user, chapterId);
   }
 
   @Get('timetable')
