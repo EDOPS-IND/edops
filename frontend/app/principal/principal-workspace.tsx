@@ -115,6 +115,8 @@ export function PrincipalWorkspace({
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchModalOpen((prev) => !prev);
+      } else if (e.key === "Escape") {
+        setProfileMenuOpen(false);
       }
     };
     window.addEventListener("keydown", handleGlobalKey);
@@ -758,6 +760,7 @@ export function PrincipalWorkspace({
 
             {/* Academic Alerts */}
             <button
+              type="button"
               onClick={() => navigateTo("alerts")}
               style={{
                 all: "unset",
@@ -774,6 +777,7 @@ export function PrincipalWorkspace({
                 position: "relative",
               }}
               title="Academic Alerts"
+              aria-label="Academic Alerts"
             >
               <Bell size={15} style={{ color: "#0c1e33" }} />
               <span style={{ position: "absolute", top: "7px", right: "7px", width: "6px", height: "6px", borderRadius: "50%", background: "#E84040" }} />

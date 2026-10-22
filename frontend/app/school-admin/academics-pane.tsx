@@ -5,6 +5,8 @@ import {
   getSchoolAdminStudents,
   batchPromoteStudents,
   createSchoolAdminCurriculum,
+  bulkCreateCurriculumChapters,
+  deleteCurriculumChapter,
 } from '../edops-api';
 import {
   BookOpen,
@@ -20,6 +22,12 @@ import {
   Users,
   Award,
   ChevronRight,
+  Trash2,
+  X,
+  Check,
+  FileText,
+  List,
+  Grid,
 } from 'lucide-react';
 
 const S = {
@@ -80,6 +88,23 @@ export function AcademicsPane({
   const [chapterWeek, setChapterWeek] = useState('10');
   const [chapterOutcomes, setChapterOutcomes] = useState('');
   const [chapterBusy, setChapterBusy] = useState(false);
+
+  // Curriculum Subject Grid & Bulk Builder state
+  const [selectedClassGrade, setSelectedClassGrade] = useState<string>('');
+  const [activeModalSubject, setActiveModalSubject] = useState<any | null>(null);
+  const [bulkRows, setBulkRows] = useState<Array<{
+    id?: string;
+    unitName: string;
+    chapterName: string;
+    expectedCompletionWeek: string;
+    learningOutcomes: string;
+  }>>([
+    { unitName: 'Unit 1', chapterName: '', expectedCompletionWeek: '1', learningOutcomes: '' },
+    { unitName: 'Unit 1', chapterName: '', expectedCompletionWeek: '2', learningOutcomes: '' },
+    { unitName: 'Unit 2', chapterName: '', expectedCompletionWeek: '3', learningOutcomes: '' },
+  ]);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [curriculumViewMode, setCurriculumViewMode] = useState<'grid' | 'table'>('grid');
 
   const load = async () => {
     if (!organizationId) {
@@ -142,6 +167,62 @@ export function AcademicsPane({
       setError(err?.message || 'Failed to save curriculum chapter');
     } finally {
       setChapterBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    if (programs.length > 0 && !selectedClassGrade) {
+      setSelectedClassGrade(programs[0].name);
+    }
+  }, [programs, selectedClassGrade]);
+
+  const handleBulkSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!organizationId || !selectedClassGrade || !activeModalSubject) return;
+    const validChapters = bulkRows.filter((r) => r.chapterName.trim().length > 0);
+    if (validChapters.length === 0) {
+      setError('Please provide at least one chapter name.');
+      return;
+    }
+    setBulkSaving(true);
+    setError('');
+    try {
+      await bulkCreateCurriculumChapters(organizationId, {
+        grade: selectedClassGrade.startsWith('Class ') ? selectedClassGrade : `Class ${selectedClassGrade}`,
+        subjectId: activeModalSubject.id,
+        subjectName: activeModalSubject.name,
+        chapters: validChapters.map((r) => ({
+          id: r.id || undefined,
+          unitName: r.unitName.trim() || 'General Unit',
+          chapterName: r.chapterName.trim(),
+          expectedCompletionWeek: Number(r.expectedCompletionWeek) || 10,
+          learningOutcomes: r.learningOutcomes
+            ? r.learningOutcomes.split(',').map((s) => s.trim()).filter(Boolean)
+            : [],
+        })),
+      });
+      setNotice(`✓ Saved ${validChapters.length} curriculum chapters for ${selectedClassGrade} - ${activeModalSubject.name}.`);
+      setActiveModalSubject(null);
+      setBulkRows([
+        { unitName: 'Unit 1', chapterName: '', expectedCompletionWeek: '1', learningOutcomes: '' },
+      ]);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save chapters');
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
+  const handleDeleteChapter = async (chapterId: string) => {
+    if (!organizationId || !chapterId) return;
+    if (!confirm('Are you sure you want to delete this chapter?')) return;
+    try {
+      await deleteCurriculumChapter(organizationId, chapterId);
+      setNotice('✓ Chapter removed.');
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete chapter');
     }
   };
 
@@ -632,184 +713,672 @@ export function AcademicsPane({
 
       {/* Curriculum & Learning Outcomes */}
       {tab === 'curriculum' && (
-        <div style={{ display: 'grid', gap: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'grid', gap: '20px' }}>
+          {/* Header & Controls */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: S.navy }}>Curriculum Syllabus &amp; Learning Outcomes</h3>
-              <p style={{ margin: '2px 0 0', fontSize: '12px', color: S.slate }}>Board pacing, expected completion weeks, and tracked syllabus execution.</p>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: S.navy }}>Curriculum Syllabus &amp; Subject Registers</h3>
+              <p style={{ margin: '4px 0 0', fontSize: '13px', color: S.slate }}>
+                Select a class to view all assigned subjects in a grid, and manage their complete chapter breakdown in one shot.
+              </p>
             </div>
-            <button
-              onClick={() => {
-                setShowAddChapter((v) => !v);
-                if (!chapterGrade && programs.length > 0) setChapterGrade(programs[0].name);
-                if (!chapterSubjectName && subjects.length > 0) {
-                  setChapterSubjectId(subjects[0].id);
-                  setChapterSubjectName(subjects[0].name);
-                }
-              }}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '8px',
-                background: showAddChapter ? '#f4f6f7' : S.navy,
-                color: showAddChapter ? S.navy : '#FFFFFF',
-                border: `1px solid ${S.border}`,
-                fontSize: '12.5px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              {showAddChapter ? '✕ Cancel' : '+ Add Syllabus Chapter'}
-            </button>
-          </div>
-
-          {showAddChapter && (
-            <form onSubmit={handleSaveCurriculumChapter} style={{ background: '#FFFFFF', border: `1px solid ${S.border}`, borderRadius: '10px', padding: '20px', display: 'grid', gap: '14px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
-                <label style={{ display: 'grid', gap: '4px', fontSize: '12px', fontWeight: 600, color: S.navy }}>
-                  <span>Class <span style={{ color: '#D92D20' }}>*</span></span>
-                  <select
-                    required
-                    value={chapterGrade}
-                    onChange={(e) => setChapterGrade(e.target.value)}
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: `1px solid ${S.border}`, fontSize: '13px', background: '#FFFFFF' }}
-                  >
-                    <option value="">Select class...</option>
-                    {programs.map((p: any) => (
-                      <option key={p.id} value={p.name}>{p.name}</option>
-                    ))}
-                    {programs.length === 0 && (
-                      <>
-                        <option value="Class 9">Class 9</option>
-                        <option value="Class 10">Class 10</option>
-                        <option value="Class 11">Class 11</option>
-                        <option value="Class 12">Class 12</option>
-                      </>
-                    )}
-                  </select>
-                </label>
-
-                <label style={{ display: 'grid', gap: '4px', fontSize: '12px', fontWeight: 600, color: S.navy }}>
-                  <span>Subject <span style={{ color: '#D92D20' }}>*</span></span>
-                  <select
-                    required
-                    value={chapterSubjectId}
-                    onChange={(e) => {
-                      setChapterSubjectId(e.target.value);
-                      const sub = subjects.find((s: any) => s.id === e.target.value);
-                      if (sub) setChapterSubjectName(sub.name);
-                    }}
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: `1px solid ${S.border}`, fontSize: '13px', background: '#FFFFFF' }}
-                  >
-                    <option value="">Select subject...</option>
-                    {subjects.map((s: any) => (
-                      <option key={s.id} value={s.id}>{s.name} ({s.code || 'SUB'})</option>
-                    ))}
-                  </select>
-                </label>
-
-                <label style={{ display: 'grid', gap: '4px', fontSize: '12px', fontWeight: 600, color: S.navy }}>
-                  <span>Unit Name</span>
-                  <input
-                    type="text"
-                    value={chapterUnit}
-                    onChange={(e) => setChapterUnit(e.target.value)}
-                    placeholder="e.g. Unit 1: Algebra"
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: `1px solid ${S.border}`, fontSize: '13px' }}
-                  />
-                </label>
-
-                <label style={{ display: 'grid', gap: '4px', fontSize: '12px', fontWeight: 600, color: S.navy }}>
-                  <span>Chapter Name <span style={{ color: '#D92D20' }}>*</span></span>
-                  <input
-                    type="text"
-                    required
-                    value={chapterName}
-                    onChange={(e) => setChapterName(e.target.value)}
-                    placeholder="e.g. Quadratic Equations"
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: `1px solid ${S.border}`, fontSize: '13px' }}
-                  />
-                </label>
-
-                <label style={{ display: 'grid', gap: '4px', fontSize: '12px', fontWeight: 600, color: S.navy }}>
-                  <span>Expected Completion Week (1–52)</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="52"
-                    value={chapterWeek}
-                    onChange={(e) => setChapterWeek(e.target.value)}
-                    style={{ padding: '8px 10px', borderRadius: '6px', border: `1px solid ${S.border}`, fontSize: '13px' }}
-                  />
-                </label>
-              </div>
-
-              <label style={{ display: 'grid', gap: '4px', fontSize: '12px', fontWeight: 600, color: S.navy }}>
-                <span>Learning Outcomes (comma-separated)</span>
-                <input
-                  type="text"
-                  value={chapterOutcomes}
-                  onChange={(e) => setChapterOutcomes(e.target.value)}
-                  placeholder="e.g. Standard form ax^2+bx+c=0, Quadratic formula, Word problems"
-                  style={{ padding: '8px 10px', borderRadius: '6px', border: `1px solid ${S.border}`, fontSize: '13px' }}
-                />
-              </label>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', background: S.chip, borderRadius: '8px', padding: '3px', border: `1px solid ${S.border}` }}>
                 <button
                   type="button"
-                  onClick={() => setShowAddChapter(false)}
-                  style={{ padding: '8px 14px', borderRadius: '6px', border: `1px solid ${S.border}`, background: '#FFFFFF', fontSize: '12.5px', fontWeight: 600, cursor: 'pointer' }}
+                  onClick={() => setCurriculumViewMode('grid')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: curriculumViewMode === 'grid' ? '#FFFFFF' : 'transparent',
+                    color: curriculumViewMode === 'grid' ? S.navy : S.slate,
+                    fontWeight: curriculumViewMode === 'grid' ? 700 : 500,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    boxShadow: curriculumViewMode === 'grid' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  }}
                 >
-                  Cancel
+                  <Grid size={14} /> Subject Grid
                 </button>
                 <button
-                  type="submit"
-                  disabled={chapterBusy}
-                  style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: S.navy, color: '#FFFFFF', fontSize: '12.5px', fontWeight: 600, cursor: chapterBusy ? 'not-allowed' : 'pointer' }}
+                  type="button"
+                  onClick={() => setCurriculumViewMode('table')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: curriculumViewMode === 'table' ? '#FFFFFF' : 'transparent',
+                    color: curriculumViewMode === 'table' ? S.navy : S.slate,
+                    fontWeight: curriculumViewMode === 'table' ? 700 : 500,
+                    fontSize: '12px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    boxShadow: curriculumViewMode === 'table' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                  }}
                 >
-                  {chapterBusy ? 'Saving...' : 'Save Chapter'}
+                  <List size={14} /> All Registers
                 </button>
               </div>
-            </form>
-          )}
-
-          <div style={{ background: '#FFFFFF', border: `1px solid ${S.border}`, borderRadius: '10px', padding: '20px' }}>
-            <h4 style={{ margin: '0 0 14px', fontSize: '15px', fontWeight: 600, color: S.navy }}>Saved Curriculum Registers</h4>
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-                <thead>
-                  <tr style={{ borderBottom: `2px solid ${S.border}`, color: S.slate }}>
-                    <th style={{ padding: '10px' }}>Grade</th>
-                    <th style={{ padding: '10px' }}>Subject</th>
-                    <th style={{ padding: '10px' }}>Chapter / Unit</th>
-                    <th style={{ padding: '10px' }}>Completion Pacing</th>
-                    <th style={{ padding: '10px' }}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {curriculum.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{ padding: '24px', textAlign: 'center', color: S.slate }}>No curriculum modules saved yet.</td>
-                    </tr>
-                  ) : (
-                    curriculum.map((c: any, i: number) => (
-                      <tr key={i} style={{ borderBottom: `1px solid ${S.chip}` }}>
-                        <td style={{ padding: '12px 10px', fontWeight: 600, color: S.navy }}>{c.grade}</td>
-                        <td style={{ padding: '12px 10px', color: S.slate }}>{c.subject}</td>
-                        <td style={{ padding: '12px 10px', color: S.navy }}>{c.chapter}</td>
-                        <td style={{ padding: '12px 10px', fontWeight: 600, color: S.navy }}>{c.completionPct || 0}%</td>
-                        <td style={{ padding: '12px 10px' }}>
-                          <span style={{ padding: '3px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, background: S.greenBg, color: S.greenDk }}>
-                            {c.status || 'Active'}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
             </div>
           </div>
+
+          {/* 1. Class Selector Pill Strip */}
+          <div style={{ background: '#FFFFFF', border: `1px solid ${S.border}`, borderRadius: '10px', padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '10px', overflowX: 'auto' }}>
+            <span style={{ fontSize: '12.5px', fontWeight: 700, color: S.navy, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Layers size={15} /> Select Class:
+            </span>
+            <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', flex: 1, paddingBottom: '2px' }}>
+              {programs.length === 0 ? (
+                <span style={{ fontSize: '12px', color: S.slate }}>No classes created yet. Please create classes first.</span>
+              ) : (
+                programs.map((p: any) => {
+                  const isSelected = selectedClassGrade === p.name || (!selectedClassGrade && p === programs[0]);
+                  const gradeChapters = curriculum.filter(
+                    (c: any) =>
+                      c.grade === p.name ||
+                      c.grade === `Class ${p.name}` ||
+                      (p.name && c.grade?.replace(/^Class\s*/i, '') === p.name.replace(/^Class\s*/i, ''))
+                  );
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelectedClassGrade(p.name)}
+                      style={{
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        border: isSelected ? `2px solid ${S.navy}` : `1px solid ${S.border}`,
+                        background: isSelected ? S.navy : S.chip,
+                        color: isSelected ? '#FFFFFF' : S.navy,
+                        fontWeight: isSelected ? 700 : 500,
+                        fontSize: '12.5px',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>{p.name}</span>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '10px',
+                          background: isSelected ? 'rgba(255,255,255,0.25)' : '#e2e8f0',
+                          color: isSelected ? '#FFFFFF' : S.slate,
+                        }}
+                      >
+                        {gradeChapters.length} Ch
+                      </span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* 2. Subject Grid View */}
+          {curriculumViewMode === 'grid' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <span style={{ fontSize: '13px', fontWeight: 700, color: S.navy }}>
+                  Showing Subjects for {selectedClassGrade || 'Selected Class'} ({subjects.length} Subjects in School)
+                </span>
+                <span style={{ fontSize: '11.5px', color: S.slate }}>
+                  Click any subject card to add or edit its full syllabus
+                </span>
+              </div>
+
+              {subjects.length === 0 ? (
+                <div style={{ background: '#FFFFFF', border: `1px solid ${S.border}`, borderRadius: '10px', padding: '36px 20px', textAlign: 'center', color: S.slate }}>
+                  <BookOpen size={32} style={{ margin: '0 auto 10px', opacity: 0.4 }} />
+                  <p style={{ margin: 0, fontWeight: 600, fontSize: '14px', color: S.navy }}>No subjects created yet</p>
+                  <p style={{ margin: '4px 0 0', fontSize: '12px' }}>Go to the Subjects tab above to add subjects like Math, Science, English, etc.</p>
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '16px' }}>
+                  {subjects.map((sub: any) => {
+                    const subjectChapters = curriculum.filter(
+                      (c: any) =>
+                        (c.grade === selectedClassGrade ||
+                         c.grade === `Class ${selectedClassGrade}` ||
+                         (selectedClassGrade && c.grade?.replace(/^Class\s*/i, '') === selectedClassGrade.replace(/^Class\s*/i, ''))) &&
+                        (c.subjectId === sub.id || c.subject?.toLowerCase() === sub.name?.toLowerCase())
+                    );
+                    const totalCh = subjectChapters.length;
+                    const avgProgress = totalCh > 0
+                      ? Math.round(subjectChapters.reduce((acc: number, c: any) => acc + (Number(c.completionPct) || 0), 0) / totalCh)
+                      : 0;
+
+                    return (
+                      <div
+                        key={sub.id}
+                        onClick={() => {
+                          setActiveModalSubject(sub);
+                          setBulkRows([
+                            { unitName: 'Unit 1', chapterName: '', expectedCompletionWeek: String(totalCh + 1), learningOutcomes: '' },
+                            { unitName: 'Unit 1', chapterName: '', expectedCompletionWeek: String(totalCh + 2), learningOutcomes: '' },
+                            { unitName: 'Unit 2', chapterName: '', expectedCompletionWeek: String(totalCh + 3), learningOutcomes: '' },
+                          ]);
+                        }}
+                        style={{
+                          background: '#FFFFFF',
+                          border: `1px solid ${S.border}`,
+                          borderRadius: '12px',
+                          padding: '18px 20px',
+                          cursor: 'pointer',
+                          transition: 'all 0.18s ease',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '14px',
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = S.navy;
+                          e.currentTarget.style.transform = 'translateY(-2px)';
+                          e.currentTarget.style.boxShadow = '0 6px 16px rgba(12,30,51,0.08)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = S.border;
+                          e.currentTarget.style.transform = 'none';
+                          e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.02)';
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <span style={{ fontSize: '10.5px', fontWeight: 700, color: S.slate, background: S.chip, padding: '2px 7px', borderRadius: '4px', letterSpacing: '0.04em' }}>
+                              {sub.code || 'SUBJECT'}
+                            </span>
+                            <h4 style={{ margin: '8px 0 2px', fontSize: '16px', fontWeight: 700, color: S.navy }}>
+                              {sub.name}
+                            </h4>
+                            <span style={{ fontSize: '12px', color: S.slate }}>
+                              {selectedClassGrade || 'Class 10'}
+                            </span>
+                          </div>
+                          <div style={{ width: '38px', height: '38px', borderRadius: '8px', background: S.chip, display: 'flex', alignItems: 'center', justifyContent: 'center', color: S.navy }}>
+                            <BookOpen size={18} />
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '6px' }}>
+                            <span style={{ color: S.slate, fontWeight: 500 }}>
+                              {totalCh > 0 ? `${totalCh} Chapters Mapped` : 'No chapters yet'}
+                            </span>
+                            <span style={{ color: S.navy, fontWeight: 700 }}>
+                              {avgProgress}% Covered
+                            </span>
+                          </div>
+                          <div style={{ height: '6px', background: S.chip, borderRadius: '4px', overflow: 'hidden' }}>
+                            <div
+                              style={{
+                                height: '100%',
+                                width: `${avgProgress}%`,
+                                background: avgProgress >= 100 ? S.green : S.navy,
+                                borderRadius: '4px',
+                                transition: 'width 0.3s ease',
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        <div style={{ paddingTop: '10px', borderTop: `1px solid ${S.chip}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: totalCh > 0 ? (avgProgress >= 100 ? S.greenDk : '#0284C7') : S.slate,
+                              background: totalCh > 0 ? (avgProgress >= 100 ? S.greenBg : '#e0f2fe') : S.chip,
+                              padding: '2px 8px',
+                              borderRadius: '4px',
+                            }}
+                          >
+                            {totalCh === 0 ? 'Draft' : avgProgress >= 100 ? 'Completed' : 'In Progress'}
+                          </span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: S.navy, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                            Manage Syllabus <ChevronRight size={14} />
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3. Full Table View */}
+          {curriculumViewMode === 'table' && (
+            <div style={{ background: '#FFFFFF', border: `1px solid ${S.border}`, borderRadius: '10px', padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: S.navy }}>Saved Curriculum Registers (All Classes &amp; Subjects)</h4>
+                <span style={{ fontSize: '12px', color: S.slate }}>{curriculum.length} total entries recorded</span>
+              </div>
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: `2px solid ${S.border}`, color: S.slate }}>
+                      <th style={{ padding: '10px' }}>Grade</th>
+                      <th style={{ padding: '10px' }}>Subject</th>
+                      <th style={{ padding: '10px' }}>Unit</th>
+                      <th style={{ padding: '10px' }}>Chapter</th>
+                      <th style={{ padding: '10px' }}>Target Week</th>
+                      <th style={{ padding: '10px' }}>Completion Pacing</th>
+                      <th style={{ padding: '10px' }}>Status</th>
+                      <th style={{ padding: '10px', textAlign: 'right' }}>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {curriculum.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} style={{ padding: '24px', textAlign: 'center', color: S.slate }}>No curriculum modules saved yet.</td>
+                      </tr>
+                    ) : (
+                      curriculum.map((c: any, i: number) => (
+                        <tr key={c.id || i} style={{ borderBottom: `1px solid ${S.chip}` }}>
+                          <td style={{ padding: '12px 10px', fontWeight: 700, color: S.navy }}>{c.grade}</td>
+                          <td style={{ padding: '12px 10px', color: S.slate }}>{c.subject}</td>
+                          <td style={{ padding: '12px 10px', color: S.slate }}>{c.unit || 'General'}</td>
+                          <td style={{ padding: '12px 10px', fontWeight: 600, color: S.navy }}>{c.chapter}</td>
+                          <td style={{ padding: '12px 10px', color: S.slate }}>Week {c.expectedWeek || c.expected_completion_week || 10}</td>
+                          <td style={{ padding: '12px 10px', fontWeight: 600, color: S.navy }}>{c.completionPct || 0}%</td>
+                          <td style={{ padding: '12px 10px' }}>
+                            <span style={{ padding: '3px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: 700, background: S.greenBg, color: S.greenDk }}>
+                              {c.status || 'On Track'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 10px', textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteChapter(c.id)}
+                              style={{
+                                border: 'none',
+                                background: 'transparent',
+                                color: '#EF4444',
+                                cursor: 'pointer',
+                                padding: '4px',
+                              }}
+                              title="Delete Chapter"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* 4. Bulk Syllabus Builder Modal (Opened on clicking Subject Card) */}
+          {activeModalSubject && (
+            <div
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(12, 30, 51, 0.65)',
+                backdropFilter: 'blur(3px)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 9999,
+                padding: '16px',
+              }}
+              onClick={(e) => {
+                if (e.target === e.currentTarget && !bulkSaving) setActiveModalSubject(null);
+              }}
+            >
+              <div
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: '14px',
+                  width: '100%',
+                  maxWidth: '920px',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+              >
+                {/* Modal Header */}
+                <div style={{ padding: '20px 24px', borderBottom: `1px solid ${S.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#FAFAFB', borderTopLeftRadius: '14px', borderTopRightRadius: '14px' }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ padding: '2px 8px', borderRadius: '4px', background: S.navy, color: '#FFFFFF', fontSize: '11px', fontWeight: 700 }}>
+                        {selectedClassGrade || 'Class 10'}
+                      </span>
+                      <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 700, color: S.navy }}>
+                        {activeModalSubject.name} ({activeModalSubject.code || 'SUB'}) Syllabus Builder
+                      </h3>
+                    </div>
+                    <p style={{ margin: '4px 0 0', fontSize: '12.5px', color: S.slate }}>
+                      Add or edit all chapters, units, and learning outcomes for this subject in one shot.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveModalSubject(null)}
+                    disabled={bulkSaving}
+                    style={{
+                      border: `1px solid ${S.border}`,
+                      background: '#FFFFFF',
+                      borderRadius: '8px',
+                      width: '32px',
+                      height: '32px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: S.slate,
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                {/* Modal Body */}
+                <div style={{ padding: '24px', display: 'grid', gap: '22px' }}>
+                  {/* Part A: Currently Saved Chapters */}
+                  {(() => {
+                    const savedSubjectChapters = curriculum.filter(
+                      (c: any) =>
+                        (c.grade === selectedClassGrade ||
+                         c.grade === `Class ${selectedClassGrade}` ||
+                         (selectedClassGrade && c.grade?.replace(/^Class\s*/i, '') === selectedClassGrade.replace(/^Class\s*/i, ''))) &&
+                        (c.subjectId === activeModalSubject.id || c.subject?.toLowerCase() === activeModalSubject.name?.toLowerCase())
+                    );
+                    if (savedSubjectChapters.length === 0) return null;
+                    return (
+                      <div style={{ background: '#f8fafc', border: `1px solid ${S.border}`, borderRadius: '10px', padding: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <h4 style={{ margin: 0, fontSize: '13.5px', fontWeight: 700, color: S.navy }}>
+                            Existing Saved Chapters ({savedSubjectChapters.length})
+                          </h4>
+                          <span style={{ fontSize: '11px', color: S.slate }}>Click trash to remove any chapter</span>
+                        </div>
+                        <div style={{ display: 'grid', gap: '6px' }}>
+                          {savedSubjectChapters.map((sc: any, sIdx: number) => (
+                            <div
+                              key={sc.id || sIdx}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                background: '#FFFFFF',
+                                border: `1px solid ${S.border}`,
+                                borderRadius: '6px',
+                                padding: '8px 12px',
+                                fontSize: '12.5px',
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <span style={{ width: '22px', height: '22px', borderRadius: '50%', background: S.chip, color: S.navy, fontWeight: 700, fontSize: '11px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {sIdx + 1}
+                                </span>
+                                <div>
+                                  <span style={{ fontWeight: 700, color: S.navy }}>{sc.chapter}</span>
+                                  <span style={{ color: S.slate, marginLeft: '8px', fontSize: '11.5px' }}>
+                                    ({sc.unit || 'General'} · Week {sc.expectedWeek || sc.expected_completion_week || 10})
+                                  </span>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: sc.completionPct >= 100 ? S.greenDk : S.navy, background: sc.completionPct >= 100 ? S.greenBg : S.chip, padding: '2px 8px', borderRadius: '4px' }}>
+                                  {sc.completionPct || 0}% Complete
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteChapter(sc.id)}
+                                  style={{
+                                    border: 'none',
+                                    background: 'transparent',
+                                    color: '#EF4444',
+                                    cursor: 'pointer',
+                                    padding: '2px',
+                                  }}
+                                  title="Delete Chapter"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Part B: Bulk Add Chapters Table */}
+                  <form onSubmit={handleBulkSave}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 700, color: S.navy }}>
+                          Add Chapters in Bulk
+                        </h4>
+                        <p style={{ margin: '2px 0 0', fontSize: '12px', color: S.slate }}>
+                          Fill out the rows below to map multiple chapters simultaneously.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setBulkRows([
+                            ...bulkRows,
+                            {
+                              unitName: bulkRows[bulkRows.length - 1]?.unitName || `Unit ${bulkRows.length + 1}`,
+                              chapterName: '',
+                              expectedCompletionWeek: String(bulkRows.length + 1),
+                              learningOutcomes: '',
+                            },
+                          ])
+                        }
+                        style={{
+                          padding: '6px 12px',
+                          borderRadius: '6px',
+                          border: `1px solid ${S.navy}`,
+                          background: '#FFFFFF',
+                          color: S.navy,
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Plus size={14} /> Add Row
+                      </button>
+                    </div>
+
+                    <div style={{ border: `1px solid ${S.border}`, borderRadius: '8px', overflow: 'hidden' }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12.5px' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc', borderBottom: `1px solid ${S.border}`, color: S.slate, textAlign: 'left' }}>
+                            <th style={{ padding: '8px 10px', width: '40px' }}>#</th>
+                            <th style={{ padding: '8px 10px', width: '160px' }}>Unit / Theme</th>
+                            <th style={{ padding: '8px 10px' }}>Chapter Title <span style={{ color: '#D92D20' }}>*</span></th>
+                            <th style={{ padding: '8px 10px', width: '90px' }}>Week (1–52)</th>
+                            <th style={{ padding: '8px 10px' }}>Learning Outcomes / Topics</th>
+                            <th style={{ padding: '8px 10px', width: '40px', textAlign: 'center' }}></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bulkRows.map((row, idx) => (
+                            <tr key={idx} style={{ borderBottom: idx === bulkRows.length - 1 ? 'none' : `1px solid ${S.chip}` }}>
+                              <td style={{ padding: '8px 10px', color: S.slate, fontWeight: 700 }}>
+                                {idx + 1}
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input
+                                  type="text"
+                                  value={row.unitName}
+                                  onChange={(e) => {
+                                    const next = [...bulkRows];
+                                    next[idx].unitName = e.target.value;
+                                    setBulkRows(next);
+                                  }}
+                                  placeholder="e.g. Unit 1: Algebra"
+                                  style={{
+                                    width: '100%',
+                                    padding: '6px 8px',
+                                    borderRadius: '5px',
+                                    border: `1px solid ${S.border}`,
+                                    fontSize: '12.5px',
+                                    boxSizing: 'border-box',
+                                  }}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input
+                                  type="text"
+                                  required={idx === 0}
+                                  value={row.chapterName}
+                                  onChange={(e) => {
+                                    const next = [...bulkRows];
+                                    next[idx].chapterName = e.target.value;
+                                    setBulkRows(next);
+                                  }}
+                                  placeholder="e.g. Quadratic Equations"
+                                  style={{
+                                    width: '100%',
+                                    padding: '6px 8px',
+                                    borderRadius: '5px',
+                                    border: `1px solid ${S.border}`,
+                                    fontSize: '12.5px',
+                                    fontWeight: 600,
+                                    color: S.navy,
+                                    boxSizing: 'border-box',
+                                  }}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="52"
+                                  value={row.expectedCompletionWeek}
+                                  onChange={(e) => {
+                                    const next = [...bulkRows];
+                                    next[idx].expectedCompletionWeek = e.target.value;
+                                    setBulkRows(next);
+                                  }}
+                                  style={{
+                                    width: '100%',
+                                    padding: '6px 8px',
+                                    borderRadius: '5px',
+                                    border: `1px solid ${S.border}`,
+                                    fontSize: '12.5px',
+                                    boxSizing: 'border-box',
+                                  }}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <input
+                                  type="text"
+                                  value={row.learningOutcomes}
+                                  onChange={(e) => {
+                                    const next = [...bulkRows];
+                                    next[idx].learningOutcomes = e.target.value;
+                                    setBulkRows(next);
+                                  }}
+                                  placeholder="e.g. Factorization, roots, formula (comma-separated)"
+                                  style={{
+                                    width: '100%',
+                                    padding: '6px 8px',
+                                    borderRadius: '5px',
+                                    border: `1px solid ${S.border}`,
+                                    fontSize: '12px',
+                                    boxSizing: 'border-box',
+                                  }}
+                                />
+                              </td>
+                              <td style={{ padding: '8px 10px', textAlign: 'center' }}>
+                                {bulkRows.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const next = bulkRows.filter((_, rIdx) => rIdx !== idx);
+                                      setBulkRows(next);
+                                    }}
+                                    style={{
+                                      border: 'none',
+                                      background: 'transparent',
+                                      color: S.slate,
+                                      cursor: 'pointer',
+                                      padding: '2px',
+                                    }}
+                                    title="Remove Row"
+                                  >
+                                    <X size={15} />
+                                  </button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Modal Footer */}
+                    <div style={{ marginTop: '20px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setActiveModalSubject(null)}
+                        disabled={bulkSaving}
+                        style={{
+                          padding: '8px 16px',
+                          borderRadius: '8px',
+                          border: `1px solid ${S.border}`,
+                          background: '#FFFFFF',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          color: S.slate,
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={bulkSaving}
+                        style={{
+                          padding: '8px 20px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: S.navy,
+                          color: '#FFFFFF',
+                          fontSize: '13px',
+                          fontWeight: 700,
+                          cursor: bulkSaving ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        {bulkSaving ? 'Saving Syllabus...' : 'Save All Chapters'}
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

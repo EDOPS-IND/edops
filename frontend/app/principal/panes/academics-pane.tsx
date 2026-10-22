@@ -33,6 +33,8 @@ export function AcademicsPane({
     (initialTab as any) || "classes"
   );
   const [feedbackInput, setFeedbackInput] = useState<{ [key: string]: string }>({});
+  const [selectedGrade, setSelectedGrade] = useState<string>("");
+  const [selectedCurriculumSubject, setSelectedCurriculumSubject] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (initialTab) {
@@ -59,6 +61,24 @@ export function AcademicsPane({
   const avgScore = totalClasses > 0 ? Math.round(classList.reduce((acc: number, c: any) => acc + (c.averageScore || 0), 0) / totalClasses) : 76;
   const avgPassRate = totalClasses > 0 ? Math.round(classList.reduce((acc: number, c: any) => acc + (c.passRate || 0), 0) / totalClasses) : 92;
   const totalChapters = nodeList.length;
+
+  const availableGrades = React.useMemo(() => {
+    const set = new Set<string>();
+    classList.forEach((c: any) => {
+      const g = c.className || c.grade || c.displayName;
+      if (g) set.add(g.replace(/-.*$/, '').trim());
+    });
+    nodeList.forEach((n: any) => {
+      if (n.grade) set.add(n.grade);
+    });
+    return Array.from(set);
+  }, [classList, nodeList]);
+
+  React.useEffect(() => {
+    if (availableGrades.length > 0 && !selectedGrade) {
+      setSelectedGrade(availableGrades[0]);
+    }
+  }, [availableGrades, selectedGrade]);
 
   const handleSendFeedback = async (id: string, status: string) => {
     const text = feedbackInput[id] || "Approved by Principal.";
@@ -398,80 +418,275 @@ export function AcademicsPane({
 
       {/* 3. Curriculum Gap Engine Tab */}
       {subTab === "curriculum" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
-          {nodeList.length === 0 ? (
-            <div style={{ padding: "24px", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9" }}>
-              No curriculum chapters have been mapped for this school yet.
-            </div>
-          ) : (
-            nodeList.map((node: CurriculumNodeItem, idx: number) => (
-              <div
-                key={idx}
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #e4e6e9",
-                  borderRadius: "10px",
-                  padding: "18px 20px",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                  <div>
-                    <span
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Class Selector Bar */}
+          <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "12px 18px", display: "flex", alignItems: "center", gap: "12px", overflowX: "auto" }}>
+            <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33", whiteSpace: "nowrap" }}>
+              Filter Class:
+            </span>
+            <div style={{ display: "flex", gap: "8px", overflowX: "auto", flex: 1 }}>
+              {availableGrades.length === 0 ? (
+                <span style={{ fontSize: "12px", color: "#64748b" }}>No classes mapped yet.</span>
+              ) : (
+                availableGrades.map((g) => {
+                  const isSel = selectedGrade === g;
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => {
+                        setSelectedGrade(g);
+                        setSelectedCurriculumSubject(null);
+                      }}
                       style={{
-                        fontSize: "11px",
-                        color: "#0c1e33",
-                        background: "#f1f5f9",
-                        padding: "2px 8px",
-                        borderRadius: "4px",
-                        fontWeight: 600,
+                        padding: "6px 14px",
+                        borderRadius: "8px",
+                        border: isSel ? "2px solid #0c1e33" : "1px solid #e4e6e9",
+                        background: isSel ? "#0c1e33" : "#f8fafc",
+                        color: isSel ? "#ffffff" : "#0c1e33",
+                        fontWeight: isSel ? 700 : 500,
+                        fontSize: "12px",
+                        cursor: "pointer",
+                        whiteSpace: "nowrap",
+                        transition: "all 0.15s ease",
                       }}
                     >
-                      {node.grade} · {node.subject}
-                    </span>
-                    <h4 style={{ margin: "6px 0 2px", fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>
-                      {node.unit} — {node.chapter}
-                    </h4>
-                  </div>
-                  <span
+                      {g}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+
+          {/* View Mode A: Subject Grid Cards */}
+          {!selectedCurriculumSubject ? (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                <span style={{ fontSize: "13px", fontWeight: 700, color: "#0c1e33" }}>
+                  Curriculum Subjects for {selectedGrade || "All Classes"}
+                </span>
+                <span style={{ fontSize: "11.5px", color: "#64748b" }}>
+                  Click any subject card to inspect chapter-wise pacing
+                </span>
+              </div>
+
+              {subjectList.length === 0 && nodeList.length === 0 ? (
+                <div style={{ padding: "32px", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9", textAlign: "center" }}>
+                  No curriculum modules found for this school.
+                </div>
+              ) : (
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "16px" }}>
+                  {/* Derive subjects for selectedGrade */}
+                  {(() => {
+                    // Combine unique subjects from subjectList and nodeList for this grade
+                    const subjectNames = Array.from(new Set([
+                      ...subjectList.map((s: any) => s.name),
+                      ...nodeList.filter((n: any) => !selectedGrade || n.grade === selectedGrade || n.grade === `Class ${selectedGrade}`).map((n: any) => n.subject)
+                    ]));
+
+                    return subjectNames.map((subName) => {
+                      const gradeNodes = nodeList.filter(
+                        (n: any) =>
+                          (!selectedGrade || n.grade === selectedGrade || n.grade === `Class ${selectedGrade}`) &&
+                          n.subject?.toLowerCase() === subName.toLowerCase()
+                      );
+                      const totalCh = gradeNodes.length;
+                      const avgPct = totalCh > 0
+                        ? Math.round(gradeNodes.reduce((acc: number, n: any) => acc + (n.actualProgress || 0), 0) / totalCh)
+                        : 0;
+                      const behindCount = gradeNodes.filter((n: any) => n.gap < -5).length;
+
+                      return (
+                        <div
+                          key={subName}
+                          onClick={() => setSelectedCurriculumSubject(subName)}
+                          style={{
+                            background: "#ffffff",
+                            border: "1px solid #e4e6e9",
+                            borderRadius: "12px",
+                            padding: "18px 20px",
+                            cursor: "pointer",
+                            transition: "all 0.18s ease",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "14px",
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = "#0c1e33";
+                            e.currentTarget.style.transform = "translateY(-2px)";
+                            e.currentTarget.style.boxShadow = "0 6px 16px rgba(12,30,51,0.08)";
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = "#e4e6e9";
+                            e.currentTarget.style.transform = "none";
+                            e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.02)";
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                            <div>
+                              <span style={{ fontSize: "11px", color: "#64748b", background: "#f1f5f9", padding: "2px 8px", borderRadius: "4px", fontWeight: 600 }}>
+                                {selectedGrade || "All Grades"}
+                              </span>
+                              <h4 style={{ margin: "8px 0 2px", fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>
+                                {subName}
+                              </h4>
+                            </div>
+                            <span
+                              style={{
+                                padding: "3px 8px",
+                                borderRadius: "4px",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                background: behindCount > 0 ? "#fee2e2" : avgPct >= 100 ? "#dcfce7" : "#e0f2fe",
+                                color: behindCount > 0 ? "#991b1b" : avgPct >= 100 ? "#166534" : "#0284c7",
+                              }}
+                            >
+                              {behindCount > 0 ? `${behindCount} Delayed` : avgPct >= 100 ? "Completed" : "On Track"}
+                            </span>
+                          </div>
+
+                          <div>
+                            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", marginBottom: "6px" }}>
+                              <span style={{ color: "#64748b" }}>{totalCh} Chapters Tracked</span>
+                              <span style={{ fontWeight: 700, color: "#0c1e33" }}>{avgPct}% Complete</span>
+                            </div>
+                            <div style={{ height: "6px", width: "100%", background: "#f1f5f9", borderRadius: "3px", overflow: "hidden" }}>
+                              <div
+                                style={{
+                                  height: "100%",
+                                  width: `${avgPct}%`,
+                                  background: avgPct >= 100 ? "#10b981" : behindCount > 0 ? "#f59e0b" : "#0c1e33",
+                                  borderRadius: "3px",
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div style={{ paddingTop: "10px", borderTop: "1px solid #f1f5f9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "12px", color: "#64748b" }}>
+                              {totalCh === 0 ? "No chapters mapped" : "Audit Timeline & Gaps"}
+                            </span>
+                            <span style={{ fontSize: "12px", fontWeight: 700, color: "#0c1e33" }}>
+                              Inspect Details →
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* View Mode B: Detailed Chapters for Selected Subject */
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "14px 18px" }}>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0c1e33" }}>
+                    {selectedGrade} — {selectedCurriculumSubject} Syllabus Audit
+                  </h4>
+                  <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748b" }}>
+                    Chapter-wise delivery timeline, pacing gap, and learning outcome tracking.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedCurriculumSubject(null)}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "8px",
+                    border: "1px solid #e4e6e9",
+                    background: "#f8fafc",
+                    color: "#0c1e33",
+                    fontSize: "12.5px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  ← Back to Subject Grid
+                </button>
+              </div>
+
+              {(() => {
+                const filteredNodes = nodeList.filter(
+                  (n: any) =>
+                    (!selectedGrade || n.grade === selectedGrade || n.grade === `Class ${selectedGrade}`) &&
+                    n.subject?.toLowerCase() === selectedCurriculumSubject.toLowerCase()
+                );
+
+                if (filteredNodes.length === 0) {
+                  return (
+                    <div style={{ padding: "28px", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9", textAlign: "center" }}>
+                      No chapters mapped for {selectedCurriculumSubject} in {selectedGrade}. Add chapters in School Admin.
+                    </div>
+                  );
+                }
+
+                return filteredNodes.map((node: CurriculumNodeItem, idx: number) => (
+                  <div
+                    key={idx}
                     style={{
-                      padding: "3px 8px",
-                      borderRadius: "4px",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      background: node.gap < -5 ? "#fee2e2" : "#dcfce7",
-                      color: node.gap < -5 ? "#991b1b" : "#166534",
+                      background: "#ffffff",
+                      border: "1px solid #e4e6e9",
+                      borderRadius: "10px",
+                      padding: "18px 20px",
+                      boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
                     }}
                   >
-                    {node.status} (Gap: {percent(node.gap)})
-                  </span>
-                </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                      <div>
+                        <span style={{ fontSize: "11px", color: "#0c1e33", background: "#f1f5f9", padding: "2px 8px", borderRadius: "4px", fontWeight: 600 }}>
+                          {node.grade} · {node.subject} · {node.unit}
+                        </span>
+                        <h4 style={{ margin: "6px 0 2px", fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>
+                          {node.chapter}
+                        </h4>
+                      </div>
+                      <span
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          background: node.gap < -5 ? "#fee2e2" : "#dcfce7",
+                          color: node.gap < -5 ? "#991b1b" : "#166534",
+                        }}
+                      >
+                        {node.status} (Gap: {percent(node.gap)})
+                      </span>
+                    </div>
 
-                <div style={{ margin: "12px 0" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>
-                    <span>
-                      Expected Timeline: <b>Week {node.expectedWeek} ({percent(node.expectedProgress)})</b>
-                    </span>
-                    <span>
-                      Actual Delivered: <b>{node.actualProgress}%</b>
-                    </span>
-                  </div>
-                  <div style={{ height: "6px", width: "100%", background: "#f1f5f9", borderRadius: "3px", overflow: "hidden" }}>
-                    <div
-                      style={{
-                        height: "100%",
-                        width: `${Math.min(100, node.actualProgress)}%`,
-                        background: node.gap < -5 ? "#ef4444" : "#10b981",
-                      }}
-                    />
-                  </div>
-                </div>
+                    <div style={{ margin: "12px 0" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#64748b", marginBottom: "6px" }}>
+                        <span>
+                          Expected Timeline: <b>Week {node.expectedWeek} ({percent(node.expectedProgress)})</b>
+                        </span>
+                        <span>
+                          Actual Delivered: <b>{node.actualProgress}%</b>
+                        </span>
+                      </div>
+                      <div style={{ height: "6px", width: "100%", background: "#f1f5f9", borderRadius: "3px", overflow: "hidden" }}>
+                        <div
+                          style={{
+                            height: "100%",
+                            width: `${Math.min(100, node.actualProgress)}%`,
+                            background: node.gap < -5 ? "#ef4444" : "#10b981",
+                          }}
+                        />
+                      </div>
+                    </div>
 
-                <div style={{ fontSize: "12px", color: "#475569", marginTop: "8px" }}>
-                  <b style={{ color: "#1e293b" }}>Mapped Learning Outcome:</b> {node.learningOutcomes.join(" · ")}
-                </div>
-              </div>
-            ))
+                    {node.learningOutcomes && node.learningOutcomes.length > 0 && (
+                      <div style={{ fontSize: "12px", color: "#475569", marginTop: "8px" }}>
+                        <b style={{ color: "#1e293b" }}>Mapped Learning Outcome:</b> {node.learningOutcomes.join(" · ")}
+                      </div>
+                    )}
+                  </div>
+                ));
+              })()}
+            </div>
           )}
         </div>
       )}

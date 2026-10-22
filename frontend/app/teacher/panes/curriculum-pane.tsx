@@ -12,8 +12,10 @@ import {
   ArrowRight,
   Target,
   Sparkles,
+  Play,
+  Check,
 } from "lucide-react";
-import { getTeacherCurriculum, updateTeacherCurriculumTopic } from "../../edops-api";
+import { getTeacherCurriculum, updateTeacherCurriculumProgress } from "../../edops-api";
 
 const T = {
   navy: "#0c1e33",
@@ -45,6 +47,7 @@ interface CurriculumPaneProps {
 export function CurriculumPane({ organizationId }: CurriculumPaneProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
 
   useEffect(() => {
     loadCurriculum();
@@ -55,48 +58,56 @@ export function CurriculumPane({ organizationId }: CurriculumPaneProps) {
     try {
       const res = await getTeacherCurriculum(organizationId);
       setData(res);
+      if (res?.assignedSubjects && res.assignedSubjects.length > 0 && !selectedSubjectId) {
+        setSelectedSubjectId(res.assignedSubjects[0].subjectId);
+      }
     } catch {
       setData({
         overview: {
-          actualProgressPct: 62,
-          expectedProgressPct: 65,
-          gapPct: -3,
-          completedChapters: 5,
-          totalChapters: 8,
+          actualProgressPct: 0,
+          expectedProgressPct: 50,
+          gapPct: 0,
+          completedChapters: 0,
+          totalChapters: 0,
         },
         chapters: [],
+        assignedSubjects: [],
       });
     } finally {
       setLoading(false);
     }
   }
 
-  const handleIncrementProgress = async (chapter: any) => {
-    const nextCompleted = Math.min(chapter.periodsDelivered + 1, chapter.periodsRequired);
-    const nextPct = Math.round((nextCompleted / chapter.periodsRequired) * 100);
+  const handleUpdateStatus = async (chapter: any, nextPct: number, nextStatus: string) => {
     try {
-      await updateTeacherCurriculumTopic(
+      await updateTeacherCurriculumProgress(
         organizationId,
-        chapter.sectionId,
-        chapter.subjectId,
         chapter.id,
         nextPct,
-        nextPct === 100 ? "completed" : "in_progress"
+        nextStatus
       );
-      loadCurriculum();
-    } catch {
+      await loadCurriculum();
+    } catch (err) {
+      console.error("Failed to update curriculum progress:", err);
     }
   };
 
   const overview = data?.overview || {
-    actualProgressPct: 62,
-    expectedProgressPct: 65,
-    gapPct: -3,
-    completedChapters: 5,
-    totalChapters: 8,
+    actualProgressPct: 0,
+    expectedProgressPct: 50,
+    gapPct: 0,
+    completedChapters: 0,
+    totalChapters: 0,
   };
 
-  const chapters = data?.chapters || [];
+  const allChapters = data?.chapters || [];
+  const assignedSubjects = data?.assignedSubjects || [];
+
+  // Filter chapters by selected subject if one is chosen
+  const activeSubject = assignedSubjects.find((s: any) => s.subjectId === selectedSubjectId) || assignedSubjects[0];
+  const chapters = selectedSubjectId
+    ? allChapters.filter((c: any) => c.subjectId === selectedSubjectId)
+    : allChapters;
 
   if (loading) {
     return (
@@ -298,6 +309,80 @@ export function CurriculumPane({ organizationId }: CurriculumPaneProps) {
         </div>
       </div>
 
+      {/* 2.5 Teacher's Assigned Subjects Grid Cards */}
+      {assignedSubjects.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ fontSize: "13px", fontWeight: 700, color: T.navy }}>
+              Your Assigned Subject Workspaces ({assignedSubjects.length})
+            </span>
+            <span style={{ fontSize: "11.5px", color: T.slate }}>
+              Click any subject to view and log its syllabus progress
+            </span>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "14px" }}>
+            {assignedSubjects.map((sub: any) => {
+              const isSelected = selectedSubjectId === sub.subjectId;
+              return (
+                <div
+                  key={sub.subjectId}
+                  onClick={() => setSelectedSubjectId(sub.subjectId)}
+                  style={{
+                    background: T.white,
+                    border: isSelected ? `2px solid ${T.navy}` : `1px solid ${T.border}`,
+                    borderRadius: "10px",
+                    padding: "16px 18px",
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "12px",
+                    boxShadow: isSelected ? "0 4px 12px rgba(12,30,51,0.08)" : "0 1px 3px rgba(0,0,0,0.02)",
+                    transition: "all 0.15s ease",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div>
+                      <span style={{ fontSize: "10px", fontWeight: 700, color: T.slate, background: T.chip, padding: "2px 6px", borderRadius: "4px" }}>
+                        {sub.subjectCode || "SUB"}
+                      </span>
+                      <h4 style={{ margin: "6px 0 2px", fontSize: "15px", fontWeight: 700, color: T.navy }}>
+                        {sub.subjectName}
+                      </h4>
+                      <span style={{ fontSize: "11.5px", color: T.slate }}>
+                        {sub.grade} {sub.sectionName ? `· Sec ${sub.sectionName}` : ""}
+                      </span>
+                    </div>
+                    <div style={{ width: "32px", height: "32px", borderRadius: "6px", background: isSelected ? T.navy : T.chip, color: isSelected ? T.white : T.navy, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <BookOpen size={16} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11.5px", marginBottom: "5px" }}>
+                      <span style={{ color: T.slate }}>{sub.totalChapters} Chapters</span>
+                      <span style={{ fontWeight: 700, color: T.navy }}>{sub.progressPct}% Done</span>
+                    </div>
+                    <div style={{ height: "5px", background: T.chip, borderRadius: "4px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${sub.progressPct}%`, background: sub.progressPct >= 100 ? T.greenDark : T.navy, borderRadius: "4px" }} />
+                    </div>
+                  </div>
+
+                  <div style={{ paddingTop: "8px", borderTop: `1px solid ${T.chip}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontSize: "11px", fontWeight: 600, color: isSelected ? T.navy : T.slate }}>
+                      {isSelected ? "Active View ✓" : "Switch to Subject →"}
+                    </span>
+                    <span style={{ fontSize: "11px", color: T.slate }}>
+                      {sub.completedChapters}/{sub.totalChapters} Units
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 3. Chapter-wise Curriculum Units */}
       <div
         style={{
@@ -310,23 +395,33 @@ export function CurriculumPane({ organizationId }: CurriculumPaneProps) {
           gap: "16px",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: T.navy }}>
-            Chapter-wise Syllabus Units &amp; Learning Outcome Mapping
-          </h3>
-          <span style={{ fontSize: "12px", color: T.slate }}>
-            NEP 2020 Competency Framework
-          </span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px" }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: T.navy }}>
+              {activeSubject ? `${activeSubject.grade} ${activeSubject.subjectName} — Chapters &amp; Delivery Log` : "Chapter-wise Syllabus Units & Learning Outcomes"}
+            </h3>
+            <p style={{ margin: "2px 0 0", fontSize: "12px", color: T.slate }}>
+              Start chapters when instruction begins and log progress towards completion.
+            </p>
+          </div>
+          {activeSubject && (
+            <span style={{ fontSize: "12px", fontWeight: 700, color: T.navy, background: T.chip, padding: "4px 10px", borderRadius: "6px" }}>
+              {chapters.length} Chapters in this Syllabus
+            </span>
+          )}
         </div>
 
         {chapters.length === 0 ? (
           <div style={{ padding: "48px", textAlign: "center", color: T.slate, fontSize: "13px", border: `1px dashed ${T.border}`, borderRadius: "8px" }}>
-            No curriculum nodes mapped yet. When syllabus topics are assigned, they will appear here with lesson progress trackers.
+            No curriculum chapters mapped for this subject yet. When School Admin defines the syllabus in the Academics tab, it will appear here automatically.
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {chapters.map((chap: any) => {
-              const isCompleted = chap.status === "Completed" || chap.completionPct === 100;
+              const isCompleted = chap.status === "Completed" || chap.completionPct >= 100;
+              const isInProgress = chap.status === "In Progress" || (chap.completionPct > 0 && !isCompleted);
+              const isUpcoming = !isCompleted && !isInProgress;
+
               return (
                 <div
                   key={chap.id}
@@ -347,7 +442,7 @@ export function CurriculumPane({ organizationId }: CurriculumPaneProps) {
                           width: "28px",
                           height: "28px",
                           borderRadius: "6px",
-                          background: T.navy,
+                          background: isCompleted ? T.greenDark : isInProgress ? T.navy : T.slate,
                           color: T.white,
                           display: "flex",
                           alignItems: "center",
@@ -359,42 +454,105 @@ export function CurriculumPane({ organizationId }: CurriculumPaneProps) {
                         {chap.sequence || "1"}
                       </span>
                       <div>
-                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 600, color: T.navy }}>{chap.name}</h4>
-                        <span style={{ fontSize: "11px", color: T.slate }}>Target: {chap.periodsRequired || 12} periods • Delivered: {chap.periodsDelivered || 8} periods</span>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <h4 style={{ margin: 0, fontSize: "14.5px", fontWeight: 700, color: T.navy }}>{chap.name}</h4>
+                          <span style={{ fontSize: "11px", color: T.slate, background: T.chip, padding: "1px 6px", borderRadius: "4px" }}>
+                            {chap.unit || "General"}
+                          </span>
+                        </div>
+                        <span style={{ fontSize: "11.5px", color: T.slate }}>
+                          Timeline: Expected by <b>Week {chap.expectedWeek || 10}</b> ({chap.expectedWeek ? `~${chap.expectedWeek} wks schedule` : "On schedule"})
+                        </span>
                       </div>
                     </div>
 
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
                       <span
                         style={{
                           fontSize: "11px",
-                          fontWeight: 600,
-                          padding: "2px 8px",
+                          fontWeight: 700,
+                          padding: "3px 8px",
                           borderRadius: "6px",
-                          background: isCompleted ? T.greenBg : T.skyBg,
-                          color: isCompleted ? T.greenDark : T.skyDark,
+                          background: isCompleted ? T.greenBg : isInProgress ? T.skyBg : T.chip,
+                          color: isCompleted ? T.greenDark : isInProgress ? T.skyDark : T.slate,
                         }}
                       >
-                        {isCompleted ? "Completed ✓" : "In Progress"}
+                        {isCompleted ? "Completed ✓" : isInProgress ? "In Progress" : "Upcoming"}
                       </span>
-                      <span style={{ fontWeight: 700, color: T.navy, fontSize: "13px" }}>{chap.completionPct}%</span>
-                      {!isCompleted && (
+                      <span style={{ fontWeight: 800, color: T.navy, fontSize: "13px", minWidth: "40px", textAlign: "right" }}>
+                        {chap.completionPct}%
+                      </span>
+
+                      {/* Interactive Teacher Action Buttons */}
+                      {isUpcoming && (
                         <button
                           type="button"
-                          onClick={() => handleIncrementProgress(chap)}
+                          onClick={() => handleUpdateStatus(chap, 15, "In Progress")}
                           style={{
-                            padding: "4px 10px",
+                            padding: "5px 12px",
                             borderRadius: "6px",
-                            background: T.white,
-                            border: `1px solid ${T.line}`,
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            color: T.navy,
+                            background: T.navy,
+                            border: "none",
+                            fontSize: "11.5px",
+                            fontWeight: 700,
+                            color: T.white,
                             cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
                           }}
                         >
-                          + Log Period
+                          <Play size={12} fill="#FFFFFF" /> Start Chapter
                         </button>
+                      )}
+
+                      {isInProgress && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextPct = Math.min(100, (chap.completionPct || 0) + 20);
+                              handleUpdateStatus(chap, nextPct, nextPct >= 100 ? "Completed" : "In Progress");
+                            }}
+                            style={{
+                              padding: "5px 10px",
+                              borderRadius: "6px",
+                              background: T.white,
+                              border: `1px solid ${T.border}`,
+                              fontSize: "11.5px",
+                              fontWeight: 600,
+                              color: T.navy,
+                              cursor: "pointer",
+                            }}
+                          >
+                            + Log Progress (+20%)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(chap, 100, "Completed")}
+                            style={{
+                              padding: "5px 12px",
+                              borderRadius: "6px",
+                              background: T.greenDark,
+                              border: "none",
+                              fontSize: "11.5px",
+                              fontWeight: 700,
+                              color: T.white,
+                              cursor: "pointer",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <Check size={13} /> Mark Completed
+                          </button>
+                        </>
+                      )}
+
+                      {isCompleted && (
+                        <span style={{ fontSize: "11.5px", color: T.greenDark, fontWeight: 700 }}>
+                          Fully Delivered ✓
+                        </span>
                       )}
                     </div>
                   </div>
@@ -405,11 +563,24 @@ export function CurriculumPane({ organizationId }: CurriculumPaneProps) {
                       style={{
                         width: `${chap.completionPct}%`,
                         height: "100%",
-                        background: isCompleted ? T.greenDark : T.blue,
+                        background: isCompleted ? T.greenDark : T.navy,
                         borderRadius: "100px",
+                        transition: "width 0.3s ease",
                       }}
                     />
                   </div>
+
+                  {/* Learning Outcomes Matrix if present */}
+                  {chap.learningOutcomes && chap.learningOutcomes.length > 0 && (
+                    <div style={{ fontSize: "11.5px", color: T.slate, display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+                      <span style={{ fontWeight: 600, color: T.navy }}>Outcomes:</span>
+                      {chap.learningOutcomes.map((lo: any, lIdx: number) => (
+                        <span key={lIdx} style={{ background: T.chip, padding: "1px 6px", borderRadius: "4px" }}>
+                          {lo.description || lo}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}

@@ -224,6 +224,10 @@ export function SchoolAdminWorkspace({
   const [personSpecialty, setPersonSpecialty] = useState("");
   const [personEmployeeId, setPersonEmployeeId] = useState("");
   const [personEmploymentType, setPersonEmploymentType] = useState("Regular Faculty");
+  const [studentGender, setStudentGender] = useState("Male");
+  const [studentDob, setStudentDob] = useState("");
+  const [studentAdmissionNo, setStudentAdmissionNo] = useState("");
+  const [studentRollNo, setStudentRollNo] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSectionId, setSelectedSectionId] = useState("");
   const [academicSections, setAcademicSections] = useState<{ id: string; name: string; programName: string }[]>([]);
@@ -261,6 +265,9 @@ export function SchoolAdminWorkspace({
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchModalOpen((prev) => !prev);
+      } else if (e.key === "Escape") {
+        setProfileMenuOpen(false);
+        setMobileMenuOpen(false);
       }
     };
     window.addEventListener("keydown", handleGlobalKey);
@@ -357,6 +364,7 @@ export function SchoolAdminWorkspace({
       setPersonName(""); setPersonEmail(""); setPersonPhone(""); setPersonSpecialty("");
       setPersonEmployeeId(""); setPersonEmploymentType("Regular Faculty");
       setSelectedClass(""); setSelectedSectionId(""); setSelectedChildIds([]); setChildSearch("");
+      setStudentGender("Male"); setStudentDob(""); setStudentAdmissionNo(""); setStudentRollNo("");
       setDeptName(""); setDeptCode(""); setDeptHeadTeacherId(""); setDeptLocation(""); setDeptSubjectIds([]); setSubjectSearch("");
       setSectionYearId(""); setSectionProgramId(""); setSectionName("A"); setSectionCapacity(40);
       setIsCreatingNewClass(false); setNewClassName(""); setNewClassOrder(10);
@@ -439,6 +447,10 @@ export function SchoolAdminWorkspace({
               email: personEmail.trim().toLowerCase(),
               phone: personPhone.trim() || undefined,
               sectionId: selectedSectionId || undefined,
+              admissionNo: studentAdmissionNo.trim() || undefined,
+              rollNo: studentRollNo.trim() || undefined,
+              gender: studentGender || "Not Specified",
+              dob: studentDob || undefined,
             });
             setRefreshKey((k) => k + 1);
             setQuickActionModal(null);
@@ -486,12 +498,19 @@ export function SchoolAdminWorkspace({
               throw new Error("Please enter a Class number or digit (e.g. 10)");
             }
             const fullClassName = `Class ${rawClass}`;
-            const seqOrder = Number(newClassOrder) || parseInt(rawClass, 10) || 10;
-            const newProg = await createAcademicProgram(organizationId, {
-              name: fullClassName,
-              sequenceOrder: seqOrder,
-            });
-            progId = newProg?.id;
+            const existingProg = academicPrograms.find(
+              (p) => p.name.trim().toLowerCase() === fullClassName.toLowerCase()
+            );
+            if (existingProg) {
+              progId = existingProg.id;
+            } else {
+              const seqOrder = Number(newClassOrder) || parseInt(rawClass, 10) || 10;
+              const newProg = await createAcademicProgram(organizationId, {
+                name: fullClassName,
+                sequenceOrder: seqOrder,
+              });
+              progId = newProg?.id;
+            }
           }
           if (!sectionYearId) {
             throw new Error("Please select an Academic Year");
@@ -765,8 +784,10 @@ export function SchoolAdminWorkspace({
 
             {currentTab === "dashboard" && (
               <button
+                type="button"
                 onClick={() => setRefreshKey((k) => k + 1)}
                 title="Refresh Dashboard"
+                aria-label="Refresh Dashboard"
                 style={{
                   all: "unset",
                   display: "inline-flex",
@@ -1536,6 +1557,91 @@ export function SchoolAdminWorkspace({
                               </select>
                             </label>
                           )}
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                            <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                              <span>Gender</span>
+                              <select
+                                value={studentGender}
+                                onChange={(e) => setStudentGender(e.target.value)}
+                                style={{
+                                  padding: "9px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #D0D5DD",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  color: "#101828",
+                                  background: "#FFFFFF",
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            </label>
+
+                            <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                              <span>Date of Birth</span>
+                              <input
+                                type="date"
+                                value={studentDob}
+                                onChange={(e) => setStudentDob(e.target.value)}
+                                style={{
+                                  padding: "8px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #D0D5DD",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  color: "#101828",
+                                  background: "#FFFFFF",
+                                  fontFamily: "inherit",
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                            <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                              <span>Admission No <small style={{ color: "#667085", fontWeight: 400 }}>(Optional)</small></span>
+                              <input
+                                type="text"
+                                placeholder="Auto (e.g. ADM-0003)"
+                                value={studentAdmissionNo}
+                                onChange={(e) => setStudentAdmissionNo(e.target.value)}
+                                style={{
+                                  padding: "9px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #D0D5DD",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  color: "#101828",
+                                  background: "#FFFFFF",
+                                  fontFamily: "inherit",
+                                }}
+                              />
+                            </label>
+
+                            <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                              <span>Roll No <small style={{ color: "#667085", fontWeight: 400 }}>(Optional)</small></span>
+                              <input
+                                type="text"
+                                placeholder="Auto (e.g. 001)"
+                                value={studentRollNo}
+                                onChange={(e) => setStudentRollNo(e.target.value)}
+                                style={{
+                                  padding: "9px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #D0D5DD",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  color: "#101828",
+                                  background: "#FFFFFF",
+                                  fontFamily: "inherit",
+                                }}
+                              />
+                            </label>
+                          </div>
 
                           {/* Admission Option: Invite vs Direct Add */}
                           <div

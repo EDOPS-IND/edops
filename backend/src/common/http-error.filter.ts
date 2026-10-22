@@ -9,19 +9,20 @@ export class HttpErrorFilter implements ExceptionFilter {
     let status = 500;
     let message: string | object = 'Internal server error';
     const candidate = error as { code?: string; type?: string; name?: string; driverError?: { code?: string } };
+    const pgCode = candidate?.code || candidate?.driverError?.code;
     if (error instanceof HttpException) {
       status = error.getStatus();
       message = error.getResponse();
     } else if (candidate?.code === 'EBADCSRFTOKEN') {
       status = 403;
       message = 'Invalid or missing CSRF token';
-    } else if (candidate?.driverError?.code === '23505') {
+    } else if (pgCode === '23505') {
       status = 409;
       message = 'A record with these details already exists';
-    } else if (candidate?.driverError?.code === '23503') {
+    } else if (pgCode === '23503') {
       status = 404;
       message = 'Referenced record not found';
-    } else if (candidate?.driverError?.code === '23514' || candidate?.driverError?.code === '22007' || candidate?.driverError?.code === '22008') {
+    } else if (pgCode === '23514' || pgCode === '22007' || pgCode === '22008') {
       status = 400;
       message = 'Invalid field values';
     } else if (candidate?.type === 'entity.parse.failed') {

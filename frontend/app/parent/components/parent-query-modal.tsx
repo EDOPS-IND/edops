@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { WardInfo, ParentQuery } from "../types";
 import { MessageSquare, X } from "lucide-react";
 
@@ -17,6 +17,19 @@ export function ParentQueryModal({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -63,6 +76,7 @@ export function ParentQueryModal({
           </div>
           <button
             type="button"
+            aria-label="Close dialog"
             onClick={onClose}
             style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px" }}
           >
@@ -106,10 +120,11 @@ export function ParentQueryModal({
           )}
 
           <div>
-            <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+            <label htmlFor="query-subject" style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
               Subject / Topic *
             </label>
             <input
+              id="query-subject"
               name="subject"
               required
               maxLength={100}
@@ -125,10 +140,11 @@ export function ParentQueryModal({
           </div>
 
           <div>
-            <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+            <label htmlFor="query-text" style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
               Query / Concern Details *
             </label>
             <textarea
+              id="query-text"
               name="query"
               required
               rows={4}

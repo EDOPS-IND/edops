@@ -172,6 +172,9 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchModalOpen((prev) => !prev);
+      } else if (e.key === "Escape") {
+        setProfileMenuOpen(false);
+        setMobileMenuOpen(false);
       }
     };
     window.addEventListener("keydown", handleGlobalKey);

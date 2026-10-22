@@ -1,6 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
+import {
+  ClipboardList,
+  CalendarCheck,
+  Bell,
+  Video,
+  Trophy,
+  TrendingUp,
+} from "lucide-react";
 import { api, ListResult } from "./edops-api";
 import { BillingOverview, ClassRoom, Invoice, Role, Tab } from "./learning/types";
 import { Banner, dateOnly, Empty, FeatureCard, keyOf, Metric } from "./learning/shared";
@@ -27,13 +35,13 @@ export { ProgressPane } from "./learning/scorecard-pane";
 // - "New Arena question", "Check answer" (ArenaPane)
 // - "Mark read" (UpdatesPane)
 
-const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: "assignments", label: "Assignments", icon: "✓" },
-  { id: "attendance", label: "Attendance", icon: "◎" },
-  { id: "updates", label: "Updates", icon: "◇" },
-  { id: "recordings", label: "Recordings", icon: "▶" },
-  { id: "arena", label: "Arena", icon: "◈" },
-  { id: "progress", label: "Progress", icon: "↗" },
+const tabs: { id: Tab; label: string; icon: ReactNode }[] = [
+  { id: "assignments", label: "Assignments", icon: <ClipboardList size={16} /> },
+  { id: "attendance", label: "Attendance", icon: <CalendarCheck size={16} /> },
+  { id: "updates", label: "Updates", icon: <Bell size={16} /> },
+  { id: "recordings", label: "Recordings", icon: <Video size={16} /> },
+  { id: "arena", label: "Arena", icon: <Trophy size={16} /> },
+  { id: "progress", label: "Progress", icon: <TrendingUp size={16} /> },
 ];
 
 export function LearningWorkspace({

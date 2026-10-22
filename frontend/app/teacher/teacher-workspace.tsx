@@ -128,6 +128,9 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchModalOpen((prev) => !prev);
+      } else if (e.key === "Escape") {
+        setProfileMenuOpen(false);
+        setMobileMenuOpen(false);
       }
     };
     window.addEventListener("keydown", handleGlobalKey);
@@ -601,8 +604,10 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
 
             {activeTab === "dashboard" && (
               <button
+                type="button"
                 onClick={() => setAttendanceRefreshKey(k => k + 1)}
                 title="Refresh Dashboard"
+                aria-label="Refresh Dashboard"
                 style={{
                   all: "unset",
                   display: "inline-flex",
@@ -705,6 +710,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
                 type="button"
                 onClick={() => navigateTo('communication')}
                 title="Academic Inbox & Directives"
+                aria-label="Academic Inbox & Directives"
                 style={{
                   all: "unset",
                   display: "grid",
@@ -728,6 +734,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
                 type="button"
                 onClick={() => navigateTo('activity')}
                 title="Faculty Activity & Notifications"
+                aria-label="Faculty Activity & Notifications"
                 style={{
                   all: "unset",
                   display: "grid",

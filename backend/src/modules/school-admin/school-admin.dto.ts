@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
@@ -14,6 +15,7 @@ import {
   Matches,
   MaxLength,
   Min,
+  ValidateNested,
 } from "class-validator";
 
 export class DirectAdmitStudentDto {
@@ -42,6 +44,21 @@ export class DirectAdmitStudentDto {
   @IsOptional()
   @IsString()
   admissionNo?: string;
+
+  @ApiPropertyOptional({ description: "Custom roll number within section" })
+  @IsOptional()
+  @IsString()
+  rollNo?: string;
+
+  @ApiPropertyOptional({ description: "Gender of the student" })
+  @IsOptional()
+  @IsString()
+  gender?: string;
+
+  @ApiPropertyOptional({ description: "Date of Birth (YYYY-MM-DD)" })
+  @IsOptional()
+  @IsString()
+  dob?: string;
 }
 
 export class UpdateLeaveStatusDto {
@@ -465,6 +482,57 @@ export class CreateCurriculumNodeDto {
   @IsOptional()
   @IsArray()
   learningOutcomes?: string[];
+}
+
+export class BulkCurriculumChapterItemDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  id?: string;
+
+  @ApiPropertyOptional({ example: "Unit 1: Algebra" })
+  @IsOptional()
+  @IsString()
+  unitName?: string;
+
+  @ApiProperty({ example: "Quadratic Equations" })
+  @IsString()
+  @IsNotEmpty()
+  chapterName!: string;
+
+  @ApiPropertyOptional({ example: 10 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  expectedCompletionWeek?: number;
+
+  @ApiPropertyOptional({ type: [String], example: ["Solve quadratic equations"] })
+  @IsOptional()
+  @IsArray()
+  learningOutcomes?: string[];
+}
+
+export class BulkCreateCurriculumDto {
+  @ApiProperty({ example: "Class 10" })
+  @IsString()
+  @IsNotEmpty()
+  grade!: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsUUID()
+  subjectId?: string;
+
+  @ApiProperty({ example: "Mathematics" })
+  @IsString()
+  @IsNotEmpty()
+  subjectName!: string;
+
+  @ApiProperty({ type: [BulkCurriculumChapterItemDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BulkCurriculumChapterItemDto)
+  chapters!: BulkCurriculumChapterItemDto[];
 }
 
 export class CreateCourseworkDto {
