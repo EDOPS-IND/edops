@@ -41,10 +41,11 @@ export function TeacherProfileDrawer({
   return (
     <div className="modal-backdrop" role="dialog" aria-modal="true" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "flex-end", zIndex: 1000 }}>
       <div
+        className="edops-right-drawer"
         style={{
           background: "#FFFFFF",
           width: "100%",
-          maxWidth: "780px",
+          maxWidth: "min(var(--edops-drawer-width), 100vw)",
           height: "100%",
           display: "flex",
           flexDirection: "column",

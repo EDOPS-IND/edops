@@ -18,6 +18,7 @@ import {
   Min,
   MinLength,
   Matches,
+  ValidateNested,
 } from "class-validator";
 
 const trim = ({ value }: { value: unknown }) =>
@@ -578,7 +579,27 @@ export class CreateExamPlanDto {
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) startTime!: string;
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) endTime!: string;
   @Type(() => Number) @IsNumber() @Min(0.01) @Max(999.99) maxMarks!: number;
+  @Type(() => Number) @IsNumber() @Min(0.01) @Max(999.99) passingMarks!: number;
   @IsIn(["draft", "scheduled"]) status!: "draft" | "scheduled";
+}
+
+export class CreateExamPlanSubjectDto {
+  @IsUUID() sectionId!: string;
+  @IsUUID() subjectId!: string;
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) startTime!: string;
+  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) endTime!: string;
+  @Type(() => Number) @IsNumber() @Min(0.01) @Max(999.99) maxMarks!: number;
+  @Type(() => Number) @IsNumber() @Min(0.01) @Max(999.99) passingMarks!: number;
+}
+
+export class CreateExamPlansDto {
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(150) examName!: string;
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(60) term!: string;
+  @IsDateString() examDate!: string;
+  @IsIn(["draft", "scheduled"]) status!: "draft" | "scheduled";
+  @IsArray() @ArrayNotEmpty() @Type(() => CreateExamPlanSubjectDto)
+  @ValidateNested({ each: true })
+  plans!: CreateExamPlanSubjectDto[];
 }
 
 export class UpdateExamPlanDto extends PartialType(CreateExamPlanDto) {}

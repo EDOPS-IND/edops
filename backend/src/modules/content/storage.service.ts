@@ -22,6 +22,8 @@ export type StoredVideo = {
   checksumSha256: string;
 };
 
+export type StoredObject = Pick<StoredVideo, "objectKey" | "contentType" | "sizeBytes" | "checksumSha256">;
+
 @Injectable()
 export class StorageService implements OnModuleDestroy {
   private readonly client?: S3Client;
@@ -56,6 +58,9 @@ export class StorageService implements OnModuleDestroy {
     return { client: this.client, bucket: this.bucket };
   }
   async upload(row: StoredVideo) {
+    return this.createUploadUrl(row);
+  }
+  async createUploadUrl(row: StoredObject) {
     const { client, bucket } = this.configured();
     const headers = {
       "Content-Type": row.contentType,
@@ -93,6 +98,34 @@ export class StorageService implements OnModuleDestroy {
       sizeBytes: row.sizeBytes,
       expiresIn: 300,
     };
+  }
+
+  async verifyMetadata(row: StoredObject, versionId: string) {
+    const { client, bucket } = this.configured();
+    if (versionId === "null") throw new BadRequestException("Bucket versioning must be enabled");
+    try {
+      const metadata = await client.send(new HeadObjectCommand({ Bucket: bucket, Key: row.objectKey, VersionId: versionId, ChecksumMode: "ENABLED" }));
+      if (metadata.VersionId !== versionId || metadata.ContentLength !== row.sizeBytes || metadata.ContentType !== row.contentType || metadata.ChecksumSHA256 !== row.checksumSha256) {
+        throw new BadRequestException("Uploaded object metadata does not match the document");
+      }
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
+      throw new ServiceUnavailableException("Could not verify document storage");
+    }
+  }
+
+  async download(row: StoredObject, versionId: string) {
+    const { client, bucket } = this.configured();
+    const url = await getSignedUrl(client, new GetObjectCommand({
+      Bucket: bucket,
+      Key: row.objectKey,
+      VersionId: versionId,
+      ResponseContentType: row.contentType,
+      ResponseContentDisposition: `attachment; filename="${row.objectKey.split("/").pop() || "document"}"`,
+    }), { expiresIn: 300 }).catch(() => {
+      throw new ServiceUnavailableException("Could not authorize document storage");
+    });
+    return { url, expiresIn: 300 };
   }
   async verify(row: StoredVideo, versionId: string) {
     const { client, bucket } = this.configured();

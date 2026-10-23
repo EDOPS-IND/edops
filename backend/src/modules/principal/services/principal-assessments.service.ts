@@ -8,6 +8,7 @@ import {
 import { User } from "../../auth/user.entity";
 import {
   CreateExamPlanDto,
+  CreateExamPlansDto,
   CreateQuestionPaperDto,
   PublishExamResultsDto,
   ReviewExamResultDto,
@@ -211,7 +212,7 @@ export class PrincipalAssessmentsService {
           `SELECT p.id, p.section_id AS "sectionId", p.subject_id AS "subjectId",
         p.exam_name AS "examName", p.term, TO_CHAR(p.exam_date, 'YYYY-MM-DD') AS "examDate",
         TO_CHAR(p.start_time, 'HH24:MI') AS "startTime", TO_CHAR(p.end_time, 'HH24:MI') AS "endTime",
-        p.max_marks AS "maxMarks", p.status, prog.name AS "className", sec.name AS "sectionName",
+        p.max_marks AS "maxMarks", p.passing_marks AS "passingMarks", p.status, prog.name AS "className", sec.name AS "sectionName",
         subj.name AS "subjectName" FROM principal_exam_plans p
         JOIN sections sec ON sec.id = p.section_id AND sec.organization_id = p.organization_id
         JOIN academic_years y ON y.id = sec.academic_year_id AND y.organization_id = p.organization_id AND y.is_current = true
@@ -241,10 +242,17 @@ export class PrincipalAssessmentsService {
           [orgId],
         ),
         this.drizzle.query(
-          `SELECT sec.id, prog.name || ' - ' || sec.name AS name FROM sections sec
+          `SELECT sec.id, sec.name, prog.name AS "programName",
+             COALESCE(json_agg(json_build_object('id',sub.id,'name',sub.name,'code',sub.code) ORDER BY sub.name)
+               FILTER (WHERE sub.id IS NOT NULL), '[]'::json) AS subjects
+          FROM sections sec
         JOIN academic_years y ON y.id = sec.academic_year_id AND y.organization_id = sec.organization_id AND y.is_current = true
         JOIN programs prog ON prog.id = sec.program_id AND prog.organization_id = sec.organization_id
-        WHERE sec.organization_id = $1 ORDER BY prog.name, sec.name`,
+        LEFT JOIN class_subject_assignments csa ON csa.organization_id = sec.organization_id AND csa.section_id = sec.id
+        LEFT JOIN subjects sub ON sub.organization_id = sec.organization_id AND sub.id = csa.subject_id
+        WHERE sec.organization_id = $1
+        GROUP BY sec.id, sec.name, prog.name
+        ORDER BY prog.name, sec.name`,
           [orgId],
         ),
         this.drizzle.query(
@@ -313,6 +321,47 @@ export class PrincipalAssessmentsService {
     return this.saveExamPlan(orgId, actor.id, null, dto);
   }
 
+  async createExamPlans(orgId: string, actor: User, dto: CreateExamPlansDto) {
+    return this.drizzle.transaction(async (manager) => {
+      await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [orgId]);
+      const saved: any[] = [];
+      for (const plan of dto.plans) {
+        if (plan.startTime >= plan.endTime || plan.passingMarks > plan.maxMarks) {
+          throw new BadRequestException("Each subject needs a valid time range and passing marks no higher than maximum marks");
+        }
+        const [valid] = await manager.query(
+          `SELECT 1 FROM sections sec
+           JOIN academic_years y ON y.id=sec.academic_year_id AND y.organization_id=sec.organization_id AND y.is_current=true
+           JOIN class_subject_assignments csa ON csa.organization_id=sec.organization_id AND csa.section_id=sec.id AND csa.subject_id=$3
+           WHERE sec.organization_id=$1 AND sec.id=$2 AND $4::date BETWEEN y.start_date AND y.end_date`,
+          [orgId, plan.sectionId, plan.subjectId, dto.examDate],
+        );
+        if (!valid) throw new BadRequestException("Select an enrolled subject for a current-year section");
+        const [clash] = await manager.query(
+          `SELECT id FROM principal_exam_plans WHERE organization_id=$1 AND section_id=$2 AND exam_date=$3::date
+           AND start_time < $5 AND end_time > $4 AND exam_name <> $6 LIMIT 1`,
+          [orgId, plan.sectionId, dto.examDate, plan.startTime, plan.endTime, dto.examName],
+        );
+        if (clash) throw new ConflictException("This class already has an exam during that time");
+        const [duplicate] = await manager.query(
+          `SELECT id FROM principal_exam_plans WHERE organization_id=$1 AND section_id=$2 AND subject_id=$3
+           AND exam_name=$4 AND exam_date=$5::date LIMIT 1`,
+          [orgId, plan.sectionId, plan.subjectId, dto.examName, dto.examDate],
+        );
+        if (duplicate) throw new ConflictException("This exam is already planned for one of the selected subjects");
+        const [row] = await manager.query(
+          `INSERT INTO principal_exam_plans
+           (organization_id,section_id,subject_id,exam_name,term,exam_date,start_time,end_time,max_marks,passing_marks,status,created_by)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+          [orgId, plan.sectionId, plan.subjectId, dto.examName, dto.term, dto.examDate,
+            plan.startTime, plan.endTime, plan.maxMarks, plan.passingMarks, dto.status, actor.id],
+        );
+        saved.push(row);
+      }
+      return { success: true, count: saved.length, plans: saved };
+    });
+  }
+
   updateExamPlan(orgId: string, id: string, dto: UpdateExamPlanDto) {
     return this.saveExamPlan(orgId, null, id, dto);
   }
@@ -357,6 +406,7 @@ export class PrincipalAssessmentsService {
         startTime: dto.startTime ?? previous?.start_time,
         endTime: dto.endTime ?? previous?.end_time,
         maxMarks: dto.maxMarks ?? previous?.max_marks,
+        passingMarks: dto.passingMarks ?? previous?.passing_marks,
         status: dto.status ?? previous?.status,
       };
       if (
@@ -368,6 +418,8 @@ export class PrincipalAssessmentsService {
         throw new BadRequestException(
           "Choose a valid exam date and time range",
         );
+      if (Number(value.passingMarks) <= 0 || Number(value.passingMarks) > Number(value.maxMarks))
+        throw new BadRequestException("Passing marks must be greater than 0 and no more than maximum marks");
       const [valid] = await manager.query(
         `SELECT 1 FROM sections sec
         JOIN academic_years y ON y.id = sec.academic_year_id AND y.organization_id = sec.organization_id AND y.is_current = true
@@ -423,19 +475,20 @@ export class PrincipalAssessmentsService {
         value.startTime,
         value.endTime,
         value.maxMarks,
+        value.passingMarks,
         value.status,
       ];
       const [saved] = id
         ? await manager.query(
             `UPDATE principal_exam_plans SET section_id = $2, subject_id = $3,
         exam_name = $4, term = $5, exam_date = $6, start_time = $7, end_time = $8,
-        max_marks = $9, status = $10 WHERE organization_id = $1 AND id = $11 RETURNING id`,
+        max_marks = $9, passing_marks = $10, status = $11 WHERE organization_id = $1 AND id = $12 RETURNING id`,
             [...params, id],
           )
         : await manager.query(
             `INSERT INTO principal_exam_plans
-        (organization_id, section_id, subject_id, exam_name, term, exam_date, start_time, end_time, max_marks, status, created_by)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+        (organization_id, section_id, subject_id, exam_name, term, exam_date, start_time, end_time, max_marks, passing_marks, status, created_by)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
             [...params, actorId],
           );
       return saved;

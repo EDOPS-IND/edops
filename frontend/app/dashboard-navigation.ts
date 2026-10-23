@@ -31,9 +31,8 @@ const defaultNavigationData: Record<OrganizationSummary["role"], DashboardSectio
       { key: "alerts", label: "Alert Center", sortOrder: 10, enabled: true, effectiveEnabled: true },
       { key: "discipline", label: "Discipline Register", sortOrder: 20, enabled: true, effectiveEnabled: true },
       { key: "documents", label: "Documents & Policies", sortOrder: 30, enabled: true, effectiveEnabled: true },
-      { key: "reports", label: "Reports & Analytics", sortOrder: 40, enabled: true, effectiveEnabled: true },
-      { key: "settings", label: "School Settings", sortOrder: 50, enabled: true, effectiveEnabled: true },
-      { key: "audit", label: "Audit Log", sortOrder: 60, enabled: true, effectiveEnabled: true },
+      { key: "settings", label: "School Settings", sortOrder: 40, enabled: true, effectiveEnabled: true },
+      { key: "audit", label: "Audit Log", sortOrder: 50, enabled: true, effectiveEnabled: true },
     ]},
   ],
   principal: [

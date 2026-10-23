@@ -7,6 +7,8 @@ import {
   updateSchoolAdminConfiguration,
   createSchoolAdminDiscipline,
   getSchoolAdminAcademics,
+  getSchoolDocumentDownload,
+  uploadSchoolDocument,
 } from "../edops-api";
 import { formatAuditMessage, formatAuditAction } from "../components/audit-formatter";
 import {
@@ -25,7 +27,58 @@ import {
   Mail,
   Phone,
   Check,
+  Upload,
+  ExternalLink,
 } from "lucide-react";
+
+function GovernanceMetricCard({
+  label,
+  value,
+  detail,
+  action,
+  color,
+  icon: Icon,
+  onClick,
+}: {
+  label: string;
+  value: string | number;
+  detail: string;
+  action: string;
+  color: { background: string; text: string };
+  icon: React.ElementType;
+  onClick: () => void;
+}) {
+  return (
+    <article
+      onClick={onClick}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        height: "148px",
+        padding: "20px",
+        background: color.background,
+        border: `1px solid ${color.background}`,
+        borderRadius: "10px",
+        color: color.text,
+        cursor: "pointer",
+        transition: "transform 0.15s ease",
+      }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
+      onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</span>
+        <Icon size={18} />
+      </div>
+      <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: color.text }}>{value}</p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ fontSize: "11px" }}>{detail}</span>
+        <span style={{ fontSize: "11px", fontWeight: 600 }}>{action}</span>
+      </div>
+    </article>
+  );
+}
 
 export function GovernancePane({
   organizationId,
@@ -47,6 +100,13 @@ export function GovernancePane({
   const [incidents, setIncidents] = useState<DisciplineIncident[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
   const [alerts, setAlerts] = useState<any[]>([]);
+  const [documentCount, setDocumentCount] = useState(0);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [documentTitle, setDocumentTitle] = useState("");
+  const [documentCategory, setDocumentCategory] = useState("Safety & Compliance");
+  const [documentFile, setDocumentFile] = useState<File | null>(null);
+  const [documentUploading, setDocumentUploading] = useState(false);
+  const [documentFeedback, setDocumentFeedback] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   // School Identity & Policy Settings state - loaded from backend
@@ -110,6 +170,9 @@ export function GovernancePane({
         if (data?.alerts && Array.isArray(data.alerts)) {
           setAlerts(data.alerts);
         }
+        const loadedDocuments = Array.isArray(data?.documents) ? data.documents : [];
+        setDocuments(loadedDocuments);
+        setDocumentCount(loadedDocuments.length);
         if (data?.auditLogs && Array.isArray(data.auditLogs)) {
           setAuditLogs(
             data.auditLogs.map((a: any) => ({
@@ -128,6 +191,41 @@ export function GovernancePane({
       })
       .catch(() => {})
       .finally(() => setIsLoading(false));
+  };
+
+  const criticalAlertCount = alerts.filter((alert) => ["critical", "high"].includes(String(alert.severity || "").toLowerCase())).length;
+
+  const handleUploadDocument = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!organizationId || !documentFile || !documentTitle.trim()) return;
+    setDocumentUploading(true);
+    setDocumentFeedback("");
+    try {
+      const digest = await crypto.subtle.digest("SHA-256", await documentFile.arrayBuffer());
+      const checksumSha256 = btoa(String.fromCharCode(...new Uint8Array(digest)));
+      await uploadSchoolDocument(organizationId, {
+        title: documentTitle.trim(),
+        category: documentCategory,
+        fileName: documentFile.name,
+        contentType: documentFile.type || "application/octet-stream",
+        sizeBytes: documentFile.size,
+        checksumSha256,
+      }, documentFile);
+      setDocumentTitle("");
+      setDocumentFile(null);
+      setDocumentFeedback("Document uploaded successfully.");
+      loadData();
+    } catch (err: any) {
+      setDocumentFeedback(err?.message || "Document upload failed.");
+    } finally {
+      setDocumentUploading(false);
+    }
+  };
+
+  const handleDownloadDocument = async (documentId: string) => {
+    if (!organizationId) return;
+    const result = await getSchoolDocumentDownload(organizationId, documentId);
+    window.open(result.url, "_blank", "noopener,noreferrer");
   };
 
   useEffect(() => {
@@ -212,166 +310,22 @@ export function GovernancePane({
   };
 
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
+    <div className="edops-governance-pane" style={{ display: "grid", gap: "20px" }}>
       {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
-        {/* 1. Alerts (Pastel Coral) */}
-        <article
-          onClick={() => {
-            setSubtab("alerts");
-            if (onTabChange) onTabChange("alerts");
-          }}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            height: "148px",
-            padding: "20px",
-            background: "#ffd6d6",
-            border: "1px solid #ffd6d6",
-            borderRadius: "10px",
-            color: "#7a1a1a",
-            cursor: "pointer",
-            transition: "transform 0.15s ease",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Alert Center
-            </span>
-            <ShieldAlert size={18} />
-          </div>
-          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#7a1a1a" }}>
-            0 Critical
-          </p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "11px" }}>All compliance rules active</span>
-            <span style={{ fontSize: "11px", fontWeight: 600 }}>Standing</span>
-          </div>
-        </article>
-
-        {/* 2. Discipline Incidents (Pastel Warm Amber) */}
-        <article
-          onClick={() => {
-            setSubtab("discipline");
-            if (onTabChange) onTabChange("discipline");
-          }}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            height: "148px",
-            padding: "20px",
-            background: "#fde1ac",
-            border: "1px solid #fde1ac",
-            borderRadius: "10px",
-            color: "#7a4a00",
-            cursor: "pointer",
-            transition: "transform 0.15s ease",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Discipline Incidents
-            </span>
-            <AlertTriangle size={18} />
-          </div>
-          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#7a4a00" }}>
-            {incidents.length}
-          </p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "11px" }}>Recorded behavioral logs</span>
-            <span style={{ fontSize: "11px", fontWeight: 600 }}>Ledger</span>
-          </div>
-        </article>
-
-        {/* 3. School Policy Documents (Pastel Sky) */}
-        <article
-          onClick={() => {
-            setSubtab("documents");
-            if (onTabChange) onTabChange("documents");
-          }}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            height: "148px",
-            padding: "20px",
-            background: "#bae5f5",
-            border: "1px solid #bae5f5",
-            borderRadius: "10px",
-            color: "#0a5a7a",
-            cursor: "pointer",
-            transition: "transform 0.15s ease",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              School Documents
-            </span>
-            <FileText size={18} />
-          </div>
-          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
-            14 Files
-          </p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "11px" }}>Affiliation, safety &amp; policies</span>
-            <span style={{ fontSize: "11px", fontWeight: 600 }}>Archived</span>
-          </div>
-        </article>
-
-        {/* 4. Audit Activity Trail (Pastel Mint) */}
-        <article
-          onClick={() => {
-            setSubtab("audit");
-            if (onTabChange) onTabChange("audit");
-          }}
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            height: "148px",
-            padding: "20px",
-            background: "#ccefbf",
-            border: "1px solid #ccefbf",
-            borderRadius: "10px",
-            color: "#1a5c0a",
-            cursor: "pointer",
-            transition: "transform 0.15s ease",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.transform = "translateY(-2px)"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.transform = "translateY(0)"; }}
-        >
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Audit Trail Entries
-            </span>
-            <History size={18} />
-          </div>
-          <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
-            {auditLogs.length > 0 ? auditLogs.length : 24}
-          </p>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "11px" }}>Immutable administrative log</span>
-            <span style={{ fontSize: "11px", fontWeight: 600 }}>Audit</span>
-          </div>
-        </article>
+      <section className="edops-governance-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+        <GovernanceMetricCard label="Alert Center" value={`${criticalAlertCount} Critical`} detail={criticalAlertCount ? "Critical attention required" : "All compliance rules active"} action="Standing" color={{ background: "#ffd6d6", text: "#7a1a1a" }} icon={ShieldAlert} onClick={() => { setSubtab("alerts"); onTabChange?.("alerts"); }} />
+        <GovernanceMetricCard label="Discipline Incidents" value={incidents.length} detail="Recorded behavioral logs" action="Ledger" color={{ background: "#fde1ac", text: "#7a4a00" }} icon={AlertTriangle} onClick={() => { setSubtab("discipline"); onTabChange?.("discipline"); }} />
+        <GovernanceMetricCard label="School Documents" value={`${documentCount} Files`} detail="Affiliation, safety & policies" action="Archived" color={{ background: "#bae5f5", text: "#0a5a7a" }} icon={FileText} onClick={() => { setSubtab("documents"); onTabChange?.("documents"); }} />
+        <GovernanceMetricCard label="Audit Trail Entries" value={auditLogs.length} detail="Immutable administrative log" action="Audit" color={{ background: "#ccefbf", text: "#1a5c0a" }} icon={History} onClick={() => { setSubtab("audit"); onTabChange?.("audit"); }} />
       </section>
 
       {/* Subtab Selector */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
-        <div style={{ display: "flex", gap: "6px" }}>
+      <div className="edops-governance-nav" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+        <div className="edops-governance-tabs" style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "alerts", label: "Alert Center" },
             { id: "discipline", label: "Discipline Register" },
             { id: "documents", label: "School Documents" },
-            { id: "reports", label: "Reports & Analytics" },
             { id: "settings", label: "School Settings" },
             { id: "audit", label: "Audit & Activity Trail" },
           ].map((tab) => (
@@ -402,7 +356,7 @@ export function GovernancePane({
 
       {/* 1. ALERT CENTER */}
       {subtab === "alerts" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-governance-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Active School Operational Breaches & Alerts</h3>
@@ -420,7 +374,7 @@ export function GovernancePane({
           <div style={{ display: "grid", gap: "12px" }}>
             {alerts.length > 0 ? (
               alerts.map((al, idx) => (
-                <div key={idx} style={{ padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div key={idx} className="edops-governance-row" style={{ padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <div>
                     <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "3px" }}>
                       <AlertTriangle size={15} color="#D97706" />
@@ -445,7 +399,7 @@ export function GovernancePane({
 
       {/* 2. DISCIPLINE REGISTER */}
       {subtab === "discipline" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-governance-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Confidential Student Incident & Counselling Register</h3>
@@ -470,7 +424,8 @@ export function GovernancePane({
           </div>
 
           {incidents.length > 0 ? (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+            <div className="edops-governance-table" style={{ overflowX: "auto" }}>
+            <table className="edops-governance-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                   <th style={{ padding: "10px" }}>Student & Class</th>
@@ -507,6 +462,7 @@ export function GovernancePane({
                 ))}
               </tbody>
             </table>
+            </div>
           ) : (
             <div style={{ padding: "28px", textAlign: "center", color: "#6B7280", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9", fontSize: "13px" }}>
               No discipline incidents recorded. School conduct record is spotless.
@@ -517,7 +473,7 @@ export function GovernancePane({
 
       {/* 3. AUDIT & ACTIVITY TRAIL */}
       {subtab === "audit" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-governance-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Immutable School Audit Log</h3>
@@ -529,7 +485,8 @@ export function GovernancePane({
           </div>
 
           {auditLogs.length > 0 ? (
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px", textAlign: "left" }}>
+            <div className="edops-governance-table" style={{ overflowX: "auto" }}>
+            <table className="edops-governance-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px", textAlign: "left" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                   <th style={{ padding: "10px" }}>Timestamp & IP</th>
@@ -565,6 +522,7 @@ export function GovernancePane({
                 ))}
               </tbody>
             </table>
+            </div>
           ) : (
             <div style={{ padding: "28px", textAlign: "center", color: "#6B7280", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9", fontSize: "13px" }}>
               No audit logs recorded for this organization yet.
@@ -823,8 +781,57 @@ export function GovernancePane({
         </div>
       )}
 
-      {/* 5. DOCUMENTS & REPORTS FALLBACK */}
-      {["documents", "reports"].includes(subtab) && (
+      {/* 5. SCHOOL DOCUMENTS */}
+      {subtab === "documents" && (
+        <div className="edops-governance-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px", marginBottom: "16px", flexWrap: "wrap" }}>
+            <div>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>School Documents</h3>
+              <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Upload and archive affiliation, safety, and school policy records.</p>
+            </div>
+            <span style={{ fontSize: "12px", fontWeight: 700, color: "#0a5a7a" }}>{documents.length} file{documents.length === 1 ? "" : "s"}</span>
+          </div>
+          <form className="edops-document-upload-form" onSubmit={handleUploadDocument} style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr 1.4fr auto", gap: "8px", alignItems: "end", marginBottom: "16px" }}>
+            <label style={{ display: "grid", gap: "5px", fontSize: "11px", fontWeight: 700, color: "#475569" }}>
+              Document title
+              <input required value={documentTitle} onChange={(e) => setDocumentTitle(e.target.value)} placeholder="e.g. Fire Safety Certificate" style={{ height: "36px", padding: "0 9px", border: "1px solid #CBD5E1", borderRadius: "6px" }} />
+            </label>
+            <label style={{ display: "grid", gap: "5px", fontSize: "11px", fontWeight: 700, color: "#475569" }}>
+              Category
+              <select value={documentCategory} onChange={(e) => setDocumentCategory(e.target.value)} style={{ height: "36px", padding: "0 9px", border: "1px solid #CBD5E1", borderRadius: "6px", background: "#fff" }}>
+                <option>Affiliation</option>
+                <option>Safety &amp; Compliance</option>
+                <option>School Policy</option>
+                <option>Inspection Report</option>
+                <option>Other</option>
+              </select>
+            </label>
+            <label style={{ display: "grid", gap: "5px", fontSize: "11px", fontWeight: 700, color: "#475569" }}>
+              File (max 25 MB)
+              <input required type="file" onChange={(e) => setDocumentFile(e.target.files?.[0] || null)} style={{ height: "36px", padding: "7px 4px", border: "1px solid #CBD5E1", borderRadius: "6px", fontSize: "11px" }} />
+            </label>
+            <button type="submit" disabled={documentUploading} style={{ height: "36px", padding: "0 13px", display: "inline-flex", alignItems: "center", gap: "6px", background: "#0c1e33", color: "#fff", border: "none", borderRadius: "6px", fontWeight: 700, cursor: documentUploading ? "wait" : "pointer", opacity: documentUploading ? 0.65 : 1 }}>
+              <Upload size={13} /> {documentUploading ? "Uploading…" : "Upload"}
+            </button>
+          </form>
+          {documentFeedback && <div style={{ marginBottom: "12px", padding: "9px 12px", borderRadius: "6px", background: documentFeedback.includes("successfully") ? "#ECFDF5" : "#FEF2F2", color: documentFeedback.includes("successfully") ? "#047857" : "#B42318", fontSize: "12px" }}>{documentFeedback}</div>}
+          {documents.length > 0 ? (
+            <div style={{ display: "grid", gap: "8px" }}>
+              {documents.map((document) => (
+                <div key={document.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", padding: "11px 12px", border: "1px solid #E2E8F0", borderRadius: "7px" }}>
+                  <div style={{ minWidth: 0 }}><b style={{ display: "block", color: "#0c1e33", fontSize: "13px" }}>{document.title}</b><span style={{ color: "#64748B", fontSize: "11px" }}>{document.category} · {document.fileName}</span></div>
+                  <button type="button" onClick={() => handleDownloadDocument(document.id)} style={{ flexShrink: 0, display: "inline-flex", alignItems: "center", gap: "5px", padding: "6px 10px", border: "1px solid #CBD5E1", borderRadius: "6px", background: "#fff", color: "#0c1e33", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}><Download size={12} /> Download</button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ padding: "24px", background: "#f8fafc", borderRadius: "8px", textAlign: "center", color: "var(--muted)", fontSize: "13px" }}>No school documents uploaded yet.</div>
+          )}
+        </div>
+      )}
+
+      {/* 6. REPORTS FALLBACK */}
+      {subtab === "reports" && (
         <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>{subtab.toUpperCase()} Center</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Centralized document storage, student transcripts, and administrative compliance exports</p>

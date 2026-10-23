@@ -27,7 +27,7 @@ import {
   createSchoolInvitation, directAdmitStudent, getSchoolAdminAcademics, getSchoolAdminStudents,
   getSchoolAdminTeachers, createAcademicSection, createAcademicProgram,
   getStudentAvatarUrl,
-  createSchoolAdminExam,
+  createPrincipalExamPlan,
 } from "../edops-api";
 
 // ─── Design Tokens (Strictly matching Student & Teacher Dashboard specification) ──
@@ -598,7 +598,7 @@ export function SchoolAdminWorkspace({
           if (!examSubjectId) throw new Error("Please select an Examination Subject");
           if (!examDate) throw new Error("Please choose an Examination Date");
 
-          await createSchoolAdminExam(organizationId, {
+          await createPrincipalExamPlan(organizationId, {
             sectionId: examSectionId,
             subjectId: examSubjectId,
             examName: examName.trim(),
@@ -607,6 +607,7 @@ export function SchoolAdminWorkspace({
             startTime: examStartTime,
             endTime: examEndTime,
             maxMarks: Number(examMaxMarks) || 100,
+            status: "scheduled",
           });
           setRefreshKey((k) => k + 1);
           setQuickActionModal(null);
@@ -805,6 +806,7 @@ export function SchoolAdminWorkspace({
                 onClick={() => setRefreshKey((k) => k + 1)}
                 title="Refresh Dashboard"
                 aria-label="Refresh Dashboard"
+                className="workspace-header-refresh"
                 style={{
                   all: "unset",
                   display: "inline-flex",
@@ -845,14 +847,15 @@ export function SchoolAdminWorkspace({
             <button
               onClick={() => go("alerts")}
               aria-label="Alerts"
+              className="workspace-header-alerts"
               style={{
                 all: "unset",
                 position: "relative",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                width: "38px",
-                height: "38px",
+                width: "44px",
+                height: "44px",
                 borderRadius: "8px",
                 border: `1px solid ${S.line}`,
                 background: "#ffffff",
@@ -881,11 +884,12 @@ export function SchoolAdminWorkspace({
             {/* Avatar Dropdown - Exactly matching Student Dashboard Profile Avatar */}
             <div style={{ position: "relative" }}>
               <div
+                className="workspace-avatar-button"
                 onClick={() => setProfileMenuOpen(!profileMenuOpen)}
                 title="School Admin Profile & Settings"
                 style={{
-                  width: "36px",
-                  height: "36px",
+                  width: "44px",
+                  height: "44px",
                   borderRadius: "50%",
                   overflow: "hidden",
                   cursor: "pointer",
@@ -1222,9 +1226,10 @@ export function SchoolAdminWorkspace({
           }}
         >
           <aside
+            className="edops-right-drawer"
             style={{
               position: "relative",
-              width: "580px",
+              width: "var(--edops-drawer-width)",
               maxWidth: "100vw",
               height: "100vh",
               display: "flex",

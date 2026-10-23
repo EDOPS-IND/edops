@@ -25,6 +25,10 @@ import { DatabaseBackedPortals1790380800000 } from './migrations/1790380800000-D
 import { DashboardNavigation1790294400000 } from './migrations/1790294400000-DashboardNavigation';
 import { SchoolPolicySettings1790467200000 } from './migrations/1790467200000-SchoolPolicySettings';
 import { PasswordResetTokens1790553600000 } from './migrations/1790553600000-PasswordResetTokens';
+import { SubjectPassingMarks1790553600001 } from './migrations/1790553600001-SubjectPassingMarks';
+import { NullableSubjectFaculty1790553600002 } from './migrations/1790553600002-NullableSubjectFaculty';
+import { SchoolDocuments1790553600003 } from './migrations/1790553600003-SchoolDocuments';
+import { RemoveSchoolAdminReportsNavigation1790553600004 } from './migrations/1790553600004-RemoveSchoolAdminReportsNavigation';
 import { ArenaAttempt, ArenaQuestion } from '../modules/arena/arena.entity';
 import { Recording } from '../modules/content/recording.entity';
 import { Assignment, AttendanceSession, ExamEvaluation, Submission } from '../modules/assignments/teaching.entity';
@@ -60,6 +64,10 @@ export function databaseOptions(config: AppConfig): DataSourceOptions {
       DatabaseBackedPortals1790380800000,
       SchoolPolicySettings1790467200000,
       PasswordResetTokens1790553600000,
+      SubjectPassingMarks1790553600001,
+      NullableSubjectFaculty1790553600002,
+      SchoolDocuments1790553600003,
+      RemoveSchoolAdminReportsNavigation1790553600004,
     ],
     migrationsTransactionMode: 'all',
     synchronize: false,

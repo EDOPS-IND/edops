@@ -7,6 +7,7 @@ import {
   getSchoolAdminLeaves,
   updateSchoolAdminLeaveStatus,
 } from "../edops-api";
+import { Empty } from "../components/ui";
 import {
   CalendarCheck2,
   Clock,
@@ -38,6 +39,7 @@ export function AttendanceLeavePane({
   }, [activeTab]);
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [attendanceData, setAttendanceData] = useState<any>(null);
 
   // Daily Attendance Register
@@ -49,13 +51,15 @@ export function AttendanceLeavePane({
   useEffect(() => {
     if (!organizationId) return;
     setLoading(true);
+    setError(null);
+    setRegisters([]);
+    setLeaveRequests([]);
     Promise.all([
-      getSchoolAdminAttendance(organizationId).catch(() => null),
-      getSchoolAdminLeaves(organizationId).catch(() => []),
+      getSchoolAdminAttendance(organizationId),
+      getSchoolAdminLeaves(organizationId),
     ]).then(([att, lvs]) => {
-      if (att) {
-        setAttendanceData(att);
-        if (att.recentSessions && Array.isArray(att.recentSessions) && att.recentSessions.length > 0) {
+      setAttendanceData(att);
+      if (att.recentSessions && Array.isArray(att.recentSessions)) {
           setRegisters(
             att.recentSessions.map((s: any) => ({
               date: String(s.date).slice(0, 10),
@@ -70,9 +74,8 @@ export function AttendanceLeavePane({
               status: s.status === "finalized" ? "Submitted" : "Pending",
             }))
           );
-        }
       }
-      if (lvs && Array.isArray(lvs) && lvs.length > 0) {
+      if (Array.isArray(lvs)) {
         setLeaveRequests(
           lvs.map((l: any) => ({
             id: l.id,
@@ -87,19 +90,34 @@ export function AttendanceLeavePane({
           }))
         );
       }
+    }).catch((cause) => {
+      setError(cause instanceof Error ? cause.message : "Attendance and leave data could not be loaded.");
     }).finally(() => setLoading(false));
   }, [organizationId]);
 
+  const exportCsv = () => {
+    const rows = registers.map((r) => [r.date, r.section, r.totalStudents, r.present, r.absent, r.late, r.status]);
+    const csv = [["Date", "Section", "Enrolled", "Present", "Absent", "Late", "Status"], ...rows]
+      .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
+      .join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "attendance-register.csv";
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleLeaveAction = async (id:string,action:'Approved'|'Rejected') => {
     if (!organizationId) return;
-    try {await updateSchoolAdminLeaveStatus(organizationId,id,action.toLowerCase());setLeaveRequests(prev=>prev.map(item=>item.id===id?{...item,status:action}:item));} catch {}
+    try {await updateSchoolAdminLeaveStatus(organizationId,id,action.toLowerCase());setLeaveRequests(prev=>prev.map(item=>item.id===id?{...item,status:action}:item));} catch (cause) { setError(cause instanceof Error ? cause.message : "Leave status could not be updated."); }
   };
 
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
+    <div className="edops-attendance-pane" style={{ display: "grid", gap: "20px" }}>
       {/* Subtab Selector */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
-        <div style={{ display: "flex", gap: "6px" }}>
+      <div className="edops-attendance-nav" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+        <div className="edops-attendance-tabs" style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "register", label: "Daily Attendance Register" },
             { id: "defaulters", label: "Low Attendance Defaulters (<75%)" },
@@ -128,10 +146,12 @@ export function AttendanceLeavePane({
           ))}
         </div>
 
-        <button style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer" }}>
+        <button className="edops-attendance-export" type="button" onClick={exportCsv} disabled={loading || registers.length === 0} style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", opacity: loading || registers.length === 0 ? 0.5 : 1 }}>
           Export Attendance Sheet (CSV)
         </button>
       </div>
+
+      {error && <div role="alert" style={{ color: "#B91C1C", fontSize: "13px" }}>{error}</div>}
 
       {/* 1. ATTENDANCE REGISTER TAB */}
       {subtab === "register" && (
@@ -147,7 +167,7 @@ export function AttendanceLeavePane({
             const submittedCount = registers.filter((r) => r.status === "Submitted").length;
 
             return (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+              <div className="edops-attendance-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
                 {/* 1. Student Attendance Rate (Pastel Violet) */}
                 <article
                   style={{
@@ -276,22 +296,26 @@ export function AttendanceLeavePane({
           })()}
 
           {/* Section Attendance Table */}
-          <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+          <div className="edops-attendance-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
             <h3 style={{ margin: "0 0 14px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Daily Class Section Attendance Registers</h3>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+            <div className="edops-attendance-table" style={{ overflowX: "auto" }}>
+            <table className="edops-attendance-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                   <th style={{ padding: "10px" }}>Class & Section</th>
                   <th style={{ padding: "10px" }}>Enrolled</th>
                   <th style={{ padding: "10px" }}>Present</th>
                   <th style={{ padding: "10px" }}>Absent</th>
-                  <th style={{ padding: "10px" }}>Late / Leave</th>
+                  <th style={{ padding: "10px" }}>Late</th>
                   <th style={{ padding: "10px" }}>Register Status</th>
-                  <th style={{ padding: "10px", textAlign: "right" }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {registers.map((r, i) => (
+                {loading ? (
+                  <tr><td colSpan={6} style={{ padding: "24px" }}>Loading attendance registers…</td></tr>
+                ) : registers.length === 0 ? (
+                  <tr><td colSpan={6} style={{ padding: "24px" }}><Empty title="No attendance recorded today" copy="Attendance registers will appear after a teacher submits a roll call." /></td></tr>
+                ) : registers.map((r, i) => (
                   <tr key={i} style={{ borderBottom: "1px solid #f4f6f7" }}>
                     <td style={{ padding: "12px 10px" }}>
                       <b style={{ color: "#0c1e33" }}>{r.section}</b>
@@ -300,7 +324,7 @@ export function AttendanceLeavePane({
                     <td style={{ padding: "12px 10px" }}>{r.totalStudents}</td>
                     <td style={{ padding: "12px 10px", fontWeight: 700, color: "#047857" }}>{r.present}</td>
                     <td style={{ padding: "12px 10px", fontWeight: 700, color: r.absent > 0 ? "#DC2626" : "var(--muted)" }}>{r.absent}</td>
-                    <td style={{ padding: "12px 10px" }}>{r.late} late · {r.onLeave} leave</td>
+                    <td style={{ padding: "12px 10px" }}>{r.late} late</td>
                     <td style={{ padding: "12px 10px" }}>
                       <span style={{
                         padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700,
@@ -310,40 +334,27 @@ export function AttendanceLeavePane({
                         {r.status}
                       </span>
                     </td>
-                    <td style={{ padding: "12px 10px", textAlign: "right" }}>
-                      {r.status === "Pending" ? (
-                        <button style={{ padding: "4px 8px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>
-                          Send Teacher Reminder
-                        </button>
-                      ) : (
-                        <button style={{ padding: "4px 8px", background: "#f8fafc", border: "1px solid #e4e6e9", color: "#0c1e33", borderRadius: "6px", fontSize: "11px", fontWeight: 700, cursor: "pointer" }}>
-                          View Register
-                        </button>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}
 
       {/* 2. LOW ATTENDANCE DEFAULTERS TAB (, : Actionable Loop) */}
       {subtab === "defaulters" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-attendance-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Students Below Statutory 75% Attendance Mark</h3>
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>CBSE exam eligibility threshold alert. Trigger parent escalation notices with 1-click.</p>
             </div>
-            <button style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
-              Send Batch Warning via WhatsApp
-            </button>
           </div>
 
           <div style={{ display: "grid", gap: "10px" }}>
-            {(attendanceData?.defaulters && attendanceData.defaulters.length > 0
+            {loading ? <p>Loading defaulters…</p> : (attendanceData?.defaulters && attendanceData.defaulters.length > 0
               ? attendanceData.defaulters.map((d: any) => ({
                   name: d.studentName,
                   adm: `ROLL-${d.rollNumber || "01"}`,
@@ -351,11 +362,11 @@ export function AttendanceLeavePane({
                   parent: "Parent Guardian",
                   phone: d.parentPhone || "",
                   pct: d.attendancePct || 0,
-                  daysAbsent: d.consecutiveDaysAbsent || 0,
+                  daysAbsent: d.absentCount || 0,
                 }))
               : ([] as any[])
             ).map((st: any, i: number) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9" }}>
+              <div key={i} className="edops-attendance-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9" }}>
                 <div>
                   <b style={{ color: "#0c1e33", fontSize: "14px" }}>{st.name}</b> <span style={{ fontSize: "12px", color: "var(--muted)" }}>({st.adm} · Class {st.grade})</span>
                   <div style={{ fontSize: "12px", color: "#334155", marginTop: "2px" }}>
@@ -367,25 +378,23 @@ export function AttendanceLeavePane({
                     <div style={{ fontSize: "18px", fontWeight: 800, color: "#B45309" }}>{st.pct}%</div>
                     <span style={{ fontSize: "11px", color: "var(--muted)" }}>Attendance Rate</span>
                   </div>
-                  <button style={{ padding: "6px 12px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}>
-                    Trigger WhatsApp Notice
-                  </button>
                 </div>
               </div>
             ))}
+            {!loading && (!attendanceData?.defaulters || attendanceData.defaulters.length === 0) && <Empty title="No attendance defaulters" copy="No active student is currently below the 75% threshold." />}
           </div>
         </div>
       )}
 
       {/* 3. LEAVE APPROVAL DESK TAB */}
       {subtab === "leave" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-attendance-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Leave Approval Desk</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Student medical leaves & staff casual leave applications awaiting admin verification</p>
 
           <div style={{ display: "grid", gap: "12px" }}>
-            {leaveRequests.map((l) => (
-              <div key={l.id} style={{ padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            {loading ? <p>Loading leave requests…</p> : leaveRequests.length === 0 ? <Empty title="No leave requests" copy="New student and staff leave applications will appear here." /> : leaveRequests.map((l) => (
+              <div key={l.id} className="edops-attendance-row" style={{ padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span style={{ padding: "2px 8px", borderRadius: "4px", fontSize: "10.5px", fontWeight: 700, background: "#0c1e33", color: "#ffffff" }}>

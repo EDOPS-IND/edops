@@ -26,12 +26,13 @@ import {
   CreateLeaveRequestDto,
   CreateLibraryBookDto,
   CreateSchoolAssetDto,
+  CreateSchoolDocumentDto,
+  CompleteSchoolDocumentDto,
   CreateTimetableEntryDto,
   CreateTransportVehicleDto,
   DirectAdmitStudentDto,
   GrantFeeConcessionDto,
   RecordOfflinePaymentDto,
-  ScheduleExamDto,
   SchedulePtmDto,
   SendFeeReminderDto,
   UpdateLeaveStatusDto,
@@ -587,6 +588,39 @@ export class SchoolAdminController {
     return this.service.createDisciplineIncident(orgId, req.user, dto);
   }
 
+  @Post("governance/documents")
+  @ApiOperation({ summary: "Create a school document upload" })
+  createSchoolDocument(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateSchoolDocumentDto,
+  ) {
+    return this.service.createSchoolDocument(orgId, req.user, dto);
+  }
+
+  @Post("governance/documents/:documentId/complete")
+  @ApiParam({ name: "documentId", format: "uuid" })
+  @ApiOperation({ summary: "Complete and verify a school document upload" })
+  completeSchoolDocument(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("documentId", ParseUUIDPipe) documentId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CompleteSchoolDocumentDto,
+  ) {
+    return this.service.completeSchoolDocument(orgId, req.user, documentId, dto);
+  }
+
+  @Get("governance/documents/:documentId/download")
+  @ApiParam({ name: "documentId", format: "uuid" })
+  @ApiOperation({ summary: "Get a short-lived school document download URL" })
+  downloadSchoolDocument(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("documentId", ParseUUIDPipe) documentId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.downloadSchoolDocument(orgId, req.user, documentId);
+  }
+
   @Patch("settings/configuration")
   @ApiOperation({
     summary:
@@ -617,13 +651,4 @@ export class SchoolAdminController {
     return this.service.createCoursework(orgId, req.user, dto);
   }
 
-  @Post("learning/exams")
-  @ApiOperation({ summary: "Schedule school examination" })
-  scheduleExam(
-    @Param("organizationId", ParseUUIDPipe) orgId: string,
-    @Req() req: AuthenticatedRequest,
-    @Body() dto: ScheduleExamDto,
-  ) {
-    return this.service.scheduleExam(orgId, req.user, dto);
-  }
 }

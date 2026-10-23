@@ -66,7 +66,6 @@ export const dashboardSections: Section[] = [
       "alerts|Alert Center",
       "discipline|Discipline Register",
       "documents|Documents & Policies",
-      "reports|Reports & Analytics",
       "settings|School Settings",
       "audit|Audit Log",
     ],

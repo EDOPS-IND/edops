@@ -4,15 +4,20 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  SetMetadata,
 } from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 import { AuthenticatedRequest } from "../../../common/auth.guard";
 import { DrizzleService } from "../../../database/drizzle.service";
 import { organizations, memberships } from "../../../database/schema";
 import { and, eq } from "drizzle-orm";
 
+export const SCHOOL_ADMIN_EXAM_CREATE = "school_admin_exam_create";
+export const AllowSchoolAdminExamCreate = () => SetMetadata(SCHOOL_ADMIN_EXAM_CREATE, true);
+
 @Injectable()
 export class PrincipalGuard implements CanActivate {
-  constructor(private readonly drizzle: DrizzleService) {}
+  constructor(private readonly drizzle: DrizzleService, private readonly reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
@@ -49,7 +54,8 @@ export class PrincipalGuard implements CanActivate {
         "Organization not found or membership inactive",
       );
 
-    if (membership.role !== "principal") {
+    const schoolAdminExamCreate = this.reflector.getAllAndOverride<boolean>(SCHOOL_ADMIN_EXAM_CREATE, [context.getHandler(), context.getClass()]);
+    if (membership.role !== "principal" && !(schoolAdminExamCreate && membership.role === "school_admin")) {
       throw new ForbiddenException(
         "Principal academic leadership access required",
       );

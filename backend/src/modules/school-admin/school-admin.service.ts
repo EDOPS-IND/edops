@@ -5,7 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { randomBytes } from "crypto";
+import { randomBytes, randomUUID } from "crypto";
 import { AuditService } from "../audit/audit.service";
 import { tokenHash } from "../auth/password";
 import { User } from "../auth/user.entity";
@@ -23,12 +23,13 @@ import {
   CreateLeaveRequestDto,
   CreateLibraryBookDto,
   CreateSchoolAssetDto,
+  CreateSchoolDocumentDto,
+  CompleteSchoolDocumentDto,
   CreateTimetableEntryDto,
   CreateTransportVehicleDto,
   DirectAdmitStudentDto,
   GrantFeeConcessionDto,
   RecordOfflinePaymentDto,
-  ScheduleExamDto,
   SchedulePtmDto,
   SendFeeReminderDto,
   UpdateLeaveStatusDto,
@@ -39,6 +40,7 @@ import {
 
 import { DrizzleService } from "../../database/drizzle.service";
 import { Queryable } from "../billing/entitlements";
+import { StorageService } from "../content/storage.service";
 
 @Injectable()
 export class SchoolAdminService {
@@ -46,6 +48,7 @@ export class SchoolAdminService {
     private readonly drizzle: DrizzleService,
     private readonly audit: AuditService,
     private readonly mail: MailService,
+    private readonly storage: StorageService,
   ) {}
 
   private async authorize(
@@ -175,6 +178,73 @@ export class SchoolAdminService {
       governanceCompliance: null,
       infrastructureIndex: null,
     };
+
+    const attendanceTrend = await manager.query(
+      `SELECT TO_CHAR(DATE_TRUNC('month', as_sess.date), 'Mon') AS label,
+              TO_CHAR(DATE_TRUNC('month', as_sess.date), 'YYYY-MM') AS period,
+              COUNT(ar.id)::int AS total,
+              COUNT(*) FILTER (WHERE ar.status IN ('present','late'))::int AS present,
+              COUNT(*) FILTER (WHERE ar.status = 'absent')::int AS absent,
+              COUNT(*) FILTER (WHERE ar.status = 'late')::int AS late
+       FROM attendance_sessions as_sess
+       JOIN attendance_records ar ON ar.attendance_session_id = as_sess.id
+       WHERE as_sess.organization_id = $1 AND as_sess.status = 'finalized'
+         AND as_sess.date >= CURRENT_DATE - INTERVAL '5 months'
+       GROUP BY DATE_TRUNC('month', as_sess.date)
+       ORDER BY DATE_TRUNC('month', as_sess.date)`,
+      [orgId],
+    );
+
+    const leaveApprovalSummary = await manager.query(
+      `SELECT status, COUNT(*)::int AS count
+       FROM leave_requests WHERE organization_id = $1
+       GROUP BY status ORDER BY status`,
+      [orgId],
+    );
+
+    const disciplineByMonth = await manager.query(
+      `SELECT TO_CHAR(DATE_TRUNC('month', incident_date), 'Mon') AS label,
+              TO_CHAR(DATE_TRUNC('month', incident_date), 'YYYY-MM') AS period,
+              incident_type AS category, COUNT(*)::int AS count
+       FROM discipline_incidents
+       WHERE organization_id = $1 AND incident_date >= CURRENT_DATE - INTERVAL '5 months'
+       GROUP BY DATE_TRUNC('month', incident_date), incident_type
+       ORDER BY DATE_TRUNC('month', incident_date), incident_type`,
+      [orgId],
+    );
+
+    const peopleGrowth = await manager.query(
+      `SELECT TO_CHAR(DATE_TRUNC('month', created_at), 'Mon') AS label,
+              TO_CHAR(DATE_TRUNC('month', created_at), 'YYYY-MM') AS period,
+              COUNT(*) FILTER (WHERE role = 'student')::int AS students,
+              COUNT(*) FILTER (WHERE role = 'teacher')::int AS teachers
+       FROM memberships
+       WHERE organization_id = $1 AND role IN ('student','teacher')
+         AND created_at >= CURRENT_DATE - INTERVAL '5 months'
+       GROUP BY DATE_TRUNC('month', created_at)
+       ORDER BY DATE_TRUNC('month', created_at)`,
+      [orgId],
+    );
+
+    const lowAttendanceClasses = await manager.query(
+      `SELECT s.id AS "sectionId", CONCAT(p.name, ' - ', s.name) AS "classSection",
+              COUNT(as_sess.id)::int AS total,
+              COUNT(*) FILTER (WHERE as_sess.id IS NOT NULL AND ar.status IN ('present','late'))::int AS present,
+              CASE WHEN COUNT(as_sess.id) = 0 THEN 0
+                   ELSE ROUND(COUNT(*) FILTER (WHERE as_sess.id IS NOT NULL AND ar.status IN ('present','late')) * 100.0 / COUNT(as_sess.id), 1)
+              END AS percentage
+       FROM sections s
+       JOIN programs p ON p.id = s.program_id
+       LEFT JOIN enrollments e ON e.organization_id = s.organization_id AND e.section_id = s.id AND e.status = 'active'
+       LEFT JOIN attendance_records ar ON ar.organization_id = s.organization_id AND ar.student_id = e.student_user_id
+       LEFT JOIN attendance_sessions as_sess ON as_sess.organization_id = s.organization_id AND as_sess.id = ar.attendance_session_id AND as_sess.status = 'finalized'
+       WHERE s.organization_id = $1
+       GROUP BY s.id, p.name, s.name
+       HAVING COUNT(as_sess.id) > 0
+       ORDER BY percentage ASC, "classSection"
+       LIMIT 8`,
+      [orgId],
+    );
 
     // Live attention items from real DB state
     const [pendingLeavesRes] = await manager.query(
@@ -321,6 +391,14 @@ export class SchoolAdminService {
         feeDefaulters,
       },
       health: healthMetrics,
+      analytics: {
+        attendanceTrend,
+        leaveApprovalSummary,
+        disciplineByMonth,
+        feeCollection: { assessed: feeAssessed, collected: feeCollected, pending: feePending },
+        peopleGrowth,
+        lowAttendanceClasses,
+      },
       attentionItems,
       dailyTimeline,
       recentActivity: recentActivity.map((r: any) => {
@@ -1842,23 +1920,25 @@ export class SchoolAdminService {
     actor: User,
     sectionId: string,
     subjectId: string,
-    teacherUserId: string,
+    teacherUserId?: string | null,
   ) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
-      const [t] = await manager.query(
+      if (teacherUserId) {
+        const [t] = await manager.query(
         `SELECT u.id, u.name FROM users u JOIN memberships m ON m.user_id = u.id WHERE m.organization_id = $1 AND u.id = $2 AND m.role = 'teacher'`,
-        [orgId, teacherUserId],
-      );
-      if (!t) throw new NotFoundException("Teacher not found in this school");
+          [orgId, teacherUserId],
+        );
+        if (!t) throw new NotFoundException("Teacher not found in this school");
+      }
       await manager.query(
         `INSERT INTO class_subject_assignments (organization_id, section_id, subject_id, teacher_user_id)
          VALUES ($1, $2, $3, $4)
          ON CONFLICT (organization_id, section_id, subject_id)
          DO UPDATE SET teacher_user_id = EXCLUDED.teacher_user_id`,
-        [orgId, sectionId, subjectId, teacherUserId],
+        [orgId, sectionId, subjectId, teacherUserId || null],
       );
-      return { success: true, sectionId, subjectId, teacherUserId };
+      return { success: true, sectionId, subjectId, teacherUserId: teacherUserId || null };
     });
   }
 
@@ -2320,7 +2400,7 @@ export class SchoolAdminService {
          FROM attendance_sessions a
          JOIN sections s ON s.id = a.section_id
          JOIN users u ON u.id = a.taken_by
-         WHERE a.organization_id = $1
+         WHERE a.organization_id = $1 AND a.date = CURRENT_DATE
          ORDER BY a.date DESC, a.period
          LIMIT 50`,
         [orgId],
@@ -2331,16 +2411,17 @@ export class SchoolAdminService {
            coalesce(u.name, 'Student') as "studentName",
            coalesce(e.roll_number, '') as "rollNumber",
            coalesce(sec.name, 'Class') as "section",
-           ROUND((COUNT(CASE WHEN r.status = 'present' THEN 1 END)::numeric / NULLIF(COUNT(r.id), 0)) * 100, 1)::float as "attendancePct",
-           COUNT(CASE WHEN r.status = 'absent' THEN 1 END)::int as "consecutiveDaysAbsent",
-           coalesce(u.phone, '') as "parentPhone"
+           ROUND((COUNT(CASE WHEN r.status IN ('present', 'late') THEN 1 END)::numeric / NULLIF(COUNT(r.id), 0)) * 100, 1)::float as "attendancePct",
+           COUNT(CASE WHEN r.status = 'absent' THEN 1 END)::int as "absentCount",
+           coalesce(sp.guardian_phone, '') as "parentPhone"
          FROM enrollments e
          JOIN users u ON u.id = e.student_user_id
+         LEFT JOIN student_profiles sp ON sp.organization_id = e.organization_id AND sp.student_user_id = e.student_user_id
          LEFT JOIN sections sec ON sec.id = e.section_id AND sec.organization_id = e.organization_id
          JOIN attendance_records r ON r.student_id = e.student_user_id AND r.organization_id = e.organization_id
          WHERE e.organization_id = $1 AND e.status = 'active'
-         GROUP BY u.name, e.roll_number, sec.name, u.phone
-         HAVING COUNT(r.id) >= 1 AND (COUNT(CASE WHEN r.status = 'present' THEN 1 END)::float / COUNT(r.id)) < 0.75
+         GROUP BY u.name, e.roll_number, sec.name, sp.guardian_phone
+         HAVING COUNT(r.id) >= 1 AND (COUNT(CASE WHEN r.status IN ('present', 'late') THEN 1 END)::float / COUNT(r.id)) < 0.75
          ORDER BY "attendancePct" ASC
          LIMIT 20`,
         [orgId],
@@ -2997,6 +3078,46 @@ export class SchoolAdminService {
   }
 
   // 10. GOVERNANCE & DISCIPLINE
+  async createSchoolDocument(orgId: string, actor: User, dto: CreateSchoolDocumentDto) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+      const objectKey = `organizations/${orgId}/school-documents/${randomUUID()}/${dto.fileName.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+      const [document] = await manager.query(
+        `INSERT INTO school_documents (organization_id, uploaded_by, title, category, file_name, content_type, size_bytes, checksum_sha256, object_key)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+         RETURNING id, title, category, file_name as "fileName", content_type as "contentType", size_bytes as "sizeBytes", status, created_at as "createdAt"`,
+        [orgId, actor.id, dto.title.trim(), dto.category.trim(), dto.fileName, dto.contentType, dto.sizeBytes, dto.checksumSha256, objectKey],
+      );
+      const upload = await this.storage.createUploadUrl({ objectKey, contentType: dto.contentType, sizeBytes: dto.sizeBytes, checksumSha256: dto.checksumSha256 });
+      return { document, upload };
+    });
+  }
+
+  async completeSchoolDocument(orgId: string, actor: User, documentId: string, dto: CompleteSchoolDocumentDto) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+      const [document] = await manager.query(`SELECT * FROM school_documents WHERE organization_id = $1 AND id = $2 LIMIT 1`, [orgId, documentId]);
+      if (!document) throw new NotFoundException("School document not found");
+      await this.storage.verifyMetadata({ objectKey: document.object_key, contentType: document.content_type, sizeBytes: document.size_bytes, checksumSha256: document.checksum_sha256 }, dto.versionId);
+      const [updated] = await manager.query(
+        `UPDATE school_documents SET object_version = $1, status = 'ready' WHERE organization_id = $2 AND id = $3
+         RETURNING id, title, category, file_name as "fileName", content_type as "contentType", size_bytes as "sizeBytes", status, created_at as "createdAt"`,
+        [dto.versionId, orgId, documentId],
+      );
+      await this.audit.record(manager, { organizationId: orgId, actorId: actor.id, action: "school.document.uploaded", details: { documentId, title: document.title } });
+      return updated;
+    });
+  }
+
+  async downloadSchoolDocument(orgId: string, actor: User, documentId: string) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+      const [document] = await manager.query(`SELECT * FROM school_documents WHERE organization_id = $1 AND id = $2 AND status = 'ready' LIMIT 1`, [orgId, documentId]);
+      if (!document) throw new NotFoundException("School document not found");
+      return this.storage.download({ objectKey: document.object_key, contentType: document.content_type, sizeBytes: document.size_bytes, checksumSha256: document.checksum_sha256 }, document.object_version);
+    });
+  }
+
   async getGovernanceOverview(orgId: string, actor: User) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
@@ -3035,6 +3156,12 @@ export class SchoolAdminService {
         [orgId],
       );
 
+      const documents = await manager.query(
+        `SELECT id, title, category, file_name as "fileName", content_type as "contentType", size_bytes as "sizeBytes", status, created_at as "createdAt"
+         FROM school_documents WHERE organization_id = $1 AND status = 'ready' ORDER BY created_at DESC LIMIT 100`,
+        [orgId],
+      );
+
       const alerts: any[] = [];
       const [pendingLeaves] = await manager.query(
         `SELECT COUNT(*)::int as count FROM leave_requests WHERE organization_id = $1 AND status = 'pending'`,
@@ -3043,6 +3170,7 @@ export class SchoolAdminService {
       if (pendingLeaves?.count > 0) {
         alerts.push({
           type: "Pending Leave Approvals",
+          severity: "warning",
           source: "Attendance & Leave",
           desc: `${pendingLeaves.count} leave request(s) awaiting administrative review.`,
           action: "Review Leaves",
@@ -3056,6 +3184,7 @@ export class SchoolAdminService {
       if (overdueFees?.count > 0) {
         alerts.push({
           type: "Statutory Fee Recovery Overdue",
+          severity: "critical",
           source: "Finance Management",
           desc: `${overdueFees.count} student account(s) have overdue fee balances totaling ₹${Number(overdueFees.total).toLocaleString("en-IN")}.`,
           action: "View Fee Dues",
@@ -3069,13 +3198,20 @@ export class SchoolAdminService {
       if (unresolvedIncidents?.count > 0) {
         alerts.push({
           type: "Open Discipline Matters",
+          severity: "high",
           source: "Discipline Register",
           desc: `${unresolvedIncidents.count} recorded student behavioral incident(s) currently open under investigation.`,
           action: "Investigate",
         });
       }
 
-      return { school: school || null, alerts, discipline, auditLogs };
+      return {
+        school: school || null,
+        alerts,
+        discipline,
+        documents,
+        auditLogs,
+      };
     });
   }
 
@@ -3199,7 +3335,7 @@ export class SchoolAdminService {
       [orgId],
     );
     const exams = await this.drizzle.query(
-      `SELECT ep.id,ep.exam_name AS name,ep.term AS "examType",sec.name AS grade,y.name AS "academicYear",ep.exam_date AS "startDate",ep.exam_date AS "endDate",ep.max_marks AS "totalMarks",ep.status FROM principal_exam_plans ep JOIN sections sec ON sec.id=ep.section_id AND sec.organization_id=ep.organization_id JOIN academic_years y ON y.id=sec.academic_year_id AND y.organization_id=sec.organization_id WHERE ep.organization_id=$1 ORDER BY ep.exam_date DESC`,
+      `SELECT ep.id,ep.exam_name AS name,ep.term AS "examType",sec.name AS grade,y.name AS "academicYear",ep.exam_date AS "startDate",ep.exam_date AS "endDate",ep.max_marks AS "totalMarks",ep.passing_marks AS "passingMarks",ep.status FROM principal_exam_plans ep JOIN sections sec ON sec.id=ep.section_id AND sec.organization_id=ep.organization_id JOIN academic_years y ON y.id=sec.academic_year_id AND y.organization_id=sec.organization_id WHERE ep.organization_id=$1 ORDER BY ep.exam_date DESC`,
       [orgId],
     );
     const results = await this.drizzle.query(
@@ -3207,7 +3343,16 @@ export class SchoolAdminService {
       [orgId],
     );
     const sections = await this.drizzle.query(
-      `SELECT s.id,s.name,p.name AS "programName" FROM sections s JOIN programs p ON p.id=s.program_id WHERE s.organization_id=$1 ORDER BY p.sequence_order,s.name`,
+      `SELECT s.id,s.name,p.name AS "programName",
+        COALESCE(json_agg(json_build_object('id',sub.id,'name',sub.name,'code',sub.code) ORDER BY sub.name)
+          FILTER (WHERE sub.id IS NOT NULL), '[]'::json) AS subjects
+       FROM sections s
+       JOIN programs p ON p.id=s.program_id AND p.organization_id=s.organization_id
+       LEFT JOIN class_subject_assignments csa ON csa.organization_id=s.organization_id AND csa.section_id=s.id
+       LEFT JOIN subjects sub ON sub.organization_id=s.organization_id AND sub.id=csa.subject_id
+       WHERE s.organization_id=$1
+       GROUP BY s.id,s.name,p.name,p.sequence_order
+       ORDER BY p.sequence_order,s.name`,
       [orgId],
     );
     const subjects = await this.drizzle.query(
@@ -3260,31 +3405,4 @@ export class SchoolAdminService {
     });
   }
 
-  async scheduleExam(orgId: string, actor: User, dto: ScheduleExamDto) {
-    return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
-      if (dto.startTime >= dto.endTime) {
-        throw new BadRequestException("End time must be after start time");
-      }
-      const [exam] = await manager.query(
-        `INSERT INTO principal_exam_plans (
-           organization_id, section_id, subject_id, exam_name, term, exam_date, start_time, end_time, max_marks, status, created_by
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'scheduled', $10)
-         RETURNING id, exam_name AS name, term AS "examType", exam_date AS "startDate", max_marks AS "totalMarks", status`,
-        [
-          orgId,
-          dto.sectionId,
-          dto.subjectId,
-          dto.examName.trim(),
-          dto.term.trim(),
-          dto.examDate,
-          dto.startTime,
-          dto.endTime,
-          dto.maxMarks || 100,
-          actor.id,
-        ],
-      );
-      return exam;
-    });
-  }
 }

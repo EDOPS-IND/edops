@@ -101,9 +101,9 @@ export function CommunicationPane({
   };
 
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
+    <div className="edops-communication-pane" style={{ display: "grid", gap: "20px" }}>
       {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+      <section className="edops-communication-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
         {/* 1. Broadcast Dispatches (Pastel Violet) */}
         <article
           onClick={() => {
@@ -254,8 +254,8 @@ export function CommunicationPane({
       </section>
 
       {/* Subtab Selector */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
-        <div style={{ display: "flex", gap: "6px" }}>
+      <div className="edops-communication-nav" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+        <div className="edops-communication-tabs" style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "broadcast", label: "Broadcast Dispatches" },
             { id: "inbox", label: "Unified Inquiries Inbox" },
@@ -287,7 +287,7 @@ export function CommunicationPane({
 
       {/* 1. BROADCAST DISPATCHES TAB */}
       {subtab === "broadcast" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-communication-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Multi-Channel School Broadcast Center</h3>
@@ -348,7 +348,7 @@ export function CommunicationPane({
 
       {/* 2. UNIFIED INBOX & TICKET TRIAGE */}
       {subtab === "inbox" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-communication-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Unified Inquiries & Escalation Inbox</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Parent queries, transport reports, teacher requests and administrative escalations</p>
 
@@ -389,7 +389,7 @@ export function CommunicationPane({
 
       {/* 3. COMPOSE BROADCAST FORM */}
       {subtab === "newBroadcast" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "22px", maxWidth: "700px" }}>
+        <div className="edops-communication-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "22px", maxWidth: "700px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Compose Multi-Channel School Broadcast</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Send vital notifications across In-App Noticeboards, WhatsApp, SMS and Email</p>
 

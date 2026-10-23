@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { api, createSchoolAdminCoursework, scheduleSchoolAdminExam } from "../edops-api";
+import { api, createSchoolAdminCoursework, createPrincipalExamPlans } from "../edops-api";
+import { ExamPlanDrawer } from "../components/exam-plan-drawer";
 import { ExamRecord } from "./types";
 import {
   BookOpen,
@@ -40,6 +41,7 @@ export function LearningExamsPane({
   // Modal open states
   const [showCourseworkModal, setShowCourseworkModal] = useState(false);
   const [showExamModal, setShowExamModal] = useState(false);
+  const [showExamDrawer, setShowExamDrawer] = useState(false);
 
   // Coursework form
   const [asgSectionId, setAsgSectionId] = useState("");
@@ -58,6 +60,7 @@ export function LearningExamsPane({
   const [examStartTime, setExamStartTime] = useState("09:00");
   const [examEndTime, setExamEndTime] = useState("12:00");
   const [examMaxMarks, setExamMaxMarks] = useState(100);
+  const [examPassingMarks, setExamPassingMarks] = useState(33);
 
   const loadData = () => {
     if (organizationId) {
@@ -86,9 +89,19 @@ export function LearningExamsPane({
 
   const openExamModal = () => {
     setError("");
-    if (!examSectionId && sections.length > 0) setExamSectionId(sections[0].id);
-    if (!examSubjectId && subjects.length > 0) setExamSubjectId(subjects[0].id);
-    setShowExamModal(true);
+    setShowExamDrawer(true);
+  };
+
+  const handleScheduleExam = async (payload: any) => {
+    if (!organizationId) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await createPrincipalExamPlans(organizationId, payload);
+      setNotice(`✓ Successfully scheduled exam "${payload.examName}" for ${payload.plans.length} subject(s).`);
+      setShowExamDrawer(false); loadData();
+    } catch (err: any) {
+      setError(err?.message || "Failed to schedule exam");
+    } finally { setBusy(false); }
   };
 
   const handleCreateCoursework = async (e: React.FormEvent) => {
@@ -118,36 +131,8 @@ export function LearningExamsPane({
     }
   };
 
-  const handleScheduleExam = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!organizationId || !examSectionId || !examSubjectId || !examName.trim()) return;
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      await scheduleSchoolAdminExam(organizationId, {
-        sectionId: examSectionId,
-        subjectId: examSubjectId,
-        examName: examName.trim(),
-        term: examTerm.trim(),
-        examDate,
-        startTime: examStartTime,
-        endTime: examEndTime,
-        maxMarks: Number(examMaxMarks) || 100,
-      });
-      setNotice(`✓ Successfully scheduled exam "${examName.trim()}".`);
-      setShowExamModal(false);
-      setExamName("");
-      loadData();
-    } catch (err: any) {
-      setError(err?.message || "Failed to schedule exam");
-    } finally {
-      setBusy(false);
-    }
-  };
-
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
+    <div className="edops-learning-pane" style={{ display: "grid", gap: "20px" }}>
       {notice && (
         <div style={{ padding: "10px 14px", background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: "8px", color: "#065F46", fontSize: "13px", fontWeight: 600 }}>
           {notice}
@@ -160,7 +145,7 @@ export function LearningExamsPane({
       )}
 
       {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+      <section className="edops-learning-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
         {/* 1. Active Coursework (Pastel Violet) */}
         <article
           onClick={() => {
@@ -327,8 +312,8 @@ export function LearningExamsPane({
       </section>
 
       {/* Subtab Bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
-        <div style={{ display: "flex", gap: "6px" }}>
+      <div className="edops-learning-nav" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+        <div className="edops-learning-tabs" style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "assignments", label: "Assignment Completion Monitoring" },
             { id: "exams", label: "Examinations & Schedules" },
@@ -360,6 +345,7 @@ export function LearningExamsPane({
         </div>
 
         <button
+          className="edops-learning-action"
           onClick={subtab === "assignments" ? openCourseworkModal : openExamModal}
           style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
@@ -369,7 +355,7 @@ export function LearningExamsPane({
 
       {/* 1. ASSIGNMENTS MONITORING TAB */}
       {subtab === "assignments" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-learning-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Active Coursework &amp; Homework Completion</h3>
@@ -423,12 +409,12 @@ export function LearningExamsPane({
 
       {/* 2. EXAMINATIONS SCHEDULE TAB */}
       {subtab === "exams" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-learning-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>School Examination Windows &amp; Cycles</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Unit Tests, Periodic Assessments, Half-Yearly and Annual CBSE Examination Cycles</p>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+          <div className="edops-learning-table" style={{ overflowX: "auto" }}>
+            <table className="edops-learning-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                   <th style={{ padding: "10px" }}>Exam Name</th>
@@ -483,12 +469,12 @@ export function LearningExamsPane({
 
       {/* 3. SAVED EXAM RESULTS TAB */}
       {subtab === "results" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-learning-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Saved Examination Results &amp; Report Cards</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Verified student scores and academic performance archives</p>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+          <div className="edops-learning-table" style={{ overflowX: "auto" }}>
+            <table className="edops-learning-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
               <thead>
                 <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                   <th style={{ padding: "10px" }}>Exam</th>
@@ -531,7 +517,7 @@ export function LearningExamsPane({
       {/* Coursework Modal */}
       {showCourseworkModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(12, 30, 51, 0.45)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
-          <div style={{ background: "#FFFFFF", borderRadius: "14px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden" }}>
+          <div className="edops-responsive-modal" style={{ background: "#FFFFFF", borderRadius: "14px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 20px", borderBottom: "1px solid #e4e6e9", background: "#f8fafc" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <BookOpen size={18} color="#0c1e33" />
@@ -543,7 +529,7 @@ export function LearningExamsPane({
             </div>
 
             <form onSubmit={handleCreateCoursework} style={{ padding: "20px", display: "grid", gap: "14px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div className="edops-responsive-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <label style={{ display: "grid", gap: "4px", fontSize: "12px", fontWeight: 600, color: "#344054" }}>
                   <span>Class Section <span style={{ color: "#D92D20" }}>*</span></span>
                   <select
@@ -598,7 +584,7 @@ export function LearningExamsPane({
                 />
               </label>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div className="edops-responsive-form-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <label style={{ display: "grid", gap: "4px", fontSize: "12px", fontWeight: 600, color: "#344054" }}>
                   <span>Due Date <span style={{ color: "#D92D20" }}>*</span></span>
                   <input
@@ -644,7 +630,15 @@ export function LearningExamsPane({
         </div>
       )}
 
-      {/* Schedule Exam Modal */}
+      <ExamPlanDrawer
+        open={showExamDrawer}
+        sections={sections}
+        busy={busy}
+        onClose={() => setShowExamDrawer(false)}
+        onSubmit={handleScheduleExam}
+      />
+
+      {/* Legacy modal kept unreachable for the existing coursework layout. */}
       {showExamModal && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(12, 30, 51, 0.45)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}>
           <div style={{ background: "#FFFFFF", borderRadius: "14px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden" }}>
@@ -752,17 +746,16 @@ export function LearningExamsPane({
                 </label>
               </div>
 
-              <label style={{ display: "grid", gap: "4px", fontSize: "12px", fontWeight: 600, color: "#344054" }}>
-                <span>Maximum Marks</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="1000"
-                  value={examMaxMarks}
-                  onChange={(e) => setExamMaxMarks(Number(e.target.value))}
-                  style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }}
-                />
-              </label>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <label style={{ display: "grid", gap: "4px", fontSize: "12px", fontWeight: 600, color: "#344054" }}>
+                  <span>Maximum Marks</span>
+                  <input type="number" min="1" max="1000" value={examMaxMarks} onChange={(e) => setExamMaxMarks(Number(e.target.value))} style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }} />
+                </label>
+                <label style={{ display: "grid", gap: "4px", fontSize: "12px", fontWeight: 600, color: "#344054" }}>
+                  <span>Subject Passing Marks</span>
+                  <input type="number" min="0.01" max={examMaxMarks || undefined} value={examPassingMarks} onChange={(e) => setExamPassingMarks(Number(e.target.value))} style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }} />
+                </label>
+              </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px", paddingTop: "8px", borderTop: "1px solid #e4e6e9" }}>
                 <button
