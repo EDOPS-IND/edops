@@ -90,9 +90,9 @@ export function OperationsPane({
   }, [organizationId]);
 
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
+    <div className="edops-operations-pane" style={{ display: "grid", gap: "20px" }}>
       {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+      <section className="edops-operations-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
         {/* 1. Fleet Vehicles (Pastel Violet) */}
         <article
           onClick={() => {
@@ -243,8 +243,8 @@ export function OperationsPane({
       </section>
 
       {/* Subtab Bar */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
-        <div style={{ display: "flex", gap: "6px" }}>
+      <div className="edops-operations-nav" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+        <div className="edops-operations-tabs" style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "transport", label: "Transport Fleet & Routes" },
             { id: "library", label: "Library Circulation" },
@@ -274,18 +274,19 @@ export function OperationsPane({
           ))}
         </div>
 
-        <button style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+        <button className="edops-operations-action" style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
           <Plus size={15} /> Add Record
         </button>
       </div>
 
       {/* 1. TRANSPORT FLEET TAB */}
       {subtab === "transport" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-operations-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Transport Fleet, Routes & Real-Time Tracking</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Live bus allocation, driver telephone contacts, GPS telemetry and student manifests</p>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+          <div className="edops-operations-table" style={{ overflowX: "auto" }}>
+          <table className="edops-operations-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                 <th style={{ padding: "10px" }}>Bus No & Model</th>
@@ -330,16 +331,18 @@ export function OperationsPane({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* 2. LIBRARY CIRCULATION TAB */}
       {subtab === "library" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-operations-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Library Circulation & Catalog Desk</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Manage active book issues, overdues, student library cards, and inventory</p>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+          <div className="edops-operations-table" style={{ overflowX: "auto" }}>
+          <table className="edops-operations-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                 <th style={{ padding: "10px" }}>Book Title</th>
@@ -372,16 +375,18 @@ export function OperationsPane({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* 3. INVENTORY & ASSETS TAB */}
       {subtab === "inventory" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-operations-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>School Assets & Equipment Register</h3>
           <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>IT Infrastructure, science lab apparatus, smart boards and warranty tracking</p>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+          <div className="edops-operations-table" style={{ overflowX: "auto" }}>
+          <table className="edops-operations-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                 <th style={{ padding: "10px" }}>Asset ID & Item Name</th>
@@ -421,12 +426,13 @@ export function OperationsPane({
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* 4. EVENTS & PTM DESK */}
       {subtab === "ptm" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-operations-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
             <div>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Parent Teacher Meeting (PTM) Desk</h3>

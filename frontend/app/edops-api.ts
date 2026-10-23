@@ -502,7 +502,7 @@ export function updateSchoolAdminClassTeacher(orgId: string, sectionId: string, 
   });
 }
 
-export function assignSchoolAdminSectionTeacher(orgId: string, sectionId: string, data: { subjectId: string; teacherUserId: string }) {
+export function assignSchoolAdminSectionTeacher(orgId: string, sectionId: string, data: { subjectId: string; teacherUserId?: string | null }) {
   return api<any>(`/organizations/${orgId}/school-admin/academics/sections/${sectionId}/assign-teacher`, {
     method: "POST",
     body: data,
@@ -525,26 +525,6 @@ export function createSchoolAdminCoursework(
     body: payload,
   });
 }
-
-export function scheduleSchoolAdminExam(
-  orgId: string,
-  payload: {
-    sectionId: string;
-    subjectId: string;
-    examName: string;
-    term: string;
-    examDate: string;
-    startTime: string;
-    endTime: string;
-    maxMarks: number;
-  },
-) {
-  return api<any>(`/organizations/${orgId}/school-admin/learning/exams`, {
-    method: "POST",
-    body: payload,
-  });
-}
-export const createSchoolAdminExam = scheduleSchoolAdminExam;
 
 export function createAcademicSection(orgId: string, payload: { academicYearId: string; programId: string; name: string; capacity: number }) {
   return api<any>(`/organizations/${orgId}/academics/sections`, { method: "POST", body: payload, idempotent: true });
@@ -615,6 +595,23 @@ export function createSchoolAdminAsset(orgId: string, data: any) {
 
 export async function getSchoolAdminGovernance(orgId: string) {
   return api<any>(`/organizations/${orgId}/school-admin/governance/overview`);
+}
+
+export async function uploadSchoolDocument(
+  orgId: string,
+  metadata: { title: string; category: string; fileName: string; contentType: string; sizeBytes: number; checksumSha256: string },
+  file: File,
+) {
+  const created = await api<any>(`/organizations/${orgId}/school-admin/governance/documents`, { method: "POST", body: metadata });
+  const uploadResponse = await fetch(created.upload.url, { method: "PUT", headers: created.upload.headers, body: file });
+  if (!uploadResponse.ok) throw new Error("Document upload failed");
+  const versionId = uploadResponse.headers.get("x-amz-version-id");
+  if (!versionId) throw new Error("Storage did not return a document version");
+  return api<any>(`/organizations/${orgId}/school-admin/governance/documents/${created.document.id}/complete`, { method: "POST", body: { versionId } });
+}
+
+export function getSchoolDocumentDownload(orgId: string, documentId: string) {
+  return api<{ url: string }>(`/organizations/${orgId}/school-admin/governance/documents/${documentId}/download`);
 }
 
 export function createSchoolAdminDiscipline(orgId: string, data: any) {
@@ -737,6 +734,7 @@ export async function getPrincipalExaminations(orgId: string) {
 }
 
 export function createPrincipalExamPlan(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/plans`, { method: "POST", body: data }); }
+export function createPrincipalExamPlans(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/plans/bulk`, { method: "POST", body: data }); }
 export function updatePrincipalExamPlan(orgId: string, id: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/plans/${id}`, { method: "PATCH", body: data }); }
 export function importPrincipalTeacherMarks(orgId: string, id: string) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/evaluations/${id}/import`, { method: "POST" }); }
 export function reviewPrincipalExamResult(orgId: string, id: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/results/${id}`, { method: "PATCH", body: data }); }

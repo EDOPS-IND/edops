@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type ComponentProps, type FormEvent } from "react";
 import {
   createPrincipalExamPlan,
+  createPrincipalExamPlans,
   getPrincipalExaminations,
   importPrincipalTeacherMarks,
   publishPrincipalExamResults,
@@ -11,9 +12,10 @@ import {
   getStudentAvatarUrl,
 } from "../../edops-api";
 import { Award, CheckCircle2, Clock, FileCheck, Layers, Plus, X } from "lucide-react";
+import { ExamPlanDrawer } from "../../components/exam-plan-drawer";
 
 type View = "planning" | "schedule" | "marks" | "report_cards";
-type Option = { id: string; name: string };
+type Option = { id: string; name: string; programName?: string; subjects?: { id: string; name: string; code?: string }[] };
 type Plan = {
   id: string;
   sectionId: string;
@@ -24,6 +26,7 @@ type Plan = {
   startTime: string;
   endTime: string;
   maxMarks: number;
+  passingMarks: number;
   status: string;
   className: string;
   sectionName: string;
@@ -93,6 +96,7 @@ export function ExaminationsPane({
   const [busy, setBusy] = useState(false);
   const [currentTab, setCurrentTab] = useState<View>(initialTab);
   const [editing, setEditing] = useState<Plan | null>(null);
+  const [showCreateDrawer, setShowCreateDrawer] = useState(false);
   const [form, setForm] = useState<Record<string, string>>({});
   const [markEdits, setMarkEdits] = useState<Record<string, string>>({});
   const [gradeEdits, setGradeEdits] = useState<Record<string, string>>({});
@@ -132,6 +136,7 @@ export function ExaminationsPane({
             startTime: plan.startTime,
             endTime: plan.endTime,
             maxMarks: String(plan.maxMarks),
+            passingMarks: String(plan.passingMarks),
             status: plan.status,
           }
         : { status: "draft" }
@@ -151,6 +156,20 @@ export function ExaminationsPane({
       setForm({});
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Could not save exam plan");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function createPlans(payload: Parameters<ComponentProps<typeof ExamPlanDrawer>["onSubmit"]>[0]) {
+    setBusy(true);
+    setError("");
+    try {
+      await createPrincipalExamPlans(organizationId, payload);
+      await load();
+      setShowCreateDrawer(false);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Could not create exam plans");
     } finally {
       setBusy(false);
     }
@@ -365,7 +384,7 @@ export function ExaminationsPane({
         {currentTab === "planning" && (
           <button
             type="button"
-            onClick={() => openPlan(null)}
+            onClick={() => { setError(""); setShowCreateDrawer(true); }}
             style={{
               display: "inline-flex",
               alignItems: "center",
@@ -595,7 +614,15 @@ export function ExaminationsPane({
             </table>
           </div>
 
-          {/* Plan Form Modal/Inline */}
+          <ExamPlanDrawer
+            open={showCreateDrawer}
+            sections={data.sections}
+            busy={busy}
+            onClose={() => setShowCreateDrawer(false)}
+            onSubmit={createPlans}
+          />
+
+          {/* Plan Form Modal/Inline: edit existing plans only */}
           {(editing || form.status) && (
             <div
               style={{
@@ -719,6 +746,12 @@ export function ExaminationsPane({
                       onChange={(e) => change("maxMarks", e.target.value)}
                       style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
                     />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Subject Passing Marks *
+                    </label>
+                    <input type="number" required min="0.01" max={form.maxMarks || undefined} value={form.passingMarks ?? ""} onChange={(e) => change("passingMarks", e.target.value)} style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }} />
                   </div>
                 </div>
 

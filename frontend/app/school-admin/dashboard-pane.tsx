@@ -167,6 +167,92 @@ function DashboardEmptyState({
   );
 }
 
+function AnalyticsPanel({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) {
+  return (
+    <article style={{ background: S.white, border: `1px solid ${S.border}`, borderRadius: "10px", padding: "18px", minWidth: 0 }}>
+      <h3 style={{ margin: 0, fontSize: "14px", color: S.navy }}>{title}</h3>
+      <p style={{ margin: "3px 0 14px", fontSize: "11px", color: S.slate }}>{subtitle}</p>
+      {children}
+    </article>
+  );
+}
+
+function AnalyticsBar({ label, value, max, color = S.blue, suffix = "" }: { label: string; value: number; max: number; color?: string; suffix?: string }) {
+  return (
+    <div style={{ display: "grid", gap: "5px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: "8px", fontSize: "11px" }}>
+        <span style={{ color: S.slate, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+        <b style={{ color: S.navy }}>{value.toLocaleString("en-IN")}{suffix}</b>
+      </div>
+      <div style={{ height: "7px", background: S.track, borderRadius: "99px", overflow: "hidden" }}>
+        <div style={{ width: `${max ? Math.min(100, (value / max) * 100) : 0}%`, height: "100%", background: color, borderRadius: "inherit" }} />
+      </div>
+    </div>
+  );
+}
+
+function SchoolAnalyticsSection({ analytics }: { analytics?: any }) {
+  const attendance = Array.isArray(analytics?.attendanceTrend) ? analytics.attendanceTrend : [];
+  const leaves = Array.isArray(analytics?.leaveApprovalSummary) ? analytics.leaveApprovalSummary : [];
+  const discipline = Array.isArray(analytics?.disciplineByMonth) ? analytics.disciplineByMonth : [];
+  const growth = Array.isArray(analytics?.peopleGrowth) ? analytics.peopleGrowth : [];
+  const lowAttendance = Array.isArray(analytics?.lowAttendanceClasses) ? analytics.lowAttendanceClasses : [];
+  const fee = analytics?.feeCollection || {};
+  const maxAttendance = Math.max(1, ...attendance.map((item: any) => Number(item.total) || 0));
+  const maxLeave = Math.max(1, ...leaves.map((item: any) => Number(item.count) || 0));
+  const maxDiscipline = Math.max(1, ...discipline.map((item: any) => Number(item.count) || 0));
+  const maxGrowth = Math.max(1, ...growth.flatMap((item: any) => [Number(item.students) || 0, Number(item.teachers) || 0]));
+  const maxFee = Math.max(1, Number(fee.assessed) || 0);
+  const totalPresent = attendance.reduce((sum: number, item: any) => sum + Number(item.present || 0), 0);
+  const totalAbsent = attendance.reduce((sum: number, item: any) => sum + Number(item.absent || 0), 0);
+
+  return (
+    <section style={{ display: "grid", gap: "14px" }} aria-label="School analytics">
+      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        <TrendingUp size={17} color={S.navy} />
+        <h2 style={{ margin: 0, fontSize: "17px", color: S.navy }}>School Analytics</h2>
+        <span style={{ fontSize: "11px", color: S.slate }}>Live operational trends</span>
+      </div>
+      <div className="school-analytics-grid" style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "14px" }}>
+        <AnalyticsPanel title="Attendance Trend" subtitle="Finalized attendance over the last six months">
+          {attendance.length > 0 ? (
+            <div style={{ display: "grid", gap: "10px" }}>
+              <svg viewBox="0 0 320 90" width="100%" height="90" role="img" aria-label="Attendance trend line">
+                <polyline fill="none" stroke={S.blue} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" points={attendance.map((item: any, index: number) => `${(index / Math.max(1, attendance.length - 1)) * 300 + 10},${82 - ((Number(item.present) || 0) / maxAttendance) * 68}`).join(" ")} />
+              </svg>
+              <div style={{ display: "flex", justifyContent: "space-between", color: S.muted, fontSize: "10px" }}>{attendance.map((item: any) => <span key={item.period}>{item.label}</span>)}</div>
+            </div>
+          ) : <DashboardEmptyState illustration="/noresult.png" title="No attendance trend yet" description="Finalized registers will appear here." />}
+        </AnalyticsPanel>
+
+        <AnalyticsPanel title="Present vs Absent" subtitle="Attendance record comparison">
+          {attendance.length > 0 ? <div style={{ display: "grid", gap: "12px", paddingTop: "8px" }}><AnalyticsBar label="Present / Late" value={totalPresent} max={Math.max(1, totalPresent + totalAbsent)} color={S.green} /><AnalyticsBar label="Absent" value={totalAbsent} max={Math.max(1, totalPresent + totalAbsent)} color="#F97316" /></div> : <DashboardEmptyState illustration="/noresult.png" title="No attendance records" description="The comparison will populate after registers are finalized." />}
+        </AnalyticsPanel>
+
+        <AnalyticsPanel title="Leave Approval Summary" subtitle="Approved, pending, and rejected requests">
+          {leaves.length > 0 ? <div style={{ display: "grid", gap: "11px" }}>{leaves.map((item: any) => <AnalyticsBar key={item.status} label={String(item.status).replace(/^./, (letter) => letter.toUpperCase())} value={Number(item.count) || 0} max={maxLeave} color={item.status === "approved" ? S.green : item.status === "rejected" ? "#EF4444" : "#F59E0B"} />)}</div> : <DashboardEmptyState illustration="/noresult.png" title="No leave requests" description="Leave approval activity will appear here." />}
+        </AnalyticsPanel>
+
+        <AnalyticsPanel title="Discipline by Month & Category" subtitle="Recorded incidents grouped by type">
+          {discipline.length > 0 ? <div style={{ display: "grid", gap: "9px" }}>{discipline.slice(-8).map((item: any) => <AnalyticsBar key={`${item.period}-${item.category}`} label={`${item.label} · ${item.category}`} value={Number(item.count) || 0} max={maxDiscipline} color="#D97706" />)}</div> : <DashboardEmptyState illustration="/noresult.png" title="No discipline incidents" description="Recorded incidents will be grouped here." />}
+        </AnalyticsPanel>
+
+        <AnalyticsPanel title="Fee Collection vs Pending" subtitle="Current fee ledger totals">
+          <div style={{ display: "grid", gap: "11px", paddingTop: "8px" }}><AnalyticsBar label="Collected" value={Number(fee.collected) || 0} max={maxFee} color={S.green} /><AnalyticsBar label="Pending" value={Number(fee.pending) || 0} max={maxFee} color="#F97316" /></div>
+        </AnalyticsPanel>
+
+        <AnalyticsPanel title="Student & Teacher Growth" subtitle="New memberships by month">
+          {growth.length > 0 ? <div style={{ display: "grid", gap: "9px" }}>{growth.slice(-6).map((item: any) => <div key={item.period} style={{ display: "grid", gridTemplateColumns: "44px 1fr 1fr", gap: "8px", alignItems: "center", fontSize: "10px" }}><span style={{ color: S.muted }}>{item.label}</span><AnalyticsBar label="Students" value={Number(item.students) || 0} max={maxGrowth} color="#7C3AED" /><AnalyticsBar label="Teachers" value={Number(item.teachers) || 0} max={maxGrowth} color={S.blue} /></div>)}</div> : <DashboardEmptyState illustration="/noresult.png" title="No growth data yet" description="New student and teacher memberships will appear here." />}
+        </AnalyticsPanel>
+
+        <AnalyticsPanel title="Low-Attendance Class Ranking" subtitle="Classes with the lowest finalized attendance">
+          {lowAttendance.length > 0 ? <div style={{ display: "grid", gap: "10px" }}>{lowAttendance.map((item: any) => <AnalyticsBar key={item.sectionId} label={item.classSection} value={Number(item.percentage) || 0} max={100} suffix="%" color={Number(item.percentage) < 75 ? "#EF4444" : "#F59E0B"} />)}</div> : <DashboardEmptyState illustration="/noresult.png" title="No class ranking yet" description="Class rankings need finalized attendance records." />}
+        </AnalyticsPanel>
+      </div>
+    </section>
+  );
+}
+
 // ─── Dashboard Skeleton Loading Screen ──────────────────────────────────────
 function DashboardSkeleton() {
   const kpiColors = ["#E0D3FF", "#FDE1AC", "#BAE5F5", "#CCEFBF", "#FFD6D6", "#0C1E33"];
@@ -1767,8 +1853,10 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
         </article>
       </section>
 
+      <SchoolAnalyticsSection analytics={data?.analytics} />
+
       {/* ═══════════════════════════════════════════════
-          6. REAL-TIME AUDIT TRAIL FEED (Full Width · Free UI · Grid-Aligned)
+          7. REAL-TIME AUDIT TRAIL FEED (Full Width · Free UI · Grid-Aligned)
       ═══════════════════════════════════════════════ */}
       <section
         style={{
@@ -1814,6 +1902,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 
         {recentActivity.length > 0 ? (
           <div
+            className="edops-mobile-scroll"
             style={{
               display: "flex",
               flexDirection: "column",

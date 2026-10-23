@@ -277,7 +277,7 @@ export function FinancePane({
   }, [financeData?.dues]);
 
   return (
-    <div style={{ display: "grid", gap: "20px", position: "relative" }}>
+    <div className="edops-finance-pane" style={{ display: "grid", gap: "20px", position: "relative" }}>
       {/* Toast Feedback */}
       {toastMessage && (
         <div
@@ -305,6 +305,7 @@ export function FinancePane({
 
       {/* Subtab Selector & Action Bar */}
       <div
+        className="edops-finance-nav"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -315,7 +316,7 @@ export function FinancePane({
           gap: "10px",
         }}
       >
-        <div style={{ display: "flex", gap: "6px" }}>
+        <div className="edops-finance-tabs" style={{ display: "flex", gap: "6px" }}>
           {[
             { id: "dashboard", label: "Fee Collections Overview" },
             { id: "defaulters", label: `Fee Defaulters Desk (${defaulters.length})` },
@@ -345,6 +346,7 @@ export function FinancePane({
         </div>
 
         <button
+          className="edops-finance-action"
           onClick={() => openPaymentForDue()}
           style={{
             padding: "8px 16px",
@@ -367,7 +369,7 @@ export function FinancePane({
       {/* 1. FEE COLLECTIONS OVERVIEW */}
       {subtab === "dashboard" && (
         <div style={{ display: "grid", gap: "20px" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+          <div className="edops-finance-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
             {/* 1. Target Fee (Pastel Violet) */}
             <article
               style={{
@@ -505,7 +507,7 @@ export function FinancePane({
             </article>
           </div>
 
-          <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+          <div className="edops-finance-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
             <h3 style={{ margin: "0 0 14px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>
               Collection Trends by Class
             </h3>
@@ -536,7 +538,7 @@ export function FinancePane({
 
       {/* 2. FEE DEFAULTERS ACTION DESK */}
       {subtab === "defaulters" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-finance-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
             <div>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Fee Defaulters Desk</h3>
@@ -566,7 +568,8 @@ export function FinancePane({
             </button>
           </div>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+          <div className="edops-finance-table" style={{ overflowX: "auto" }}>
+          <table className="edops-finance-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                 <th style={{ padding: "10px" }}>Student & Admission</th>
@@ -675,12 +678,13 @@ export function FinancePane({
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
       {/* 3. CLASS FEE STRUCTURES */}
       {subtab === "structure" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+        <div className="edops-finance-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
             <div>
               <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>
@@ -710,7 +714,8 @@ export function FinancePane({
             </button>
           </div>
 
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+          <div className="edops-finance-table" style={{ overflowX: "auto" }}>
+          <table className="edops-finance-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #e4e6e9", color: "var(--muted)" }}>
                 <th style={{ padding: "10px" }}>Class / Stream</th>
@@ -746,6 +751,7 @@ export function FinancePane({
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 

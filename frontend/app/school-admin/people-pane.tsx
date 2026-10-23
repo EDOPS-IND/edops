@@ -48,6 +48,7 @@ import {
   Shield,
   ArrowRight,
   Send,
+  Copy,
   Plus,
   Clock,
   Bus,
@@ -645,6 +646,7 @@ export function PeoplePane({
   // Invite actions state
   const [sendingInviteStudentId, setSendingInviteStudentId] = useState<string | null>(null);
   const [inviteFeedback, setInviteFeedback] = useState<{ id: string; msg: string; error?: boolean } | null>(null);
+  const [copiedInviteStudentId, setCopiedInviteStudentId] = useState<string | null>(null);
 
   const handleSendInvite = async (s: StudentRecord) => {
     if (!organizationId) return;
@@ -677,6 +679,14 @@ export function PeoplePane({
     } finally {
       setSendingInviteStudentId(null);
     }
+  };
+
+  const handleCopyInviteLink = async (s: StudentRecord) => {
+    if (!s.inviteToken) return;
+    const studentId = s.id || s.userId;
+    await navigator.clipboard.writeText(`${window.location.origin}/?invite=${s.inviteToken}`);
+    setCopiedInviteStudentId(studentId || null);
+    setTimeout(() => setCopiedInviteStudentId(null), 2000);
   };
 
   // Selected Teacher for Dossier Drawer
@@ -1250,7 +1260,7 @@ export function PeoplePane({
   }, [departments]);
 
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
+    <div className="edops-people-pane" style={{ display: "grid", gap: "20px", width: "100%", minWidth: 0, maxWidth: "100%" }}>
       <style>{`
         @keyframes edopsShimmer {
           0% { background-position: -200% 0; }
@@ -1293,6 +1303,7 @@ export function PeoplePane({
       <div style={{ display: "flex", flexDirection: "column", gap: "16px", width: "100%" }}>
         {/* Top Header: Title, Subtitle, and Primary Action */}
         <div
+          className="edops-people-header"
           style={{
             boxSizing: "border-box",
             display: "flex",
@@ -1300,6 +1311,7 @@ export function PeoplePane({
             justifyContent: "space-between",
             alignItems: "center",
             width: "100%",
+            minWidth: 0,
             gap: "16px",
           }}
         >
@@ -1347,7 +1359,7 @@ export function PeoplePane({
             </p>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+          <div className="edops-people-actions" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
             {subtab === "staff" && (
               <button
                 onClick={() => onOpenQuickAction("addPrincipal")}
@@ -1442,6 +1454,7 @@ export function PeoplePane({
         <div
           role="tablist"
           aria-label="Workspace views"
+          className="edops-people-tabs"
           style={{
             position: "relative",
             boxSizing: "border-box",
@@ -1556,6 +1569,7 @@ export function PeoplePane({
             <KpiSkeletonGrid />
           ) : (
             <div
+              className="edops-people-kpi-grid"
               style={{
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
@@ -1776,6 +1790,7 @@ export function PeoplePane({
 
             {/* Directory Controls */}
             <div
+              className="edops-student-directory-controls"
               style={{
                 boxSizing: "border-box",
                 display: "flex",
@@ -1911,6 +1926,7 @@ export function PeoplePane({
 
             {/* Quick Segment Filter Tabs (Auto-aligning, Professional UI) */}
             <div
+              className="edops-student-segments"
               style={{
                 boxSizing: "border-box",
                 display: "flex",
@@ -1977,10 +1993,11 @@ export function PeoplePane({
               })}
             </div>
 
-            {/* Student Table Area (Fits 100% width, No horizontal scrollbar) */}
-            <div style={{ width: "100%", padding: "0px 24px", boxSizing: "border-box" }}>
+            {/* Student Table Area */}
+            <div className="edops-student-directory-table" style={{ width: "100%", padding: "0px 24px", boxSizing: "border-box" }}>
               {/* Column headings (Admission details and parent contact removed) */}
               <div
+                className="edops-student-directory-heading"
                 style={{
                   boxSizing: "border-box",
                   display: "flex",
@@ -2008,7 +2025,7 @@ export function PeoplePane({
                 <div style={{ flex: "1.3 1 130px", fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                   ACADEMIC STATUS
                 </div>
-                <div style={{ flex: "0 0 110px", textAlign: "right", fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                <div style={{ flex: "0 0 180px", textAlign: "right", fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
                   ACTIONS
                 </div>
               </div>
@@ -2055,6 +2072,7 @@ export function PeoplePane({
                   return (
                     <div
                       key={s.id}
+                      className="edops-student-directory-row"
                       style={{
                         boxSizing: "border-box",
                         display: "flex",
@@ -2299,13 +2317,68 @@ export function PeoplePane({
                       {/* Student profile action */}
                       <div
                         style={{
-                          flex: "0 0 110px",
+                          flex: "0 0 180px",
                           display: "flex",
                           flexDirection: "row",
+                          gap: "6px",
                           justifyContent: "flex-end",
                           alignItems: "center",
                         }}
                       >
+                        {String(s.inviteStatus || "").toLowerCase() === "not_sent" && (
+                          <button
+                            type="button"
+                            onClick={() => handleSendInvite(s)}
+                            disabled={sendingInviteStudentId === (s.id || s.userId)}
+                            style={{
+                              boxSizing: "border-box",
+                              display: "inline-flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              padding: "0 9px",
+                              height: "30px",
+                              background: "#ECFDF5",
+                              color: "#047857",
+                              border: "1px solid #A7F3D0",
+                              borderRadius: "5px",
+                              cursor: sendingInviteStudentId === (s.id || s.userId) ? "wait" : "pointer",
+                              opacity: sendingInviteStudentId === (s.id || s.userId) ? 0.65 : 1,
+                              fontFamily: "'Poppins', sans-serif",
+                              fontWeight: 600,
+                              fontSize: "10.5px",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {sendingInviteStudentId === (s.id || s.userId) ? "Sending…" : "Send Invite"}
+                          </button>
+                        )}
+                        {s.inviteToken && String(s.inviteStatus || "").toLowerCase() === "pending" && (
+                          <button
+                            type="button"
+                            onClick={() => handleCopyInviteLink(s)}
+                            style={{
+                              boxSizing: "border-box",
+                              display: "inline-flex",
+                              justifyContent: "center",
+                              alignItems: "center",
+                              gap: "4px",
+                              padding: "0 9px",
+                              height: "30px",
+                              background: "#F8FAFC",
+                              color: "#0C1E33",
+                              border: "1px solid #CBD5E1",
+                              borderRadius: "5px",
+                              cursor: "pointer",
+                              fontFamily: "'Poppins', sans-serif",
+                              fontWeight: 600,
+                              fontSize: "10.5px",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            <Copy size={12} />
+                            {copiedInviteStudentId === (s.id || s.userId) ? "Copied" : "Copy Link"}
+                          </button>
+                        )}
                         <button
                           type="button"
                           onClick={() => setSelectedStudent(s)}
@@ -2597,6 +2670,7 @@ export function PeoplePane({
 
             {/* Filter Controls */}
             <div
+              className="edops-teacher-directory-controls"
               style={{
                 boxSizing: "border-box",
                 display: "flex",
@@ -2730,6 +2804,7 @@ export function PeoplePane({
 
             {/* Quick Segment Filter Tabs (Auto-aligning, Professional UI) */}
             <div
+              className="edops-teacher-segments"
               style={{
                 boxSizing: "border-box",
                 display: "flex",
@@ -2796,10 +2871,11 @@ export function PeoplePane({
               })}
             </div>
 
-            {/* Faculty Table Area (Fits 100% width, No horizontal scrollbar) */}
-            <div style={{ width: "100%", padding: "0px 24px", boxSizing: "border-box" }}>
+            {/* Faculty Table Area */}
+            <div className="edops-teacher-directory-table" style={{ width: "100%", padding: "0px 24px", boxSizing: "border-box" }}>
               {/* Column headings (Aligned with student table typography) */}
               <div
+                className="edops-teacher-directory-heading"
                 style={{
                   boxSizing: "border-box",
                   display: "flex",
@@ -2875,6 +2951,7 @@ export function PeoplePane({
                   return (
                     <div
                       key={t.id}
+                      className="edops-teacher-directory-row"
                       onClick={() => handleOpenTeacherModal(t)}
                       style={{
                         boxSizing: "border-box",
@@ -3331,6 +3408,7 @@ export function PeoplePane({
 
             {/* Filter Controls */}
             <div
+              className="edops-staff-directory-controls"
               style={{
                 boxSizing: "border-box",
                 display: "flex",
@@ -3495,6 +3573,7 @@ export function PeoplePane({
 
             {/* Staff Segment Quick Filters */}
             <div
+              className="edops-staff-segments"
               style={{
                 boxSizing: "border-box",
                 display: "flex",
@@ -3560,10 +3639,11 @@ export function PeoplePane({
               })}
             </div>
 
-            {/* Staff Table Area (Fits 100% width, No horizontal scrollbar) */}
-            <div style={{ width: "100%", padding: "0px 24px", boxSizing: "border-box" }}>
+            {/* Staff Table Area */}
+            <div className="edops-staff-directory-table" style={{ width: "100%", padding: "0px 24px", boxSizing: "border-box" }}>
               {/* Column headings */}
               <div
+                className="edops-staff-directory-heading"
                 style={{
                   boxSizing: "border-box",
                   display: "flex",
@@ -3637,6 +3717,7 @@ export function PeoplePane({
                   return (
                     <div
                       key={s.id}
+                      className="edops-staff-directory-row"
                       onClick={() => {
                         setSelectedStaff(s);
                         setStaff360Tab("personal");
@@ -4090,6 +4171,7 @@ export function PeoplePane({
 
             {/* Filter Controls */}
             <div
+              className="edops-parent-directory-controls"
               style={{
                 boxSizing: "border-box",
                 display: "flex",
@@ -4251,6 +4333,7 @@ export function PeoplePane({
 
             {/* Parent Segment Quick Filters */}
             <div
+              className="edops-parent-segments"
               style={{
                 boxSizing: "border-box",
                 display: "flex",
@@ -4316,10 +4399,11 @@ export function PeoplePane({
               })}
             </div>
 
-            {/* Parent Table Area (Fits 100% width, No horizontal scrollbar) */}
-            <div style={{ width: "100%", padding: "0px 24px", boxSizing: "border-box" }}>
+            {/* Parent Table Area */}
+            <div className="edops-parent-directory-table" style={{ width: "100%", padding: "0px 24px", boxSizing: "border-box" }}>
               {/* Column headings */}
               <div
+                className="edops-parent-directory-heading"
                 style={{
                   boxSizing: "border-box",
                   display: "flex",
@@ -4389,6 +4473,7 @@ export function PeoplePane({
                   return (
                     <div
                       key={p.id}
+                      className="edops-parent-directory-row"
                       onClick={() => {
                         setSelectedParent(p);
                         setParent360Tab("wards");
@@ -5346,11 +5431,12 @@ export function PeoplePane({
           }}
         >
           <aside
+            className="edops-right-drawer"
             role="dialog"
             aria-modal="true"
             aria-label={`Student Profile - ${selectedStudent.name}`}
             style={{
-              width: "660px",
+              width: "var(--edops-drawer-width)",
               maxWidth: "100vw",
               height: "100vh",
               background: "#FFFFFF",
@@ -6138,11 +6224,12 @@ export function PeoplePane({
           }}
         >
           <aside
+            className="edops-right-drawer"
             role="dialog"
             aria-modal="true"
             aria-label={`Staff Profile - ${selectedStaff.name}`}
             style={{
-              width: "680px",
+              width: "var(--edops-drawer-width)",
               maxWidth: "100vw",
               height: "100vh",
               background: "#FFFFFF",
@@ -6643,11 +6730,12 @@ export function PeoplePane({
           }}
         >
           <aside
+            className="edops-right-drawer"
             role="dialog"
             aria-modal="true"
             aria-label={`Guardian Profile - ${selectedParent.name}`}
             style={{
-              width: "680px",
+              width: "var(--edops-drawer-width)",
               maxWidth: "100vw",
               height: "100vh",
               background: "#FFFFFF",
@@ -7430,11 +7518,12 @@ export function PeoplePane({
           }}
         >
           <aside
+            className="edops-right-drawer"
             role="dialog"
             aria-modal="true"
             aria-label={`Department Profile - ${selectedDept.name}`}
             style={{
-              width: "680px",
+              width: "var(--edops-drawer-width)",
               maxWidth: "100vw",
               height: "100vh",
               background: "#FFFFFF",
@@ -8345,11 +8434,12 @@ export function PeoplePane({
           }}
         >
           <aside
+            className="edops-right-drawer"
             role="dialog"
             aria-modal="true"
             aria-label={`Teacher Profile - ${selectedTeacher.name}`}
             style={{
-              width: "680px",
+              width: "var(--edops-drawer-width)",
               maxWidth: "100vw",
               height: "100vh",
               background: "#FFFFFF",

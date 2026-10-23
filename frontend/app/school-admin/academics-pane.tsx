@@ -1556,6 +1556,7 @@ export function AcademicsPane({
       {/* ── 3. SUBTAB SELECTOR (NO Numbers in Tab Labels) ── */}
       <div
         role="tablist"
+        className="edops-academic-subtabs"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -1925,6 +1926,7 @@ export function AcademicsPane({
           }}
         >
           <div
+            className="edops-subjects-header"
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -1941,7 +1943,7 @@ export function AcademicsPane({
               </h2>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="edops-subjects-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div
                 style={{
                   display: 'flex',
@@ -1996,7 +1998,7 @@ export function AcademicsPane({
             </div>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
+          <div className="edops-subjects-table" style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
               <thead>
                 <tr
@@ -2136,6 +2138,7 @@ export function AcademicsPane({
         <div style={{ display: 'grid', gap: '20px' }}>
           {/* Header & Controls */}
           <div
+            className="edops-curriculum-header"
             style={{
               display: 'flex',
               justifyContent: 'space-between',
@@ -2152,7 +2155,7 @@ export function AcademicsPane({
                 Select a grade program to monitor pacing, unit chapters, and learning outcomes in real time.
               </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="edops-curriculum-controls" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div
                 style={{
                   display: 'flex',
@@ -3926,11 +3929,12 @@ export function AcademicsPane({
           }}
         >
           <aside
+            className="edops-right-drawer"
             role="dialog"
             aria-modal="true"
             aria-label={`Academic Session - ${selectedYearDossier.name}`}
             style={{
-              width: '640px',
+              width: 'var(--edops-drawer-width)',
               maxWidth: '100vw',
               height: '100vh',
               background: '#FFFFFF',
@@ -4146,11 +4150,12 @@ export function AcademicsPane({
           }}
         >
           <aside
+            className="edops-right-drawer"
             role="dialog"
             aria-modal="true"
             aria-label={`Section Profile - ${selectedSectionDossier.name}`}
             style={{
-              width: '660px',
+              width: 'var(--edops-drawer-width)',
               maxWidth: '100vw',
               height: '100vh',
               background: '#FFFFFF',
@@ -4405,11 +4410,12 @@ export function AcademicsPane({
           }}
         >
           <aside
+            className="edops-right-drawer"
             role="dialog"
             aria-modal="true"
             aria-label={`Subject Dossier - ${selectedSubjectDossier.name}`}
             style={{
-              width: '660px',
+              width: 'var(--edops-drawer-width)',
               maxWidth: '100vw',
               height: '100vh',
               background: '#FFFFFF',
@@ -4667,11 +4673,12 @@ export function AcademicsPane({
           }}
         >
           <aside
+            className="edops-right-drawer"
             role="dialog"
             aria-modal="true"
             aria-label={subjectDrawerMode === 'create' ? 'Create Subject' : 'Edit Subject'}
             style={{
-              width: '660px',
+              width: 'var(--edops-drawer-width)',
               maxWidth: '100vw',
               height: '100vh',
               background: '#FFFFFF',
@@ -4894,11 +4901,12 @@ export function AcademicsPane({
           }}
         >
           <aside
+            className="edops-right-drawer"
             role="dialog"
             aria-modal="true"
             aria-label="Edit Section Details"
             style={{
-              width: '660px',
+              width: 'var(--edops-drawer-width)',
               maxWidth: '100vw',
               height: '100vh',
               background: '#FFFFFF',
@@ -5079,11 +5087,12 @@ export function AcademicsPane({
           }}
         >
           <aside
+            className="edops-right-drawer"
             role="dialog"
             aria-modal="true"
             aria-label="Edit Academic Session"
             style={{
-              width: '660px',
+              width: 'var(--edops-drawer-width)',
               maxWidth: '100vw',
               height: '100vh',
               background: '#FFFFFF',

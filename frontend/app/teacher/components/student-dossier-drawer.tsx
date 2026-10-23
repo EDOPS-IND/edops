@@ -157,12 +157,13 @@ export function StudentDossierDrawer({
       }}
     >
       <div
+        className="edops-right-drawer"
         style={{
           position: "absolute",
           top: 0,
           bottom: 0,
           right: 0,
-          maxWidth: "680px",
+          maxWidth: "min(var(--edops-drawer-width), 100vw)",
           width: "100%",
           background: T.white,
           boxShadow: "0 0 50px rgba(12, 30, 51, 0.25)",

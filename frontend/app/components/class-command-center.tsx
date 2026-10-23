@@ -114,6 +114,7 @@ export function ClassSectionManager({
     <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
       {/* 1. Header Toolbar with Filter Pills, Search & View Mode */}
       <div
+        className="edops-class-section-toolbar"
         style={{
           display: "flex",
           justifyContent: "space-between",
@@ -188,9 +189,9 @@ export function ClassSectionManager({
           })}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="edops-class-section-controls" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           {/* Search Input */}
-          <div style={{ position: "relative" }}>
+          <div className="edops-class-section-search" style={{ position: "relative" }}>
             <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#94a3b8" }} />
             <input
               type="text"
@@ -210,7 +211,7 @@ export function ClassSectionManager({
           </div>
 
           {/* View Mode Toggle */}
-          <div style={{ display: "flex", background: "#f1f5f9", borderRadius: "6px", padding: "2px", border: "1px solid #e2e8f0" }}>
+          <div className="edops-view-mode-toggle" style={{ display: "flex", background: "#f1f5f9", borderRadius: "6px", padding: "2px", border: "1px solid #e2e8f0" }}>
             <button
               type="button"
               onClick={() => setViewMode("grid")}
@@ -273,7 +274,7 @@ export function ClassSectionManager({
             <p style={{ margin: "4px 0 0", fontSize: "12.5px" }}>No sections match your active grade filter or search query.</p>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(295px, 1fr))", gap: "16px" }}>
+          <div className="edops-class-section-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(295px, 1fr))", gap: "16px" }}>
             {filteredSections.map((sec) => {
               const enrolled = Number(sec.enrolledCount ?? sec.studentCount ?? 0);
               const capacity = Number(sec.capacity || 40);
@@ -433,7 +434,7 @@ export function ClassSectionManager({
         )
       ) : (
         /* 3. Table View */
-        <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
+        <div className="edops-class-section-table" style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
@@ -537,7 +538,7 @@ export function ClassSectionManager({
 }
 
 // ─────────────────────────────────────────────────────────────
-// CLASS COMMAND CENTER MODAL WITH INLINE STUDENT 360 TRANSITION
+// CLASS COMMAND CENTER DRAWER WITH INLINE STUDENT 360 TRANSITION
 // ─────────────────────────────────────────────────────────────
 
 interface ModalProps {
@@ -710,10 +711,10 @@ export function ClassCommandCenterModal({
       if (role === "principal") {
         await allocatePrincipalSectionSubject(organizationId, sectionId, data);
       } else {
-        if (data.subjectId && data.teacherUserId) {
+        if (data.subjectId) {
           await assignSchoolAdminSectionTeacher(organizationId, sectionId, {
             subjectId: data.subjectId,
-            teacherUserId: data.teacherUserId,
+            teacherUserId: data.teacherUserId || null,
           });
         }
       }
@@ -762,9 +763,7 @@ export function ClassCommandCenterModal({
         background: "rgba(12, 30, 51, 0.65)",
         backdropFilter: "blur(4px)",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "16px",
+        justifyContent: "flex-end",
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -774,20 +773,22 @@ export function ClassCommandCenterModal({
       }}
     >
       <div
+        className="edops-right-drawer"
         style={{
           background: "#ffffff",
-          borderRadius: "14px",
+          borderRadius: "14px 0 0 14px",
           width: "100%",
-          maxWidth: "960px",
-          maxHeight: "90vh",
+          maxWidth: "min(var(--edops-drawer-width), 94vw)",
+          height: "100vh",
           display: "flex",
           flexDirection: "column",
-          boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)",
+          boxShadow: "-18px 0 45px -12px rgba(0, 0, 0, 0.25)",
           overflow: "hidden",
         }}
       >
         {/* ─── MODAL HEADER (Context-Aware for Class or Student) ─── */}
         <div
+          className="edops-drawer-header"
           style={{
             padding: "18px 24px",
             borderBottom: "1px solid #e4e6e9",
@@ -899,7 +900,7 @@ export function ClassCommandCenterModal({
 
         {/* ─── MODAL TABS (Rendered conditionally for Class or Student) ─── */}
         {!activeStudent ? (
-          <div style={{ display: "flex", borderBottom: "1px solid #e4e6e9", background: "#f8fafc", padding: "0 24px" }}>
+          <div className="edops-drawer-tabs" style={{ display: "flex", borderBottom: "1px solid #e4e6e9", background: "#f8fafc", padding: "0 24px" }}>
             {[
               { id: "faculty", label: `Faculty & Class Teacher`, icon: <UserCheck size={14} /> },
               { id: "students", label: `Enrolled Students (${students.length})`, icon: <GraduationCap size={14} /> },
@@ -962,7 +963,7 @@ export function ClassCommandCenterModal({
         )}
 
         {/* ─── MODAL BODY ─── */}
-        <div style={{ padding: "24px", overflowY: "auto", flex: 1 }}>
+        <div className="edops-drawer-body" style={{ padding: "24px", overflowY: "auto", overflowX: "hidden", flex: 1, minWidth: 0 }}>
           {activeStudent ? (
             /* ═════════════════════════════════════════════════
                INLINE STUDENT 360 DOSSIER VIEW
@@ -1117,6 +1118,7 @@ export function ClassCommandCenterModal({
             <div style={{ display: "flex", flexDirection: "column", gap: "22px" }}>
               {/* Highlight Card: Class Teacher Assignment */}
               <div
+                className="edops-class-teacher-card"
                 style={{
                   background: "#f0fdf4",
                   border: "1px solid #bbf7d0",
@@ -1144,7 +1146,7 @@ export function ClassCommandCenterModal({
                   </p>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <div className="edops-class-teacher-controls" style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <select
                     value={selectedClassTeacher}
                     onChange={(e) => setSelectedClassTeacher(e.target.value)}
@@ -1219,7 +1221,7 @@ export function ClassCommandCenterModal({
                   </button>
                 </div>
 
-                <div style={{ border: "1px solid #e4e6e9", borderRadius: "8px", overflow: "hidden" }}>
+                <div style={{ border: "1px solid #e4e6e9", borderRadius: "8px", overflowX: "auto", overflowY: "hidden" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
                     <thead>
                       <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
@@ -1616,6 +1618,7 @@ export function ClassCommandCenterModal({
 
         {/* Modal Footer */}
         <div
+          className="edops-drawer-footer"
           style={{
             padding: "14px 24px",
             borderTop: "1px solid #e4e6e9",

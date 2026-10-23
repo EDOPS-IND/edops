@@ -223,9 +223,9 @@ export function TimetablePane({
   });
 
   return (
-    <div style={{ display: "grid", gap: "20px" }}>
+    <div className="edops-timetable-pane" style={{ display: "grid", gap: "20px" }}>
       {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+      <section className="edops-timetable-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
         {/* 1. Total Slots (Pastel Violet) */}
         <article
           style={{
@@ -347,7 +347,7 @@ export function TimetablePane({
 
       {/* Conflict Alert Banner */}
       {conflicts.length > 0 ? (
-        <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="edops-timetable-alert" style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <AlertTriangle size={20} color="#DC2626" />
             <div>
@@ -362,21 +362,21 @@ export function TimetablePane({
           </button>
         </div>
       ) : (
-        <div style={{ background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: "10px", padding: "12px 18px", display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="edops-timetable-alert" style={{ background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: "10px", padding: "12px 18px", display: "flex", alignItems: "center", gap: "10px" }}>
           <CheckCircle2 size={18} color="#047857" />
           <span style={{ color: "#047857", fontSize: "13px", fontWeight: 700 }}>{loading ? "Loading timetable…" : slots.length ? "No recorded scheduling conflicts. All period allocations verified." : "No timetable entries saved."}</span>
         </div>
       )}
 
-      <div style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+      <div className="edops-timetable-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
         {/* Header and Controls */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
+        <div className="edops-timetable-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
           <div>
             <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Master Timetable Schedule & Conflict Monitor</h3>
             <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Detects teacher overlap, room double-booking, and period capacity</p>
           </div>
 
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div className="edops-timetable-controls" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <div style={{ display: "flex", background: "#f8fafc", border: "1px solid #e4e6e9", borderRadius: "6px", padding: "2px" }}>
               <button
                 onClick={() => {
@@ -487,8 +487,8 @@ export function TimetablePane({
 
         {/* Weekly Timetable Matrix */}
         {!loading && slots.length === 0 && <p style={{ fontSize: "13px", color: "var(--muted)", margin: "16px 0" }}>No timetable entries saved yet. Click "+ Add Period" to create schedules.</p>}
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px", textAlign: "center" }}>
+        <div className="edops-timetable-table" style={{ overflowX: "auto" }}>
+          <table className="edops-timetable-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px", textAlign: "center" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #e4e6e9", background: "#f8fafc" }}>
                 <th style={{ padding: "10px", width: "100px", textAlign: "left" }}>Day</th>

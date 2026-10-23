@@ -17,12 +17,13 @@ import {
 import {
   CreateQuestionPaperDto,
   CreateExamPlanDto,
+  CreateExamPlansDto,
   PublishExamResultsDto,
   ReviewExamResultDto,
   ReviewQuestionPaperDto,
   UpdateExamPlanDto,
 } from "../dto/principal.dto";
-import { PrincipalGuard } from "../guards/principal.guard";
+import { AllowSchoolAdminExamCreate, PrincipalGuard } from "../guards/principal.guard";
 import { PrincipalAssessmentsService } from "../services/principal-assessments.service";
 
 @ApiTags("Principal Academic Command Center - Assessments & Examinations")
@@ -86,6 +87,7 @@ export class PrincipalAssessmentsController {
   }
 
   @Post("examinations/plans")
+  @AllowSchoolAdminExamCreate()
   @RequireFeature("exams")
   createExamPlan(
     @Param("organizationId", ParseUUIDPipe) orgId: string,
@@ -93,6 +95,17 @@ export class PrincipalAssessmentsController {
     @Body() dto: CreateExamPlanDto,
   ) {
     return this.service.createExamPlan(orgId, req.user, dto);
+  }
+
+  @Post("examinations/plans/bulk")
+  @AllowSchoolAdminExamCreate()
+  @RequireFeature("exams")
+  createExamPlans(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: CreateExamPlansDto,
+  ) {
+    return this.service.createExamPlans(orgId, req.user, dto);
   }
 
   @Patch("examinations/plans/:id")

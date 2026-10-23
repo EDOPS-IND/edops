@@ -61,6 +61,51 @@ export class DirectAdmitStudentDto {
   dob?: string;
 }
 
+export class CreateSchoolDocumentDto {
+  @ApiProperty({ example: "Fire Safety Certificate" })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(160)
+  title!: string;
+
+  @ApiProperty({ example: "Safety & Compliance" })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(60)
+  category!: string;
+
+  @ApiProperty({ example: "fire-safety.pdf" })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(255)
+  fileName!: string;
+
+  @ApiProperty({ example: "application/pdf" })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(120)
+  contentType!: string;
+
+  @ApiProperty({ example: 245760 })
+  @IsInt()
+  @Min(1)
+  @Max(26214400)
+  sizeBytes!: number;
+
+  @ApiProperty({ description: "Base64 SHA-256 checksum" })
+  @IsNotEmpty()
+  @IsString()
+  @Matches(/^[A-Za-z0-9+/]{43}=$/)
+  checksumSha256!: string;
+}
+
+export class CompleteSchoolDocumentDto {
+  @ApiProperty({ description: "Version ID returned by storage after upload" })
+  @IsNotEmpty()
+  @IsString()
+  versionId!: string;
+}
+
 export class UpdateLeaveStatusDto {
   @ApiProperty({ enum: ["approved", "rejected"] })
   @IsEnum(["approved", "rejected"])
@@ -577,43 +622,6 @@ export class CreateCourseworkDto {
   maxScore?: number;
 }
 
-export class ScheduleExamDto {
-  @ApiProperty()
-  @IsUUID()
-  sectionId!: string;
-
-  @ApiProperty()
-  @IsUUID()
-  subjectId!: string;
-
-  @ApiProperty({ example: "Periodic Assessment 2" })
-  @IsString()
-  @IsNotEmpty()
-  examName!: string;
-
-  @ApiProperty({ example: "Term 1" })
-  @IsString()
-  @IsNotEmpty()
-  term!: string;
-
-  @ApiProperty({ example: "2026-11-15" })
-  @IsDateString()
-  examDate!: string;
-
-  @ApiProperty({ example: "09:00" })
-  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
-  startTime!: string;
-
-  @ApiProperty({ example: "12:00" })
-  @Matches(/^([01]\d|2[0-3]):[0-5]\d$/)
-  endTime!: string;
-
-  @ApiProperty({ example: 100 })
-  @IsNumber()
-  @Min(1)
-  maxMarks!: number;
-}
-
 export class SchedulePtmDto {
   @ApiProperty({ example: "Term 1 Parent Teacher Meeting" })
   @IsString()
@@ -812,8 +820,8 @@ export class AssignSchoolAdminTeacherDto {
   @IsNotEmpty()
   subjectId!: string;
 
-  @ApiProperty({ example: "d3b07384-d113-4944-9c88-c75c87901002" })
+  @ApiPropertyOptional({ example: "d3b07384-d113-4944-9c88-c75c87901002", nullable: true })
+  @IsOptional()
   @IsUUID()
-  @IsNotEmpty()
-  teacherUserId!: string;
+  teacherUserId?: string | null;
 }
