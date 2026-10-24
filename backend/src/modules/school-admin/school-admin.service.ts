@@ -525,8 +525,13 @@ export class SchoolAdminService {
           COALESCE(sp.address, '') as "address",
           COALESCE(sp.emergency_contact, '') as "emergencyContact",
           NULL as "house",
-          (SELECT CASE WHEN COUNT(*)=0 THEN NULL WHEN SUM(d.amount_pending)>0 THEN 'Due' ELSE 'Paid' END FROM student_fee_dues d WHERE d.organization_id=m.organization_id AND d.student_user_id=u.id) as "feeStatus",
-          NULL as "academicStatus",
+          (SELECT CASE
+            WHEN COUNT(*) = 0 THEN NULL
+            WHEN AVG(r.percentage) >= 80 THEN 'Exemplary'
+            WHEN AVG(r.percentage) >= 65 THEN 'Good'
+            WHEN AVG(r.percentage) >= 40 THEN 'Average'
+            ELSE 'Needs Support'
+          END FROM principal_exam_results r WHERE r.organization_id = m.organization_id AND r.student_user_id = u.id AND r.status = 'Published') as "academicStatus",
           (SELECT ROUND(AVG(CASE WHEN ar.status IN ('present','late') THEN 100.0 ELSE 0.0 END),1) FROM attendance_records ar WHERE ar.organization_id=m.organization_id AND ar.student_id=u.id) as "attendancePct",
           NULL::text as "inviteToken",
           NULL::timestamptz as "inviteExpiresAt",

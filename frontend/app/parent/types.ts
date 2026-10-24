@@ -14,8 +14,10 @@ export interface WardInfo {
   rollNumber: string;
   sectionName: string;
   programName: string;
-  attendancePct: number;
-  todayAttendance: string;
+  attendancePct?: number | null;
+  todayAttendance?: string | null;
+  aggregateAverage?: number | null;
+  academicStanding?: string | null;
   data?: any;
   organizationId?: string;
   refresh?: () => Promise<void>;

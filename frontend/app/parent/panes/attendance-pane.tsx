@@ -16,7 +16,7 @@ export function AttendancePane({
   const attendance = selectedWard.data?.attendance || [];
   const wardLeaves = leavesList.filter((l) => l.studentUserId === selectedWard.studentUserId);
 
-  const attendanceRate = selectedWard.attendancePct != null ? `${selectedWard.attendancePct}%` : "94%";
+  const attendanceRate = selectedWard.attendancePct != null ? `${selectedWard.attendancePct}%` : "—";
   const approvedLeaves = wardLeaves.filter((l) => l.status === "approved").length;
 
   return (
@@ -79,7 +79,7 @@ export function AttendancePane({
           </div>
           <div>
             <div style={{ fontSize: "28px", fontWeight: 800, color: "#360a69", lineHeight: 1 }}>
-              {selectedWard.todayAttendance || "Present"}
+              {selectedWard.todayAttendance || "Not Recorded"}
             </div>
             <div style={{ fontSize: "11px", color: "#5d1cb3", marginTop: "6px", fontWeight: 600 }}>
               Live Daily Register Status
