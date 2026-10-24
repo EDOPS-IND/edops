@@ -1344,6 +1344,33 @@ body:has(.modal-backdrop) {
   overflow-x: clip;
 }
 
+.edops-timetable-pane,
+.edops-timetable-kpi-grid,
+.edops-timetable-panel,
+.edops-timetable-table {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.edops-timetable-header {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.edops-timetable-controls {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.edops-timetable-table {
+  overflow-x: auto !important;
+  -webkit-overflow-scrolling: touch !important;
+}
+
 @media (max-width: 850px) {
   .dashboard-hero-illustration {
     display: none !important;
@@ -2011,7 +2038,6 @@ body:has(.modal-backdrop) {
   .edops-timetable-panel {
     min-width: 0 !important;
     max-width: 100% !important;
-    overflow: hidden;
     padding: 16px !important;
   }
   .edops-timetable-header {

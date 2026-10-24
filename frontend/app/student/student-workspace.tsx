@@ -31,6 +31,7 @@ import {
 
 import { OrganizationSummary, api, getStudentAvatarUrl } from '../edops-api';
 import { useDashboardNavigation } from '../dashboard-navigation';
+import { NotificationBellDropdown } from '../components/notification-bell-dropdown';
 import { FeatureUnavailableCard, ThreeDotsLoading } from '../components/feature-unavailable-card';
 import { GlobalPortalSearch } from '../components/global-portal-search';
 import { StudentTab } from './types';
@@ -642,25 +643,19 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               </button>
 
               {/* Notification bell button */}
-              <button
-                type="button"
-                onClick={() => navigateTo('communication')}
-                title="Notifications"
-                aria-label="Notifications"
-                style={{
-                  all: "unset",
-                  display: "grid",
-                  placeItems: "center",
+              <NotificationBellDropdown
+                organizationId={organization.id}
+                role="student"
+                onNavigate={(tab, subTab) => navigateTo(tab as any, subTab)}
+                buttonStyle={{
                   width: "36px",
                   height: "36px",
                   borderRadius: "8px",
                   background: S.chip,
                   color: S.navy,
-                  cursor: "pointer",
                 }}
-              >
-                <Bell size={18} />
-              </button>
+                iconSize={18}
+              />
 
               {/* Multi-Org Switcher */}
               {organizations.length > 1 && (

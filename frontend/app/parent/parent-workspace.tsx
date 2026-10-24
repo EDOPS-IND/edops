@@ -33,6 +33,7 @@ import {
 import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from "./types";
 import { ThreeDotsLoading } from "../components/feature-unavailable-card";
 import { UnifiedCommunicationHub } from "../components/notice-board";
+import { NotificationBellDropdown } from "../components/notification-bell-dropdown";
 
 // Panes
 import { OverviewPane } from "./panes/overview-pane";
@@ -667,6 +668,22 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                 ))}
               </select>
             )}
+
+            {/* Notification Bell */}
+            <NotificationBellDropdown
+              organizationId={organization.id}
+              role="parent"
+              onNavigate={(tab) => navigateTo(tab as any)}
+              buttonStyle={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "8px",
+                background: "#f8fafc",
+                border: "1px solid #e4e6e9",
+                color: "#0c1e33",
+              }}
+              iconSize={16}
+            />
 
             {/* Guardian Profile Avatar & Dropdown */}
             <div style={{ position: "relative" }}>

@@ -31,6 +31,7 @@ import {
   createSchoolSupportTicket,
 } from "../edops-api";
 import { CreateTicketModal } from "../platform/modals";
+import { NotificationBellDropdown } from "../components/notification-bell-dropdown";
 
 // ─── Design Tokens (Strictly matching Student & Teacher Dashboard specification) ──
 const S = {
@@ -937,42 +938,21 @@ export function SchoolAdminWorkspace({
             </button>
 
             {/* Notification Bell */}
-            <button
-              onClick={() => go("alerts")}
-              aria-label="Alerts"
-              className="workspace-header-alerts"
-              style={{
-                all: "unset",
-                position: "relative",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
+            <NotificationBellDropdown
+              organizationId={organizationId || ""}
+              role="school_admin"
+              onNavigate={(tab, subTab) => go(tab as any, subTab)}
+              buttonClassName="workspace-header-alerts"
+              buttonStyle={{
                 width: "44px",
                 height: "44px",
                 borderRadius: "8px",
                 border: `1px solid ${S.line}`,
                 background: "#ffffff",
-                cursor: "pointer",
                 color: S.navy,
-                transition: "all 0.12s ease",
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "#f4f6f7")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
-            >
-              <Bell size={15} strokeWidth={1.75} />
-              <span
-                style={{
-                  position: "absolute",
-                  top: "8px",
-                  right: "8px",
-                  width: "7px",
-                  height: "7px",
-                  borderRadius: "50%",
-                  background: S.badge,
-                  border: "1.5px solid #ffffff",
-                }}
-              />
-            </button>
+              iconSize={15}
+            />
 
             {/* Support / Helpdesk Trigger */}
             <button

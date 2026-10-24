@@ -294,13 +294,17 @@ export function TimetablePane({
   const uncoveredCount = data?.uncovered?.length ?? 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
       {/* 4 Pastel Top KPI Metric Cards (Strictly 148px height) */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
           gap: "16px",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
         }}
       >
         {/* Card 1: Mint */}
@@ -491,12 +495,12 @@ export function TimetablePane({
 
       {/* Filter bars if in teacher or class views */}
       {currentView === "teacher" && (
-        <div style={{ background: "#ffffff", padding: "12px 16px", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ background: "#ffffff", padding: "12px 16px", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Filter by Faculty:</span>
           <select
             value={teacherId}
             onChange={(e) => setTeacherId(e.target.value)}
-            style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px", background: "#ffffff" }}
+            style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px", background: "#ffffff", maxWidth: "100%" }}
           >
             <option value="">All Faculty</option>
             {people?.teachers.map((t) => (
@@ -509,12 +513,12 @@ export function TimetablePane({
       )}
 
       {currentView === "class" && (
-        <div style={{ background: "#ffffff", padding: "12px 16px", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", alignItems: "center", gap: "10px" }}>
+        <div style={{ background: "#ffffff", padding: "12px 16px", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           <span style={{ fontSize: "12px", fontWeight: 700, color: "#475569" }}>Filter by Class:</span>
           <select
             value={sectionId}
             onChange={(e) => setSectionId(e.target.value)}
-            style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px", background: "#ffffff" }}
+            style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px", background: "#ffffff", maxWidth: "100%" }}
           >
             <option value="">All Classes</option>
             {people?.sections.map((s) => (
@@ -528,11 +532,11 @@ export function TimetablePane({
 
       {/* Main Timetable Ledger */}
       {currentView !== "substitutions" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflowX: "auto", WebkitOverflowScrolling: "touch", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
+          <table style={{ width: "100%", minWidth: "750px", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                <th style={{ padding: "12px 16px" }}>Day</th>
+                <th style={{ padding: "12px 16px", position: "sticky", left: 0, background: "#f8fafc", zIndex: 3, boxShadow: "2px 0 4px rgba(0,0,0,0.04)" }}>Day</th>
                 <th style={{ padding: "12px 16px" }}>Period</th>
                 <th style={{ padding: "12px 16px" }}>Time</th>
                 <th style={{ padding: "12px 16px" }}>Class</th>
@@ -552,7 +556,7 @@ export function TimetablePane({
               ) : (
                 filtered.map((entry) => (
                   <tr key={entry.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1e293b" }}>{days[entry.day_of_week - 1]}</td>
+                    <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1e293b", position: "sticky", left: 0, background: "#ffffff", zIndex: 2, boxShadow: "2px 0 4px rgba(0,0,0,0.04)" }}>{days[entry.day_of_week - 1]}</td>
                     <td style={{ padding: "12px 16px", color: "#475569" }}>Period {entry.period_number}</td>
                     <td style={{ padding: "12px 16px", color: "#64748b" }}>
                       {entry.start_time} – {entry.end_time}
@@ -614,7 +618,7 @@ export function TimetablePane({
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             {/* Uncovered Absences */}
-            <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflowX: "auto", WebkitOverflowScrolling: "touch", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
               <div style={{ padding: "16px 20px", borderBottom: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>Uncovered Faculty Absences</h3>
@@ -625,7 +629,7 @@ export function TimetablePane({
                 </span>
               </div>
 
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+              <table style={{ width: "100%", minWidth: "650px", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
                     <th style={{ padding: "12px 16px" }}>Date</th>
@@ -677,13 +681,13 @@ export function TimetablePane({
             </div>
 
             {/* Assigned Substitutions Log */}
-            <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflowX: "auto", WebkitOverflowScrolling: "touch", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
               <div style={{ padding: "16px 20px", borderBottom: "1px solid #e4e6e9" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>Confirmed Substitute Assignments</h3>
                 <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#64748b" }}>History of assigned coverage for leave periods.</p>
               </div>
 
-              <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+              <table style={{ width: "100%", minWidth: "700px", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
                 <thead>
                   <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
                     <th style={{ padding: "12px 16px" }}>Date</th>
@@ -767,7 +771,7 @@ export function TimetablePane({
             </div>
 
             <form onSubmit={saveEntry} style={{ padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: "10px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>Class *</label>
                   <select
@@ -871,7 +875,7 @@ export function TimetablePane({
                 </select>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: "10px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>Day of Week *</label>
                   <select
@@ -900,7 +904,7 @@ export function TimetablePane({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 180px), 1fr))", gap: "10px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>Start Time *</label>
                   <input
@@ -993,6 +997,8 @@ export function TimetablePane({
               borderRadius: "12px",
               width: "100%",
               maxWidth: "500px",
+              maxHeight: "90vh",
+              overflowY: "auto",
               padding: "20px",
               display: "flex",
               flexDirection: "column",

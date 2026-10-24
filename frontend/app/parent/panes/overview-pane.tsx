@@ -391,8 +391,8 @@ export function OverviewPane({
                 No active timetable periods published for this class.
               </div>
             ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+              <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
+                <table style={{ width: "100%", minWidth: "520px", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
                   <thead>
                     <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
                       <th style={{ padding: "10px 14px" }}>Day</th>

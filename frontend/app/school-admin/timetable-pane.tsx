@@ -226,9 +226,9 @@ export function TimetablePane({
   });
 
   return (
-    <div className="edops-timetable-pane" style={{ display: "grid", gap: "20px" }}>
+    <div className="edops-timetable-pane" style={{ display: "grid", gap: "20px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
       {/* Top 4 Pastel Metric Cards (Strictly 148px) */}
-      <section className="edops-timetable-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "12px" }}>
+      <section className="edops-timetable-kpi-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))", gap: "12px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
         {/* 1. Total Slots (Pastel Violet) */}
         <article
           style={{
@@ -350,7 +350,7 @@ export function TimetablePane({
 
       {/* Conflict Alert Banner */}
       {conflicts.length > 0 ? (
-        <div className="edops-timetable-alert" style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="edops-timetable-alert" style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: "10px", padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             <AlertTriangle size={20} color="#DC2626" />
             <div>
@@ -365,22 +365,22 @@ export function TimetablePane({
           </button>
         </div>
       ) : (
-        <div className="edops-timetable-alert" style={{ background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: "10px", padding: "12px 18px", display: "flex", alignItems: "center", gap: "10px" }}>
+        <div className="edops-timetable-alert" style={{ background: "#ECFDF5", border: "1px solid #A7F3D0", borderRadius: "10px", padding: "12px 18px", display: "flex", alignItems: "center", gap: "10px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
           <CheckCircle2 size={18} color="#047857" />
           <span style={{ color: "#047857", fontSize: "13px", fontWeight: 700 }}>{loading ? "Loading timetable…" : slots.length ? "No recorded scheduling conflicts. All period allocations verified." : "No timetable entries saved."}</span>
         </div>
       )}
 
-      <div className="edops-timetable-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
+      <div className="edops-timetable-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "clamp(14px, 3vw, 20px)", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
         {/* Header and Controls */}
-        <div className="edops-timetable-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "10px" }}>
-          <div>
+        <div className="edops-timetable-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
+          <div style={{ minWidth: "220px", flex: "1 1 auto", maxWidth: "100%" }}>
             <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Master Timetable Schedule & Conflict Monitor</h3>
             <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Detects teacher overlap, room double-booking, and period capacity</p>
           </div>
 
-          <div className="edops-timetable-controls" style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <div style={{ display: "flex", background: "#f8fafc", border: "1px solid #e4e6e9", borderRadius: "6px", padding: "2px" }}>
+          <div className="edops-timetable-controls" style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap", maxWidth: "100%" }}>
+            <div style={{ display: "inline-flex", background: "#f8fafc", border: "1px solid #e4e6e9", borderRadius: "6px", padding: "2px", flexWrap: "wrap", gap: "2px" }}>
               <button
                 onClick={() => {
                   setViewMode("class");
@@ -414,7 +414,7 @@ export function TimetablePane({
               <select
                 value={selectedSectionId}
                 onChange={(e) => setSelectedSectionId(e.target.value)}
-                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
+                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none", maxWidth: "100%" }}
               >
                 {sections.length > 0 ? (
                   sections.map((s) => (
@@ -432,7 +432,7 @@ export function TimetablePane({
               <select
                 value={selectedTeacherId}
                 onChange={(e) => setSelectedTeacherId(e.target.value)}
-                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
+                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none", maxWidth: "100%" }}
               >
                 {teachers.length > 0 ? (
                   teachers.map((t) => {
@@ -453,7 +453,7 @@ export function TimetablePane({
               <select
                 value={selectedRoom}
                 onChange={(e) => setSelectedRoom(e.target.value)}
-                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none" }}
+                style={{ padding: "6px 12px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px", background: "#FFFFFF", color: "#101828", outline: "none", maxWidth: "100%" }}
               >
                 {availableRooms.length > 0 ? (
                   availableRooms.map((r) => (
@@ -481,6 +481,7 @@ export function TimetablePane({
                 fontSize: "12px",
                 fontWeight: 700,
                 cursor: "pointer",
+                whiteSpace: "nowrap",
               }}
             >
               <Plus size={14} /> Add Period
@@ -488,13 +489,19 @@ export function TimetablePane({
           </div>
         </div>
 
-        {/* Weekly Timetable Matrix */}
+        {/* Weekly Timetable Matrix with Scroll Cue & Sticky Day Column */}
         {!loading && slots.length === 0 && <p style={{ fontSize: "13px", color: "var(--muted)", margin: "16px 0" }}>No timetable entries saved yet. Click "+ Add Period" to create schedules.</p>}
-        <div className="edops-timetable-table" style={{ overflowX: "auto" }}>
-          <table className="edops-timetable-grid" style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px", textAlign: "center" }}>
+        
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", color: "#64748b", marginBottom: "8px", flexWrap: "wrap", gap: "4px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
+          <span>↔ Scroll horizontally to view all periods</span>
+          <span>{periods.length} Periods • {days.length} Days</span>
+        </div>
+
+        <div className="edops-timetable-table" style={{ width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box", overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: "8px", border: "1px solid #e4e6e9" }}>
+          <table className="edops-timetable-grid" style={{ width: "100%", minWidth: "850px", borderCollapse: "collapse", fontSize: "12.5px", textAlign: "center" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #e4e6e9", background: "#f8fafc" }}>
-                <th style={{ padding: "10px", width: "100px", textAlign: "left" }}>Day</th>
+                <th style={{ padding: "10px", width: "100px", minWidth: "90px", textAlign: "left", position: "sticky", left: 0, background: "#f8fafc", zIndex: 3, boxShadow: "2px 0 4px rgba(0,0,0,0.04)" }}>Day</th>
                 {periods.map((p, idx) => (
                   <th key={idx} style={{ padding: "8px 6px", minWidth: "130px" }}>
                     <b>{p.isBreak ? p.period : `Period ${p.period}`}</b>
@@ -506,7 +513,7 @@ export function TimetablePane({
             <tbody>
               {days.map((day) => (
                 <tr key={day} style={{ borderBottom: "1px solid #f4f6f7" }}>
-                  <td style={{ padding: "12px 10px", textAlign: "left", fontWeight: 700, color: "#0c1e33", background: "#f8fafc" }}>
+                  <td style={{ padding: "12px 10px", textAlign: "left", fontWeight: 700, color: "#0c1e33", background: "#f8fafc", position: "sticky", left: 0, zIndex: 2, boxShadow: "2px 0 4px rgba(0,0,0,0.04)" }}>
                     {day}
                   </td>
                   {periods.map((p, pIdx) => {
@@ -620,7 +627,7 @@ export function TimetablePane({
       {/* Modal Dialog for Add / Edit Timetable Period */}
       {modalOpen && (
         <div style={{ position: "fixed", inset: 0, backgroundColor: "rgba(12, 30, 51, 0.45)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "16px" }}>
-          <div style={{ background: "#FFFFFF", borderRadius: "14px", width: "100%", maxWidth: "520px", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden" }}>
+          <div style={{ background: "#FFFFFF", borderRadius: "14px", width: "100%", maxWidth: "520px", maxHeight: "90vh", display: "flex", flexDirection: "column", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)", overflow: "hidden" }}>
             <div style={{ padding: "16px 20px", borderBottom: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f8fafc" }}>
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0c1e33" }}>
                 {editingSlot ? "Edit Timetable Period" : "Add Timetable Period"}
@@ -630,7 +637,7 @@ export function TimetablePane({
               </button>
             </div>
 
-            <form onSubmit={handleSaveSlot} style={{ padding: "20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+            <form onSubmit={handleSaveSlot} style={{ padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "14px" }}>
               {formError && (
                 <div style={{ background: "#FEE2E2", border: "1px solid #FCA5A5", borderRadius: "6px", padding: "10px 14px", color: "#991B1B", fontSize: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
                   <AlertTriangle size={16} />
@@ -638,7 +645,7 @@ export function TimetablePane({
                 </div>
               )}
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "#334155", marginBottom: "4px" }}>Class / Section</label>
                   <select
@@ -680,7 +687,7 @@ export function TimetablePane({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "#334155", marginBottom: "4px" }}>Period Number</label>
                   <select
@@ -770,7 +777,7 @@ export function TimetablePane({
                 </select>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 130px), 1fr))", gap: "12px" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "11.5px", fontWeight: 700, color: "#334155", marginBottom: "4px" }}>Start Time</label>
                   <input
