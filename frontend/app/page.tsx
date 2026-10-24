@@ -436,17 +436,17 @@ export default function Home() {
       }
       const role = roleMap[previewRole] || "student";
       const previewOrg: OrganizationSummary = {
-        id: "preview-org-id",
-        name: "Springfield High",
-        slug: "springfield-high",
+        id: "e13019ee-fedf-4a62-a39e-cc6a67e783b4",
+        name: "VJS Academy",
+        slug: "vjs",
         status: "active",
         role,
       };
       const previewProfile: Profile = {
         user: {
-          id: "preview-user",
-          email: `${role}@edops.com`,
-          name: `Sample ${previewRole}`,
+          id: "eca6c9f4-490b-4330-ab50-ec3f8a36db92",
+          email: "vjs@gmail.com",
+          name: "Vikash",
           isPlatformAdmin: false,
         },
         organizations: [previewOrg],

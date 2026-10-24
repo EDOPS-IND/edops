@@ -8,7 +8,6 @@ import {
   ParentRecord,
   DepartmentRecord,
 } from "./types";
-import { SAMPLE_STUDENTS, SAMPLE_PARENTS } from "./sample-data";
 import {
   getSchoolAdminStudents,
   getSchoolAdminTeachers,
@@ -779,26 +778,6 @@ export function PeoplePane({
     if (!organizationId || !selectedParent) return;
     setSavingWards(true);
     try {
-      if (organizationId.startsWith("preview")) {
-        const mappedStudents = students
-          .filter((s) => selectedWardIds.includes(s.userId || s.id))
-          .map((s) => ({
-            id: s.userId || s.id,
-            studentId: s.userId || s.id,
-            name: s.name,
-            studentName: s.name,
-            admissionNo: s.admissionNo || s.admissionNumber,
-            grade: s.grade || s.className,
-            section: s.section || s.sectionName,
-            class: [s.grade || s.className, s.section || s.sectionName].filter(Boolean).join(" "),
-          }));
-        setParents((prev) =>
-          prev.map((p) => (p.id === selectedParent.id ? { ...p, children: mappedStudents } : p))
-        );
-        setSelectedParent((prev) => (prev ? { ...prev, children: mappedStudents } : prev));
-        setIsMappingWards(false);
-        return;
-      }
       await updateParentChildren(organizationId, selectedParent.id, selectedWardIds);
       const updated = await getSchoolAdminParents(organizationId);
       const parentList = updated || [];
@@ -836,31 +815,6 @@ export function PeoplePane({
       .filter((id: string) => id && id !== studentIdToUnlink);
     setSavingWards(true);
     try {
-      if (organizationId.startsWith("preview")) {
-        setParents((prev) =>
-          prev.map((p) =>
-            p.id === selectedParent.id
-              ? {
-                  ...p,
-                  children: (p.children || []).filter(
-                    (ch: any) => (ch.studentId || ch.id) !== studentIdToUnlink
-                  ),
-                }
-              : p
-          )
-        );
-        setSelectedParent((prev) =>
-          prev
-            ? {
-                ...prev,
-                children: (prev.children || []).filter(
-                  (ch: any) => (ch.studentId || ch.id) !== studentIdToUnlink
-                ),
-              }
-            : prev
-        );
-        return;
-      }
       await updateParentChildren(organizationId, selectedParent.id, nextIds);
       const updated = await getSchoolAdminParents(organizationId);
       const parentList = updated || [];
@@ -872,11 +826,11 @@ export function PeoplePane({
         setSelectedParent((prev) =>
           prev
             ? {
-              ...prev,
-              children: (prev.children || []).filter(
-                (ch: any) => (ch.studentId || ch.id) !== studentIdToUnlink
-              ),
-            }
+                ...prev,
+                children: (prev.children || []).filter(
+                  (ch: any) => (ch.studentId || ch.id) !== studentIdToUnlink
+                ),
+              }
             : prev
         );
       }
@@ -1070,21 +1024,10 @@ export function PeoplePane({
     if (selectedParent && organizationId && !loadedTabs["students"]) {
       getSchoolAdminStudents(organizationId)
         .then((st) => {
-          if (Array.isArray(st) && st.length > 0) {
-            setStudents(st);
-          } else if (organizationId.startsWith("preview") || !st || st.length === 0) {
-            setStudents(SAMPLE_STUDENTS);
-          } else {
-            setStudents([]);
-          }
+          setStudents(st || []);
           setLoadedTabs((prev) => ({ ...prev, students: true }));
         })
-        .catch(() => {
-          if (organizationId.startsWith("preview")) {
-            setStudents(SAMPLE_STUDENTS);
-            setLoadedTabs((prev) => ({ ...prev, students: true }));
-          }
-        });
+        .catch(() => { });
     }
   }, [selectedParent, organizationId, loadedTabs]);
 
@@ -1096,59 +1039,20 @@ export function PeoplePane({
     setLoading(true);
     let fetcher: Promise<any>;
     if (subtab === "students") {
-      fetcher = getSchoolAdminStudents(organizationId)
-        .then((st) => {
-          if (Array.isArray(st) && st.length > 0) {
-            setStudents(st);
-          } else if (organizationId.startsWith("preview") || !st || st.length === 0) {
-            setStudents(SAMPLE_STUDENTS);
-          } else {
-            setStudents([]);
-          }
-        })
-        .catch(() => {
-          if (organizationId.startsWith("preview")) {
-            setStudents(SAMPLE_STUDENTS);
-          }
-        });
+      fetcher = getSchoolAdminStudents(organizationId).then((st) => setStudents(st || []));
     } else if (subtab === "teachers") {
       fetcher = getSchoolAdminTeachers(organizationId).then((tc) => setTeachers(tc || []));
     } else if (subtab === "staff") {
       fetcher = getSchoolAdminStaff(organizationId).then((sf) => setStaff(sf || []));
     } else if (subtab === "parents") {
-      const p1 = getSchoolAdminParents(organizationId)
-        .then((pr) => {
-          if (Array.isArray(pr) && pr.length > 0) {
-            setParents(pr);
-          } else if (organizationId.startsWith("preview") || !pr || pr.length === 0) {
-            setParents(SAMPLE_PARENTS);
-          } else {
-            setParents([]);
-          }
-        })
-        .catch(() => {
-          if (organizationId.startsWith("preview")) {
-            setParents(SAMPLE_PARENTS);
-          }
-        });
+      const p1 = getSchoolAdminParents(organizationId).then((pr) => setParents(pr || []));
       const p2 = !loadedTabs["students"]
         ? getSchoolAdminStudents(organizationId)
             .then((st) => {
-              if (Array.isArray(st) && st.length > 0) {
-                setStudents(st);
-              } else if (organizationId.startsWith("preview") || !st || st.length === 0) {
-                setStudents(SAMPLE_STUDENTS);
-              } else {
-                setStudents([]);
-              }
+              setStudents(st || []);
               setLoadedTabs((prev) => ({ ...prev, students: true }));
             })
-            .catch(() => {
-              if (organizationId.startsWith("preview")) {
-                setStudents(SAMPLE_STUDENTS);
-                setLoadedTabs((prev) => ({ ...prev, students: true }));
-              }
-            })
+            .catch(() => { })
         : Promise.resolve();
       fetcher = Promise.all([p1, p2]);
     } else {
