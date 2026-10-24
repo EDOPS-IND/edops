@@ -594,9 +594,11 @@ export function PeoplePane({
   // Filters (Students)
   const [searchQuery, setSearchQuery] = useState("");
   const [gradeFilter, setGradeFilter] = useState("all");
+  const [sectionFilter, setSectionFilter] = useState("all");
+  const [attendanceFilter, setAttendanceFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
   const [feeFilter, setFeeFilter] = useState("all");
-  const [studentSegment, setStudentSegment] = useState<"all" | "ontrack" | "breach" | "pending_fee" | "paid_fee">("all");
+  const [studentSegment, setStudentSegment] = useState<"all" | "ontrack" | "breach" | "pending_fee" | "paid_fee" | "active">("all");
 
   // Filters (Teachers & Workload)
   const [teacherSearch, setTeacherSearch] = useState("");
@@ -1104,46 +1106,126 @@ export function PeoplePane({
     }
   }, [selectedStudent, organizationId, loadedTabs]);
 
-  const filteredStudents = students.filter((s) => {
-    if (gradeFilter !== "all") {
-      const g = (s.grade || s.className || "").toLowerCase();
-      if (!g.includes(gradeFilter.toLowerCase())) return false;
-    }
-    if (statusFilter !== "all" && s.status && s.status.toLowerCase() !== statusFilter.toLowerCase()) return false;
-    if (feeFilter !== "all") {
-      const f = (s.feeStatus || "").toLowerCase();
-      if (feeFilter === "paid" && !f.includes("paid")) return false;
-      if (feeFilter === "pending" && !f.includes("pend") && !f.includes("due")) return false;
-      if (feeFilter === "overdue" && !f.includes("overdue")) return false;
-    }
-    if (studentSegment === "ontrack") {
-      if (s.attendancePct == null || Number(s.attendancePct) < 75) return false;
-    } else if (studentSegment === "breach") {
-      if (s.attendancePct == null || Number(s.attendancePct) >= 75) return false;
-    } else if (studentSegment === "pending_fee") {
-      const f = (s.feeStatus || "").toLowerCase();
-      if (!f.includes("pend") && !f.includes("due")) return false;
-    } else if (studentSegment === "paid_fee") {
-      const f = (s.feeStatus || "").toLowerCase();
-      if (!f.includes("paid")) return false;
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchName = (s.name || "").toLowerCase().includes(q);
-      const matchRoll = (s.rollNo || s.rollNumber || "").toLowerCase().includes(q);
-      const matchClass = (s.grade || s.className || "").toLowerCase().includes(q);
-      if (!matchName && !matchRoll && !matchClass) return false;
-    }
-    return true;
-  });
+  const filteredStudents = useMemo(() => {
+    return students.filter((s) => {
+      // 1. Grade / Class filter
+      if (gradeFilter !== "all") {
+        const g = (s.grade || s.className || "").toLowerCase();
+        if (!g.includes(gradeFilter.toLowerCase())) return false;
+      }
 
-  const uniqueGrades = Array.from(
-    new Set(
-      students
-        .map((s) => s.grade || s.className)
-        .filter(Boolean)
-        .map((g) => String(g).trim())
-    )
+      // 2. Section filter
+      if (sectionFilter !== "all") {
+        const sec = (s.section || s.sectionName || "").toLowerCase();
+        if (sec !== sectionFilter.toLowerCase()) return false;
+      }
+
+      // 3. Attendance filter
+      if (attendanceFilter !== "all") {
+        const att = s.attendancePct != null ? Number(s.attendancePct) : null;
+        if (attendanceFilter === "ontrack" && (att === null || att < 75)) return false;
+        if (attendanceFilter === "breach" && (att === null || att >= 75)) return false;
+        if (attendanceFilter === "critical" && (att === null || att >= 60)) return false;
+        if (attendanceFilter === "perfect" && (att === null || att < 90)) return false;
+        if (attendanceFilter === "no_records" && att !== null) return false;
+      }
+
+      // 4. Fee status filter
+      if (feeFilter !== "all") {
+        const f = (s.feeStatus || "").toLowerCase();
+        if (feeFilter === "paid" && !f.includes("paid") && !f.includes("settl")) return false;
+        if (feeFilter === "pending" && !f.includes("pend") && !f.includes("due")) return false;
+        if (feeFilter === "overdue" && !f.includes("overdue")) return false;
+        if (feeFilter === "no_records" && f !== "" && f !== "—" && f !== "unbilled") return false;
+      }
+
+      // 5. Academic Status filter
+      if (statusFilter !== "all") {
+        const st = (s.academicStatus || s.status || "").toLowerCase();
+        if (statusFilter === "active") {
+          if (!st.includes("active") && !st.includes("enroll")) return false;
+        } else if (statusFilter === "probation") {
+          if (!st.includes("probat") && !st.includes("review")) return false;
+        } else if (statusFilter === "inactive") {
+          if (!st.includes("inact") && !st.includes("suspend") && !st.includes("arch")) return false;
+        } else if (statusFilter === "graduated") {
+          if (!st.includes("grad") && !st.includes("alum")) return false;
+        } else {
+          if (st !== statusFilter.toLowerCase()) return false;
+        }
+      }
+
+      // 6. Segment quick pills
+      if (studentSegment === "ontrack") {
+        if (s.attendancePct == null || Number(s.attendancePct) < 75) return false;
+      } else if (studentSegment === "breach") {
+        if (s.attendancePct == null || Number(s.attendancePct) >= 75) return false;
+      } else if (studentSegment === "pending_fee") {
+        const f = (s.feeStatus || "").toLowerCase();
+        if (!f.includes("pend") && !f.includes("due")) return false;
+      } else if (studentSegment === "paid_fee") {
+        const f = (s.feeStatus || "").toLowerCase();
+        if (!f.includes("paid") && !f.includes("settl")) return false;
+      } else if (studentSegment === "active") {
+        const st = (s.academicStatus || s.status || "").toLowerCase();
+        if (!st.includes("active") && !st.includes("enroll")) return false;
+      }
+
+      // 7. Search query filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchName = (s.name || "").toLowerCase().includes(q);
+        const matchRoll = (s.rollNo || s.rollNumber || "").toLowerCase().includes(q);
+        const matchClass = [s.grade, s.className, s.section, s.sectionName].filter(Boolean).join(" ").toLowerCase().includes(q);
+        const matchEmail = (s.email || s.studentEmail || "").toLowerCase().includes(q);
+        const matchAdm = (s.admissionNo || s.admissionNumber || "").toLowerCase().includes(q);
+        if (!matchName && !matchRoll && !matchClass && !matchEmail && !matchAdm) return false;
+      }
+      return true;
+    });
+  }, [students, gradeFilter, sectionFilter, attendanceFilter, feeFilter, statusFilter, studentSegment, searchQuery]);
+
+  const uniqueGrades = useMemo(() => {
+    return Array.from(
+      new Set(
+        students
+          .map((s) => s.grade || s.className)
+          .filter(Boolean)
+          .map((g) => String(g).trim())
+      )
+    ).sort();
+  }, [students]);
+
+  const uniqueAcademicStatuses = useMemo(() => {
+    const set = new Set<string>();
+    students.forEach((s) => {
+      const st = s.academicStatus || s.status;
+      if (st && String(st) !== "—") set.add(String(st));
+    });
+    return Array.from(set).sort();
+  }, [students]);
+
+  const uniqueSections = useMemo(() => {
+    const set = new Set<string>();
+    students.forEach((s) => {
+      if (gradeFilter !== "all") {
+        const g = (s.grade || s.className || "").toLowerCase();
+        if (!g.includes(gradeFilter.toLowerCase())) return;
+      }
+      const sec = s.section || s.sectionName;
+      if (sec) set.add(sec);
+    });
+    return Array.from(set).sort();
+  }, [students, gradeFilter]);
+
+  const hasActiveStudentFilters = Boolean(
+    searchQuery ||
+    gradeFilter !== "all" ||
+    sectionFilter !== "all" ||
+    attendanceFilter !== "all" ||
+    feeFilter !== "all" ||
+    statusFilter !== "all" ||
+    studentSegment !== "all"
   );
 
   const totalStudentsCount = students.length;
@@ -1892,10 +1974,12 @@ export function PeoplePane({
                 display: "flex",
                 flexDirection: "row",
                 alignItems: "center",
-                padding: "0px 24px 20px",
-                gap: "12px",
+                padding: "0px 24px 16px",
+                gap: "8px",
                 width: "100%",
-                flexWrap: "wrap",
+                flexWrap: "nowrap",
+                overflowX: "auto",
+                scrollbarWidth: "none",
               }}
             >
               {/* Student search */}
@@ -1905,20 +1989,20 @@ export function PeoplePane({
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  padding: "0px 14px",
-                  gap: "10px",
-                  height: "42px",
+                  padding: "0px 12px",
+                  gap: "8px",
+                  height: "40px",
                   border: "1px solid #E0E5EB",
                   borderRadius: "6px",
-                  flex: 1,
-                  minWidth: "240px",
+                  flex: "1 1 160px",
+                  minWidth: "140px",
                   background: "#FFFFFF",
                 }}
               >
-                <Search size={16} strokeWidth={2} style={{ color: "#495D72", flexShrink: 0 }} />
+                <Search size={15} strokeWidth={2} style={{ color: "#495D72", flexShrink: 0 }} />
                 <input
                   type="text"
-                  placeholder="Search student by name, roll number, or grade..."
+                  placeholder="Search students..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -1945,79 +2029,335 @@ export function PeoplePane({
                 )}
               </div>
 
-
-              {/* Grade filter */}
+              {/* Grade / Class filter */}
               <div
                 style={{
                   boxSizing: "border-box",
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  padding: "0px 14px",
-                  width: "160px",
-                  height: "42px",
-                  border: "1px solid #E0E5EB",
+                  padding: "0px 12px",
+                  flex: "0 0 120px",
+                  width: "120px",
+                  height: "40px",
+                  border: "1px solid",
+                  borderColor: gradeFilter !== "all" ? "#0C1E33" : "#E0E5EB",
                   borderRadius: "6px",
-                  background: "#FFFFFF",
+                  background: gradeFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
                   position: "relative",
+                  flexShrink: 0,
+                  transition: "all 0.15s ease",
                 }}
               >
                 <select
                   value={gradeFilter}
-                  onChange={(e) => setGradeFilter(e.target.value)}
+                  onChange={(e) => {
+                    setGradeFilter(e.target.value);
+                    setSectionFilter("all");
+                  }}
                   style={{
                     border: "none",
                     outline: "none",
+                    boxShadow: "none",
                     width: "100%",
                     height: "100%",
                     background: "transparent",
                     fontFamily: "'Poppins', sans-serif",
-                    fontWeight: 400,
+                    fontWeight: gradeFilter !== "all" ? 600 : 400,
                     fontSize: "12px",
                     lineHeight: "150%",
                     color: "#0C1E33",
                     cursor: "pointer",
                     appearance: "none",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
                     paddingRight: "20px",
+                    paddingLeft: 0,
+                    margin: 0,
                   }}
                 >
-                  <option value="all">All Grades</option>
+                  <option value="all">Class: All</option>
                   {uniqueGrades.map((g) => (
                     <option key={g} value={g}>
                       {g}
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: "#586C82", pointerEvents: "none" }} />
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: gradeFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
               </div>
 
-              {(searchQuery || gradeFilter !== "all" || studentSegment !== "all") && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setGradeFilter("all");
-                    setStudentSegment("all");
-                  }}
+              {/* Section filter */}
+              {uniqueSections.length > 0 && (
+                <div
                   style={{
-                    padding: "0 14px",
-                    height: "42px",
-                    background: "#F4F6F7",
-                    border: "1px solid #E0E5EB",
+                    boxSizing: "border-box",
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    padding: "0px 12px",
+                    flex: "0 0 115px",
+                    width: "115px",
+                    height: "40px",
+                    border: "1px solid",
+                    borderColor: sectionFilter !== "all" ? "#0C1E33" : "#E0E5EB",
                     borderRadius: "6px",
-                    fontSize: "12px",
-                    fontWeight: 500,
-                    color: "#586C82",
-                    cursor: "pointer",
-                    fontFamily: "'Poppins', sans-serif",
+                    background: sectionFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
+                    position: "relative",
+                    flexShrink: 0,
                     transition: "all 0.15s ease",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#E9EEF4")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "#F4F6F7")}
                 >
-                  Reset
-                </button>
+                  <select
+                    value={sectionFilter}
+                    onChange={(e) => setSectionFilter(e.target.value)}
+                    style={{
+                      border: "none",
+                      outline: "none",
+                      boxShadow: "none",
+                      width: "100%",
+                      height: "100%",
+                      background: "transparent",
+                      fontFamily: "'Poppins', sans-serif",
+                      fontWeight: sectionFilter !== "all" ? 600 : 400,
+                      fontSize: "12px",
+                      lineHeight: "150%",
+                      color: "#0C1E33",
+                      cursor: "pointer",
+                      appearance: "none",
+                      WebkitAppearance: "none",
+                      MozAppearance: "none",
+                      paddingRight: "20px",
+                      paddingLeft: 0,
+                      margin: 0,
+                    }}
+                  >
+                    <option value="all">Section: All</option>
+                    {uniqueSections.map((sec) => (
+                      <option key={sec} value={sec}>
+                        Section {sec}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: sectionFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
+                </div>
               )}
+
+              {/* Attendance filter */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: "0px 12px",
+                  flex: "0 0 145px",
+                  width: "145px",
+                  height: "40px",
+                  border: "1px solid",
+                  borderColor: attendanceFilter !== "all" ? "#0C1E33" : "#E0E5EB",
+                  borderRadius: "6px",
+                  background: attendanceFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
+                  position: "relative",
+                  flexShrink: 0,
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <select
+                  value={attendanceFilter}
+                  onChange={(e) => setAttendanceFilter(e.target.value)}
+                  style={{
+                    border: "none",
+                    outline: "none",
+                    boxShadow: "none",
+                    width: "100%",
+                    height: "100%",
+                    background: "transparent",
+                    fontFamily: "'Poppins', sans-serif",
+                    fontWeight: attendanceFilter !== "all" ? 600 : 400,
+                    fontSize: "12px",
+                    lineHeight: "150%",
+                    color: "#0C1E33",
+                    cursor: "pointer",
+                    appearance: "none",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                    paddingRight: "20px",
+                    paddingLeft: 0,
+                    margin: 0,
+                  }}
+                >
+                  <option value="all">Attendance: All</option>
+                  <option value="ontrack">Regular (≥ 75%)</option>
+                  <option value="breach">Breach (&lt; 75%)</option>
+                  <option value="critical">Critical (&lt; 60%)</option>
+                  <option value="perfect">High (≥ 90%)</option>
+                  <option value="no_records">No Records (—)</option>
+                </select>
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: attendanceFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
+              </div>
+
+              {/* Fee status filter */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: "0px 12px",
+                  flex: "0 0 120px",
+                  width: "120px",
+                  height: "40px",
+                  border: "1px solid",
+                  borderColor: feeFilter !== "all" ? "#0C1E33" : "#E0E5EB",
+                  borderRadius: "6px",
+                  background: feeFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
+                  position: "relative",
+                  flexShrink: 0,
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <select
+                  value={feeFilter}
+                  onChange={(e) => setFeeFilter(e.target.value)}
+                  style={{
+                    border: "none",
+                    outline: "none",
+                    boxShadow: "none",
+                    width: "100%",
+                    height: "100%",
+                    background: "transparent",
+                    fontFamily: "'Poppins', sans-serif",
+                    fontWeight: feeFilter !== "all" ? 600 : 400,
+                    fontSize: "12px",
+                    lineHeight: "150%",
+                    color: "#0C1E33",
+                    cursor: "pointer",
+                    appearance: "none",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                    paddingRight: "20px",
+                    paddingLeft: 0,
+                    margin: 0,
+                  }}
+                >
+                  <option value="all">Fee: All</option>
+                  <option value="paid">Settled / Paid</option>
+                  <option value="pending">Pending / Due</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="no_records">Unbilled / None</option>
+                </select>
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: feeFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
+              </div>
+
+              {/* Academic Status filter */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  padding: "0px 12px",
+                  flex: "0 0 135px",
+                  width: "135px",
+                  height: "40px",
+                  border: "1px solid",
+                  borderColor: statusFilter !== "all" ? "#0C1E33" : "#E0E5EB",
+                  borderRadius: "6px",
+                  background: statusFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
+                  position: "relative",
+                  flexShrink: 0,
+                  transition: "all 0.15s ease",
+                }}
+              >
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  style={{
+                    border: "none",
+                    outline: "none",
+                    boxShadow: "none",
+                    width: "100%",
+                    height: "100%",
+                    background: "transparent",
+                    fontFamily: "'Poppins', sans-serif",
+                    fontWeight: statusFilter !== "all" ? 600 : 400,
+                    fontSize: "12px",
+                    lineHeight: "150%",
+                    color: "#0C1E33",
+                    cursor: "pointer",
+                    appearance: "none",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                    paddingRight: "20px",
+                    paddingLeft: 0,
+                    margin: 0,
+                  }}
+                >
+                  <option value="all">Status: All</option>
+                  <option value="active">Active</option>
+                  <option value="probation">Under Review</option>
+                  <option value="inactive">Inactive / Suspended</option>
+                  <option value="graduated">Graduated</option>
+                  {uniqueAcademicStatuses
+                    .filter((st) => !["active", "probation", "inactive", "graduated"].includes(st.toLowerCase()))
+                    .map((st) => (
+                      <option key={st} value={st}>
+                        {st}
+                      </option>
+                    ))}
+                </select>
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: statusFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
+              </div>
+
+              {/* Reset button - always rendered on same line, disabled until any filter active */}
+              <button
+                type="button"
+                disabled={!hasActiveStudentFilters}
+                onClick={() => {
+                  setSearchQuery("");
+                  setGradeFilter("all");
+                  setSectionFilter("all");
+                  setAttendanceFilter("all");
+                  setFeeFilter("all");
+                  setStatusFilter("all");
+                  setStudentSegment("all");
+                }}
+                style={{
+                  boxSizing: "border-box",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  padding: "0 14px",
+                  height: "40px",
+                  flexShrink: 0,
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontFamily: "'Poppins', sans-serif",
+                  fontWeight: 500,
+                  transition: "all 0.15s ease",
+                  border: "1px solid",
+                  borderColor: hasActiveStudentFilters ? "#0C1E33" : "#E2E8F0",
+                  background: hasActiveStudentFilters ? "#0C1E33" : "#F8FAFC",
+                  color: hasActiveStudentFilters ? "#FFFFFF" : "#94A3B8",
+                  cursor: hasActiveStudentFilters ? "pointer" : "not-allowed",
+                  opacity: hasActiveStudentFilters ? 1 : 0.6,
+                }}
+                onMouseEnter={(e) => {
+                  if (hasActiveStudentFilters) {
+                    e.currentTarget.style.background = "#1E293B";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (hasActiveStudentFilters) {
+                    e.currentTarget.style.background = "#0C1E33";
+                  }
+                }}
+                title={hasActiveStudentFilters ? "Reset all filters" : "No filters active"}
+              >
+                <RefreshCw size={12} strokeWidth={2} />
+                <span>Reset</span>
+              </button>
             </div>
 
             {/* Quick Segment Filter Tabs (Auto-aligning, Professional UI) */}
@@ -2041,6 +2381,7 @@ export function PeoplePane({
                 { id: "breach", label: "Attendance Breach" },
                 { id: "pending_fee", label: "Fee Pending" },
                 { id: "paid_fee", label: "Fee Settled" },
+                { id: "active", label: "Active Academic" },
               ].map((seg) => {
                 const isSegActive = studentSegment === seg.id;
                 return (
@@ -2132,22 +2473,24 @@ export function PeoplePane({
               ) : filteredStudents.length === 0 ? (
                 <NoResultState
                   title={
-                    searchQuery || gradeFilter !== "all" || statusFilter !== "all" || feeFilter !== "all" || studentSegment !== "all"
+                    hasActiveStudentFilters
                       ? "No Matching Students Found"
                       : "No Students Enrolled"
                   }
                   description={
                     searchQuery
                       ? `No enrolled students match "${searchQuery}" or the active filter criteria.`
-                      : gradeFilter !== "all" || statusFilter !== "all" || feeFilter !== "all" || studentSegment !== "all"
-                        ? "No student records match the active grade, fee, or attendance filters."
+                      : hasActiveStudentFilters
+                        ? "No student records match the active grade, attendance, fee, or academic status filters."
                         : "No students have been enrolled in this school campus yet. Click 'Add Student' above to begin onboarding."
                   }
                   onReset={
-                    searchQuery || gradeFilter !== "all" || statusFilter !== "all" || feeFilter !== "all" || studentSegment !== "all"
+                    hasActiveStudentFilters
                       ? () => {
                         setSearchQuery("");
                         setGradeFilter("all");
+                        setSectionFilter("all");
+                        setAttendanceFilter("all");
                         setStatusFilter("all");
                         setFeeFilter("all");
                         setStudentSegment("all");
