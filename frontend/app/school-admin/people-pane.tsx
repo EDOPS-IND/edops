@@ -7429,6 +7429,26 @@ export function PeoplePane({
                           {availableClassesForWards.length > 0 && (
                             <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap", marginTop: "2px" }}>
                               <span style={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>Quick Class:</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWardClassFilter("all");
+                                  setWardSectionFilter("all");
+                                }}
+                                style={{
+                                  padding: "2px 8px",
+                                  borderRadius: "4px",
+                                  fontSize: "10.5px",
+                                  fontWeight: 600,
+                                  border: wardClassFilter === "all" ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                  background: wardClassFilter === "all" ? "#0C1E33" : "#FFFFFF",
+                                  color: wardClassFilter === "all" ? "#F8E7C9" : "#334155",
+                                  cursor: "pointer",
+                                  transition: "all 0.1s ease",
+                                }}
+                              >
+                                All Classes
+                              </button>
                               {availableClassesForWards.map((cls) => {
                                 const isSelected = wardClassFilter === cls;
                                 return (
@@ -7452,6 +7472,51 @@ export function PeoplePane({
                                     }}
                                   >
                                     {cls}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Quick Section Pills (when class is chosen and sections exist) */}
+                          {availableSectionsForWards.length > 0 && wardClassFilter && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap", marginTop: "4px" }}>
+                              <span style={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>Section:</span>
+                              <button
+                                type="button"
+                                onClick={() => setWardSectionFilter("all")}
+                                style={{
+                                  padding: "2px 7px",
+                                  borderRadius: "4px",
+                                  fontSize: "10px",
+                                  fontWeight: 600,
+                                  border: wardSectionFilter === "all" ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                  background: wardSectionFilter === "all" ? "#0C1E33" : "#FFFFFF",
+                                  color: wardSectionFilter === "all" ? "#F8E7C9" : "#334155",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                All
+                              </button>
+                              {availableSectionsForWards.map((sec) => {
+                                const isSelected = wardSectionFilter === sec;
+                                return (
+                                  <button
+                                    key={sec}
+                                    type="button"
+                                    onClick={() => setWardSectionFilter(sec)}
+                                    style={{
+                                      padding: "2px 7px",
+                                      borderRadius: "4px",
+                                      fontSize: "10px",
+                                      fontWeight: 600,
+                                      border: isSelected ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                      background: isSelected ? "#0C1E33" : "#FFFFFF",
+                                      color: isSelected ? "#F8E7C9" : "#334155",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    {sec}
                                   </button>
                                 );
                               })}
@@ -7622,6 +7687,26 @@ export function PeoplePane({
                                 </div>
                               </div>
                               <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", justifyContent: "center", marginTop: "4px" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWardClassFilter("all");
+                                    setWardSectionFilter("all");
+                                  }}
+                                  style={{
+                                    padding: "5px 12px",
+                                    background: "#0C1E33",
+                                    border: "1px solid #0C1E33",
+                                    borderRadius: "5px",
+                                    fontSize: "11px",
+                                    color: "#F8E7C9",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                                  }}
+                                >
+                                  All Classes (School-wide)
+                                </button>
                                 {availableClassesForWards.map((cls) => (
                                   <button
                                     key={cls}
