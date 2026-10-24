@@ -12,14 +12,14 @@ import {
 } from "./edops-api";
 import {
   BarChart3, Building2, Calendar, CreditCard, Sparkles, Layers,
-  Activity, Sliders, ShieldCheck, HelpCircle, Server, Search, Plus,
+  Activity, ShieldCheck, HelpCircle, Server, Search, Plus,
   Bell, AlertTriangle, AlertCircle, CheckCircle2, X
 } from "lucide-react";
 import {
   School, Plan, FeatureCatalogItem, FeatureOverride, SupportTicket, Announcement,
   PaymentRecord, AuditLog,
   OverviewPane, SchoolsPane, OnboardingWizard, PlansPane, SubscriptionsPane,
-  BillingPane, UsagePane, ConfigPane, SecurityPane, SupportPane, HealthPane,
+  BillingPane, UsagePane, SecurityPane, SupportPane, HealthPane,
   SupportSessionModal, CreatePlanModal,
   BroadcastAnnouncementModal, CreateTicketModal
 } from "./platform";
@@ -77,7 +77,7 @@ export function PlatformWorkspace({
   }, []);
 
   useEffect(() => {
-    if (activePanel) setTab(activePanel === "logs" ? "security" : activePanel);
+    if (activePanel) setTab(activePanel === "logs" ? "security" : activePanel === "configuration" ? "overview" : activePanel);
   }, [activePanel]);
 
   // Initial Data Fetching from PostgreSQL & backend services
@@ -419,7 +419,6 @@ export function PlatformWorkspace({
           { id: "subscriptions", label: "Subscriptions", icon: Calendar },
           { id: "billing", label: "Billing & Revenue", icon: CreditCard },
           { id: "usage", label: "Usage & Metering", icon: Activity },
-          { id: "configuration", label: "Global Config", icon: Sliders },
           { id: "security", label: "Security & Audit", icon: ShieldCheck },
           { id: "support", label: "Support & Sessions", icon: HelpCircle },
           { id: "health", label: "System Health", icon: Server },
@@ -509,12 +508,6 @@ export function PlatformWorkspace({
       {tab === "usage" && (
         <UsagePane
           dashboardData={dashboardData}
-        />
-      )}
-
-      {tab === "configuration" && (
-        <ConfigPane
-          onSaveConfig={() => setSuccessMsg("Global configuration defaults saved successfully")}
         />
       )}
 
