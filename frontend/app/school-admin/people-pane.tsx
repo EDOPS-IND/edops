@@ -1974,10 +1974,12 @@ export function PeoplePane({
                 display: "flex",
                 flexDirection: "row",
                 alignItems: "center",
-                padding: "0px 24px 20px",
-                gap: "12px",
+                padding: "0px 24px 16px",
+                gap: "8px",
                 width: "100%",
-                flexWrap: "wrap",
+                flexWrap: "nowrap",
+                overflowX: "auto",
+                scrollbarWidth: "none",
               }}
             >
               {/* Student search */}
@@ -1987,20 +1989,20 @@ export function PeoplePane({
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  padding: "0px 14px",
-                  gap: "10px",
-                  height: "42px",
+                  padding: "0px 12px",
+                  gap: "8px",
+                  height: "40px",
                   border: "1px solid #E0E5EB",
                   borderRadius: "6px",
-                  flex: 1,
-                  minWidth: "240px",
+                  flex: "1 1 160px",
+                  minWidth: "140px",
                   background: "#FFFFFF",
                 }}
               >
-                <Search size={16} strokeWidth={2} style={{ color: "#495D72", flexShrink: 0 }} />
+                <Search size={15} strokeWidth={2} style={{ color: "#495D72", flexShrink: 0 }} />
                 <input
                   type="text"
-                  placeholder="Search student by name, roll number, or grade..."
+                  placeholder="Search students..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   style={{
@@ -2027,7 +2029,6 @@ export function PeoplePane({
                 )}
               </div>
 
-
               {/* Grade / Class filter */}
               <div
                 style={{
@@ -2035,13 +2036,16 @@ export function PeoplePane({
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  padding: "0px 14px",
-                  width: "145px",
-                  height: "42px",
-                  border: gradeFilter !== "all" ? "1.5px solid #0C1E33" : "1px solid #E0E5EB",
+                  padding: "0px 12px",
+                  flex: "0 0 120px",
+                  width: "120px",
+                  height: "40px",
+                  border: "1px solid",
+                  borderColor: gradeFilter !== "all" ? "#0C1E33" : "#E0E5EB",
                   borderRadius: "6px",
                   background: gradeFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
                   position: "relative",
+                  flexShrink: 0,
                   transition: "all 0.15s ease",
                 }}
               >
@@ -2067,7 +2071,7 @@ export function PeoplePane({
                     appearance: "none",
                     WebkitAppearance: "none",
                     MozAppearance: "none",
-                    paddingRight: "22px",
+                    paddingRight: "20px",
                     paddingLeft: 0,
                     margin: 0,
                   }}
@@ -2079,7 +2083,7 @@ export function PeoplePane({
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: gradeFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: gradeFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
               </div>
 
               {/* Section filter */}
@@ -2090,13 +2094,16 @@ export function PeoplePane({
                     display: "flex",
                     flexDirection: "row",
                     alignItems: "center",
-                    padding: "0px 14px",
-                    width: "135px",
-                    height: "42px",
-                    border: sectionFilter !== "all" ? "1.5px solid #0C1E33" : "1px solid #E0E5EB",
+                    padding: "0px 12px",
+                    flex: "0 0 115px",
+                    width: "115px",
+                    height: "40px",
+                    border: "1px solid",
+                    borderColor: sectionFilter !== "all" ? "#0C1E33" : "#E0E5EB",
                     borderRadius: "6px",
                     background: sectionFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
                     position: "relative",
+                    flexShrink: 0,
                     transition: "all 0.15s ease",
                   }}
                 >
@@ -2119,7 +2126,7 @@ export function PeoplePane({
                       appearance: "none",
                       WebkitAppearance: "none",
                       MozAppearance: "none",
-                      paddingRight: "22px",
+                      paddingRight: "20px",
                       paddingLeft: 0,
                       margin: 0,
                     }}
@@ -2131,7 +2138,7 @@ export function PeoplePane({
                       </option>
                     ))}
                   </select>
-                  <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: sectionFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
+                  <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: sectionFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
                 </div>
               )}
 
@@ -2142,13 +2149,16 @@ export function PeoplePane({
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  padding: "0px 14px",
-                  width: "170px",
-                  height: "42px",
-                  border: attendanceFilter !== "all" ? "1.5px solid #0C1E33" : "1px solid #E0E5EB",
+                  padding: "0px 12px",
+                  flex: "0 0 145px",
+                  width: "145px",
+                  height: "40px",
+                  border: "1px solid",
+                  borderColor: attendanceFilter !== "all" ? "#0C1E33" : "#E0E5EB",
                   borderRadius: "6px",
                   background: attendanceFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
                   position: "relative",
+                  flexShrink: 0,
                   transition: "all 0.15s ease",
                 }}
               >
@@ -2171,7 +2181,7 @@ export function PeoplePane({
                     appearance: "none",
                     WebkitAppearance: "none",
                     MozAppearance: "none",
-                    paddingRight: "22px",
+                    paddingRight: "20px",
                     paddingLeft: 0,
                     margin: 0,
                   }}
@@ -2183,7 +2193,7 @@ export function PeoplePane({
                   <option value="perfect">High (≥ 90%)</option>
                   <option value="no_records">No Records (—)</option>
                 </select>
-                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: attendanceFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: attendanceFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
               </div>
 
               {/* Fee status filter */}
@@ -2193,13 +2203,16 @@ export function PeoplePane({
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  padding: "0px 14px",
-                  width: "150px",
-                  height: "42px",
-                  border: feeFilter !== "all" ? "1.5px solid #0C1E33" : "1px solid #E0E5EB",
+                  padding: "0px 12px",
+                  flex: "0 0 120px",
+                  width: "120px",
+                  height: "40px",
+                  border: "1px solid",
+                  borderColor: feeFilter !== "all" ? "#0C1E33" : "#E0E5EB",
                   borderRadius: "6px",
                   background: feeFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
                   position: "relative",
+                  flexShrink: 0,
                   transition: "all 0.15s ease",
                 }}
               >
@@ -2222,7 +2235,7 @@ export function PeoplePane({
                     appearance: "none",
                     WebkitAppearance: "none",
                     MozAppearance: "none",
-                    paddingRight: "22px",
+                    paddingRight: "20px",
                     paddingLeft: 0,
                     margin: 0,
                   }}
@@ -2233,7 +2246,7 @@ export function PeoplePane({
                   <option value="overdue">Overdue</option>
                   <option value="no_records">Unbilled / None</option>
                 </select>
-                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: feeFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: feeFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
               </div>
 
               {/* Academic Status filter */}
@@ -2243,13 +2256,16 @@ export function PeoplePane({
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  padding: "0px 14px",
-                  width: "175px",
-                  height: "42px",
-                  border: statusFilter !== "all" ? "1.5px solid #0C1E33" : "1px solid #E0E5EB",
+                  padding: "0px 12px",
+                  flex: "0 0 135px",
+                  width: "135px",
+                  height: "40px",
+                  border: "1px solid",
+                  borderColor: statusFilter !== "all" ? "#0C1E33" : "#E0E5EB",
                   borderRadius: "6px",
                   background: statusFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
                   position: "relative",
+                  flexShrink: 0,
                   transition: "all 0.15s ease",
                 }}
               >
@@ -2272,12 +2288,12 @@ export function PeoplePane({
                     appearance: "none",
                     WebkitAppearance: "none",
                     MozAppearance: "none",
-                    paddingRight: "22px",
+                    paddingRight: "20px",
                     paddingLeft: 0,
                     margin: 0,
                   }}
                 >
-                  <option value="all">Academic: All</option>
+                  <option value="all">Status: All</option>
                   <option value="active">Active</option>
                   <option value="probation">Under Review</option>
                   <option value="inactive">Inactive / Suspended</option>
@@ -2290,50 +2306,58 @@ export function PeoplePane({
                       </option>
                     ))}
                 </select>
-                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: statusFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: statusFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
               </div>
 
-              {hasActiveStudentFilters && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchQuery("");
-                    setGradeFilter("all");
-                    setSectionFilter("all");
-                    setAttendanceFilter("all");
-                    setFeeFilter("all");
-                    setStatusFilter("all");
-                    setStudentSegment("all");
-                  }}
-                  style={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    padding: "0 14px",
-                    height: "42px",
-                    background: "#F4F6F7",
-                    border: "1px solid #E0E5EB",
-                    borderRadius: "6px",
-                    fontSize: "12px",
-                    fontWeight: 600,
-                    color: "#586C82",
-                    cursor: "pointer",
-                    fontFamily: "'Poppins', sans-serif",
-                    transition: "all 0.15s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#E9EEF4";
-                    e.currentTarget.style.color = "#0C1E33";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#F4F6F7";
-                    e.currentTarget.style.color = "#586C82";
-                  }}
-                >
-                  <RefreshCw size={12} />
-                  <span>Reset</span>
-                </button>
-              )}
+              {/* Reset button - always rendered on same line, disabled until any filter active */}
+              <button
+                type="button"
+                disabled={!hasActiveStudentFilters}
+                onClick={() => {
+                  setSearchQuery("");
+                  setGradeFilter("all");
+                  setSectionFilter("all");
+                  setAttendanceFilter("all");
+                  setFeeFilter("all");
+                  setStatusFilter("all");
+                  setStudentSegment("all");
+                }}
+                style={{
+                  boxSizing: "border-box",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  padding: "0 14px",
+                  height: "40px",
+                  flexShrink: 0,
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontFamily: "'Poppins', sans-serif",
+                  fontWeight: 500,
+                  transition: "all 0.15s ease",
+                  border: "1px solid",
+                  borderColor: hasActiveStudentFilters ? "#0C1E33" : "#E2E8F0",
+                  background: hasActiveStudentFilters ? "#0C1E33" : "#F8FAFC",
+                  color: hasActiveStudentFilters ? "#FFFFFF" : "#94A3B8",
+                  cursor: hasActiveStudentFilters ? "pointer" : "not-allowed",
+                  opacity: hasActiveStudentFilters ? 1 : 0.6,
+                }}
+                onMouseEnter={(e) => {
+                  if (hasActiveStudentFilters) {
+                    e.currentTarget.style.background = "#1E293B";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (hasActiveStudentFilters) {
+                    e.currentTarget.style.background = "#0C1E33";
+                  }
+                }}
+                title={hasActiveStudentFilters ? "Reset all filters" : "No filters active"}
+              >
+                <RefreshCw size={12} strokeWidth={2} />
+                <span>Reset</span>
+              </button>
             </div>
 
             {/* Quick Segment Filter Tabs (Auto-aligning, Professional UI) */}
