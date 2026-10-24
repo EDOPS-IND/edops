@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { MessageSquare, Users, Send, CheckCircle2, Clock, AlertTriangle, Plus } from "lucide-react";
 import { CommunicationChat } from "../../components/communication-chat";
+import { UnifiedCommunicationHub } from "../../components/notice-board";
 
 export function CommunicationPane({
   inbox = [],
@@ -56,7 +57,7 @@ export function CommunicationPane({
   const resolvedQueriesCount = queryList.filter((q: any) => q.status === "resolved").length;
   const urgentMessagesCount = inboxList.filter((m: any) => m.isUrgent).length;
 
-  if (organizationId) return <CommunicationChat organizationId={organizationId} title="Direct Messages" />;
+  if (organizationId) return <UnifiedCommunicationHub organizationId={organizationId} role="principal" />;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>

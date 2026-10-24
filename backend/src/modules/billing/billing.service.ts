@@ -1077,6 +1077,53 @@ export class BillingService {
     });
   }
 
+  createSchoolTicket(
+    org: string,
+    actor: User,
+    dto: CreateSupportTicketDto,
+  ) {
+    return this.scope(org, actor, "ticket.created", dto, null, async (m) => {
+      const [school] = await m.query(
+        `SELECT name FROM organizations WHERE id=$1`,
+        [org],
+      );
+      const schoolName = school?.name || dto.schoolName || "School Workspace";
+      const ticketCode = `TCK-${Math.floor(10000 + Math.random() * 90000)}`;
+      const [ticket] = await m.query(
+        `INSERT INTO support_tickets (ticket_code, organization_id, school_name, created_by, category, priority, subject, description)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        RETURNING id, ticket_code AS "ticketCode", organization_id AS "organizationId", school_name AS "schoolName", category, priority, status, subject, description, created_at AS "createdAt"`,
+        [
+          ticketCode,
+          org,
+          schoolName,
+          actor.id,
+          dto.category || "academic",
+          dto.priority || "medium",
+          dto.subject,
+          dto.description,
+        ],
+      );
+      await this.audit.record(m, {
+        organizationId: org,
+        actorId: actor.id,
+        action: "ticket.created",
+        details: { ticketId: ticket.id, ticketCode },
+      });
+      return ticket;
+    }, false);
+  }
+
+  schoolTickets(org: string, actor: User) {
+    return this.scope(org, actor, null, null, null, async (m) => {
+      return m.query(
+        `SELECT id, ticket_code AS "ticketCode", organization_id AS "organizationId", school_name AS "schoolName", category, priority, status, subject, description, created_at AS "createdAt", updated_at AS "updatedAt"
+        FROM support_tickets WHERE organization_id=$1 ORDER BY created_at DESC LIMIT 50`,
+        [org],
+      );
+    }, false);
+  }
+
   updateTicketStatus(
     actor: User,
     id: string,
@@ -1541,7 +1588,7 @@ export class BillingService {
           activeSessions: Number(sess?.count ?? 0),
           dailyActiveUsers: Number(dau?.count ?? 0),
           storageUsedGb: Number(Number(storage.used).toFixed(2)),
-          storageLimitGb: null,
+          storageLimitGb: 500,
         },
       };
     });

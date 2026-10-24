@@ -28,6 +28,7 @@ import {
 } from "./edops-api";
 import { LearningWorkspace, SchoolBilling } from "./learning-workspace";
 import { PlatformWorkspace } from "./platform-workspace";
+import { GlobalPortalSearch } from "./components/global-portal-search";
 import { DashboardHome } from "./dashboard-home";
 import { ParentDashboard } from "./parent-dashboard";
 import { ParentWorkspace } from "./parent";
@@ -61,6 +62,7 @@ import {
   Users,
   Video,
   Building2,
+  Search,
 } from "lucide-react";
 import {
   parseDashboardRoute,
@@ -340,6 +342,15 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  useEffect(() => {
+    const handleExpired = () => {
+      setSessionExpired(true);
+    };
+    window.addEventListener("edops:session-expired", handleExpired);
+    return () => window.removeEventListener("edops:session-expired", handleExpired);
+  }, []);
 
   const { route, navigate } = useDashboardRoute();
 
@@ -600,6 +611,7 @@ export default function Home() {
           }}
           onInvite={() => setInviteMode(true)}
           onForgotPassword={() => setForgotMode(true)}
+          initialNotice={notice}
         />
         {forgotMode && (
           <ForgotPasswordModal
@@ -649,14 +661,87 @@ export default function Home() {
     }
   };
 
+  const sessionExpiredModal = sessionExpired ? (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(12, 30, 51, 0.7)",
+        backdropFilter: "blur(4px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 99999,
+      }}
+    >
+      <div
+        style={{
+          background: "#FFFFFF",
+          borderRadius: "12px",
+          padding: "28px",
+          maxWidth: "420px",
+          width: "90%",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2)",
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            width: "50px",
+            height: "50px",
+            borderRadius: "50%",
+            background: "#FEF2F2",
+            color: "#DC2626",
+            display: "inline-flex",
+            alignItems: "center",
+            justifyContent: "center",
+            margin: "0 auto 16px",
+          }}
+        >
+          <LogOut size={24} />
+        </div>
+        <h3 style={{ margin: "0 0 8px", fontSize: "18px", fontWeight: 700, color: "#0C1E33" }}>
+          Session Expired
+        </h3>
+        <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#64748B", lineHeight: 1.5 }}>
+          Your login session has expired for security. Please sign in again to continue your work safely.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setSessionExpired(false);
+            setNotice("Your session expired. Please sign in again.");
+            signOut();
+          }}
+          style={{
+            width: "100%",
+            padding: "10px 16px",
+            background: "#064E3B",
+            color: "#F8E7C9",
+            border: "none",
+            borderRadius: "8px",
+            fontWeight: 700,
+            fontSize: "14px",
+            cursor: "pointer",
+          }}
+        >
+          Sign In Again
+        </button>
+      </div>
+    </div>
+  ) : null;
+
   if (workspace === "platform" || !membership)
     return (
-      <PlatformScreen
-        profile={profile}
-        workspace={workspace}
-        onWorkspace={switchWorkspace}
-        onLogout={signOut}
-      />
+      <>
+        {sessionExpiredModal}
+        <PlatformScreen
+          profile={profile}
+          workspace={workspace}
+          onWorkspace={switchWorkspace}
+          onLogout={signOut}
+        />
+      </>
     );
 
   if (membership.role === "principal") {
@@ -688,28 +773,31 @@ export default function Home() {
       : "dashboard";
 
     return (
-      <PrincipalWorkspace
-        key={workspace}
-        organization={membership}
-        onLogout={signOut}
-        onSwitchOrganization={switchWorkspace}
-        organizations={profile.organizations}
-        userProfile={profile.user}
-        activePane={principalPane}
-        activeSubTab={route.tab || ""}
-        initialModal={route.modal}
-        initialTeacherId={route.teacherId}
-        initialStudentId={route.studentId}
-        onNavigate={(pane, subTab) => {
-          updateDashboardUrl({
-            orgSlug: membership.slug || membership.name,
-            role: "principal",
-            section: pane,
-            tab: subTab,
-            academicYear: route.academicYear,
-          });
-        }}
-      />
+      <>
+        {sessionExpiredModal}
+        <PrincipalWorkspace
+          key={workspace}
+          organization={membership}
+          onLogout={signOut}
+          onSwitchOrganization={switchWorkspace}
+          organizations={profile.organizations}
+          userProfile={profile.user}
+          activePane={principalPane}
+          activeSubTab={route.tab || ""}
+          initialModal={route.modal}
+          initialTeacherId={route.teacherId}
+          initialStudentId={route.studentId}
+          onNavigate={(pane, subTab) => {
+            updateDashboardUrl({
+              orgSlug: membership.slug || membership.name,
+              role: "principal",
+              section: pane,
+              tab: subTab,
+              academicYear: route.academicYear,
+            });
+          }}
+        />
+      </>
     );
   }
 
@@ -740,27 +828,30 @@ export default function Home() {
       : "dashboard";
 
     return (
-      <TeacherWorkspace
-        key={workspace}
-        organization={membership}
-        onLogout={signOut}
-        onSwitchOrganization={switchWorkspace}
-        organizations={profile.organizations}
-        userProfile={profile.user}
-        activeTab={teacherTab as any}
-        activeSubTab={route.tab || ""}
-        initialModal={route.modal}
-        initialStudentId={route.studentId}
-        onNavigate={(tab, subTab) => {
-          updateDashboardUrl({
-            orgSlug: membership.slug || membership.name,
-            role: "teacher",
-            section: tab,
-            tab: subTab || "",
-            academicYear: route.academicYear,
-          });
-        }}
-      />
+      <>
+        {sessionExpiredModal}
+        <TeacherWorkspace
+          key={workspace}
+          organization={membership}
+          onLogout={signOut}
+          onSwitchOrganization={switchWorkspace}
+          organizations={profile.organizations}
+          userProfile={profile.user}
+          activeTab={teacherTab as any}
+          activeSubTab={route.tab || ""}
+          initialModal={route.modal}
+          initialStudentId={route.studentId}
+          onNavigate={(tab, subTab) => {
+            updateDashboardUrl({
+              orgSlug: membership.slug || membership.name,
+              role: "teacher",
+              section: tab,
+              tab: subTab || "",
+              academicYear: route.academicYear,
+            });
+          }}
+        />
+      </>
     );
   }
 
@@ -788,26 +879,29 @@ export default function Home() {
       : "dashboard";
 
     return (
-      <StudentWorkspace
-        key={workspace}
-        organization={membership}
-        onLogout={signOut}
-        onSwitchOrganization={switchWorkspace}
-        organizations={profile.organizations}
-        userProfile={profile.user}
-        activeTab={studentTab as any}
-        activeSubTab={route.tab || ""}
-        initialModal={route.modal}
-        onNavigate={(tab, subTab) => {
-          updateDashboardUrl({
-            orgSlug: membership.slug || membership.name,
-            role: "student",
-            section: tab,
-            tab: subTab || "",
-            academicYear: route.academicYear,
-          });
-        }}
-      />
+      <>
+        {sessionExpiredModal}
+        <StudentWorkspace
+          key={workspace}
+          organization={membership}
+          onLogout={signOut}
+          onSwitchOrganization={switchWorkspace}
+          organizations={profile.organizations}
+          userProfile={profile.user}
+          activeTab={studentTab as any}
+          activeSubTab={route.tab || ""}
+          initialModal={route.modal}
+          onNavigate={(tab, subTab) => {
+            updateDashboardUrl({
+              orgSlug: membership.slug || membership.name,
+              role: "student",
+              section: tab,
+              tab: subTab || "",
+              academicYear: route.academicYear,
+            });
+          }}
+        />
+      </>
     );
   }
 
@@ -828,38 +922,44 @@ export default function Home() {
       : "overview";
 
     return (
-      <ParentWorkspace
-        key={workspace}
-        organization={membership}
-        onLogout={signOut}
-        onSwitchOrganization={switchWorkspace}
-        organizations={profile.organizations}
-        activeTab={parentTab as any}
-        initialWardId={route.studentId || ""}
-        initialModal={route.modal}
-        onNavigate={(tab, wardId) => {
-          updateDashboardUrl({
-            orgSlug: membership.slug || membership.name,
-            role: "parent",
-            section: tab,
-            studentId: wardId,
-            academicYear: route.academicYear,
-          });
-        }}
-      />
+      <>
+        {sessionExpiredModal}
+        <ParentWorkspace
+          key={workspace}
+          organization={membership}
+          onLogout={signOut}
+          onSwitchOrganization={switchWorkspace}
+          organizations={profile.organizations}
+          activeTab={parentTab as any}
+          initialWardId={route.studentId || ""}
+          initialModal={route.modal}
+          onNavigate={(tab, wardId) => {
+            updateDashboardUrl({
+              orgSlug: membership.slug || membership.name,
+              role: "parent",
+              section: tab,
+              studentId: wardId,
+              academicYear: route.academicYear,
+            });
+          }}
+        />
+      </>
     );
   }
 
   if (isMemberWorkspace(membership))
     return (
-      <RoleWorkspace
-        key={workspace}
-        profile={profile}
-        membership={membership}
-        workspace={workspace}
-        onWorkspace={switchWorkspace}
-        onLogout={signOut}
-      />
+      <>
+        {sessionExpiredModal}
+        <RoleWorkspace
+          key={workspace}
+          profile={profile}
+          membership={membership}
+          workspace={workspace}
+          onWorkspace={switchWorkspace}
+          onLogout={signOut}
+        />
+      </>
     );
 
   const memberCounts =
@@ -907,6 +1007,7 @@ export default function Home() {
 
   return (
     <div className="app-shell" style={{ minHeight: "100vh" }}>
+      {sessionExpiredModal}
       {error && (
         <div
           className="error-banner"
@@ -1286,13 +1387,15 @@ function LoginScreen({
   onLogin,
   onInvite,
   onForgotPassword,
+  initialNotice,
 }: {
   onLogin: (profile: Profile) => void;
   onInvite: () => void;
   onForgotPassword: () => void;
+  initialNotice?: string;
 }) {
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(initialNotice || "");
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -3027,11 +3130,23 @@ function PlatformScreen({
       if (path.startsWith("/platform/schools")) return "schools";
       if (path.startsWith("/platform/subscriptions")) return "subscriptions";
       if (path.startsWith("/platform/configuration")) return "configuration";
-      if (path.startsWith("/platform/logs")) return "logs";
+      if (path.startsWith("/platform/logs") || path.startsWith("/platform/security")) return "security";
       if (path.startsWith("/platform/support")) return "support";
     }
     return "overview";
   });
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKey);
+    return () => window.removeEventListener("keydown", handleGlobalKey);
+  }, []);
 
   const handleSelectPanel = (p: string) => {
     setPanel(p);
@@ -3055,6 +3170,7 @@ function PlatformScreen({
         </div>
         <div className="top-actions">
           <div
+            onClick={() => setSearchOpen(true)}
             style={{
               display: "flex",
               alignItems: "center",
@@ -3063,21 +3179,27 @@ function PlatformScreen({
               border: "1px solid #E2DDD5",
               borderRadius: "10px",
               padding: "4px 12px",
+              cursor: "pointer",
             }}
           >
+            <Search size={15} style={{ color: "#064E3B", flexShrink: 0 }} />
             <input
               type="text"
-              placeholder="Search..."
+              readOnly
+              placeholder="Search platform... (⌘K)"
               aria-label="Search"
+              onClick={() => setSearchOpen(true)}
               style={{
                 border: "none",
                 outline: "none",
                 background: "transparent",
                 fontSize: "14px",
-                width: "200px",
+                width: "180px",
                 color: "#064E3B",
+                cursor: "pointer",
               }}
             />
+            <span style={{ fontSize: "11px", color: "#6B7280", background: "#F3F4F6", padding: "1px 6px", borderRadius: "4px", border: "1px solid #E5E7EB", fontWeight: 600 }}>⌘K</span>
           </div>
           <button
             style={{
@@ -3149,8 +3271,8 @@ function PlatformScreen({
             Global Config
           </button>
           <button
-            className={panel === "logs" ? "nav-item active" : "nav-item"}
-            onClick={() => handleSelectPanel("logs")}
+            className={(panel === "logs" || panel === "security") ? "nav-item active" : "nav-item"}
+            onClick={() => handleSelectPanel("security")}
           >
             <span>
               <Database size={18} />
@@ -3189,6 +3311,12 @@ function PlatformScreen({
           </div>
         )}
       </main>
+      <GlobalPortalSearch
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        role="platform"
+        onNavigate={(p) => handleSelectPanel(p)}
+      />
     </div>
   );
 }

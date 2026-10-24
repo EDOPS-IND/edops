@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { getTeacherDashboard } from "../../edops-api";
 import { TeacherTab } from "../types";
+import { NoticeBoard } from "../../components/notice-board";
 
 // Design tokens strictly matching Student Dashboard specification
 const S = {
@@ -1036,6 +1037,14 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
       {/* ═══════════════════════════════════════════════
           7. RECENT FACULTY ACTIVITY LOG
       ═══════════════════════════════════════════════ */}
+      {/* Official Notice Board Preview */}
+      <NoticeBoard
+        organizationId={organizationId}
+        role="teacher"
+        isCompact={true}
+        onNavigateToFull={() => onNavigate("communication")}
+      />
+
       {activityLogs.length > 0 && (
         <section
           style={{

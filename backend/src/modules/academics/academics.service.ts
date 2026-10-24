@@ -212,7 +212,32 @@ export class AcademicsService {
   }
 
   listSections(org: string, actor: User, query: SectionListDto) {
-    return this.list(org, actor, Section, query, query.academicYearId ? { academicYearId: query.academicYearId } : {});
+    return this.work.run(org, actor, null, null, null, async (manager) => {
+      const whereClause: string[] = ['s.organization_id = $1'];
+      const params: any[] = [org];
+      let paramIdx = 2;
+
+      if (query.academicYearId) {
+        whereClause.push(`s.academic_year_id = $${paramIdx++}`);
+        params.push(query.academicYearId);
+      }
+
+      const countSql = `SELECT count(*)::int as total FROM sections s WHERE ${whereClause.join(' AND ')}`;
+      const selectSql = `SELECT s.*, p.name as "programName", p.name as "className", CONCAT(p.name, ' ', s.name) as "classSection"
+                         FROM sections s
+                         LEFT JOIN programs p ON p.id = s.program_id
+                         WHERE ${whereClause.join(' AND ')}
+                         ORDER BY p.sequence_order ASC, p.name ASC, s.name ASC
+                         LIMIT $${paramIdx++} OFFSET $${paramIdx++}`;
+
+      const [countRes, items] = await Promise.all([
+        manager.query(countSql, params),
+        manager.query(selectSql, [...params, query.limit ?? 100, query.offset ?? 0]),
+      ]);
+
+      const total = countRes[0]?.total ?? 0;
+      return { items, total, limit: query.limit ?? 100, offset: query.offset ?? 0 };
+    });
   }
 
   listSectionRecords(org: string, actor: User, kind: 'assignments' | 'enrollments', query: SectionResourceListDto) {

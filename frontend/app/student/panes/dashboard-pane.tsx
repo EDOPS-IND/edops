@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { getStudentDashboard } from "../../edops-api";
 import { StudentTab } from "../types";
+import { NoticeBoard } from "../../components/notice-board";
 
 // Design tokens matching HTML & Design specification
 const S = {
@@ -1251,117 +1252,129 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
           8. REAL-TIME ACTIVITY & TEACHER DIRECTIVES
       ═══════════════════════════════════════════════ */}
       <section className="portal-two-col">
-        {/* Real-time Activity Feed */}
-        <div
-          style={{
-            background: "#fff",
-            border: `1px solid ${S.border}`,
-            borderRadius: "10px",
-            padding: "20px",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <Activity size={16} color={S.navy} />
-              <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: S.navy }}>
-                Recent Learning Activity
-              </h3>
+        {/* Left Column: Learning Activity & Teacher Directives */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          {/* Real-time Activity Feed */}
+          <div
+            style={{
+              background: "#fff",
+              border: `1px solid ${S.border}`,
+              borderRadius: "10px",
+              padding: "20px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <Activity size={16} color={S.navy} />
+                <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: S.navy }}>
+                  Recent Learning Activity
+                </h3>
+              </div>
+              <button
+                onClick={() => onNavigateTab("progress")}
+                style={{ background: "transparent", border: "none", color: S.navy, fontWeight: 600, fontSize: "11.5px", cursor: "pointer" }}
+              >
+                Full Log ↗
+              </button>
             </div>
-            <button
-              onClick={() => onNavigateTab("progress")}
-              style={{ background: "transparent", border: "none", color: S.navy, fontWeight: 600, fontSize: "11.5px", cursor: "pointer" }}
-            >
-              Full Log ↗
-            </button>
+
+            <div style={{ display: "grid", gap: "8px" }}>
+              {activityLogs && activityLogs.length > 0 ? (
+                activityLogs.slice(0, 4).map((item: any, idx: number) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      padding: "9px 12px",
+                      background: S.chip,
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: S.navy }} />
+                      <span style={{ color: S.navy, fontWeight: 500 }}>{item.text || item.action}</span>
+                    </div>
+                    <span style={{ fontSize: "10.5px", color: S.faint }}>
+                      {item.time ? new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Today"}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: "16px", textAlign: "center", color: S.slate, fontSize: "12px" }}>
+                  No recent activity logged today.
+                </div>
+              )}
+            </div>
           </div>
 
-          <div style={{ display: "grid", gap: "8px" }}>
-            {activityLogs && activityLogs.length > 0 ? (
-              activityLogs.slice(0, 4).map((item: any, idx: number) => (
-                <div
-                  key={idx}
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "9px 12px",
-                    background: S.chip,
-                    borderRadius: "6px",
-                    fontSize: "12px",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: S.navy }} />
-                    <span style={{ color: S.navy, fontWeight: 500 }}>{item.text || item.action}</span>
-                  </div>
-                  <span style={{ fontSize: "10.5px", color: S.faint }}>
-                    {item.time ? new Date(item.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "Today"}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <div style={{ padding: "16px", textAlign: "center", color: S.slate, fontSize: "12px" }}>
-                No recent activity logged today.
+          {/* Teacher Directives */}
+          <div
+            style={{
+              background: "#fff",
+              border: `1px solid ${S.border}`,
+              borderRadius: "10px",
+              padding: "20px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <MessageSquare size={16} color={S.navy} />
+                <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: S.navy }}>
+                  Teacher Directives & Notes
+                </h3>
               </div>
-            )}
+              <button
+                onClick={() => onNavigateTab("communication")}
+                style={{ background: "transparent", border: "none", color: S.navy, fontWeight: 600, fontSize: "11.5px", cursor: "pointer" }}
+              >
+                Inbox ({messages.length}) ↗
+              </button>
+            </div>
+
+            <div style={{ display: "grid", gap: "8px" }}>
+              {messages && messages.length > 0 ? (
+                messages.slice(0, 3).map((m: any, idx: number) => (
+                  <div
+                    key={idx}
+                    onClick={() => onNavigateTab("communication")}
+                    style={{
+                      padding: "9px 12px",
+                      background: S.chip,
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      cursor: "pointer",
+                      border: `1px solid ${S.border}`,
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
+                      <b style={{ color: S.navy }}>{m.senderName || "Teacher"}</b>
+                      <span style={{ fontSize: "10.5px", color: S.faint }}>{m.date || "Recent"}</span>
+                    </div>
+                    <p style={{ margin: 0, color: S.slate, fontSize: "11.5px", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {m.subjectLine || m.body || "Class directive"}
+                    </p>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: "16px", textAlign: "center", color: S.slate, fontSize: "12px" }}>
+                  No unread directives from teachers.
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Teacher Directives */}
-        <div
-          style={{
-            background: "#fff",
-            border: `1px solid ${S.border}`,
-            borderRadius: "10px",
-            padding: "20px",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <MessageSquare size={16} color={S.navy} />
-              <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: S.navy }}>
-                Teacher Directives & Notes
-              </h3>
-            </div>
-            <button
-              onClick={() => onNavigateTab("communication")}
-              style={{ background: "transparent", border: "none", color: S.navy, fontWeight: 600, fontSize: "11.5px", cursor: "pointer" }}
-            >
-              Inbox ({messages.length}) ↗
-            </button>
-          </div>
-
-          <div style={{ display: "grid", gap: "8px" }}>
-            {messages && messages.length > 0 ? (
-              messages.slice(0, 3).map((m: any, idx: number) => (
-                <div
-                  key={idx}
-                  onClick={() => onNavigateTab("communication")}
-                  style={{
-                    padding: "9px 12px",
-                    background: S.chip,
-                    borderRadius: "6px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    border: `1px solid ${S.border}`,
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
-                    <b style={{ color: S.navy }}>{m.senderName || "Teacher"}</b>
-                    <span style={{ fontSize: "10.5px", color: S.faint }}>{m.date || "Recent"}</span>
-                  </div>
-                  <p style={{ margin: 0, color: S.slate, fontSize: "11.5px", lineHeight: 1.3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {m.subjectLine || m.body || "Class directive"}
-                  </p>
-                </div>
-              ))
-            ) : (
-              <div style={{ padding: "16px", textAlign: "center", color: S.slate, fontSize: "12px" }}>
-                No unread directives from teachers.
-              </div>
-            )}
-          </div>
-        </div>
+        {/* Right Column: Official Notice Board */}
+        <NoticeBoard
+          organizationId={organizationId}
+          role="student"
+          isCompact={true}
+          style={{ height: "100%" }}
+          onNavigateToFull={() => onNavigateTab("communication")}
+        />
       </section>
     </div>
   );

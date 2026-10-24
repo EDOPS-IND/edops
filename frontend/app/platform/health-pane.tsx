@@ -29,7 +29,14 @@ export function HealthPane({
           </div>
           <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "14px" }}>
             <div style={{ fontSize: "11.5px", color: "#6B7280" }}>Storage Utilized</div>
-            <div style={{ fontSize: "22px", fontWeight: 800, color: "#111827", marginTop: "4px" }}>{metrics.storageUsedGb} GB / {metrics.storageLimitGb} GB</div>
+            <div style={{ fontSize: "20px", fontWeight: 800, color: "#111827", marginTop: "4px" }}>
+              {metrics.storageUsedGb ?? 0} GB / {metrics.storageLimitGb ? `${metrics.storageLimitGb} GB` : "Unlimited"}
+            </div>
+            {metrics.storageLimitGb && (
+              <div style={{ fontSize: "11px", color: "#6B7280", marginTop: "2px" }}>
+                {Math.round(((metrics.storageUsedGb || 0) / metrics.storageLimitGb) * 100)}% pool capacity
+              </div>
+            )}
           </div>
         </div>
       )}

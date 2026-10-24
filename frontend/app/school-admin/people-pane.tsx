@@ -1200,7 +1200,7 @@ export function PeoplePane({
   }, [parents, parentSearch, parentStatusFilter, parentRelFilter, parentSegment]);
 
   const parentsVerifiedCount = useMemo(() => {
-    return parents.filter((p) => Boolean(p.mobile)).length;
+    return parents.filter((p) => Boolean(p.mobile && p.mobile !== "-" && p.mobile.trim().length > 3)).length;
   }, [parents]);
 
   const parentsWardsCount = useMemo(() => {
@@ -5284,10 +5284,10 @@ export function PeoplePane({
                         </div>
                         <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1, gap: "1px" }}>
                           <span style={{ fontWeight: 600, color: "#0C1E33", fontSize: "12.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.headName || "Unassigned"}>
-                            {d.headName || "Unassigned"}
+                            {d.headName && d.headName !== "Department Head" ? d.headName : "Unassigned"}
                           </span>
-                          <span style={{ fontSize: "11px", color: "#64748B", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.headEmail || "hod@faculty.edops.edu"}>
-                            {d.headEmail || `${(d.headName || d.name || "hod").toLowerCase().replace(/[^a-z0-9]/g, "")}@hod.edops.edu`}
+                          <span style={{ fontSize: "11px", color: "#64748B", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.headEmail || "No contact email on file"}>
+                            {d.headEmail ? d.headEmail : (d.headName && d.headName !== "Unassigned" && d.headName !== "Department Head" ? "No email on file" : "Not assigned")}
                           </span>
                         </div>
                       </div>

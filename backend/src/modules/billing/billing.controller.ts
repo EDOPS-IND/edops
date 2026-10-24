@@ -30,7 +30,9 @@ import { AuditModule } from "../audit/audit.module";
 import { TenantsModule } from "../tenants/tenants.module";
 import {
   CreatePlanDto,
+  CreateSupportTicketDto,
   FeatureOverrideDto,
+  OnboardSchoolFullDto,
   PayInvoiceDto,
   PlanStatusDto,
   SubscriptionDto,
@@ -392,7 +394,7 @@ export class PlatformBillingController {
 
   // , , , , : Full School Onboarding Wizard
   @Post("organizations/onboard")
-  onboard(@Req() req: AuthenticatedRequest, @Body() dto: any) {
+  onboard(@Req() req: AuthenticatedRequest, @Body() dto: OnboardSchoolFullDto) {
     return this.billing.onboardSchool(req.user, dto);
   }
 
@@ -413,7 +415,7 @@ export class PlatformBillingController {
   }
 
   @Post("support/tickets")
-  createTicket(@Req() req: AuthenticatedRequest, @Body() dto: any) {
+  createTicket(@Req() req: AuthenticatedRequest, @Body() dto: CreateSupportTicketDto) {
     return this.billing.createTicket(req.user, dto);
   }
 
@@ -514,6 +516,37 @@ export class SchoolBillingController {
     @Query() q: AcademicListDto,
   ) {
     return this.billing.invoices(org, req.user, q, false);
+  }
+
+  @Post("tickets")
+  @SchoolEndpoint(
+    "Raise support ticket for my school",
+    "create",
+    Object,
+    false,
+    "School admin can raise a support ticket directly to the platform team.",
+  )
+  createTicket(
+    @Req() req: AuthenticatedRequest,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Body() dto: CreateSupportTicketDto,
+  ) {
+    return this.billing.createSchoolTicket(org, req.user, dto);
+  }
+
+  @Get("tickets")
+  @SchoolEndpoint(
+    "List support tickets for my school",
+    "read",
+    Object,
+    true,
+    "School admin can view support tickets raised by their school.",
+  )
+  tickets(
+    @Req() req: AuthenticatedRequest,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+  ) {
+    return this.billing.schoolTickets(org, req.user);
   }
 }
 @Controller({

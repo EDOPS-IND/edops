@@ -29,6 +29,7 @@ export function OnboardingWizard({
   const [catalogFeatures, setCatalogFeatures] = useState<any[]>([]);
   const [featureCategory, setFeatureCategory] = useState<string>("all");
   const [loadingFeatures, setLoadingFeatures] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadCatalog() {
@@ -47,8 +48,51 @@ export function OnboardingWizard({
     loadCatalog();
   }, []);
 
+  function validateStep(step: number): string | null {
+    if (step >= 1) {
+      if (!onboardData.name?.trim()) return "School Name is required.";
+      if (!onboardData.slug?.trim()) return "School Slug / URL ID is required.";
+      if (!onboardData.officialEmail?.trim()) return "Official School Email is required.";
+      if (!/\S+@\S+\.\S+/.test(onboardData.officialEmail)) return "Please enter a valid Official School Email.";
+    }
+    if (step >= 2) {
+      if (!onboardData.adminName?.trim()) return "Admin Full Name is required.";
+      if (!onboardData.adminEmail?.trim()) return "Admin Email is required.";
+      if (!/\S+@\S+\.\S+/.test(onboardData.adminEmail)) return "Please enter a valid Admin Email.";
+    }
+    if (step >= 3) {
+      if (!onboardData.planId) return "Please select a subscription plan.";
+    }
+    return null;
+  }
+
+  function goToStep(targetStep: number) {
+    if (targetStep > onboardStep) {
+      const err = validateStep(onboardStep);
+      if (err) {
+        setValidationError(err);
+        return;
+      }
+    }
+    setValidationError(null);
+    setOnboardStep(targetStep);
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
+    const err = validateStep(3);
+    if (err) {
+      setValidationError(err);
+      if (!onboardData.name?.trim() || !onboardData.slug?.trim() || !onboardData.officialEmail?.trim()) {
+        setOnboardStep(1);
+      } else if (!onboardData.adminName?.trim() || !onboardData.adminEmail?.trim()) {
+        setOnboardStep(2);
+      } else if (!onboardData.planId) {
+        setOnboardStep(3);
+      }
+      return;
+    }
+    setValidationError(null);
     const cleanData = Object.fromEntries(
       Object.entries(onboardData).filter(([_, v]) => v !== "")
     );
@@ -75,7 +119,7 @@ export function OnboardingWizard({
           ].map(s => (
             <div
               key={s.step}
-              onClick={() => setOnboardStep(s.step)}
+              onClick={() => goToStep(s.step)}
               style={{
                 padding: "6px 14px", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer",
                 background: onboardStep === s.step ? "#064E3B" : onboardStep > s.step ? "#F8E7C9" : "#F3F4F6",
@@ -90,6 +134,11 @@ export function OnboardingWizard({
       </div>
 
       <form onSubmit={handleSubmit}>
+        {validationError && (
+          <div style={{ background: "#FEF2F2", border: "1px solid #F87171", color: "#991B1B", padding: "10px 14px", borderRadius: "6px", fontSize: "13px", marginBottom: "16px", fontWeight: 600 }}>
+            ⚠️ {validationError}
+          </div>
+        )}
         {/* STEP 1: SCHOOL INFORMATION */}
         {onboardStep === 1 && (
           <div style={{ display: "grid", gap: "16px", maxWidth: "800px" }}>
@@ -188,7 +237,7 @@ export function OnboardingWizard({
             </div>
             <button
               type="button"
-              onClick={() => setOnboardStep(2)}
+              onClick={() => goToStep(2)}
               style={{ alignSelf: "flex-start", marginTop: "12px", padding: "8px 20px", background: "#064E3B", color: "#F8E7C9", border: "1px solid #064E3B", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}
             >
               Continue to School Admin →
@@ -263,7 +312,7 @@ export function OnboardingWizard({
             </div>
             <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
               <button type="button" onClick={() => setOnboardStep(1)} style={{ padding: "8px 16px", background: "#F8E7C9", color: "#064E3B", border: "1px solid #E5CCA2", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Back</button>
-              <button type="button" onClick={() => setOnboardStep(3)} style={{ padding: "8px 20px", background: "#064E3B", color: "#F8E7C9", border: "1px solid #064E3B", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Continue to Plan Selection →</button>
+              <button type="button" onClick={() => goToStep(3)} style={{ padding: "8px 20px", background: "#064E3B", color: "#F8E7C9", border: "1px solid #064E3B", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Continue to Plan Selection →</button>
             </div>
           </div>
         )}
@@ -313,7 +362,7 @@ export function OnboardingWizard({
 
             <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
               <button type="button" onClick={() => setOnboardStep(2)} style={{ padding: "8px 16px", background: "#F8E7C9", color: "#064E3B", border: "1px solid #E5CCA2", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Back</button>
-              <button type="button" onClick={() => setOnboardStep(4)} style={{ padding: "8px 20px", background: "#064E3B", color: "#F8E7C9", border: "1px solid #064E3B", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Continue to Features →</button>
+              <button type="button" onClick={() => goToStep(4)} style={{ padding: "8px 20px", background: "#064E3B", color: "#F8E7C9", border: "1px solid #064E3B", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Continue to Features →</button>
             </div>
           </div>
         )}
@@ -404,7 +453,7 @@ export function OnboardingWizard({
 
             <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
               <button type="button" onClick={() => setOnboardStep(3)} style={{ padding: "8px 16px", background: "#F8E7C9", color: "#064E3B", border: "1px solid #E5CCA2", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Back</button>
-              <button type="button" onClick={() => setOnboardStep(5)} style={{ padding: "8px 20px", background: "#064E3B", color: "#F8E7C9", border: "1px solid #064E3B", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Review & Finalize →</button>
+              <button type="button" onClick={() => goToStep(5)} style={{ padding: "8px 20px", background: "#064E3B", color: "#F8E7C9", border: "1px solid #064E3B", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Review & Finalize →</button>
             </div>
           </div>
         )}

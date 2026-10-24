@@ -111,6 +111,12 @@ async function request<T>(path: string, options: { method?: "GET" | "POST" | "PA
     }
   }
 
+  if (response.status === 401 && path !== "/auth/login" && path !== "/auth/refresh") {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("edops:session-expired"));
+    }
+  }
+
   if (path === "/auth/logout") {
     jwtAccessToken = undefined;
     jwtRefreshToken = undefined;
@@ -249,6 +255,8 @@ export async function getSupportTickets(limit = 50, offset = 0) {
   return api<ListResult<any>>(`/platform/support/tickets?limit=${limit}&offset=${offset}`);
 }
 export function createSupportTicket(data: any) { return api<any>("/platform/support/tickets", { method: "POST", body: data }); }
+export function createSchoolSupportTicket(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/billing/tickets`, { method: "POST", body: data }); }
+export function getSchoolSupportTickets(orgId: string) { return api<any[]>(`/organizations/${orgId}/billing/tickets`); }
 export function updateSupportTicketStatus(id: string, data: any) { return api<any>(`/platform/support/tickets/${id}/status`, { method: "PATCH", body: data }); }
 export function startSupportSession(data: any) { return api<any>("/platform/support/sessions", { method: "POST", body: data }); }
 export async function getAnnouncements() {
@@ -536,6 +544,14 @@ export function createSchoolAdminCoursework(
     method: "POST",
     body: payload,
   });
+}
+
+export function getAcademicSections(orgId: string) {
+  return api<{ items: any[] } | any[]>(`/organizations/${orgId}/academics/sections?limit=100`).then((res: any) => res?.items || res || []);
+}
+
+export function getAcademicPrograms(orgId: string) {
+  return api<{ items: any[] } | any[]>(`/organizations/${orgId}/academics/programs?limit=100`).then((res: any) => res?.items || res || []);
 }
 
 export function createAcademicSection(orgId: string, payload: { academicYearId: string; programId: string; name: string; capacity: number }) {
@@ -1103,6 +1119,9 @@ export async function getStudentMessages(orgId: string): Promise<any> {
 export function sendStudentMessage(orgId: string, body: any) { return api<any>(`/organizations/${orgId}/student/messages`, { method: "POST", body }); }
 
 // Shared chat API used by every authenticated dashboard.
+export function getCommunicationNotices(orgId: string) { return api<any[]>(`/organizations/${orgId}/communication/notices`); }
+export function createCommunicationNotice(orgId: string, body: any) { return api<any>(`/organizations/${orgId}/communication/notices`, { method: "POST", body }); }
+export function getTeacherBroadcastSections(orgId: string) { return api<any[]>(`/organizations/${orgId}/communication/teacher-sections`); }
 export function getCommunicationConversations(orgId: string) { return api<any[]>(`/organizations/${orgId}/communication/conversations`); }
 export function getCommunicationConversation(orgId: string, conversationId: string) { return api<any[]>(`/organizations/${orgId}/communication/conversations/${conversationId}`); }
 export function getCommunicationRecipients(orgId: string, role?: string, search = "") {

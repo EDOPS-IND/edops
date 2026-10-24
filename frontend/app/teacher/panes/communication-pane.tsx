@@ -27,6 +27,7 @@ import {
   startTeacherConversation,
 } from "../../edops-api";
 import { CommunicationChat } from "../../components/communication-chat";
+import { UnifiedCommunicationHub } from "../../components/notice-board";
 
 const T = {
   navy: "#0c1e33",
@@ -187,7 +188,7 @@ export function CommunicationPane({
   const studentThreads = threads.filter((t: any) => t.channel === "students").length;
   const adminThreads = threads.filter((t: any) => t.channel === "principal" || t.channel === "school_admin").length;
 
-  return <CommunicationChat organizationId={organizationId} title="Direct Messages" />;
+  return <UnifiedCommunicationHub organizationId={organizationId} role="teacher" />;
 
   if (loading) {
     return (

@@ -6,6 +6,7 @@ import {
   IsIn,
   IsInt,
   IsObject,
+  IsOptional,
   IsString,
   IsUUID,
   Matches,
@@ -86,8 +87,17 @@ export class PayInvoiceDto {
 }
 
 export class CreateSupportTicketDto {
-  @ApiPropertyOptional({ format: "uuid" }) @IsUUID() organizationId?: string;
-  @ApiPropertyOptional() @IsString() schoolName?: string;
+  @ApiPropertyOptional({ format: "uuid" })
+  @Transform(({ value }) => (typeof value === "string" && value.trim() === "" ? undefined : value))
+  @IsOptional()
+  @IsUUID()
+  organizationId?: string;
+
+  @ApiPropertyOptional()
+  @Transform(trim)
+  @IsOptional()
+  @IsString()
+  schoolName?: string;
   @ApiProperty({
     enum: [
       "login",

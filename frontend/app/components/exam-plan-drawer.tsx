@@ -80,7 +80,11 @@ export function ExamPlanDrawer({
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
               <label style={label}>Start<input required type="time" value={row.startTime} onChange={(e) => update(index, { startTime: e.target.value })} style={input} /></label>
               <label style={label}>End<input required type="time" value={row.endTime} onChange={(e) => update(index, { endTime: e.target.value })} style={input} /></label>
-              <label style={label}>Max marks<input required type="number" min="1" max="999.99" value={row.maxMarks} onChange={(e) => update(index, { maxMarks: Number(e.target.value) })} style={input} /></label>
+              <label style={label}>Max marks<input required type="number" min="1" max="999.99" value={row.maxMarks} onChange={(e) => {
+                const newMax = Number(e.target.value);
+                const defaultPass = Math.max(1, Math.round(newMax * 0.33));
+                update(index, { maxMarks: newMax, passingMarks: row.passingMarks > newMax ? defaultPass : row.passingMarks });
+              }} style={input} /></label>
               <label style={label}>Pass marks<input required type="number" min="0.01" max={row.maxMarks} value={row.passingMarks} onChange={(e) => update(index, { passingMarks: Number(e.target.value) })} style={input} /></label>
             </div>
           </section>;

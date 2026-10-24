@@ -19,7 +19,7 @@ import {
   LayoutDashboard, Users, GraduationCap, Briefcase, HeartHandshake,
   Building2, BookOpen, CalendarDays, CalendarCheck2, Award, CreditCard,
   MessageSquare, Bus, ShieldAlert, FileText, BarChart3, Sliders, History,
-  Search, Bell, LogOut, RefreshCw, ChevronDown, Menu, X,
+  Search, Bell, LogOut, RefreshCw, ChevronDown, Menu, X, HelpCircle,
 } from "lucide-react";
 import {
   createSchoolAdminBroadcast, createSchoolAdminLeave,
@@ -28,7 +28,9 @@ import {
   getSchoolAdminTeachers, createAcademicSection, createAcademicProgram,
   getStudentAvatarUrl,
   createPrincipalExamPlan,
+  createSchoolSupportTicket,
 } from "../edops-api";
+import { CreateTicketModal } from "../platform/modals";
 
 // ─── Design Tokens (Strictly matching Student & Teacher Dashboard specification) ──
 const S = {
@@ -259,6 +261,7 @@ export function SchoolAdminWorkspace({
   const [searchModalOpen, setSearchModalOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [supportTicketModalOpen, setSupportTicketModalOpen] = useState(false);
 
   React.useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
@@ -772,6 +775,41 @@ export function SchoolAdminWorkspace({
             ))}
           </nav>
         </div>
+
+        {/* Support Helpdesk Trigger */}
+        <div style={{ padding: "12px", borderTop: "1px solid rgba(255, 255, 255, 0.08)", flexShrink: 0 }}>
+          <button
+            type="button"
+            onClick={() => setSupportTicketModalOpen(true)}
+            style={{
+              all: "unset",
+              boxSizing: "border-box",
+              width: "100%",
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              height: "36px",
+              padding: "0 12px",
+              borderRadius: "8px",
+              cursor: "pointer",
+              color: S.itemInactiveText,
+              fontSize: "12.5px",
+              fontWeight: 500,
+              transition: "all 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = "#ffffff";
+              e.currentTarget.style.background = S.itemHoverBg;
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = S.itemInactiveText;
+              e.currentTarget.style.background = "transparent";
+            }}
+          >
+            <HelpCircle size={16} strokeWidth={1.75} />
+            <span>Support & Help</span>
+          </button>
+        </div>
       </aside>
 
       {/* ═══════════════════════════════════════════════
@@ -881,6 +919,33 @@ export function SchoolAdminWorkspace({
               />
             </button>
 
+            {/* Support / Helpdesk Trigger */}
+            <button
+              type="button"
+              onClick={() => setSupportTicketModalOpen(true)}
+              aria-label="Raise Support Ticket"
+              title="Need Help? Raise Support Ticket"
+              style={{
+                all: "unset",
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: "44px",
+                height: "44px",
+                borderRadius: "8px",
+                border: `1px solid ${S.line}`,
+                background: "#ffffff",
+                cursor: "pointer",
+                color: "#064E3B",
+                transition: "all 0.12s ease",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "#f4f6f7")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+            >
+              <HelpCircle size={16} strokeWidth={1.75} />
+            </button>
+
             {/* Avatar Dropdown - Exactly matching Student Dashboard Profile Avatar */}
             <div style={{ position: "relative" }}>
               <div
@@ -945,6 +1010,33 @@ export function SchoolAdminWorkspace({
                         </div>
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        setSupportTicketModalOpen(true);
+                      }}
+                      style={{
+                        all: "unset",
+                        width: "100%",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                        padding: "8px 12px",
+                        fontSize: "13px",
+                        fontWeight: 500,
+                        color: S.navy,
+                        cursor: "pointer",
+                        borderRadius: "6px",
+                        boxSizing: "border-box",
+                        transition: "background 0.12s ease",
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = "#f4f6f7")}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    >
+                      <HelpCircle size={15} strokeWidth={1.75} style={{ color: "#064E3B" }} />
+                      Support & Helpdesk
+                    </button>
                     <button
                       onClick={() => {
                         setProfileMenuOpen(false);
@@ -2939,6 +3031,29 @@ export function SchoolAdminWorkspace({
         onNavigate={(section, subTab) => go(section as SchoolAdminTab, subTab)}
         onOpenAction={(action) => setQuickActionModal(action)}
       />
+
+      {/* Support Ticket Modal */}
+      {supportTicketModalOpen && (
+        <CreateTicketModal
+          schools={[{
+            id: organizationId || "",
+            name: schoolName,
+            slug: "",
+            status: "active",
+            createdAt: "",
+          }]}
+          defaultSchoolId={organizationId}
+          readOnlySchool={true}
+          onClose={() => setSupportTicketModalOpen(false)}
+          onSubmit={async (ticketData) => {
+            if (organizationId) {
+              await createSchoolSupportTicket(organizationId, ticketData);
+            }
+            setSupportTicketModalOpen(false);
+            alert("Support ticket submitted successfully! Platform administrators have been notified.");
+          }}
+        />
+      )}
     </div>
   );
 }

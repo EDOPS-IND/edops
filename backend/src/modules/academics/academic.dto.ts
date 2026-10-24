@@ -22,6 +22,7 @@ export class SubjectDto {
   @ApiProperty({ maxLength: 120 }) @Transform(trim) @IsString() @MinLength(1) @MaxLength(120) name!: string;
   @ApiProperty({ maxLength: 32 }) @Transform(({ value }) => typeof value === 'string' ? value.trim().toUpperCase() : value)
   @IsString() @Matches(/^[A-Z0-9][A-Z0-9_-]*$/) @MaxLength(32) code!: string;
+  @ApiPropertyOptional() @IsOptional() @IsBoolean() isElective?: boolean;
 }
 export class UpdateSubjectDto extends PartialType(SubjectDto, { skipNullProperties: false }) {}
 

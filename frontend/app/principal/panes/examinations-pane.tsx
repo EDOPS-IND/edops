@@ -148,7 +148,9 @@ export function ExaminationsPane({
     setBusy(true);
     setError("");
     try {
-      const body = { ...form, maxMarks: Number(form.maxMarks) };
+      const max = Number(form.maxMarks || 100);
+      const pass = Number(form.passingMarks || Math.max(1, Math.round(max * 0.33)));
+      const body = { ...form, maxMarks: max, passingMarks: pass };
       if (editing) await updatePrincipalExamPlan(organizationId, editing.id, body);
       else await createPrincipalExamPlan(organizationId, body);
       await load();
