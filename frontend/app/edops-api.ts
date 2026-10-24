@@ -129,13 +129,17 @@ async function request<T>(path: string, options: { method?: "GET" | "POST" | "PA
 
   let data: any = null;
   if (response.status !== 204) {
-    const rawText = await response.text();
-    if (rawText && rawText.trim().length > 0) {
-      try {
-        data = JSON.parse(rawText);
-      } catch {
-        data = { message: rawText };
+    if (typeof response.text === "function") {
+      const rawText = await response.text();
+      if (rawText && rawText.trim().length > 0) {
+        try {
+          data = JSON.parse(rawText);
+        } catch {
+          data = { message: rawText };
+        }
       }
+    } else if (typeof response.json === "function") {
+      data = await response.json();
     }
   }
   if (!response.ok) {

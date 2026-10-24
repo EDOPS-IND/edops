@@ -136,7 +136,7 @@ export function TimetablePane({ organizationId, onTakeAttendance, onLogLesson }:
         </div>
 
         {/* View Switcher Pills */}
-        <div style={{ display: "flex", background: T.chip, padding: "4px", borderRadius: "8px", border: `1px solid ${T.border}`, gap: "4px" }}>
+        <div style={{ display: "flex", background: T.chip, padding: "4px", borderRadius: "8px", border: `1px solid ${T.border}`, gap: "4px", flexWrap: "wrap" }}>
           <button
             type="button"
             onClick={() => setViewMode("today")}
@@ -178,7 +178,7 @@ export function TimetablePane({ organizationId, onTakeAttendance, onLogLesson }:
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
           gap: "12px",
         }}
       >
@@ -419,18 +419,23 @@ export function TimetablePane({ organizationId, onTakeAttendance, onLogLesson }:
             gap: "16px",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
             <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: T.navy }}>
               Weekly Instructional Matrix (6-Day Cycle)
             </h3>
             <span style={{ fontSize: "12px", color: T.slate }}>Monday through Saturday</span>
           </div>
 
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", color: T.slate, marginBottom: "4px", flexWrap: "wrap", gap: "4px" }}>
+            <span>↔ Scroll horizontally to view all periods</span>
+            <span>7 Periods • 6 Days</span>
+          </div>
+
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: "8px", border: `1px solid ${T.border}` }}>
+            <table style={{ width: "100%", minWidth: "820px", borderCollapse: "collapse", fontSize: "12px", textAlign: "center" }}>
               <thead>
                 <tr style={{ background: T.chip, borderBottom: `1px solid ${T.border}` }}>
-                  <th style={{ padding: "12px 14px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase", width: "100px", textAlign: "left" }}>Day</th>
+                  <th style={{ padding: "12px 14px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase", width: "100px", minWidth: "90px", textAlign: "left", position: "sticky", left: 0, background: T.chip, zIndex: 3, boxShadow: "2px 0 4px rgba(0,0,0,0.04)" }}>Day</th>
                   {[1, 2, 3, 4, 5, 6, 7].map((p) => (
                     <th key={p} style={{ padding: "12px 14px", color: T.slate, fontWeight: 600, fontSize: "11px", textTransform: "uppercase" }}>
                       Period {p}
@@ -443,7 +448,7 @@ export function TimetablePane({ organizationId, onTakeAttendance, onLogLesson }:
                   const daySlots = weeklyData?.grid?.[day] || [];
                   return (
                     <tr key={day} style={{ borderBottom: idx !== days.length - 1 ? `1px solid ${T.border}` : "none" }}>
-                      <td style={{ padding: "14px", textAlign: "left", fontWeight: 600, color: T.navy, textTransform: "capitalize" }}>
+                      <td style={{ padding: "14px", textAlign: "left", fontWeight: 600, color: T.navy, textTransform: "capitalize", position: "sticky", left: 0, background: T.white, zIndex: 2, boxShadow: "2px 0 4px rgba(0,0,0,0.04)" }}>
                         {day}
                       </td>
                       {[1, 2, 3, 4, 5, 6, 7].map((p) => {

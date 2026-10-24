@@ -125,7 +125,7 @@ export const TimetablePane: React.FC<TimetablePaneProps> = ({ organizationId }) 
       </div>
 
       {/* 2. Day Selector Pills */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '6px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
         {days.map((day) => {
           const active = selectedDay === day;
           return (
@@ -167,7 +167,7 @@ export const TimetablePane: React.FC<TimetablePaneProps> = ({ organizationId }) 
       >
         <div
           style={{
-            padding: '18px 24px',
+            padding: '14px clamp(14px, 3vw, 24px)',
             borderBottom: `1px solid ${T.border}`,
             display: 'flex',
             alignItems: 'center',
@@ -203,13 +203,13 @@ export const TimetablePane: React.FC<TimetablePaneProps> = ({ organizationId }) 
               <div
                 key={idx}
                 style={{
-                  padding: '16px 24px',
+                  padding: '14px clamp(14px, 3vw, 24px)',
                   borderBottom: idx === daySchedule.length - 1 ? 'none' : `1px solid ${T.border}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
-                  gap: '16px',
+                  gap: '12px',
                   background: idx % 2 === 0 ? T.white : '#fcfdfe',
                 }}
               >
@@ -273,7 +273,7 @@ export const TimetablePane: React.FC<TimetablePaneProps> = ({ organizationId }) 
       >
         <div
           style={{
-            padding: '18px 24px',
+            padding: '14px clamp(14px, 3vw, 24px)',
             borderBottom: `1px solid ${T.border}`,
           }}
         >
@@ -295,13 +295,13 @@ export const TimetablePane: React.FC<TimetablePaneProps> = ({ organizationId }) 
               <div
                 key={idx}
                 style={{
-                  padding: '16px 24px',
+                  padding: '14px clamp(14px, 3vw, 24px)',
                   borderBottom: idx === previousClasses.length - 1 ? 'none' : `1px solid ${T.border}`,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
-                  gap: '16px',
+                  gap: '12px',
                   background: idx % 2 === 0 ? T.white : '#fcfdfe',
                 }}
               >
