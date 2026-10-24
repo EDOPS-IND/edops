@@ -79,10 +79,14 @@ export const TimetablePane: React.FC<TimetablePaneProps> = ({ organizationId }) 
         flexDirection: 'column',
         gap: '24px',
         fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        width: '100%',
+        maxWidth: '100%',
+        minWidth: 0,
+        boxSizing: 'border-box',
       }}
     >
       {/* 1. Header */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
           <span
             style={{
@@ -125,7 +129,7 @@ export const TimetablePane: React.FC<TimetablePaneProps> = ({ organizationId }) 
       </div>
 
       {/* 2. Day Selector Pills */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '6px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflowX: 'auto', paddingBottom: '6px', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
         {days.map((day) => {
           const active = selectedDay === day;
           return (
@@ -163,6 +167,9 @@ export const TimetablePane: React.FC<TimetablePaneProps> = ({ organizationId }) 
           borderRadius: '10px',
           overflow: 'hidden',
           boxSizing: 'border-box',
+          width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
         }}
       >
         <div
@@ -269,6 +276,9 @@ export const TimetablePane: React.FC<TimetablePaneProps> = ({ organizationId }) 
           borderRadius: '10px',
           overflow: 'hidden',
           boxSizing: 'border-box',
+          width: '100%',
+          maxWidth: '100%',
+          minWidth: 0,
         }}
       >
         <div

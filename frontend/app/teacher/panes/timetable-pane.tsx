@@ -103,10 +103,14 @@ export function TimetablePane({ organizationId, onTakeAttendance, onLogLesson }:
         flexDirection: "column",
         gap: "24px",
         fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+        width: "100%",
+        maxWidth: "100%",
+        minWidth: 0,
+        boxSizing: "border-box",
       }}
     >
       {/* 1. Header Row */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "16px", flexWrap: "wrap", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
           <span
             style={{
@@ -180,6 +184,10 @@ export function TimetablePane({ organizationId, onTakeAttendance, onLogLesson }:
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
           gap: "12px",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
         }}
       >
         {/* Weekly Load (Pastel Sky) */}
@@ -310,6 +318,10 @@ export function TimetablePane({ organizationId, onTakeAttendance, onLogLesson }:
             display: "flex",
             flexDirection: "column",
             gap: "16px",
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -417,21 +429,25 @@ export function TimetablePane({ organizationId, onTakeAttendance, onLogLesson }:
             display: "flex",
             flexDirection: "column",
             gap: "16px",
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            boxSizing: "border-box",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
             <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: T.navy }}>
               Weekly Instructional Matrix (6-Day Cycle)
             </h3>
             <span style={{ fontSize: "12px", color: T.slate }}>Monday through Saturday</span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", color: T.slate, marginBottom: "4px", flexWrap: "wrap", gap: "4px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: "11px", color: T.slate, marginBottom: "4px", flexWrap: "wrap", gap: "4px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
             <span>↔ Scroll horizontally to view all periods</span>
             <span>7 Periods • 6 Days</span>
           </div>
 
-          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: "8px", border: `1px solid ${T.border}` }}>
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: "8px", border: `1px solid ${T.border}`, width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
             <table style={{ width: "100%", minWidth: "820px", borderCollapse: "collapse", fontSize: "12px", textAlign: "center" }}>
               <thead>
                 <tr style={{ background: T.chip, borderBottom: `1px solid ${T.border}` }}>

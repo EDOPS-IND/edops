@@ -294,13 +294,17 @@ export function TimetablePane({
   const uncoveredCount = data?.uncovered?.length ?? 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "24px", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
       {/* 4 Pastel Top KPI Metric Cards (Strictly 148px height) */}
       <div
         style={{
           display: "grid",
           gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
           gap: "16px",
+          width: "100%",
+          maxWidth: "100%",
+          minWidth: 0,
+          boxSizing: "border-box",
         }}
       >
         {/* Card 1: Mint */}
@@ -528,7 +532,7 @@ export function TimetablePane({
 
       {/* Main Timetable Ledger */}
       {currentView !== "substitutions" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+        <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflowX: "auto", WebkitOverflowScrolling: "touch", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
           <table style={{ width: "100%", minWidth: "750px", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
@@ -614,7 +618,7 @@ export function TimetablePane({
         return (
           <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             {/* Uncovered Absences */}
-            <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflowX: "auto", WebkitOverflowScrolling: "touch", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
               <div style={{ padding: "16px 20px", borderBottom: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>Uncovered Faculty Absences</h3>
@@ -677,7 +681,7 @@ export function TimetablePane({
             </div>
 
             {/* Assigned Substitutions Log */}
-            <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+            <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflowX: "auto", WebkitOverflowScrolling: "touch", width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }}>
               <div style={{ padding: "16px 20px", borderBottom: "1px solid #e4e6e9" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>Confirmed Substitute Assignments</h3>
                 <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#64748b" }}>History of assigned coverage for leave periods.</p>
