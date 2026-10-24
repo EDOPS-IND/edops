@@ -2035,13 +2035,12 @@ export function PeoplePane({
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  padding: "0px 12px",
-                  minWidth: "135px",
+                  padding: "0px 14px",
+                  width: "145px",
                   height: "42px",
-                  border: "1px solid",
-                  borderColor: gradeFilter !== "all" ? "#0C1E33" : "#E0E5EB",
+                  border: gradeFilter !== "all" ? "1.5px solid #0C1E33" : "1px solid #E0E5EB",
                   borderRadius: "6px",
-                  background: gradeFilter !== "all" ? "#0C1E33" : "#FFFFFF",
+                  background: gradeFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
                   position: "relative",
                   transition: "all 0.15s ease",
                 }}
@@ -2055,6 +2054,7 @@ export function PeoplePane({
                   style={{
                     border: "none",
                     outline: "none",
+                    boxShadow: "none",
                     width: "100%",
                     height: "100%",
                     background: "transparent",
@@ -2062,20 +2062,24 @@ export function PeoplePane({
                     fontWeight: gradeFilter !== "all" ? 600 : 400,
                     fontSize: "12px",
                     lineHeight: "150%",
-                    color: gradeFilter !== "all" ? "#F8E7C9" : "#0C1E33",
+                    color: "#0C1E33",
                     cursor: "pointer",
                     appearance: "none",
-                    paddingRight: "20px",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                    paddingRight: "22px",
+                    paddingLeft: 0,
+                    margin: 0,
                   }}
                 >
                   <option value="all">Class: All</option>
                   {uniqueGrades.map((g) => (
-                    <option key={g} value={g} style={{ color: "#0C1E33", background: "#FFFFFF" }}>
+                    <option key={g} value={g}>
                       {g}
                     </option>
                   ))}
                 </select>
-                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: gradeFilter !== "all" ? "#F8E7C9" : "#586C82", pointerEvents: "none" }} />
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: gradeFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
               </div>
 
               {/* Section filter */}
@@ -2086,13 +2090,12 @@ export function PeoplePane({
                     display: "flex",
                     flexDirection: "row",
                     alignItems: "center",
-                    padding: "0px 12px",
-                    minWidth: "125px",
+                    padding: "0px 14px",
+                    width: "135px",
                     height: "42px",
-                    border: "1px solid",
-                    borderColor: sectionFilter !== "all" ? "#0C1E33" : "#E0E5EB",
+                    border: sectionFilter !== "all" ? "1.5px solid #0C1E33" : "1px solid #E0E5EB",
                     borderRadius: "6px",
-                    background: sectionFilter !== "all" ? "#0C1E33" : "#FFFFFF",
+                    background: sectionFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
                     position: "relative",
                     transition: "all 0.15s ease",
                   }}
@@ -2103,6 +2106,7 @@ export function PeoplePane({
                     style={{
                       border: "none",
                       outline: "none",
+                      boxShadow: "none",
                       width: "100%",
                       height: "100%",
                       background: "transparent",
@@ -2110,20 +2114,24 @@ export function PeoplePane({
                       fontWeight: sectionFilter !== "all" ? 600 : 400,
                       fontSize: "12px",
                       lineHeight: "150%",
-                      color: sectionFilter !== "all" ? "#F8E7C9" : "#0C1E33",
+                      color: "#0C1E33",
                       cursor: "pointer",
                       appearance: "none",
-                      paddingRight: "20px",
+                      WebkitAppearance: "none",
+                      MozAppearance: "none",
+                      paddingRight: "22px",
+                      paddingLeft: 0,
+                      margin: 0,
                     }}
                   >
                     <option value="all">Section: All</option>
                     {uniqueSections.map((sec) => (
-                      <option key={sec} value={sec} style={{ color: "#0C1E33", background: "#FFFFFF" }}>
+                      <option key={sec} value={sec}>
                         Section {sec}
                       </option>
                     ))}
                   </select>
-                  <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: sectionFilter !== "all" ? "#F8E7C9" : "#586C82", pointerEvents: "none" }} />
+                  <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: sectionFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
                 </div>
               )}
 
@@ -2134,13 +2142,12 @@ export function PeoplePane({
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  padding: "0px 12px",
-                  minWidth: "150px",
+                  padding: "0px 14px",
+                  width: "170px",
                   height: "42px",
-                  border: "1px solid",
-                  borderColor: attendanceFilter !== "all" ? "#0C1E33" : "#E0E5EB",
+                  border: attendanceFilter !== "all" ? "1.5px solid #0C1E33" : "1px solid #E0E5EB",
                   borderRadius: "6px",
-                  background: attendanceFilter !== "all" ? "#0C1E33" : "#FFFFFF",
+                  background: attendanceFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
                   position: "relative",
                   transition: "all 0.15s ease",
                 }}
@@ -2151,6 +2158,7 @@ export function PeoplePane({
                   style={{
                     border: "none",
                     outline: "none",
+                    boxShadow: "none",
                     width: "100%",
                     height: "100%",
                     background: "transparent",
@@ -2158,20 +2166,24 @@ export function PeoplePane({
                     fontWeight: attendanceFilter !== "all" ? 600 : 400,
                     fontSize: "12px",
                     lineHeight: "150%",
-                    color: attendanceFilter !== "all" ? "#F8E7C9" : "#0C1E33",
+                    color: "#0C1E33",
                     cursor: "pointer",
                     appearance: "none",
-                    paddingRight: "20px",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                    paddingRight: "22px",
+                    paddingLeft: 0,
+                    margin: 0,
                   }}
                 >
                   <option value="all">Attendance: All</option>
-                  <option value="ontrack" style={{ color: "#0C1E33", background: "#FFFFFF" }}>Regular (≥ 75%)</option>
-                  <option value="breach" style={{ color: "#0C1E33", background: "#FFFFFF" }}>Breach (&lt; 75%)</option>
-                  <option value="critical" style={{ color: "#0C1E33", background: "#FFFFFF" }}>Critical (&lt; 60%)</option>
-                  <option value="perfect" style={{ color: "#0C1E33", background: "#FFFFFF" }}>High (≥ 90%)</option>
-                  <option value="no_records" style={{ color: "#0C1E33", background: "#FFFFFF" }}>No Records (—)</option>
+                  <option value="ontrack">Regular (≥ 75%)</option>
+                  <option value="breach">Breach (&lt; 75%)</option>
+                  <option value="critical">Critical (&lt; 60%)</option>
+                  <option value="perfect">High (≥ 90%)</option>
+                  <option value="no_records">No Records (—)</option>
                 </select>
-                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: attendanceFilter !== "all" ? "#F8E7C9" : "#586C82", pointerEvents: "none" }} />
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: attendanceFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
               </div>
 
               {/* Fee status filter */}
@@ -2181,13 +2193,12 @@ export function PeoplePane({
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  padding: "0px 12px",
-                  minWidth: "140px",
+                  padding: "0px 14px",
+                  width: "150px",
                   height: "42px",
-                  border: "1px solid",
-                  borderColor: feeFilter !== "all" ? "#0C1E33" : "#E0E5EB",
+                  border: feeFilter !== "all" ? "1.5px solid #0C1E33" : "1px solid #E0E5EB",
                   borderRadius: "6px",
-                  background: feeFilter !== "all" ? "#0C1E33" : "#FFFFFF",
+                  background: feeFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
                   position: "relative",
                   transition: "all 0.15s ease",
                 }}
@@ -2198,6 +2209,7 @@ export function PeoplePane({
                   style={{
                     border: "none",
                     outline: "none",
+                    boxShadow: "none",
                     width: "100%",
                     height: "100%",
                     background: "transparent",
@@ -2205,19 +2217,23 @@ export function PeoplePane({
                     fontWeight: feeFilter !== "all" ? 600 : 400,
                     fontSize: "12px",
                     lineHeight: "150%",
-                    color: feeFilter !== "all" ? "#F8E7C9" : "#0C1E33",
+                    color: "#0C1E33",
                     cursor: "pointer",
                     appearance: "none",
-                    paddingRight: "20px",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                    paddingRight: "22px",
+                    paddingLeft: 0,
+                    margin: 0,
                   }}
                 >
                   <option value="all">Fee: All</option>
-                  <option value="paid" style={{ color: "#0C1E33", background: "#FFFFFF" }}>Settled / Paid</option>
-                  <option value="pending" style={{ color: "#0C1E33", background: "#FFFFFF" }}>Pending / Due</option>
-                  <option value="overdue" style={{ color: "#0C1E33", background: "#FFFFFF" }}>Overdue</option>
-                  <option value="no_records" style={{ color: "#0C1E33", background: "#FFFFFF" }}>Unbilled / None</option>
+                  <option value="paid">Settled / Paid</option>
+                  <option value="pending">Pending / Due</option>
+                  <option value="overdue">Overdue</option>
+                  <option value="no_records">Unbilled / None</option>
                 </select>
-                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: feeFilter !== "all" ? "#F8E7C9" : "#586C82", pointerEvents: "none" }} />
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: feeFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
               </div>
 
               {/* Academic Status filter */}
@@ -2227,13 +2243,12 @@ export function PeoplePane({
                   display: "flex",
                   flexDirection: "row",
                   alignItems: "center",
-                  padding: "0px 12px",
-                  minWidth: "150px",
+                  padding: "0px 14px",
+                  width: "175px",
                   height: "42px",
-                  border: "1px solid",
-                  borderColor: statusFilter !== "all" ? "#0C1E33" : "#E0E5EB",
+                  border: statusFilter !== "all" ? "1.5px solid #0C1E33" : "1px solid #E0E5EB",
                   borderRadius: "6px",
-                  background: statusFilter !== "all" ? "#0C1E33" : "#FFFFFF",
+                  background: statusFilter !== "all" ? "#F8FAFC" : "#FFFFFF",
                   position: "relative",
                   transition: "all 0.15s ease",
                 }}
@@ -2244,6 +2259,7 @@ export function PeoplePane({
                   style={{
                     border: "none",
                     outline: "none",
+                    boxShadow: "none",
                     width: "100%",
                     height: "100%",
                     background: "transparent",
@@ -2251,26 +2267,30 @@ export function PeoplePane({
                     fontWeight: statusFilter !== "all" ? 600 : 400,
                     fontSize: "12px",
                     lineHeight: "150%",
-                    color: statusFilter !== "all" ? "#F8E7C9" : "#0C1E33",
+                    color: "#0C1E33",
                     cursor: "pointer",
                     appearance: "none",
-                    paddingRight: "20px",
+                    WebkitAppearance: "none",
+                    MozAppearance: "none",
+                    paddingRight: "22px",
+                    paddingLeft: 0,
+                    margin: 0,
                   }}
                 >
                   <option value="all">Academic: All</option>
-                  <option value="active" style={{ color: "#0C1E33", background: "#FFFFFF" }}>Active</option>
-                  <option value="probation" style={{ color: "#0C1E33", background: "#FFFFFF" }}>Under Review</option>
-                  <option value="inactive" style={{ color: "#0C1E33", background: "#FFFFFF" }}>Inactive / Suspended</option>
-                  <option value="graduated" style={{ color: "#0C1E33", background: "#FFFFFF" }}>Graduated</option>
+                  <option value="active">Active</option>
+                  <option value="probation">Under Review</option>
+                  <option value="inactive">Inactive / Suspended</option>
+                  <option value="graduated">Graduated</option>
                   {uniqueAcademicStatuses
                     .filter((st) => !["active", "probation", "inactive", "graduated"].includes(st.toLowerCase()))
                     .map((st) => (
-                      <option key={st} value={st} style={{ color: "#0C1E33", background: "#FFFFFF" }}>
+                      <option key={st} value={st}>
                         {st}
                       </option>
                     ))}
                 </select>
-                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "10px", color: statusFilter !== "all" ? "#F8E7C9" : "#586C82", pointerEvents: "none" }} />
+                <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: statusFilter !== "all" ? "#0C1E33" : "#586C82", pointerEvents: "none" }} />
               </div>
 
               {hasActiveStudentFilters && (
