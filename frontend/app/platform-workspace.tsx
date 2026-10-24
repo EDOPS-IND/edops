@@ -228,6 +228,14 @@ export function PlatformWorkspace({
     }
   }
 
+  function handleSchoolUpdated(updated: School) {
+    setSchools(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s));
+    if (selectedSchool?.id === updated.id) {
+      setSelectedSchool(prev => prev ? { ...prev, ...updated } : null);
+    }
+    setSuccessMsg(`School "${updated.name}" details updated successfully`);
+  }
+
   async function handleCreatePlan(newPlanData: any) {
     try {
       await createPlatformPlan(newPlanData);
@@ -460,6 +468,7 @@ export function PlatformWorkspace({
           onOverridesChanged={() => { if (selectedSchool) getSchoolDetailedOverrides(selectedSchool.id).then(setSchoolOverrides).catch(() => {}); }}
           onLifecycleChange={handleLifecycleChange}
           onOpenSupportSessionModal={(s) => setSupportSessionModal(s)}
+          onSchoolUpdated={handleSchoolUpdated}
         />
       )}
 
@@ -575,6 +584,24 @@ export function PlatformWorkspace({
         onNavigate={(panel) => {
           setTab(panel);
           if (onSelectPanel) onSelectPanel(panel);
+        }}
+        onOpenAction={(action) => {
+          if (action === "announcement") setAnnouncementModal(true);
+          else if (action === "ticket") setTicketModal(true);
+          else if (action === "create_plan") setCreatePlanModal(true);
+          else if (action === "onboard") setTab("onboarding");
+        }}
+        onSelectSchool={(schoolId) => {
+          const s = schools.find((x) => x.id === schoolId);
+          if (s) {
+            setSelectedSchool(s);
+          }
+          setTab("schools");
+          if (onSelectPanel) onSelectPanel("schools");
+        }}
+        onSelectTicket={() => {
+          setTab("support");
+          if (onSelectPanel) onSelectPanel("support");
         }}
       />
 

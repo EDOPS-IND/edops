@@ -5,6 +5,7 @@ import { Request } from 'express';
 import { AuthenticatedRequest, PlatformAdmin, Public } from '../../common/auth.guard';
 import { AuthService } from '../auth/auth.service';
 import { AcceptInvitationDto, CreateOrganizationDto, OrganizationStatusDto, UpdateOrganizationDto } from './tenant.dto';
+import { UpdateSchoolDetailsDto } from '../billing/billing.dto';
 import { TenantsService } from './tenants.service';
 import { acceptedInvitationSchema, ApiErrors, organizationSchema, provisionSchema } from '../../common/api-docs';
 
@@ -38,6 +39,17 @@ export class PlatformOrganizationsController {
   @ApiErrors(400, 401, 403, 404, 413)
   setStatus(@Param('id', ParseUUIDPipe) id: string, @Body() dto: OrganizationStatusDto, @Req() request: AuthenticatedRequest) {
     return this.tenants.setStatus(id, dto.status, request.user);
+  }
+
+  @Patch(':id')
+  @ApiOperation({
+    summary: 'Platform administrator: update school details',
+    security: [{ cookie: [], csrf: [] }],
+  })
+  @ApiParam({ name: 'id', format: 'uuid', description: 'Organization UUID' })
+  @ApiBody({ type: UpdateSchoolDetailsDto })
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateSchoolDetailsDto, @Req() request: AuthenticatedRequest) {
+    return this.tenants.update(id, dto, request.user);
   }
 }
 

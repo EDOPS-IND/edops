@@ -251,6 +251,7 @@ export function setSchoolDetailedOverride(orgId: string, override: any) { return
 export function removeSchoolDetailedOverride(orgId: string, featureKey: string, role?: string) { return api<any>(`/platform/organizations/${orgId}/detailed-overrides/${featureKey}/remove${role ? `?role=${role}` : ''}`, { method: "PATCH", body: {} }); }
 export function onboardSchool(data: any) { return api<any>("/platform/organizations/onboard", { method: "POST", body: data }); }
 export function updateSchoolLifecycle(orgId: string, data: any) { return api<any>(`/platform/organizations/${orgId}/lifecycle`, { method: "PATCH", body: data }); }
+export function updatePlatformSchool(orgId: string, data: any) { return api<any>(`/platform/organizations/${orgId}`, { method: "PATCH", body: data }); }
 export async function getSupportTickets(limit = 50, offset = 0) {
   return api<ListResult<any>>(`/platform/support/tickets?limit=${limit}&offset=${offset}`);
 }

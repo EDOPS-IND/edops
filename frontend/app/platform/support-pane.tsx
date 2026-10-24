@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { X, ExternalLink, CheckCircle2 } from "lucide-react";
+import { X, ExternalLink, CheckCircle2, Search, AlertCircle } from "lucide-react";
 import { SupportTicket, Announcement } from "./types";
 
 export function TicketDetailsDrawer({
@@ -258,23 +258,108 @@ export function SupportPane({
   onResolveTicket: (ticketId: string) => void;
 }) {
   const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [ticketSearch, setTicketSearch] = useState("");
+  const [ticketStatusFilter, setTicketStatusFilter] = useState("all");
+
   const selectedTicket = tickets.find(t => t.id === selectedTicketId) || null;
+
+  const filteredTickets = tickets.filter(t => {
+    if (ticketStatusFilter !== "all" && t.status !== ticketStatusFilter) return false;
+    if (ticketSearch.trim()) {
+      const q = ticketSearch.toLowerCase().trim();
+      const match =
+        (t.ticketCode && t.ticketCode.toLowerCase().includes(q)) ||
+        (t.subject && t.subject.toLowerCase().includes(q)) ||
+        (t.schoolName && t.schoolName.toLowerCase().includes(q)) ||
+        (t.creatorEmail && t.creatorEmail.toLowerCase().includes(q)) ||
+        (t.category && t.category.toLowerCase().includes(q));
+      if (!match) return false;
+    }
+    return true;
+  });
 
   return (
     <div style={{ display: "grid", gap: "20px" }}>
       {/* SUPPORT TICKETS TABLE */}
       <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "20px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
           <div>
             <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700 }}>School Support Tickets</h3>
             <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#6B7280" }}>Click on any ticket to view full description and issue details</p>
           </div>
-          <button
-            onClick={onOpenTicketModal}
-            style={{ padding: "6px 14px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
-          >
-            + New Ticket
-          </button>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            {/* Search Input */}
+            <div style={{ position: "relative", minWidth: "220px" }}>
+              <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+              <input
+                type="text"
+                placeholder="Search ticket code, school, subject..."
+                value={ticketSearch}
+                onChange={(e) => setTicketSearch(e.target.value)}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "6px 28px 6px 30px",
+                  borderRadius: "6px",
+                  border: "1px solid #D1D5DB",
+                  fontSize: "12.5px",
+                  outline: "none",
+                  background: "#F9FAFB",
+                }}
+              />
+              {ticketSearch && (
+                <button
+                  type="button"
+                  onClick={() => setTicketSearch("")}
+                  style={{
+                    position: "absolute",
+                    right: "8px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    color: "#9CA3AF",
+                    display: "flex",
+                  }}
+                  title="Clear ticket search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Status Filter */}
+            <div style={{ display: "flex", gap: "6px" }}>
+              {["all", "open", "in_progress", "resolved"].map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setTicketStatusFilter(st)}
+                  style={{
+                    padding: "5px 10px",
+                    borderRadius: "6px",
+                    fontSize: "11.5px",
+                    fontWeight: 600,
+                    textTransform: "capitalize",
+                    background: ticketStatusFilter === st ? "#064E3B" : "#F3F4F6",
+                    color: ticketStatusFilter === st ? "#F8E7C9" : "#4B5563",
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {st.replace("_", " ")}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={onOpenTicketModal}
+              style={{ padding: "6px 14px", background: "#064E3B", color: "#F8E7C9", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+            >
+              + New Ticket
+            </button>
+          </div>
         </div>
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px" }}>
@@ -289,8 +374,8 @@ export function SupportPane({
             </tr>
           </thead>
           <tbody>
-            {tickets.length > 0 ? (
-              tickets.map(t => {
+            {filteredTickets.length > 0 ? (
+              filteredTickets.map(t => {
                 const isSelected = selectedTicketId === t.id;
                 return (
                   <tr
@@ -363,8 +448,32 @@ export function SupportPane({
               })
             ) : (
               <tr>
-                <td colSpan={6} style={{ padding: "20px", textAlign: "center", color: "#6B7280" }}>
-                  No open support tickets. All tenant inquiries resolved.
+                <td colSpan={6} style={{ padding: "30px 20px", textAlign: "center", color: "#6B7280" }}>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                    <AlertCircle size={24} style={{ color: "#9CA3AF" }} />
+                    <div style={{ fontWeight: 600, fontSize: "13.5px", color: "#374151" }}>No tickets found</div>
+                    <div style={{ fontSize: "12px", color: "#9CA3AF" }}>
+                      {ticketSearch ? `No tickets matching "${ticketSearch}" with status "${ticketStatusFilter}"` : `No tickets with status "${ticketStatusFilter}"`}
+                    </div>
+                    {(ticketSearch || ticketStatusFilter !== "all") && (
+                      <button
+                        type="button"
+                        onClick={() => { setTicketSearch(""); setTicketStatusFilter("all"); }}
+                        style={{
+                          marginTop: "4px",
+                          padding: "4px 10px",
+                          borderRadius: "5px",
+                          border: "1px solid #D1D5DB",
+                          background: "#FFF",
+                          fontSize: "12px",
+                          cursor: "pointer",
+                          color: "#4B5563",
+                        }}
+                      >
+                        Clear search &amp; filters
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             )}

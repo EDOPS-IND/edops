@@ -41,6 +41,12 @@ export class TenantsService {
   }
 
   async authorizedOrganization(manager: any, id: string, actor: User, lock = false, roles: readonly SchoolRole[] = ['school_admin']) {
+    if (actor.isPlatformAdmin) {
+      const lockClause = lock ? ' FOR UPDATE' : '';
+      const [organization] = await manager.query(`SELECT * FROM organizations WHERE id = $1${lockClause} LIMIT 1`, [id]);
+      if (!organization) throw new NotFoundException('Organization not found');
+      return organization;
+    }
     const [membership] = await manager.query(
       "SELECT * FROM memberships WHERE organization_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1",
       [id, actor.id]
@@ -58,23 +64,92 @@ export class TenantsService {
     return this.authorizedOrganization(this.drizzle, id, actor);
   }
 
-  async update(id: string, dto: UpdateOrganizationDto, actor: User) {
-    if ([dto.name, dto.timeZone, dto.locale].every((value) => value === undefined)) {
-      throw new BadRequestException('Provide at least one supported setting');
-    }
+  async update(id: string, dto: any, actor: User) {
     return this.drizzle.transaction(async (manager) => {
       const organization = await this.authorizedOrganization(manager, id, actor, true);
-      const before = { name: organization.name, timeZone: organization.time_zone ?? organization.timeZone, locale: organization.locale };
-      const name = dto.name !== undefined ? dto.name : organization.name;
-      const timeZone = dto.timeZone !== undefined ? dto.timeZone : (organization.time_zone ?? organization.timeZone);
-      const locale = dto.locale !== undefined ? dto.locale : organization.locale;
+      const before = { ...organization };
+      
+      const mapping: Record<string, string> = {
+        name: 'name',
+        slug: 'slug',
+        code: 'code',
+        schoolType: 'school_type',
+        board: 'board',
+        registrationNumber: 'registration_number',
+        affiliationNumber: 'affiliation_number',
+        establishedYear: 'established_year',
+        addressLine1: 'address_line1',
+        addressLine2: 'address_line2',
+        city: 'city',
+        state: 'state',
+        country: 'country',
+        pincode: 'pincode',
+        officialEmail: 'official_email',
+        officialPhone: 'official_phone',
+        website: 'website',
+        timeZone: 'time_zone',
+        locale: 'locale',
+      };
+
+      const updates: string[] = [];
+      const params: any[] = [];
+      let pIdx = 1;
+
+      for (const [key, col] of Object.entries(mapping)) {
+        if (dto[key] !== undefined) {
+          updates.push(`${col} = $${pIdx++}`);
+          params.push(dto[key]);
+        }
+      }
+
+      if (updates.length === 0) {
+        throw new BadRequestException('Provide at least one supported setting');
+      }
+
+      updates.push('updated_at = NOW()');
+      params.push(id);
+
       const [updated] = await manager.query(
-        `UPDATE organizations SET name = $1, time_zone = $2, locale = $3, updated_at = NOW() WHERE id = $4 RETURNING *`,
-        [name, timeZone, locale, id]
+        `UPDATE organizations SET ${updates.join(', ')} WHERE id = $${pIdx} RETURNING *`,
+        params
       );
-      const after = { name: updated.name, timeZone: updated.time_zone ?? updated.timeZone, locale: updated.locale };
+
+      const after = { ...updated };
       await this.audit.record(manager, { organizationId: id, actorId: actor.id, action: 'organization.updated', details: { before, after } });
-      return updated;
+      return {
+        id: updated.id,
+        name: updated.name,
+        slug: updated.slug,
+        status: updated.status,
+        code: updated.code,
+        board: updated.board,
+        schoolType: updated.school_type,
+        school_type: updated.school_type,
+        registrationNumber: updated.registration_number,
+        registration_number: updated.registration_number,
+        affiliationNumber: updated.affiliation_number,
+        affiliation_number: updated.affiliation_number,
+        establishedYear: updated.established_year,
+        established_year: updated.established_year,
+        addressLine1: updated.address_line1,
+        address_line1: updated.address_line1,
+        addressLine2: updated.address_line2,
+        address_line2: updated.address_line2,
+        city: updated.city,
+        state: updated.state,
+        country: updated.country,
+        pincode: updated.pincode,
+        officialEmail: updated.official_email,
+        official_email: updated.official_email,
+        officialPhone: updated.official_phone,
+        official_phone: updated.official_phone,
+        website: updated.website,
+        timeZone: updated.time_zone,
+        time_zone: updated.time_zone,
+        locale: updated.locale,
+        updatedAt: updated.updated_at,
+        updated_at: updated.updated_at,
+      };
     });
   }
 

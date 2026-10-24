@@ -36,6 +36,7 @@ import {
   PayInvoiceDto,
   PlanStatusDto,
   SubscriptionDto,
+  UpdateSchoolDetailsDto,
 } from "./billing.dto";
 import {
   BillingOverview,
@@ -406,6 +407,27 @@ export class PlatformBillingController {
     @Body() dto: any,
   ) {
     return this.billing.schoolLifecycle(req.user, org, dto);
+  }
+
+  // : Platform Admin Update School Details
+  @Patch("organizations/:organizationId")
+  @ApiOperation({ summary: "Platform Administrator: Update School Details" })
+  updateSchool(
+    @Req() req: AuthenticatedRequest,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Body() dto: UpdateSchoolDetailsDto,
+  ) {
+    return this.billing.updateSchoolDetails(req.user, org, dto);
+  }
+
+  @Patch("organizations/:organizationId/details")
+  @ApiOperation({ summary: "Platform Administrator: Update School Details Alias" })
+  updateSchoolDetails(
+    @Req() req: AuthenticatedRequest,
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Body() dto: UpdateSchoolDetailsDto,
+  ) {
+    return this.billing.updateSchoolDetails(req.user, org, dto);
   }
 
   // : Support Center Tickets

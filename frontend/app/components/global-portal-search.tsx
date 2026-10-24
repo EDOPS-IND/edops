@@ -33,13 +33,15 @@ import {
   AlertTriangle,
   History,
   LifeBuoy,
+  Loader2,
 } from "lucide-react";
+import { globalSearch } from "../edops-api";
 
 export interface SearchItem {
   id: string;
   title: string;
   subtitle?: string;
-  category: "Navigation" | "Quick Actions" | "Academics" | "Finance" | "Settings" | "System";
+  category: "Navigation" | "Quick Actions" | "Academics" | "Finance" | "Settings" | "System" | "Schools" | "Support" | "Plans";
   keywords: string[];
   icon: React.ElementType;
   iconColor?: string;
@@ -53,6 +55,8 @@ interface GlobalPortalSearchProps {
   role: "school_admin" | "teacher" | "student" | "parent" | "platform" | "principal";
   onNavigate: (section: string, subTab?: string) => void;
   onOpenAction?: (action: string) => void;
+  onSelectSchool?: (schoolId: string) => void;
+  onSelectTicket?: (ticketId: string) => void;
 }
 
 export function GlobalPortalSearch({
@@ -61,9 +65,13 @@ export function GlobalPortalSearch({
   role,
   onNavigate,
   onOpenAction,
+  onSelectSchool,
+  onSelectTicket,
 }: GlobalPortalSearchProps) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [liveResults, setLiveResults] = useState<SearchItem[]>([]);
+  const [isSearchingLive, setIsSearchingLive] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -88,6 +96,102 @@ export function GlobalPortalSearch({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
+
+  // Live global entity search for Super Admin
+  useEffect(() => {
+    if (!isOpen || role !== "platform") {
+      setLiveResults([]);
+      return;
+    }
+    const q = query.trim();
+    if (q.length < 2) {
+      setLiveResults([]);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearchingLive(true);
+      try {
+        const res = await globalSearch(q);
+        const items: SearchItem[] = (res?.results || []).map((ent: any) => {
+          if (ent.type === "school") {
+            return {
+              id: `school-${ent.id}`,
+              title: ent.name,
+              subtitle: `${ent.code || ent.slug} · ${ent.city ? `${ent.city}, ` : ""}${ent.board || "CBSE"} · Status: ${ent.status || "active"}`,
+              category: "Schools" as const,
+              keywords: [ent.name, ent.slug, ent.code, ent.city, ent.board].filter(Boolean),
+              icon: Building2,
+              iconColor: "#059669",
+              badge: "School",
+              onSelect: () => {
+                if (onSelectSchool) onSelectSchool(ent.id);
+                else onNavigate("schools");
+              },
+            };
+          } else if (ent.type === "ticket") {
+            return {
+              id: `ticket-${ent.id}`,
+              title: `${ent.ticketCode || "Ticket"}: ${ent.subject}`,
+              subtitle: `Status: ${ent.status} · Priority: ${ent.priority || "medium"}${ent.category ? ` · ${ent.category}` : ""}`,
+              category: "Support" as const,
+              keywords: [ent.ticketCode, ent.subject, ent.category].filter(Boolean),
+              icon: LifeBuoy,
+              iconColor: "#EA580C",
+              badge: `Ticket (${ent.status})`,
+              onSelect: () => {
+                if (onSelectTicket) onSelectTicket(ent.id);
+                else onNavigate("support");
+              },
+            };
+          } else if (ent.type === "plan") {
+            return {
+              id: `plan-${ent.id}`,
+              title: `${ent.name} Plan`,
+              subtitle: `Subscription Tier · Status: ${ent.active ? "Active" : "Retired"}`,
+              category: "Plans" as const,
+              keywords: [ent.name, "pricing", "plan", "tier"],
+              icon: Layers,
+              iconColor: "#7C3AED",
+              badge: "Plan",
+              onSelect: () => onNavigate("plans"),
+            };
+          } else if (ent.type === "invoice") {
+            return {
+              id: `inv-${ent.id}`,
+              title: `Invoice / Payment: ${ent.paymentReference || ent.id.slice(0, 8)}`,
+              subtitle: `Amount: ${ent.currency || "INR"} ${((ent.amountMinor || 0) / 100).toLocaleString()} · Status: ${ent.status}`,
+              category: "Finance" as const,
+              keywords: [ent.paymentReference, "invoice", "billing", "payment"].filter(Boolean),
+              icon: CreditCard,
+              iconColor: "#16A34A",
+              badge: "Invoice",
+              onSelect: () => onNavigate("billing"),
+            };
+          } else {
+            return {
+              id: `ann-${ent.id}`,
+              title: ent.title,
+              subtitle: `Platform Announcement · Priority: ${ent.priority || "normal"}`,
+              category: "Quick Actions" as const,
+              keywords: [ent.title, "announcement", "broadcast"],
+              icon: MessageSquare,
+              iconColor: "#0284C7",
+              badge: "Broadcast",
+              onSelect: () => onNavigate("support"),
+            };
+          }
+        });
+        setLiveResults(items);
+      } catch {
+        setLiveResults([]);
+      } finally {
+        setIsSearchingLive(false);
+      }
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [query, isOpen, role, onSelectSchool, onSelectTicket, onNavigate]);
 
   // Catalog definition for each role
   const catalog: SearchItem[] = useMemo(() => {
@@ -661,80 +765,156 @@ export function GlobalPortalSearch({
             title: "Platform Overview",
             subtitle: "Multi-tenant SaaS metrics, active schools and infrastructure health",
             category: "Navigation",
-            keywords: ["overview", "dashboard", "metrics", "tenants", "saas"],
+            keywords: ["overview", "dashboard", "metrics", "tenants", "saas", "kpis"],
             icon: LayoutDashboard,
             iconColor: "#2563EB",
             onSelect: () => onNavigate("overview"),
           },
           {
             id: "pf-schools",
-            title: "Schools Directory & Provisioning",
+            title: "Schools Directory & Tenants",
             subtitle: "Manage school tenants, provision new campus, suspend or activate",
             category: "Navigation",
-            keywords: ["schools", "tenants", "provision school", "onboard school", "suspend"],
+            keywords: ["schools", "tenants", "directory", "provision school", "onboard school", "suspend", "campus"],
             icon: Building2,
             iconColor: "#059669",
             onSelect: () => onNavigate("schools"),
+          },
+          {
+            id: "pf-onboarding",
+            title: "School Onboarding Wizard",
+            subtitle: "Step-by-step institutional setup, admin credentials and plan allocation",
+            category: "Quick Actions",
+            keywords: ["onboarding", "wizard", "new school", "provision", "add school", "register"],
+            icon: Sparkles,
+            iconColor: "#059669",
+            badge: "Wizard",
+            onSelect: () => onNavigate("onboarding"),
           },
           {
             id: "pf-plans",
             title: "Pricing Plans & Tier Management",
             subtitle: "Feature matrices, seat quotas, student limits and pricing structures",
             category: "System",
-            keywords: ["plans", "pricing", "tiers", "features", "entitlements"],
+            keywords: ["plans", "pricing", "tiers", "features", "entitlements", "quotas"],
             icon: Layers,
             iconColor: "#7C3AED",
             onSelect: () => onNavigate("plans"),
           },
           {
             id: "pf-subs",
-            title: "Subscriptions & Invoices",
-            subtitle: "School billing ledger, active subscriptions, revenue realization",
+            title: "Subscriptions Ledger",
+            subtitle: "Active school subscriptions, tier renewal dates & grace periods",
             category: "Finance",
-            keywords: ["subscriptions", "invoices", "billing", "revenue", "payments"],
-            icon: CreditCard,
+            keywords: ["subscriptions", "tenants", "renewal", "grace period", "lifecycle"],
+            icon: Calendar,
             iconColor: "#16A34A",
             onSelect: () => onNavigate("subscriptions"),
           },
           {
-            id: "pf-health",
-            title: "System Telemetry & Health",
-            subtitle: "Database connection pools, query latency, event buses and storage",
+            id: "pf-billing",
+            title: "Billing & Revenue Realization",
+            subtitle: "Invoices, payment reconciliation, offline payments & refunds",
+            category: "Finance",
+            keywords: ["billing", "revenue", "invoices", "payments", "refunds", "receipts", "finance"],
+            icon: CreditCard,
+            iconColor: "#10B981",
+            badge: "Finance",
+            onSelect: () => onNavigate("billing"),
+          },
+          {
+            id: "pf-usage",
+            title: "Usage & Resource Metering",
+            subtitle: "Storage utilization, monthly API call volume & system quotas",
             category: "System",
-            keywords: ["health", "telemetry", "database", "latency", "status", "uptime"],
+            keywords: ["usage", "metering", "storage", "api requests", "quotas", "limits"],
             icon: TrendingUp,
-            iconColor: "#0284C7",
-            onSelect: () => onNavigate("health"),
-          },
-          {
-            id: "pf-security",
-            title: "Security & Global Audit Trail",
-            subtitle: "Platform audit events, privileged administrator actions and tokens",
-            category: "Settings",
-            keywords: ["security", "audit", "logs", "superadmin", "tokens"],
-            icon: ShieldAlert,
-            iconColor: "#DC2626",
-            onSelect: () => onNavigate("security"),
-          },
-          {
-            id: "pf-support",
-            title: "Support Tickets & Helpdesk",
-            subtitle: "Tenant escalations, school admin support and issue resolutions",
-            category: "System",
-            keywords: ["support", "tickets", "help", "issues", "inquiries"],
-            icon: LifeBuoy,
-            iconColor: "#EA580C",
-            onSelect: () => onNavigate("support"),
+            iconColor: "#0D9488",
+            onSelect: () => onNavigate("usage"),
           },
           {
             id: "pf-config",
             title: "Global Platform Configuration",
             subtitle: "System parameters, default terms, API thresholds and throttle limits",
             category: "Settings",
-            keywords: ["config", "settings", "environment", "thresholds"],
+            keywords: ["config", "configuration", "settings", "environment", "thresholds", "throttle"],
             icon: Sliders,
             iconColor: "#475569",
-            onSelect: () => onNavigate("config"),
+            onSelect: () => onNavigate("configuration"),
+          },
+          {
+            id: "pf-security",
+            title: "Security & Global Audit Trail",
+            subtitle: "Platform audit events, privileged administrator actions and tokens",
+            category: "Settings",
+            keywords: ["security", "audit", "logs", "superadmin", "tokens", "staff"],
+            icon: ShieldAlert,
+            iconColor: "#DC2626",
+            onSelect: () => onNavigate("security"),
+          },
+          {
+            id: "pf-support",
+            title: "Support Tickets & Escalation Desk",
+            subtitle: "Tenant escalations, school admin support and issue resolutions",
+            category: "System",
+            keywords: ["support", "tickets", "help", "issues", "inquiries", "helpdesk"],
+            icon: LifeBuoy,
+            iconColor: "#EA580C",
+            onSelect: () => onNavigate("support"),
+          },
+          {
+            id: "pf-health",
+            title: "System Telemetry & Health",
+            subtitle: "Database connection pools, query latency, event buses and storage",
+            category: "System",
+            keywords: ["health", "telemetry", "database", "latency", "status", "uptime", "server"],
+            icon: TrendingUp,
+            iconColor: "#0284C7",
+            onSelect: () => onNavigate("health"),
+          },
+          {
+            id: "act-onboard",
+            title: "Quick Action: Onboard New School",
+            subtitle: "Launch institutional onboarding wizard to register a new tenant",
+            category: "Quick Actions",
+            keywords: ["onboard", "create school", "new school", "register school", "add campus"],
+            icon: UserPlus,
+            iconColor: "#059669",
+            badge: "Action",
+            onSelect: () => onNavigate("onboarding"),
+          },
+          {
+            id: "act-broadcast",
+            title: "Quick Action: Broadcast Platform Announcement",
+            subtitle: "Publish system maintenance, feature updates or alerts to school admins",
+            category: "Quick Actions",
+            keywords: ["broadcast", "announcement", "notice", "alert", "publish", "notify"],
+            icon: Send,
+            iconColor: "#0284C7",
+            badge: "Action",
+            onSelect: () => onOpenAction?.("announcement"),
+          },
+          {
+            id: "act-ticket",
+            title: "Quick Action: Create Support Ticket",
+            subtitle: "Log administrative ticket or school issue on the support desk",
+            category: "Quick Actions",
+            keywords: ["create ticket", "new ticket", "issue", "support ticket", "escalate"],
+            icon: LifeBuoy,
+            iconColor: "#EA580C",
+            badge: "Action",
+            onSelect: () => onOpenAction?.("ticket"),
+          },
+          {
+            id: "act-plan",
+            title: "Quick Action: Create Subscription Plan",
+            subtitle: "Define new pricing tier, quota allocations and feature flags",
+            category: "Quick Actions",
+            keywords: ["create plan", "new plan", "tier", "pricing", "pricing plan"],
+            icon: Layers,
+            iconColor: "#7C3AED",
+            badge: "Action",
+            onSelect: () => onOpenAction?.("create_plan"),
           },
         ];
 
@@ -927,18 +1107,22 @@ export function GlobalPortalSearch({
     }
   }, [role, onNavigate, onOpenAction]);
 
-  // Fuzzy search filter
+  // Fuzzy search filter + Live entity search
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return catalog;
-    return catalog.filter((item) => {
+    const filteredCatalog = !q ? catalog : catalog.filter((item) => {
       const inTitle = item.title.toLowerCase().includes(q);
       const inSubtitle = item.subtitle?.toLowerCase().includes(q) ?? false;
       const inCategory = item.category.toLowerCase().includes(q);
       const inKeywords = item.keywords.some((k) => k.toLowerCase().includes(q));
       return inTitle || inSubtitle || inCategory || inKeywords;
     });
-  }, [catalog, query]);
+
+    if (liveResults.length > 0) {
+      return [...liveResults, ...filteredCatalog];
+    }
+    return filteredCatalog;
+  }, [catalog, query, liveResults]);
 
   // Keyboard navigation through list (ArrowUp, ArrowDown, Enter)
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -1014,7 +1198,11 @@ export function GlobalPortalSearch({
             background: "#FFFFFF",
           }}
         >
-          <Search size={18} color="#495D72" style={{ flexShrink: 0 }} />
+          {isSearchingLive ? (
+            <Loader2 size={18} color="#059669" className="animate-spin" style={{ flexShrink: 0 }} />
+          ) : (
+            <Search size={18} color="#495D72" style={{ flexShrink: 0 }} />
+          )}
           <input
             ref={inputRef}
             type="text"
@@ -1025,7 +1213,9 @@ export function GlobalPortalSearch({
             }}
             onKeyDown={handleKeyDown}
             placeholder={
-              role === "school_admin"
+              role === "platform"
+                ? "Search schools, tickets, plans, invoices, settings & navigation..."
+                : role === "school_admin"
                 ? "Search settings, timetable, fees, students, attendance, actions..."
                 : role === "teacher"
                 ? "Search my classes, take attendance, timetable, assignments..."

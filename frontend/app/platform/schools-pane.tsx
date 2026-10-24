@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ArrowLeft, Check, X, Loader2, Copy, Clock, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Check, X, Loader2, Copy, Clock, CheckCircle2, Pencil, Building2, Globe, Phone, Mail, MapPin, AlertCircle, Search } from "lucide-react";
 import { School, FeatureOverride } from "./types";
-import { getAuditLogs, getSchoolRoleFeatureMatrix, updateSchoolRoleFeatureMatrix } from "../edops-api";
+import { getAuditLogs, getSchoolRoleFeatureMatrix, updateSchoolRoleFeatureMatrix, updatePlatformSchool } from "../edops-api";
 import { DashboardNavigationEditor } from "./dashboard-navigation-editor";
 
 export function SchoolsPane({
@@ -14,7 +14,8 @@ export function SchoolsPane({
   onRemoveOverride,
   onOverridesChanged,
   onLifecycleChange,
-  onOpenSupportSessionModal
+  onOpenSupportSessionModal,
+  onSchoolUpdated,
 }: {
   schools: School[];
   selectedSchool: School | null;
@@ -24,9 +25,12 @@ export function SchoolsPane({
   onOverridesChanged: () => void;
   onLifecycleChange: (schoolId: string, status: string, extendDays?: number) => void;
   onOpenSupportSessionModal: (s: School) => void;
+  onSchoolUpdated?: (updatedSchool: School) => void;
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [copiedSchoolId, setCopiedSchoolId] = useState<string | null>(null);
+  const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [schoolDetailTab, setSchoolDetailTab] = useState<
     "overview" | "users" | "usage" | "features" | "subscription" | "billing" | "activity"
   >("overview");
@@ -97,6 +101,20 @@ export function SchoolsPane({
 
   const filteredSchools = schools.filter(s => {
     if (statusFilter !== "all" && s.status !== statusFilter) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const match =
+        (s.name && s.name.toLowerCase().includes(q)) ||
+        (s.code && s.code.toLowerCase().includes(q)) ||
+        (s.slug && s.slug.toLowerCase().includes(q)) ||
+        (s.board && s.board.toLowerCase().includes(q)) ||
+        (s.city && s.city.toLowerCase().includes(q)) ||
+        (s.state && s.state.toLowerCase().includes(q)) ||
+        (s.officialEmail && s.officialEmail.toLowerCase().includes(q)) ||
+        (s.officialPhone && s.officialPhone.toLowerCase().includes(q)) ||
+        (s.plan && s.plan.toLowerCase().includes(q));
+      if (!match) return false;
+    }
     return true;
   });
 
@@ -107,26 +125,72 @@ export function SchoolsPane({
 
   if (!selectedSchool) {
     return (
-      <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "20px" }}>
+      <>
+        <div style={{ background: "#FFF", border: "1px solid #E5E7EB", borderRadius: "10px", padding: "20px" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "12px" }}>
           <div>
             <h2 style={{ fontSize: "17px", fontWeight: 700, color: "#111827", margin: 0 }}>All Schools Directory</h2>
             <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#6B7280" }}>Manage school lifecycle, subscriptions, feature overrides, and health</p>
           </div>
-          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
-            {["all", "active", "trial", "suspended", "archived"].map((st) => (
-              <button
-                key={st}
-                onClick={() => setStatusFilter(st)}
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            {/* Search Input */}
+            <div style={{ position: "relative", minWidth: "240px" }}>
+              <Search size={14} style={{ position: "absolute", left: "10px", top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+              <input
+                type="text"
+                placeholder="Search school, code, board, city..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
-                  padding: "5px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 600, textTransform: "capitalize",
-                  background: statusFilter === st ? "#064E3B" : "#F3F4F6",
-                  color: statusFilter === st ? "#F8E7C9" : "#4B5563", border: "none", cursor: "pointer"
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "6px 28px 6px 30px",
+                  borderRadius: "6px",
+                  border: "1px solid #D1D5DB",
+                  fontSize: "12.5px",
+                  outline: "none",
+                  background: "#F9FAFB",
                 }}
-              >
-                {st}
-              </button>
-            ))}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  style={{
+                    position: "absolute",
+                    right: "8px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    padding: 0,
+                    cursor: "pointer",
+                    color: "#9CA3AF",
+                    display: "flex",
+                  }}
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Status Filter Chips */}
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+              {["all", "active", "trial", "suspended", "archived"].map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setStatusFilter(st)}
+                  style={{
+                    padding: "5px 12px", borderRadius: "6px", fontSize: "12px", fontWeight: 600, textTransform: "capitalize",
+                    background: statusFilter === st ? "#064E3B" : "#F3F4F6",
+                    color: statusFilter === st ? "#F8E7C9" : "#4B5563", border: "none", cursor: "pointer"
+                  }}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -246,6 +310,25 @@ export function SchoolsPane({
                         </button>
                       )}
                       <button
+                        onClick={() => setEditingSchool(s)}
+                        style={{
+                          padding: "5px 10px",
+                          background: "#F3F4F6",
+                          border: "1px solid #D1D5DB",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                        title="Edit School Details"
+                      >
+                        <Pencil size={12} />
+                        Edit
+                      </button>
+                      <button
                         onClick={() => onSelectSchool(s)}
                         style={{ padding: "5px 10px", background: "#EEF2F6", border: "1px solid #D1D5DB", borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
                       >
@@ -262,10 +345,51 @@ export function SchoolsPane({
                   </td>
                 </tr>
               ))}
+              {filteredSchools.length === 0 && (
+                <tr>
+                  <td colSpan={7} style={{ padding: "40px 20px", textAlign: "center", color: "#6B7280" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                      <AlertCircle size={28} style={{ color: "#9CA3AF" }} />
+                      <div style={{ fontWeight: 600, fontSize: "14px", color: "#374151" }}>No schools found</div>
+                      <div style={{ fontSize: "12px", color: "#9CA3AF" }}>
+                        {searchQuery ? `No schools matching "${searchQuery}" with status "${statusFilter}"` : `No schools registered with status "${statusFilter}"`}
+                      </div>
+                      {(searchQuery || statusFilter !== "all") && (
+                        <button
+                          type="button"
+                          onClick={() => { setSearchQuery(""); setStatusFilter("all"); }}
+                          style={{
+                            marginTop: "6px",
+                            padding: "4px 10px",
+                            borderRadius: "5px",
+                            border: "1px solid #D1D5DB",
+                            background: "#FFF",
+                            fontSize: "12px",
+                            cursor: "pointer",
+                            color: "#4B5563",
+                          }}
+                        >
+                          Clear search &amp; filters
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
       </div>
+      {editingSchool && (
+        <EditSchoolModal
+          school={editingSchool}
+          onClose={() => setEditingSchool(null)}
+          onSaved={(updated) => {
+            onSchoolUpdated?.(updated);
+          }}
+        />
+      )}
+    </>
     );
   }
 
@@ -287,6 +411,25 @@ export function SchoolsPane({
         </div>
 
         <div style={{ display: "flex", gap: "8px" }}>
+          <button
+            onClick={() => setEditingSchool(selectedSchool)}
+            style={{
+              padding: "6px 12px",
+              background: "#064E3B",
+              color: "#F8E7C9",
+              border: "none",
+              borderRadius: "6px",
+              fontWeight: 700,
+              fontSize: "12px",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+            }}
+          >
+            <Pencil size={13} />
+            Edit School Details
+          </button>
           {selectedSchool.status === "active" ? (
             <button
               onClick={() => onLifecycleChange(selectedSchool.id, "suspended")}
@@ -415,22 +558,62 @@ export function SchoolsPane({
 
       {/* Subtab 1: School Overview */}
       {schoolDetailTab === "overview" && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
-          <div style={{ background: "#F9FAFB", padding: "16px", borderRadius: "8px" }}>
-            <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700 }}>School Information</h4>
-            <div style={{ display: "grid", gap: "8px", fontSize: "12.5px" }}>
-              <div><b>Board:</b> {selectedSchool.board}</div>
-              <div><b>Official Email:</b> {selectedSchool.officialEmail || "—"}</div>
-              <div><b>Health Score:</b> {selectedSchool.healthScore || 0} / 100</div>
-              <div><b>Registered Location:</b> {selectedSchool.city}, {selectedSchool.state}</div>
+        <div style={{ display: "grid", gap: "16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", background: "#F9FAFB", padding: "12px 18px", borderRadius: "8px", border: "1px solid #E5E7EB" }}>
+            <div>
+              <div style={{ fontSize: "14px", fontWeight: 700, color: "#111827" }}>Organization Profile & Administrative Details</div>
+              <div style={{ fontSize: "12px", color: "#6B7280", marginTop: "2px" }}>Platform Admin controls for institutional identity, legal records & campus addresses</div>
             </div>
+            <button
+              onClick={() => setEditingSchool(selectedSchool)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                background: "#064E3B",
+                color: "#F8E7C9",
+                border: "none",
+                borderRadius: "6px",
+                fontSize: "12px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              <Pencil size={13} /> Edit School Details
+            </button>
           </div>
-          <div style={{ background: "#F9FAFB", padding: "16px", borderRadius: "8px" }}>
-            <h4 style={{ margin: "0 0 12px", fontSize: "14px", fontWeight: 700 }}>Academic Status</h4>
-            <div style={{ display: "grid", gap: "8px", fontSize: "12.5px" }}>
-              <div><b>Status:</b> <span style={{ fontWeight: 700, textTransform: "uppercase" }}>{selectedSchool.status}</span></div>
-              <div><b>Academic Year:</b> {selectedSchool.academicYear || "—"}</div>
-              <div><b>Leadership & Staff:</b> Provisioned via School Admin</div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+            <div style={{ background: "#F9FAFB", padding: "16px", borderRadius: "8px", border: "1px solid #E5E7EB" }}>
+              <h4 style={{ margin: "0 0 12px", fontSize: "13.5px", fontWeight: 700, color: "#064E3B", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Building2 size={15} /> School Identity & Affiliation
+              </h4>
+              <div style={{ display: "grid", gap: "8px", fontSize: "12.5px" }}>
+                <div><b>Official Name:</b> {selectedSchool.name}</div>
+                <div><b>Slug:</b> <code>{selectedSchool.slug}</code></div>
+                <div><b>School Code:</b> <code>{selectedSchool.code || selectedSchool.slug}</code></div>
+                <div><b>School Type:</b> {selectedSchool.schoolType || "K-12"}</div>
+                <div><b>Board:</b> {selectedSchool.board || "—"}</div>
+                <div><b>Registration No:</b> {selectedSchool.registrationNumber || "—"}</div>
+                <div><b>Affiliation No:</b> {selectedSchool.affiliationNumber || "—"}</div>
+                <div><b>Established Year:</b> {selectedSchool.establishedYear || "—"}</div>
+              </div>
+            </div>
+
+            <div style={{ background: "#F9FAFB", padding: "16px", borderRadius: "8px", border: "1px solid #E5E7EB" }}>
+              <h4 style={{ margin: "0 0 12px", fontSize: "13.5px", fontWeight: 700, color: "#064E3B", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Mail size={15} /> Contacts & Campus Address
+              </h4>
+              <div style={{ display: "grid", gap: "8px", fontSize: "12.5px" }}>
+                <div><b>Official Email:</b> {selectedSchool.officialEmail || "—"}</div>
+                <div><b>Official Phone:</b> {selectedSchool.officialPhone || "—"}</div>
+                <div><b>Website:</b> {selectedSchool.website ? <a href={selectedSchool.website.startsWith("http") ? selectedSchool.website : `https://${selectedSchool.website}`} target="_blank" rel="noreferrer" style={{ color: "#064E3B", textDecoration: "underline" }}>{selectedSchool.website}</a> : "—"}</div>
+                <div><b>Address:</b> {[selectedSchool.addressLine1, selectedSchool.addressLine2].filter(Boolean).join(", ") || "—"}</div>
+                <div><b>Location:</b> {[selectedSchool.city, selectedSchool.state, selectedSchool.pincode, selectedSchool.country].filter(Boolean).join(", ") || "—"}</div>
+                <div><b>Timezone / Locale:</b> {selectedSchool.timeZone || "Asia/Kolkata"} · {selectedSchool.locale || "en-IN"}</div>
+                <div><b>Platform Health Score:</b> {selectedSchool.healthScore || 0} / 100</div>
+              </div>
             </div>
           </div>
         </div>
@@ -705,6 +888,528 @@ export function SchoolsPane({
 
         </div>
       )}
+
+      {editingSchool && (
+        <EditSchoolModal
+          school={editingSchool}
+          onClose={() => setEditingSchool(null)}
+          onSaved={(updated) => {
+            onSchoolUpdated?.(updated);
+            if (selectedSchool?.id === updated.id) {
+              onSelectSchool(updated);
+            }
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function EditSchoolModal({
+  school,
+  onClose,
+  onSaved,
+}: {
+  school: School;
+  onClose: () => void;
+  onSaved: (updatedSchool: School) => void;
+}) {
+  const [formData, setFormData] = useState({
+    name: school.name || "",
+    slug: school.slug || "",
+    code: school.code || "",
+    board: school.board || "CBSE",
+    schoolType: school.schoolType || "K-12",
+    establishedYear: school.establishedYear != null ? String(school.establishedYear) : "",
+    registrationNumber: school.registrationNumber || "",
+    affiliationNumber: school.affiliationNumber || "",
+    officialEmail: school.officialEmail || "",
+    officialPhone: school.officialPhone || "",
+    website: school.website || "",
+    addressLine1: school.addressLine1 || "",
+    addressLine2: school.addressLine2 || "",
+    city: school.city || "",
+    state: school.state || "",
+    country: school.country || "India",
+    pincode: school.pincode || "",
+    timeZone: school.timeZone || "Asia/Kolkata",
+    locale: school.locale || "en-IN",
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.name.trim()) {
+      setError("School name is required");
+      return;
+    }
+    if (!formData.slug.trim()) {
+      setError("Slug is required");
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const payload: any = {
+        name: formData.name.trim(),
+        slug: formData.slug.trim(),
+        code: formData.code.trim() || undefined,
+        board: formData.board.trim() || undefined,
+        schoolType: formData.schoolType.trim() || undefined,
+        establishedYear: formData.establishedYear ? parseInt(formData.establishedYear, 10) : undefined,
+        registrationNumber: formData.registrationNumber.trim() || undefined,
+        affiliationNumber: formData.affiliationNumber.trim() || undefined,
+        officialEmail: formData.officialEmail.trim() || undefined,
+        officialPhone: formData.officialPhone.trim() || undefined,
+        website: formData.website.trim() || undefined,
+        addressLine1: formData.addressLine1.trim() || undefined,
+        addressLine2: formData.addressLine2.trim() || undefined,
+        city: formData.city.trim() || undefined,
+        state: formData.state.trim() || undefined,
+        country: formData.country.trim() || undefined,
+        pincode: formData.pincode.trim() || undefined,
+        timeZone: formData.timeZone.trim() || undefined,
+        locale: formData.locale.trim() || undefined,
+      };
+      const res = await updatePlatformSchool(school.id, payload);
+      const updatedSchool: School = {
+        ...school,
+        ...res,
+      };
+      onSaved(updatedSchool);
+      onClose();
+    } catch (err: any) {
+      setError(err?.message || "Failed to update school details");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        backgroundColor: "rgba(0, 0, 0, 0.55)",
+        backdropFilter: "blur(3px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1100,
+        padding: "16px",
+      }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !busy) onClose();
+      }}
+    >
+      <div
+        style={{
+          background: "#FFFFFF",
+          borderRadius: "12px",
+          width: "100%",
+          maxWidth: "760px",
+          maxHeight: "90vh",
+          display: "flex",
+          flexDirection: "column",
+          boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
+          border: "1px solid #E5E7EB",
+          overflow: "hidden",
+        }}
+      >
+        {/* Header */}
+        <div
+          style={{
+            padding: "18px 24px",
+            background: "#064E3B",
+            color: "#FFFFFF",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <div>
+            <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#F8E7C9" }}>
+              Edit School Organization Details
+            </h3>
+            <p style={{ margin: "3px 0 0", fontSize: "12px", color: "rgba(255, 255, 255, 0.8)" }}>
+              Update official school profile, academic board, affiliation, contacts & campus address
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={busy}
+            style={{
+              background: "rgba(255, 255, 255, 0.15)",
+              border: "none",
+              borderRadius: "6px",
+              color: "#FFFFFF",
+              cursor: busy ? "not-allowed" : "pointer",
+              padding: "6px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Form Body */}
+        <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", overflow: "hidden", flex: 1 }}>
+          <div style={{ padding: "20px 24px", overflowY: "auto", flex: 1, display: "flex", flexDirection: "column", gap: "20px" }}>
+            {error && (
+              <div
+                style={{
+                  background: "#FEF2F2",
+                  border: "1px solid #F87171",
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  color: "#991B1B",
+                  fontSize: "12.5px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <AlertCircle size={16} color="#DC2626" style={{ flexShrink: 0 }} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Section 1: Basic Identity */}
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#064E3B", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Building2 size={15} /> 1. Basic Identity & Tenant Settings
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    School Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Slug (URL identifier) *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    School Code (Tenant Key)
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.code}
+                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
+                    placeholder="e.g. VJS001"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    School Type
+                  </label>
+                  <select
+                    value={formData.schoolType}
+                    onChange={(e) => setFormData({ ...formData, schoolType: e.target.value })}
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", background: "#FFF", boxSizing: "border-box" }}
+                  >
+                    <option value="K-12">K-12 (Kindergarten to 12th)</option>
+                    <option value="Primary School">Primary School (Grades 1-5)</option>
+                    <option value="Middle School">Middle School (Grades 6-8)</option>
+                    <option value="High School">High School (Grades 9-10)</option>
+                    <option value="Senior Secondary">Senior Secondary (Grades 11-12)</option>
+                    <option value="Pre-School / Daycare">Pre-School / Daycare</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Section 2: Board & Affiliation */}
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#064E3B", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <CheckCircle2 size={15} /> 2. Academic Board & Registrations
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Curriculum / Board
+                  </label>
+                  <select
+                    value={formData.board}
+                    onChange={(e) => setFormData({ ...formData, board: e.target.value })}
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", background: "#FFF", boxSizing: "border-box" }}
+                  >
+                    <option value="CBSE">CBSE (Central Board)</option>
+                    <option value="ICSE">ICSE / ISC</option>
+                    <option value="IB">IB (International Baccalaureate)</option>
+                    <option value="Cambridge">Cambridge / IGCSE</option>
+                    <option value="State Board">State Board</option>
+                    <option value="Other">Other / Alternative</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Registration Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.registrationNumber}
+                    onChange={(e) => setFormData({ ...formData, registrationNumber: e.target.value })}
+                    placeholder="e.g. REG-2024-987"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Affiliation Number
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.affiliationNumber}
+                    onChange={(e) => setFormData({ ...formData, affiliationNumber: e.target.value })}
+                    placeholder="e.g. CBSE/AFF/213009"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Established Year
+                  </label>
+                  <input
+                    type="number"
+                    min="1800"
+                    max="2100"
+                    value={formData.establishedYear}
+                    onChange={(e) => setFormData({ ...formData, establishedYear: e.target.value })}
+                    placeholder="e.g. 1995"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Timezone
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.timeZone}
+                    onChange={(e) => setFormData({ ...formData, timeZone: e.target.value })}
+                    placeholder="Asia/Kolkata"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Locale
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.locale}
+                    onChange={(e) => setFormData({ ...formData, locale: e.target.value })}
+                    placeholder="en-IN"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 3: Official Contact & Web */}
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#064E3B", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <Mail size={15} /> 3. Official Contact & Online Presence
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Official Email
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.officialEmail}
+                    onChange={(e) => setFormData({ ...formData, officialEmail: e.target.value })}
+                    placeholder="admin@school.edu"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Official Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={formData.officialPhone}
+                    onChange={(e) => setFormData({ ...formData, officialPhone: e.target.value })}
+                    placeholder="+91 9876543210"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Official Website
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.website}
+                    onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                    placeholder="https://www.school.edu"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Section 4: Physical Address */}
+            <div>
+              <div style={{ fontSize: "13px", fontWeight: 700, color: "#064E3B", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <MapPin size={15} /> 4. Campus Location & Physical Address
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Address Line 1
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.addressLine1}
+                    onChange={(e) => setFormData({ ...formData, addressLine1: e.target.value })}
+                    placeholder="Street, Campus Block, Road"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Address Line 2
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.addressLine2}
+                    onChange={(e) => setFormData({ ...formData, addressLine2: e.target.value })}
+                    placeholder="Area, Landmark"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "12px" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    placeholder="e.g. Pune"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    State
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.state}
+                    onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                    placeholder="e.g. Maharashtra"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Country
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.country}
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+                    placeholder="India"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "11.5px", fontWeight: 600, color: "#374151", marginBottom: "4px" }}>
+                    Pincode / ZIP
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.pincode}
+                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                    placeholder="411001"
+                    style={{ width: "100%", padding: "7px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "13px", boxSizing: "border-box" }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Modal Footer */}
+          <div
+            style={{
+              padding: "14px 24px",
+              background: "#F9FAFB",
+              borderTop: "1px solid #E5E7EB",
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              gap: "10px",
+            }}
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy}
+              style={{
+                padding: "8px 16px",
+                background: "#FFFFFF",
+                border: "1px solid #D1D5DB",
+                borderRadius: "6px",
+                color: "#374151",
+                fontSize: "13px",
+                fontWeight: 600,
+                cursor: busy ? "not-allowed" : "pointer",
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={busy}
+              style={{
+                padding: "8px 20px",
+                background: "#064E3B",
+                border: "none",
+                borderRadius: "6px",
+                color: "#F8E7C9",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: busy ? "not-allowed" : "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              {busy ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+              {busy ? "Saving Changes..." : "Save School Details"}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
