@@ -21,6 +21,7 @@ import {
   getStudentAvatarUrl,
   sendStudentInvite,
   getSchoolAdminStudent360,
+  getSchoolAdminAcademics,
 } from "../edops-api";
 import {
   Users,
@@ -759,17 +760,21 @@ export function PeoplePane({
   const [isMappingWards, setIsMappingWards] = useState(false);
   const [selectedWardIds, setSelectedWardIds] = useState<string[]>([]);
   const [wardSearchQuery, setWardSearchQuery] = useState("");
-  const [wardClassFilter, setWardClassFilter] = useState("all");
+  const [wardClassFilter, setWardClassFilter] = useState("");
   const [wardSectionFilter, setWardSectionFilter] = useState("all");
   const [wardUnmappedOnly, setWardUnmappedOnly] = useState(false);
   const [savingWards, setSavingWards] = useState(false);
+  const [academicsData, setAcademicsData] = useState<{ programs: any[]; sections: any[] } | null>(null);
 
   const handleStartMappingWards = (parent: ParentRecord) => {
     const currentIds = (parent.children || []).map((ch: any) => ch.studentId || ch.id).filter(Boolean);
     setSelectedWardIds(currentIds);
     setWardSearchQuery("");
-    setWardClassFilter("all");
-    setWardSectionFilter("all");
+    const firstChild = (parent.children || [])[0];
+    const initialClass = firstChild?.grade || "";
+    const initialSection = firstChild?.section || "all";
+    setWardClassFilter(initialClass);
+    setWardSectionFilter(initialSection);
     setWardUnmappedOnly(false);
     setIsMappingWards(true);
   };
@@ -843,25 +848,33 @@ export function PeoplePane({
 
   const availableClassesForWards = useMemo(() => {
     const set = new Set<string>();
+    (academicsData?.programs || []).forEach((p: any) => {
+      if (p.name) set.add(p.name);
+    });
     students.forEach((s) => {
       const cls = s.grade || s.className;
       if (cls) set.add(cls);
     });
-    return Array.from(set).sort();
-  }, [students]);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [academicsData, students]);
 
   const availableSectionsForWards = useMemo(() => {
     const set = new Set<string>();
+    (academicsData?.sections || []).forEach((sec: any) => {
+      if (!wardClassFilter || wardClassFilter === "all" || (sec.programName || "").toLowerCase() === wardClassFilter.toLowerCase()) {
+        if (sec.name) set.add(sec.name);
+      }
+    });
     students.forEach((s) => {
       const cls = (s.grade || s.className || "").toLowerCase();
-      if (wardClassFilter !== "all" && cls !== wardClassFilter.toLowerCase()) {
+      if (wardClassFilter && wardClassFilter !== "all" && cls !== wardClassFilter.toLowerCase()) {
         return;
       }
       const sec = s.section || s.sectionName;
       if (sec) set.add(sec);
     });
     return Array.from(set).sort();
-  }, [students, wardClassFilter]);
+  }, [academicsData, students, wardClassFilter]);
 
   const studentGuardianMap = useMemo(() => {
     const map = new Map<string, { parentName: string; rel?: string }[]>();
@@ -883,6 +896,9 @@ export function PeoplePane({
   }, [students, studentGuardianMap]);
 
   const filteredStudentsForWards = useMemo(() => {
+    if (!wardClassFilter) {
+      return [];
+    }
     return students.filter((s) => {
       const sid = s.userId || s.id;
       // Class/Grade filter
@@ -1018,6 +1034,15 @@ export function PeoplePane({
       };
     }
   }, [selectedStudent, selectedTeacher, selectedStaff, selectedParent, selectedDept]);
+
+  // Load academics data (classes & sections) on demand for ward mapping
+  useEffect(() => {
+    if (organizationId && (subtab === "parents" || selectedParent || isMappingWards) && !academicsData) {
+      getSchoolAdminAcademics(organizationId)
+        .then((data) => setAcademicsData(data))
+        .catch(() => {});
+    }
+  }, [organizationId, subtab, selectedParent, isMappingWards, academicsData]);
 
   // Load students on demand if Parent Dossier is opened (for ward mapping)
   useEffect(() => {
@@ -7290,142 +7315,204 @@ export function PeoplePane({
                           </div>
                         )}
 
-                        {/* Search & Filter Bar */}
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                          {/* Search Input */}
-                          <div style={{ position: "relative" }}>
-                            <Search
-                              size={14}
-                              style={{
-                                position: "absolute",
-                                left: "10px",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                color: "#94A3B8",
-                              }}
-                            />
-                            <input
-                              type="text"
-                              placeholder="Search student by name, admission no, roll, class..."
-                              value={wardSearchQuery}
-                              onChange={(e) => setWardSearchQuery(e.target.value)}
-                              style={{
-                                width: "100%",
-                                padding: "7px 28px 7px 32px",
-                                fontSize: "12px",
-                                border: "1px solid #CBD5E1",
-                                borderRadius: "6px",
-                                outline: "none",
-                                boxSizing: "border-box",
-                                fontFamily: "'Poppins', sans-serif",
-                                background: "#FFFFFF",
-                              }}
-                            />
-                            {wardSearchQuery && (
+                        {/* Step 1: Dedicated Class & Section Scope Selector */}
+                        <div
+                          style={{
+                            background: "#F8FAFC",
+                            border: "1px solid #E2E8F0",
+                            borderRadius: "8px",
+                            padding: "10px 12px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "8px",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#0C1E33", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                              Step 1: Select Class & Section
+                            </span>
+                            {wardClassFilter && (
                               <button
                                 type="button"
-                                onClick={() => setWardSearchQuery("")}
+                                onClick={() => {
+                                  setWardClassFilter("");
+                                  setWardSectionFilter("all");
+                                  setWardSearchQuery("");
+                                }}
                                 style={{
-                                  position: "absolute",
-                                  right: "8px",
-                                  top: "50%",
-                                  transform: "translateY(-50%)",
                                   background: "none",
                                   border: "none",
-                                  padding: 0,
+                                  color: "#DC2626",
+                                  fontSize: "10.5px",
+                                  fontWeight: 600,
                                   cursor: "pointer",
-                                  color: "#94A3B8",
-                                  display: "flex",
+                                  padding: 0,
                                 }}
                               >
-                                <X size={14} />
+                                Change Class
                               </button>
                             )}
                           </div>
 
-                          {/* Quick Filter Controls: Class Dropdown + Section Dropdown + Unlinked Toggle */}
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap" }}>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                              {/* Class Filter */}
-                              <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                                <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748B" }}>Class:</span>
-                                <select
-                                  value={wardClassFilter}
-                                  onChange={(e) => {
-                                    setWardClassFilter(e.target.value);
-                                    setWardSectionFilter("all");
-                                  }}
-                                  style={{
-                                    padding: "4px 8px",
-                                    fontSize: "11px",
-                                    fontWeight: wardClassFilter !== "all" ? 600 : 400,
-                                    border: "1px solid",
-                                    borderColor: wardClassFilter !== "all" ? "#0C1E33" : "#CBD5E1",
-                                    borderRadius: "5px",
-                                    background: wardClassFilter !== "all" ? "#0C1E33" : "#FFFFFF",
-                                    color: wardClassFilter !== "all" ? "#F8E7C9" : "#0C1E33",
-                                    outline: "none",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  <option value="all">All Classes</option>
-                                  {availableClassesForWards.map((cls) => (
-                                    <option key={cls} value={cls}>
-                                      {cls}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                            {/* Class Selector */}
+                            <div>
+                              <label style={{ display: "block", fontSize: "10.5px", fontWeight: 600, color: "#475569", marginBottom: "3px" }}>
+                                Class / Grade
+                              </label>
+                              <select
+                                value={wardClassFilter}
+                                onChange={(e) => {
+                                  setWardClassFilter(e.target.value);
+                                  setWardSectionFilter("all");
+                                }}
+                                style={{
+                                  width: "100%",
+                                  padding: "6px 8px",
+                                  fontSize: "12px",
+                                  fontWeight: wardClassFilter ? 600 : 400,
+                                  border: "1.5px solid",
+                                  borderColor: wardClassFilter ? "#0C1E33" : "#CBD5E1",
+                                  borderRadius: "6px",
+                                  background: wardClassFilter ? "#0C1E33" : "#FFFFFF",
+                                  color: wardClassFilter ? "#F8E7C9" : "#0C1E33",
+                                  outline: "none",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <option value="">-- Choose Class --</option>
+                                <option value="all">All Classes (School-wide)</option>
+                                {availableClassesForWards.map((cls) => (
+                                  <option key={cls} value={cls}>
+                                    {cls}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
 
-                              {/* Section Filter */}
-                              <div style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                                <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748B" }}>Section:</span>
-                                <select
-                                  value={wardSectionFilter}
-                                  onChange={(e) => setWardSectionFilter(e.target.value)}
-                                  style={{
-                                    padding: "4px 8px",
-                                    fontSize: "11px",
-                                    fontWeight: wardSectionFilter !== "all" ? 600 : 400,
-                                    border: "1px solid",
-                                    borderColor: wardSectionFilter !== "all" ? "#0C1E33" : "#CBD5E1",
-                                    borderRadius: "5px",
-                                    background: wardSectionFilter !== "all" ? "#0C1E33" : "#FFFFFF",
-                                    color: wardSectionFilter !== "all" ? "#F8E7C9" : "#0C1E33",
-                                    outline: "none",
-                                    cursor: "pointer",
-                                  }}
-                                >
-                                  <option value="all">All Sections</option>
-                                  {availableSectionsForWards.map((sec) => (
-                                    <option key={sec} value={sec}>
-                                      {sec}
-                                    </option>
-                                  ))}
-                                </select>
-                              </div>
+                            {/* Section Selector */}
+                            <div>
+                              <label style={{ display: "block", fontSize: "10.5px", fontWeight: 600, color: "#475569", marginBottom: "3px" }}>
+                                Section
+                              </label>
+                              <select
+                                value={wardSectionFilter}
+                                disabled={!wardClassFilter}
+                                onChange={(e) => setWardSectionFilter(e.target.value)}
+                                style={{
+                                  width: "100%",
+                                  padding: "6px 8px",
+                                  fontSize: "12px",
+                                  fontWeight: wardSectionFilter !== "all" ? 600 : 400,
+                                  border: "1.5px solid",
+                                  borderColor: !wardClassFilter ? "#E2E8F0" : wardSectionFilter !== "all" ? "#0C1E33" : "#CBD5E1",
+                                  borderRadius: "6px",
+                                  background: !wardClassFilter ? "#F1F5F9" : wardSectionFilter !== "all" ? "#0C1E33" : "#FFFFFF",
+                                  color: !wardClassFilter ? "#94A3B8" : wardSectionFilter !== "all" ? "#F8E7C9" : "#0C1E33",
+                                  outline: "none",
+                                  cursor: !wardClassFilter ? "not-allowed" : "pointer",
+                                }}
+                              >
+                                <option value="all">
+                                  {wardClassFilter ? `All Sections in ${wardClassFilter}` : "Select Class first"}
+                                </option>
+                                {availableSectionsForWards.map((sec) => (
+                                  <option key={sec} value={sec}>
+                                    {sec}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
 
-                              {/* Reset Class/Section Button */}
-                              {(wardClassFilter !== "all" || wardSectionFilter !== "all") && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setWardClassFilter("all");
-                                    setWardSectionFilter("all");
-                                  }}
+                          {/* Quick Class Pills for 1-click selection */}
+                          {availableClassesForWards.length > 0 && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap", marginTop: "2px" }}>
+                              <span style={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>Quick Class:</span>
+                              {availableClassesForWards.map((cls) => {
+                                const isSelected = wardClassFilter === cls;
+                                return (
+                                  <button
+                                    key={cls}
+                                    type="button"
+                                    onClick={() => {
+                                      setWardClassFilter(cls);
+                                      setWardSectionFilter("all");
+                                    }}
+                                    style={{
+                                      padding: "2px 8px",
+                                      borderRadius: "4px",
+                                      fontSize: "10.5px",
+                                      fontWeight: 600,
+                                      border: isSelected ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                      background: isSelected ? "#0C1E33" : "#FFFFFF",
+                                      color: isSelected ? "#F8E7C9" : "#334155",
+                                      cursor: "pointer",
+                                      transition: "all 0.1s ease",
+                                    }}
+                                  >
+                                    {cls}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Step 2: Student Search & Filter Bar (Active when Class is selected) */}
+                        {wardClassFilter ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              {/* Search Input */}
+                              <div style={{ position: "relative", flex: 1 }}>
+                                <Search
+                                  size={14}
                                   style={{
-                                    background: "none",
-                                    border: "none",
-                                    color: "#DC2626",
-                                    fontSize: "10.5px",
-                                    fontWeight: 600,
-                                    cursor: "pointer",
-                                    padding: 0,
+                                    position: "absolute",
+                                    left: "10px",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "#94A3B8",
                                   }}
-                                >
-                                  Reset
-                                </button>
-                              )}
+                                />
+                                <input
+                                  type="text"
+                                  placeholder={`Search ${wardClassFilter !== "all" ? wardClassFilter : "students"} by name, roll, admission no...`}
+                                  value={wardSearchQuery}
+                                  onChange={(e) => setWardSearchQuery(e.target.value)}
+                                  style={{
+                                    width: "100%",
+                                    padding: "6px 26px 6px 30px",
+                                    fontSize: "11.5px",
+                                    border: "1px solid #CBD5E1",
+                                    borderRadius: "6px",
+                                    outline: "none",
+                                    boxSizing: "border-box",
+                                    fontFamily: "'Poppins', sans-serif",
+                                    background: "#FFFFFF",
+                                  }}
+                                />
+                                {wardSearchQuery && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setWardSearchQuery("")}
+                                    style={{
+                                      position: "absolute",
+                                      right: "8px",
+                                      top: "50%",
+                                      transform: "translateY(-50%)",
+                                      background: "none",
+                                      border: "none",
+                                      padding: 0,
+                                      cursor: "pointer",
+                                      color: "#94A3B8",
+                                      display: "flex",
+                                    }}
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                )}
+                              </div>
 
                               {/* Unlinked Only Filter Toggle */}
                               <button
@@ -7435,8 +7522,8 @@ export function PeoplePane({
                                   display: "inline-flex",
                                   alignItems: "center",
                                   gap: "4px",
-                                  padding: "4px 9px",
-                                  borderRadius: "5px",
+                                  padding: "5px 9px",
+                                  borderRadius: "6px",
                                   fontSize: "11px",
                                   fontWeight: 600,
                                   border: "1px solid",
@@ -7444,11 +7531,12 @@ export function PeoplePane({
                                   background: wardUnmappedOnly ? "#0C1E33" : "#FFFFFF",
                                   color: wardUnmappedOnly ? "#F8E7C9" : "#475569",
                                   cursor: "pointer",
+                                  whiteSpace: "nowrap",
                                   transition: "all 0.12s ease",
                                 }}
                                 title="Show only students who do not have any guardian linked yet"
                               >
-                                <span>Unlinked Only</span>
+                                <span>Unlinked</span>
                                 <span
                                   style={{
                                     fontSize: "9.5px",
@@ -7462,13 +7550,7 @@ export function PeoplePane({
                               </button>
                             </div>
 
-                            <span style={{ fontSize: "11px", color: "#64748B" }}>
-                              <b>{filteredStudentsForWards.length}</b> student{filteredStudentsForWards.length === 1 ? "" : "s"} found
-                            </span>
-                          </div>
-
-                          {/* Active Class & Section Scope Banner */}
-                          {(wardClassFilter !== "all" || wardSectionFilter !== "all") && (
+                            {/* Active Class & Section Scope Banner */}
                             <div
                               style={{
                                 display: "flex",
@@ -7483,14 +7565,14 @@ export function PeoplePane({
                             >
                               <span>
                                 Showing: <b>{wardClassFilter !== "all" ? wardClassFilter : "All Classes"}</b>
-                                {wardSectionFilter !== "all" ? ` • ${wardSectionFilter}` : ""}
+                                {wardSectionFilter !== "all" ? ` • ${wardSectionFilter}` : " • All Sections"}
                               </span>
                               <span style={{ color: "#64748B" }}>
-                                {filteredStudentsForWards.length} student{filteredStudentsForWards.length === 1 ? "" : "s"}
+                                <b>{filteredStudentsForWards.length}</b> student{filteredStudentsForWards.length === 1 ? "" : "s"} found
                               </span>
                             </div>
-                          )}
-                        </div>
+                          </div>
+                        ) : null}
 
                         {/* Student selection list */}
                         <div
@@ -7503,7 +7585,69 @@ export function PeoplePane({
                             paddingRight: "4px",
                           }}
                         >
-                          {filteredStudentsForWards.length === 0 ? (
+                          {!wardClassFilter ? (
+                            <div
+                              style={{
+                                padding: "28px 16px",
+                                textAlign: "center",
+                                background: "#F8FAFC",
+                                border: "1px dashed #CBD5E1",
+                                borderRadius: "8px",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: "8px",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: "40px",
+                                  height: "40px",
+                                  borderRadius: "50%",
+                                  background: "#EFF6FF",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "#2563EB",
+                                }}
+                              >
+                                <GraduationCap size={22} />
+                              </div>
+                              <div>
+                                <div style={{ fontSize: "12.5px", fontWeight: 700, color: "#0C1E33" }}>
+                                  Select Class & Section to View Students
+                                </div>
+                                <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px", maxWidth: "320px" }}>
+                                  Choose a Class and Section above to display students from the database for ward mapping.
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", justifyContent: "center", marginTop: "4px" }}>
+                                {availableClassesForWards.map((cls) => (
+                                  <button
+                                    key={cls}
+                                    type="button"
+                                    onClick={() => {
+                                      setWardClassFilter(cls);
+                                      setWardSectionFilter("all");
+                                    }}
+                                    style={{
+                                      padding: "5px 12px",
+                                      background: "#FFFFFF",
+                                      border: "1px solid #CBD5E1",
+                                      borderRadius: "5px",
+                                      fontSize: "11px",
+                                      color: "#0C1E33",
+                                      cursor: "pointer",
+                                      fontWeight: 600,
+                                      boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                                    }}
+                                  >
+                                    {cls}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : filteredStudentsForWards.length === 0 ? (
                             <div
                               style={{
                                 padding: "24px 16px",
@@ -7519,24 +7663,17 @@ export function PeoplePane({
                             >
                               <Search size={20} color="#94A3B8" />
                               <div style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
-                                No Matching Students Found
+                                No Students Found in {wardClassFilter} {wardSectionFilter !== "all" ? `(${wardSectionFilter})` : ""}
                               </div>
                               <div style={{ fontSize: "11px", color: "#64748B", maxWidth: "290px" }}>
-                                {wardClassFilter !== "all" || wardSectionFilter !== "all"
-                                  ? `No students found in ${[wardClassFilter !== "all" && wardClassFilter, wardSectionFilter !== "all" && wardSectionFilter].filter(Boolean).join(" - ")}${wardSearchQuery ? ` matching "${wardSearchQuery}"` : ""}.`
-                                  : wardSearchQuery
-                                  ? `No student matching "${wardSearchQuery}".`
-                                  : "Try adjusting class, section, or unlinked filters."}
+                                {wardSearchQuery
+                                  ? `No students matching "${wardSearchQuery}".`
+                                  : "No students enrolled in this section yet."}
                               </div>
-                              {(wardSearchQuery || wardClassFilter !== "all" || wardSectionFilter !== "all" || wardUnmappedOnly) && (
+                              {wardSearchQuery && (
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    setWardSearchQuery("");
-                                    setWardClassFilter("all");
-                                    setWardSectionFilter("all");
-                                    setWardUnmappedOnly(false);
-                                  }}
+                                  onClick={() => setWardSearchQuery("")}
                                   style={{
                                     marginTop: "4px",
                                     padding: "3px 8px",
@@ -7549,7 +7686,7 @@ export function PeoplePane({
                                     fontWeight: 600,
                                   }}
                                 >
-                                  Clear All Filters
+                                  Clear Search
                                 </button>
                               )}
                             </div>
