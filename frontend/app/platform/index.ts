@@ -6,7 +6,6 @@ export * from "./plans-pane";
 export * from "./subscriptions-pane";
 export * from "./billing-pane";
 export * from "./usage-pane";
-export * from "./config-pane";
 export * from "./security-pane";
 export * from "./support-pane";
 export * from "./health-pane";

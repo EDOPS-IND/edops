@@ -833,16 +833,6 @@ export function GlobalPortalSearch({
             onSelect: () => onNavigate("usage"),
           },
           {
-            id: "pf-config",
-            title: "Global Platform Configuration",
-            subtitle: "System parameters, default terms, API thresholds and throttle limits",
-            category: "Settings",
-            keywords: ["config", "configuration", "settings", "environment", "thresholds", "throttle"],
-            icon: Sliders,
-            iconColor: "#475569",
-            onSelect: () => onNavigate("configuration"),
-          },
-          {
             id: "pf-security",
             title: "Security & Global Audit Trail",
             subtitle: "Platform audit events, privileged administrator actions and tokens",

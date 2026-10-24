@@ -191,7 +191,7 @@ FRONTEND_PID=$!
 echo -e "Waiting for Frontend to respond..."
 FRONTEND_READY=false
 for i in {1..30}; do
-  if curl -s -f http://127.0.0.1:3000 >/dev/null 2>&1; then
+  if curl -s -f http://localhost:3000 >/dev/null 2>&1 || curl -s -f http://127.0.0.1:3000 >/dev/null 2>&1; then
     FRONTEND_READY=true
     break
   fi

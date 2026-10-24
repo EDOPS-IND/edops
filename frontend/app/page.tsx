@@ -55,7 +55,6 @@ import {
   Network,
   Settings as SettingsIcon,
   ShieldCheck,
-  Sliders,
   Sparkles,
   Trophy,
   UserRound,
@@ -3129,7 +3128,6 @@ function PlatformScreen({
       const path = window.location.pathname;
       if (path.startsWith("/platform/schools")) return "schools";
       if (path.startsWith("/platform/subscriptions")) return "subscriptions";
-      if (path.startsWith("/platform/configuration")) return "configuration";
       if (path.startsWith("/platform/logs") || path.startsWith("/platform/security")) return "security";
       if (path.startsWith("/platform/support")) return "support";
     }
@@ -3258,17 +3256,6 @@ function PlatformScreen({
               <CreditCard size={18} />
             </span>
             Global Subscriptions
-          </button>
-          <button
-            className={
-              panel === "configuration" ? "nav-item active" : "nav-item"
-            }
-            onClick={() => handleSelectPanel("configuration")}
-          >
-            <span>
-              <Sliders size={18} />
-            </span>
-            Global Config
           </button>
           <button
             className={(panel === "logs" || panel === "security") ? "nav-item active" : "nav-item"}
