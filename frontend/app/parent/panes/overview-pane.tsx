@@ -38,7 +38,7 @@ export function OverviewPane({
   const notices = data?.notices || [];
 
   const pendingAssignments = assignments.filter((a: any) => a.status === "pending");
-  const attendanceRate = selectedWard.attendancePct != null ? `${selectedWard.attendancePct}%` : "94%";
+  const attendanceRate = selectedWard.attendancePct != null ? `${selectedWard.attendancePct}%` : "—";
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -95,7 +95,9 @@ export function OverviewPane({
 
           <p style={{ fontSize: "13px", color: "#475569", margin: "0 0 16px 0", lineHeight: "1.5" }}>
             Roll No: <b>{selectedWard.rollNumber || "—"}</b> • Today's Attendance:{" "}
-            <span style={{ color: "#166534", fontWeight: 700 }}>{selectedWard.todayAttendance || "Present"}</span>.
+            <span style={{ color: selectedWard.todayAttendance ? "#166534" : "#64748b", fontWeight: 700 }}>
+              {selectedWard.todayAttendance || "Not Recorded"}
+            </span>.
             Access real-time schedules, academic report cards, fee assessments, and faculty communications.
           </p>
 
@@ -228,7 +230,7 @@ export function OverviewPane({
           <div>
             <div style={{ fontSize: "28px", fontWeight: 800, color: "#144807", lineHeight: 1 }}>{attendanceRate}</div>
             <div style={{ fontSize: "11px", color: "#23730e", marginTop: "6px", fontWeight: 600 }}>
-              Status: {selectedWard.todayAttendance || "Recorded Present"}
+              Status: {selectedWard.todayAttendance || "Not Recorded"}
             </div>
           </div>
         </div>

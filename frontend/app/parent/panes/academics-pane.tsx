@@ -15,9 +15,33 @@ export function AcademicsPane({
   const subjects = selectedWard.data?.subjects || [];
   const results = selectedWard.data?.results || [];
 
+  const backendSummary = selectedWard.data?.academicSummary;
   const totalScore = results.reduce((acc: number, r: any) => acc + (Number(r.score) || 0), 0);
   const totalMax = results.reduce((acc: number, r: any) => acc + (Number(r.max) || 0), 0);
-  const avgPct = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 84;
+
+  // Derive aggregate percentage strictly from backend academicSummary or calculated from published exam results
+  const avgPct: number | null =
+    backendSummary?.aggregateAverage != null
+      ? Math.round(Number(backendSummary.aggregateAverage))
+      : totalMax > 0
+        ? Math.round((totalScore / totalMax) * 100)
+        : selectedWard.aggregateAverage != null
+          ? Math.round(Number(selectedWard.aggregateAverage))
+          : null;
+
+  // Derive academic standing strictly from backend assessment data; null if no assessments have been recorded
+  const academicStanding: string | null =
+    backendSummary?.academicStanding ||
+    selectedWard.academicStanding ||
+    (avgPct != null
+      ? avgPct >= 80
+        ? "Exemplary"
+        : avgPct >= 65
+          ? "Good"
+          : avgPct >= 40
+            ? "Average"
+            : "Needs Support"
+      : null);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -106,9 +130,11 @@ export function AcademicsPane({
             <CheckCircle2 size={16} color="#0a5a7a" />
           </div>
           <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#074158", lineHeight: 1 }}>{avgPct}%</div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#074158", lineHeight: 1 }}>
+              {avgPct != null ? `${avgPct}%` : "—"}
+            </div>
             <div style={{ fontSize: "11px", color: "#0d6e94", marginTop: "6px", fontWeight: 600 }}>
-              Term Assessment Average
+              {avgPct != null ? "Term Assessment Average" : "No Assessments Recorded"}
             </div>
           </div>
         </div>
@@ -135,10 +161,10 @@ export function AcademicsPane({
           </div>
           <div>
             <div style={{ fontSize: "28px", fontWeight: 800, color: "#561e00", lineHeight: 1 }}>
-              {avgPct >= 80 ? "Exemplary" : avgPct >= 65 ? "Good" : "Needs Support"}
+              {academicStanding || "—"}
             </div>
             <div style={{ fontSize: "11px", color: "#943502", marginTop: "6px", fontWeight: 600 }}>
-              Performance Track Verified
+              {academicStanding ? "Performance Track Verified" : "Pending Official Evaluation"}
             </div>
           </div>
         </div>

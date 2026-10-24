@@ -87,7 +87,23 @@ export class AcademicsService {
             JOIN attendance_sessions sess ON sess.id = ar.attendance_session_id AND sess.organization_id=ar.organization_id
             WHERE ar.organization_id = $1 AND ar.student_id = user_account.id AND sess.date=CURRENT_DATE AND sess.status='finalized'
             ORDER BY sess.date DESC LIMIT 1
-          ), 'Unknown') AS "todayAttendance"
+          ), NULL) AS "todayAttendance",
+          (
+            SELECT ROUND(AVG(r.percentage)::numeric, 1)
+            FROM principal_exam_results r
+            WHERE r.organization_id = $1 AND r.student_user_id = user_account.id AND r.status = 'Published'
+          ) AS "aggregateAverage",
+          (
+            SELECT CASE
+              WHEN COUNT(*) = 0 THEN NULL
+              WHEN AVG(r.percentage) >= 80 THEN 'Exemplary'
+              WHEN AVG(r.percentage) >= 65 THEN 'Good'
+              WHEN AVG(r.percentage) >= 40 THEN 'Average'
+              ELSE 'Needs Support'
+            END
+            FROM principal_exam_results r
+            WHERE r.organization_id = $1 AND r.student_user_id = user_account.id AND r.status = 'Published'
+          ) AS "academicStanding"
           FROM parent_student_relationships psr
           JOIN users user_account ON user_account.id = psr.student_id AND user_account.is_active
           LEFT JOIN enrollments enrollment ON enrollment.student_user_id = user_account.id AND enrollment.organization_id = $1 AND enrollment.status = 'active'

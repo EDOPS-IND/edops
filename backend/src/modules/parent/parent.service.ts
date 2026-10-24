@@ -69,6 +69,23 @@ export class ParentService {
         `SELECT id,exam_name AS exam,subject_name AS subject,marks_obtained AS score,max_marks AS max,percentage,grade,published_at AS date FROM principal_exam_results WHERE organization_id=$1 AND student_user_id=$2 AND status='Published' ORDER BY published_at DESC`,
         [org, student],
       );
+      const [academicSummary] = await m.query(
+        `SELECT
+          ROUND(AVG(percentage)::numeric, 1) AS "aggregateAverage",
+          SUM(marks_obtained)::numeric AS "totalScore",
+          SUM(max_marks)::numeric AS "totalMax",
+          COUNT(*)::int AS "publishedCount",
+          CASE
+            WHEN COUNT(*) = 0 THEN NULL
+            WHEN AVG(percentage) >= 80 THEN 'Exemplary'
+            WHEN AVG(percentage) >= 65 THEN 'Good'
+            WHEN AVG(percentage) >= 40 THEN 'Average'
+            ELSE 'Needs Support'
+          END AS "academicStanding"
+        FROM principal_exam_results
+        WHERE organization_id=$1 AND student_user_id=$2 AND status='Published'`,
+        [org, student],
+      );
       const fees = await m.query(
         `SELECT d.id,COALESCE(f.name,'School fee') AS title,d.total_due AS amount,d.amount_paid AS "paidAmount",d.amount_pending AS pending,d.due_date AS "dueDate",d.status FROM student_fee_dues d LEFT JOIN fee_structures f ON f.organization_id=d.organization_id AND f.id=d.fee_structure_id WHERE d.organization_id=$1 AND d.student_user_id=$2 ORDER BY d.due_date DESC`,
         [org, student],
@@ -104,6 +121,13 @@ export class ParentService {
         attendance,
         timetable,
         results,
+        academicSummary: {
+          aggregateAverage: academicSummary?.aggregateAverage != null ? Number(academicSummary.aggregateAverage) : null,
+          academicStanding: academicSummary?.academicStanding || null,
+          totalScore: Number(academicSummary?.totalScore || 0),
+          totalMax: Number(academicSummary?.totalMax || 0),
+          publishedCount: Number(academicSummary?.publishedCount || 0),
+        },
         fees,
         notices,
         leaves,
