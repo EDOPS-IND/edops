@@ -2949,7 +2949,6 @@ export class SchoolAdminService {
       [orgId, actor.id],
     );
   }
-
   async getCommunicationRecipients(orgId: string, actor: User, role?: string, search = "") {
     await this.authorizeCommunication(this.drizzle, orgId, actor);
     const normalizedRole = ["school_admin", "principal", "teacher", "student", "parent", "staff"].includes(role || "") ? role : null;

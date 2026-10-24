@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { MessageSquare, Users, Send, CheckCircle2, Clock, AlertTriangle, Plus } from "lucide-react";
-import { CommunicationChat } from "../../components/communication-chat";
 import { UnifiedCommunicationHub } from "../../components/notice-board";
 
 export function CommunicationPane({

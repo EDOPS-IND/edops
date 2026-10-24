@@ -176,7 +176,6 @@ export class CommunicationController {
   ) {
     return this.chat.getTeacherBroadcastSections(org, req.user);
   }
-
   @Get("timeline")
   @Endpoint(
     "Read the authorized class timeline",

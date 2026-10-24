@@ -32,7 +32,6 @@ import {
 } from "../edops-api";
 import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from "./types";
 import { ThreeDotsLoading } from "../components/feature-unavailable-card";
-import { CommunicationChat } from "../components/communication-chat";
 import { UnifiedCommunicationHub } from "../components/notice-board";
 
 // Panes
