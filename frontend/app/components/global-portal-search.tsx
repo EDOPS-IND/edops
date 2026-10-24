@@ -683,6 +683,16 @@ export function GlobalPortalSearch({
             onSelect: () => onNavigate("attendance"),
           },
           {
+            id: "st-communication",
+            title: "Academic Inbox & Direct Messaging",
+            subtitle: "Chat with subject teachers, ask doubts and receive announcements",
+            category: "Navigation",
+            keywords: ["inbox", "ask teacher", "communication", "chat", "messages", "doubts", "teacher"],
+            icon: MessageSquare,
+            iconColor: "#0284C7",
+            onSelect: () => onNavigate("communication"),
+          },
+          {
             id: "st-profile",
             title: "My Student Profile",
             subtitle: "Admission number, roll code, parent contact details and school ID",
