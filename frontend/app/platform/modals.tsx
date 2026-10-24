@@ -195,15 +195,53 @@ export function BroadcastAnnouncementModal({
 export function CreateTicketModal({
   schools,
   onClose,
-  onSubmit
+  onSubmit,
+  defaultSchoolId,
+  readOnlySchool,
 }: {
   schools: School[];
   onClose: () => void;
-  onSubmit: (ticket: any) => void;
+  onSubmit: (ticket: any) => Promise<void> | void;
+  defaultSchoolId?: string;
+  readOnlySchool?: boolean;
 }) {
+  const initialOrgId = defaultSchoolId || schools[0]?.id || "";
+  const initialSchoolName = schools.find(s => s.id === initialOrgId)?.name || schools[0]?.name || "Platform Support";
+
   const [ticket, setTicket] = useState({
-    schoolName: schools[0]?.name || "Delhi Public XYZ", category: "academic", priority: "medium", subject: "", description: ""
+    organizationId: initialOrgId,
+    schoolName: initialSchoolName,
+    category: "academic",
+    priority: "medium",
+    subject: "",
+    description: ""
   });
+  const [validationError, setValidationError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!ticket.subject.trim()) {
+      setValidationError("Subject is required.");
+      return;
+    }
+    if (!ticket.description.trim()) {
+      setValidationError("Description is required.");
+      return;
+    }
+    setValidationError("");
+    setBusy(true);
+    try {
+      await onSubmit({
+        ...ticket,
+        organizationId: ticket.organizationId ? ticket.organizationId : undefined,
+        schoolName: ticket.schoolName || (schools.find(s => s.id === ticket.organizationId)?.name) || "Platform Support",
+      });
+    } catch (err: any) {
+      setValidationError(err?.message || "Failed to submit ticket");
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}>
@@ -212,34 +250,84 @@ export function CreateTicketModal({
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#064E3B" }}>Create Support Ticket</h3>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} /></button>
         </div>
+        {validationError && (
+          <div style={{ padding: "8px 12px", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "6px", color: "#991B1B", fontSize: "12px", marginBottom: "12px" }}>
+            {validationError}
+          </div>
+        )}
         <div style={{ display: "grid", gap: "12px", fontSize: "12.5px" }}>
           <div>
             <label style={{ fontWeight: 600 }}>School *</label>
-            <select
-              value={ticket.schoolName}
-              onChange={e => setTicket({ ...ticket, schoolName: e.target.value })}
-              style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
-            >
-              {schools.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}
-            </select>
+            {readOnlySchool || schools.length <= 1 ? (
+              <div style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px", background: "#F9FAFB", fontWeight: 600, color: "#1F2937" }}>
+                {ticket.schoolName}
+              </div>
+            ) : (
+              <select
+                value={ticket.organizationId}
+                onChange={e => {
+                  const s = schools.find(sch => sch.id === e.target.value);
+                  setTicket({
+                    ...ticket,
+                    organizationId: e.target.value,
+                    schoolName: s?.name || e.target.value,
+                  });
+                }}
+                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
+              >
+                {schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            )}
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+            <div>
+              <label style={{ fontWeight: 600 }}>Category</label>
+              <select
+                value={ticket.category}
+                onChange={e => setTicket({ ...ticket, category: e.target.value })}
+                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
+              >
+                <option value="academic">Academic & Classes</option>
+                <option value="technical">Technical & System</option>
+                <option value="billing">Billing & Plan</option>
+                <option value="feature_request">Feature Request</option>
+                <option value="bug">Bug Report</option>
+                <option value="other">General Query</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontWeight: 600 }}>Priority</label>
+              <select
+                value={ticket.priority}
+                onChange={e => setTicket({ ...ticket, priority: e.target.value })}
+                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
           </div>
           <div>
             <label style={{ fontWeight: 600 }}>Subject *</label>
             <input
               type="text"
+              required
               placeholder="Brief summary of request or issue"
               value={ticket.subject}
-              onChange={e => setTicket({ ...ticket, subject: e.target.value })}
+              onChange={e => { setTicket({ ...ticket, subject: e.target.value }); setValidationError(""); }}
               style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
             />
           </div>
           <div>
             <label style={{ fontWeight: 600 }}>Description *</label>
             <textarea
-              rows={3}
+              rows={4}
+              required
               placeholder="Detailed information..."
               value={ticket.description}
-              onChange={e => setTicket({ ...ticket, description: e.target.value })}
+              onChange={e => { setTicket({ ...ticket, description: e.target.value }); setValidationError(""); }}
               style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
             />
           </div>
@@ -247,10 +335,20 @@ export function CreateTicketModal({
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
           <button onClick={onClose} style={{ padding: "8px 14px", background: "#F8E7C9", color: "#064E3B", border: "1px solid #E5CCA2", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Cancel</button>
           <button
-            onClick={() => onSubmit(ticket)}
-            style={{ padding: "8px 18px", background: "#064E3B", color: "#F8E7C9", border: "1px solid #064E3B", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}
+            onClick={handleSubmit}
+            disabled={busy}
+            style={{
+              padding: "8px 18px",
+              background: "#064E3B",
+              color: "#F8E7C9",
+              border: "1px solid #064E3B",
+              borderRadius: "6px",
+              fontWeight: 700,
+              cursor: busy ? "wait" : "pointer",
+              opacity: busy ? 0.7 : 1,
+            }}
           >
-            Submit Ticket
+            {busy ? "Submitting..." : "Submit Ticket"}
           </button>
         </div>
       </div>

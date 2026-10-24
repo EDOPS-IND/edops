@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Send, CheckCircle2, User, Plus, Search, HelpCircle, ArrowLeft } from 'lucide-react';
 import { getStudentMessages, sendStudentMessage } from '../../edops-api';
 import { CommunicationChat } from '../../components/communication-chat';
+import { UnifiedCommunicationHub } from '../../components/notice-board';
 
 const T = {
   navy: '#0c1e33',
@@ -71,7 +72,7 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
   const rawMessages: any[] = data?.messages || [];
   const teachersList: any[] = data?.teachersList || [];
 
-  return <CommunicationChat organizationId={organizationId} title="Direct Messages" />;
+  return <UnifiedCommunicationHub organizationId={organizationId} role="student" />;
 
   const threadsMap: Record<
     string,
@@ -387,10 +388,10 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
                   </button>
                   <div style={{ minWidth: 0 }}>
                     <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.navy, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {activeThread.contactName}
+                      {activeThread?.contactName}
                     </h4>
                     <span style={{ fontSize: '12px', color: T.slate, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {activeThread.contactRole}
+                      {activeThread?.contactRole}
                     </span>
                   </div>
                 </div>
@@ -422,12 +423,12 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
                   background: T.white,
                 }}
               >
-                {activeThread.messages.length === 0 ? (
+                {!activeThread || (activeThread as any).messages.length === 0 ? (
                   <div style={{ margin: 'auto', textAlign: 'center', color: T.slate, fontSize: '13px' }}>
-                    No messages yet with {activeThread.contactName}. Type below to send an academic question.
+                    No messages yet with {activeThread?.contactName}. Type below to send an academic question.
                   </div>
                 ) : (
-                  activeThread.messages.map((m: any, idx: number) => {
+                  (activeThread as any).messages.map((m: any, idx: number) => {
                     const isSelf = m.senderRole === 'student';
                     return (
                       <div
@@ -483,7 +484,7 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
               >
                 <input
                   type="text"
-                  placeholder={`Write your message to ${activeThread.contactName}...`}
+                  placeholder={`Write your message to ${activeThread?.contactName || "Teacher"}...`}
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   style={{

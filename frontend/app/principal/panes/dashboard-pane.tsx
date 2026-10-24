@@ -24,6 +24,7 @@ import {
 import { PrincipalSchoolKpis, TodayAcademicOperations } from "../types";
 import { formatAuditMessage } from "../../components/audit-formatter";
 import { RadarPillarsChart, SegmentedDonut, StackedProgressBar } from "../components/telemetry-charts";
+import { NoticeBoard } from "../../components/notice-board";
 
 // Unified design tokens strictly matching Student & Teacher Dashboard specification
 const S = {
@@ -877,96 +878,97 @@ export function DashboardPane({
       {/* ═══════════════════════════════════════════════
           5. ATTENTION ENGINE & LIVE AUDIT TRAIL
       ═══════════════════════════════════════════════ */}
-      <div className="portal-split-grid" style={{ gap: "20px" }}>
-        {/* Attention Engine */}
-        <div
-          style={{
-            background: S.white,
-            border: `1px solid ${S.border}`,
-            borderRadius: "12px",
-            padding: "20px 22px",
-            boxShadow: "0 1px 2px rgba(12, 30, 51, 0.04)",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <AlertTriangle size={18} color="#D97706" />
-              <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: S.navy }}>
-                Academic Action Engine &amp; Attention Triggers
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => nav("alerts")}
-              style={{ all: "unset", cursor: "pointer", color: S.navy, fontSize: "12px", fontWeight: 650 }}
-            >
-              All Alerts <ArrowRight size={12} />
-            </button>
+      {/* Attention Engine: Full Width Executive Banner */}
+      <div
+        style={{
+          background: S.white,
+          border: `1px solid ${S.border}`,
+          borderRadius: "12px",
+          padding: "20px 22px",
+          boxShadow: "0 1px 2px rgba(12, 30, 51, 0.04)",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <AlertTriangle size={18} color="#D97706" />
+            <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: S.navy }}>
+              Academic Action Engine &amp; Attention Triggers
+            </h3>
           </div>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {(!operations?.openAlerts || operations?.openAlerts === 0) ? (
-              <div
-                style={{
-                  padding: "20px",
-                  textAlign: "center",
-                  background: S.chip,
-                  borderRadius: "8px",
-                  border: `1px dashed ${S.border}`,
-                  fontSize: "12.5px",
-                  color: S.slate,
-                }}
-              >
-                ✓ All academic registers in good standing. No open alerts require principal action.
-              </div>
-            ) : (
-              [{
-                title: "Academic Intervention Triggers",
-                desc: `${operations.openAlerts} alerts require executive administrative sign-off.`,
-                action: "Review Alerts",
-                actionType: "alerts",
-              }].map((alert) => (
-                <div
-                  key={alert.actionType}
-                  style={{
-                    border: "1px solid #FEF3C7",
-                    background: "#FFFBEB",
-                    borderRadius: "8px",
-                    padding: "12px 16px",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: "13px", fontWeight: 700, color: "#92400E" }}>{alert.title}</div>
-                    <div style={{ fontSize: "12px", color: "#B45309", marginTop: "2px" }}>{alert.desc}</div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => (onTriggerAction ? onTriggerAction(alert.actionType) : nav(alert.actionType))}
-                    style={{
-                      background: S.navy,
-                      color: "#ffffff",
-                      border: "none",
-                      borderRadius: "6px",
-                      padding: "7px 14px",
-                      fontSize: "12px",
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      marginLeft: "12px",
-                    }}
-                  >
-                    {alert.action} ↗
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => nav("alerts")}
+            style={{ all: "unset", cursor: "pointer", color: S.navy, fontSize: "12px", fontWeight: 650 }}
+          >
+            All Alerts <ArrowRight size={12} />
+          </button>
         </div>
 
-        {/* Live Academic Activity Log */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          {(!operations?.openAlerts || operations?.openAlerts === 0) ? (
+            <div
+              style={{
+                padding: "20px",
+                textAlign: "center",
+                background: S.chip,
+                borderRadius: "8px",
+                border: `1px dashed ${S.border}`,
+                fontSize: "12.5px",
+                color: S.slate,
+              }}
+            >
+              ✓ All academic registers in good standing. No open alerts require principal action.
+            </div>
+          ) : (
+            [{
+              title: "Academic Intervention Triggers",
+              desc: `${operations.openAlerts} alerts require executive administrative sign-off.`,
+              action: "Review Alerts",
+              actionType: "alerts",
+            }].map((alert) => (
+              <div
+                key={alert.actionType}
+                style={{
+                  border: "1px solid #FEF3C7",
+                  background: "#FFFBEB",
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <div style={{ fontSize: "13px", fontWeight: 700, color: "#92400E" }}>{alert.title}</div>
+                  <div style={{ fontSize: "12px", color: "#B45309", marginTop: "2px" }}>{alert.desc}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => (onTriggerAction ? onTriggerAction(alert.actionType) : nav(alert.actionType))}
+                  style={{
+                    background: S.navy,
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "7px 14px",
+                    fontSize: "12px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                    whiteSpace: "nowrap",
+                    marginLeft: "12px",
+                  }}
+                >
+                  {alert.action} ↗
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Dual Activity & Communications Split */}
+      <div className="portal-two-col" style={{ gap: "20px" }}>
+        {/* Left: Live Academic Activity Log */}
         <div
           style={{
             background: S.white,
@@ -974,6 +976,8 @@ export function DashboardPane({
             borderRadius: "12px",
             padding: "20px 22px",
             boxShadow: "0 1px 2px rgba(12, 30, 51, 0.04)",
+            display: "flex",
+            flexDirection: "column",
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
@@ -989,7 +993,7 @@ export function DashboardPane({
             </button>
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", flex: 1 }}>
             {activities.length === 0 ? (
               <div style={{ fontSize: "12px", color: S.slate, textAlign: "center", padding: "20px 0" }}>
                 {liveData || loadError ? "No recent academic audit events recorded." : "Connecting to audit ledger…"}
@@ -1032,6 +1036,17 @@ export function DashboardPane({
             )}
           </div>
         </div>
+
+        {/* Right: Official Notice Board Preview */}
+        {organizationId && (
+          <NoticeBoard
+            organizationId={organizationId}
+            role="principal"
+            isCompact={true}
+            style={{ height: "100%", borderRadius: "12px" }}
+            onNavigateToFull={() => onNavigateTab ? onNavigateTab("communication") : onNavigate?.("communication")}
+          />
+        )}
       </div>
     </div>
   );

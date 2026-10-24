@@ -434,6 +434,9 @@ export class PrincipalDashboardService {
        FROM audit_events ae
        LEFT JOIN users u ON u.id = ae.actor_id
        WHERE ae.organization_id = $1
+         AND ae.organization_id IS NOT NULL
+         AND COALESCE(u.is_platform_admin, false) = false
+         AND COALESCE(u.platform_role, 'none') = 'none'
        ORDER BY ae.created_at DESC
        LIMIT 5`,
       [orgId],

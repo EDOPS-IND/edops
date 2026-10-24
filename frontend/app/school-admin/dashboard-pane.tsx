@@ -2017,7 +2017,9 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {log.time || "Recently"}
+                    {log.createdAt || (log.time && !isNaN(Date.parse(log.time)))
+                      ? new Date(log.createdAt || log.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : (log.time || "Recently")}
                   </span>
                 </div>
               );

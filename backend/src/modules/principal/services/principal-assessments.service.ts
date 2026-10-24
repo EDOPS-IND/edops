@@ -326,7 +326,7 @@ export class PrincipalAssessmentsService {
       await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [orgId]);
       const saved: any[] = [];
       for (const plan of dto.plans) {
-        if (plan.startTime >= plan.endTime || plan.passingMarks > plan.maxMarks) {
+        if (plan.startTime >= plan.endTime || Number(plan.passingMarks) > Number(plan.maxMarks)) {
           throw new BadRequestException("Each subject needs a valid time range and passing marks no higher than maximum marks");
         }
         const [valid] = await manager.query(

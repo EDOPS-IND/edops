@@ -32,7 +32,7 @@ import {
 } from "../edops-api";
 import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from "./types";
 import { ThreeDotsLoading } from "../components/feature-unavailable-card";
-import { CommunicationChat } from "../components/communication-chat";
+import { UnifiedCommunicationHub } from "../components/notice-board";
 
 // Panes
 import { OverviewPane } from "./panes/overview-pane";
@@ -828,7 +828,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                 onOpenQueryModal={() => setQueryModalOpen(true)}
               />
             )}
-            {activeTab === "communication" && <CommunicationChat organizationId={organization.id} title="Direct Messages" />}
+            {activeTab === "communication" && <UnifiedCommunicationHub organizationId={organization.id} role="parent" />}
             </>
           )}
           </div>

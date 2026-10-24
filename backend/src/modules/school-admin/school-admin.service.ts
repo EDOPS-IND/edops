@@ -356,6 +356,9 @@ export class SchoolAdminService {
          FROM audit_events a
          LEFT JOIN users u ON u.id = a.actor_id
          WHERE a.organization_id = $1
+           AND a.organization_id IS NOT NULL
+           AND COALESCE(u.is_platform_admin, false) = false
+           AND COALESCE(u.platform_role, 'none') = 'none'
          ORDER BY a.created_at DESC
          LIMIT 5`,
       [orgId],
@@ -458,10 +461,8 @@ export class SchoolAdminService {
           actor: r.actor,
           action: String(r.action || "system.event").replace(/\./g, " "),
           detail: humanDetail,
-          time: new Date(r.createdAt).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
+          createdAt: r.createdAt,
+          time: r.createdAt,
         };
       }),
     };
@@ -889,6 +890,9 @@ export class SchoolAdminService {
            FROM audit_events a
            LEFT JOIN users u ON u.id = a.actor_id
            WHERE a.organization_id = $1
+            AND a.organization_id IS NOT NULL
+            AND COALESCE(u.is_platform_admin, false) = false
+            AND COALESCE(u.platform_role, 'none') = 'none'
              AND (
                a.actor_id = $2
                OR (a.details->>'studentId')::text = $2::text
@@ -1008,7 +1012,7 @@ export class SchoolAdminService {
       const discipline = await manager.query(
         `SELECT incident_code as "incidentCode", incident_type as "incidentType", severity, description, action_taken as "actionTaken", status, incident_date as "incidentDate"
          FROM discipline_incidents
-         WHERE organization_id = $1 AND student_user_id = $2
+         WHERE organization_id = $1 AND (student_user_id = $2 OR LOWER(TRIM(student_name)) = (SELECT LOWER(TRIM(name)) FROM users WHERE id = $2 LIMIT 1))
          ORDER BY incident_date DESC LIMIT 10`,
         [orgId, studentUserId],
       );
@@ -1031,6 +1035,9 @@ export class SchoolAdminService {
          FROM audit_events a
          LEFT JOIN users u ON u.id = a.actor_id
          WHERE a.organization_id = $1
+           AND a.organization_id IS NOT NULL
+           AND COALESCE(u.is_platform_admin, false) = false
+           AND COALESCE(u.platform_role, 'none') = 'none'
            AND (
              a.actor_id = $2
              OR (a.details->>'studentId')::text = $2::text
@@ -1257,11 +1264,11 @@ export class SchoolAdminService {
           u.id,
           COALESCE(NULLIF(u.name, ''), split_part(u.email, '@', 1)) as "name",
           u.email,
-          COALESCE(u.phone, '-') as "mobile",
+          u.phone as "mobile",
           'Guardian' as "relationship",
           NULL as "occupation",
           NULL as "address",
-          COALESCE(u.phone, '-') as "emergencyContact",
+          u.phone as "emergencyContact",
           'Active' as "accountStatus",
           NULL as "invitationStatus",
           COALESCE((
@@ -1318,11 +1325,11 @@ export class SchoolAdminService {
           i.id,
           COALESCE(NULLIF(i.name, ''), split_part(i.email, '@', 1)) as "name",
           i.email,
-          COALESCE(i.phone, '-') as "mobile",
+          i.phone as "mobile",
           'Guardian' as "relationship",
           NULL as "occupation",
           NULL as "address",
-          COALESCE(i.phone, '-') as "emergencyContact",
+          i.phone as "emergencyContact",
           'Pending Invite' as "accountStatus",
           'Pending' as "invitationStatus",
           COALESCE((
@@ -1456,7 +1463,7 @@ export class SchoolAdminService {
             d.id,
             d.name,
             d.code,
-            COALESCE(NULLIF(d.head_teacher_name, ''), 'Unassigned') as "headName",
+            CASE WHEN d.head_teacher_name IS NULL OR d.head_teacher_name IN ('', 'Department Head') THEN 'Unassigned' ELSE d.head_teacher_name END as "headName",
             COALESCE(u.email, '') as "headEmail",
             (
               SELECT COUNT(DISTINCT m.user_id)::int
@@ -1574,7 +1581,7 @@ export class SchoolAdminService {
             const code = name.slice(0, 4).toUpperCase();
             await manager.query(
               `INSERT INTO school_departments (organization_id, name, code, head_teacher_name, location)
-               VALUES ($1, $2, $3, 'Department Head', 'Academic Wing')
+               VALUES ($1, $2, $3, NULL, 'Academic Wing')
                ON CONFLICT DO NOTHING`,
               [orgId, name, code],
             );
@@ -1635,7 +1642,7 @@ export class SchoolAdminService {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
 
-      let headName = dto.headTeacherName || "Department Head";
+      let headName = dto.headTeacherName || null;
       if (dto.headTeacherId) {
         const [t] = await manager.query(
           `SELECT COALESCE(NULLIF(name, ''), split_part(email, '@', 1)) as name FROM users WHERE id = $1`,
@@ -1739,7 +1746,9 @@ export class SchoolAdminService {
         classTeacherEmail: s.classTeacherEmail || null,
         subjectsCount: Number(s.subjectsCount || 0),
         attendanceRate:
-          s.attendanceRate != null ? Number(s.attendanceRate) : 95,
+          Number(s.enrolledCount || 0) > 0 && s.attendanceRate != null
+            ? Number(s.attendanceRate)
+            : 0,
       }));
 
       const subjects = await manager.query(
@@ -2804,6 +2813,142 @@ export class SchoolAdminService {
     });
   }
 
+  async getRoleNotices(orgId: string, actor: User) {
+    await this.authorizeCommunication(this.drizzle, orgId, actor);
+    const [membership] = await this.drizzle.query(
+      `SELECT role FROM memberships WHERE organization_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1`,
+      [orgId, actor.id],
+    );
+    const role = actor.isPlatformAdmin ? "school_admin" : (membership?.role || "student");
+
+    return this.drizzle.query(
+      `SELECT b.id, b.title, b.message, b.channels, b.target_audience AS "targetAudience",
+              b.priority, b.sent_by AS "sentBy", b.sender_name AS "senderName",
+              b.created_at AS "createdAt",
+              COALESCE(CONCAT(p.name, ' ', sec.name), sec.name) AS "sectionName",
+              p.name AS "programName"
+       FROM school_broadcasts b
+       LEFT JOIN sections sec ON sec.id::text = REPLACE(b.target_audience, 'section:', '') AND sec.organization_id = b.organization_id
+       LEFT JOIN programs p ON p.id = sec.program_id
+       WHERE b.organization_id = $1
+         AND (
+           $2 IN ('school_admin', 'principal')
+           OR b.target_audience = 'all'
+           OR ($2 = 'teacher' AND (b.target_audience = 'teachers' OR b.sent_by = $3))
+           OR ($2 = 'student' AND b.target_audience = 'students')
+           OR ($2 = 'parent' AND b.target_audience = 'parents')
+           OR ($2 = 'student' AND b.target_audience IN (
+                SELECT 'section:' || e.section_id FROM enrollments e WHERE e.organization_id = $1 AND e.student_user_id = $3 AND e.status = 'active'
+              ))
+           OR ($2 = 'parent' AND b.target_audience IN (
+                SELECT 'section:' || e.section_id FROM parent_student_relationships psr
+                JOIN enrollments e ON e.student_user_id = psr.student_id AND e.organization_id = psr.school_id
+                WHERE psr.school_id = $1 AND psr.parent_id = $3 AND e.status = 'active'
+              ))
+           OR ($2 = 'teacher' AND b.target_audience IN (
+                SELECT 'section:' || c.section_id FROM class_subject_assignments c WHERE c.organization_id = $1 AND c.teacher_user_id = $3
+                UNION
+                SELECT 'section:' || s.id FROM sections s WHERE s.organization_id = $1 AND s.class_teacher_user_id = $3
+              ))
+         )
+       ORDER BY b.created_at DESC
+       LIMIT 50`,
+      [orgId, role, actor.id],
+    );
+  }
+
+  async createRoleNotice(orgId: string, actor: User, dto: any) {
+    await this.authorizeCommunication(this.drizzle, orgId, actor);
+    const [membership] = await this.drizzle.query(
+      `SELECT role FROM memberships WHERE organization_id = $1 AND user_id = $2 AND status = 'active' LIMIT 1`,
+      [orgId, actor.id],
+    );
+    const role = actor.isPlatformAdmin ? "school_admin" : (membership?.role || "");
+
+    if (role !== "school_admin" && role !== "principal" && role !== "teacher") {
+      throw new ForbiddenException("Only school administrators, principals, and teachers can post notices");
+    }
+
+    if (!dto.title || !dto.title.trim()) {
+      throw new BadRequestException("Notice title is required");
+    }
+    if (!dto.message || !dto.message.trim()) {
+      throw new BadRequestException("Notice message is required");
+    }
+
+    let targetAudience = dto.targetAudience || "all";
+
+    if (role === "teacher") {
+      if (!targetAudience.startsWith("section:")) {
+        throw new BadRequestException("Teachers can only post notices to their assigned classes or sections");
+      }
+      const sectionId = targetAudience.replace("section:", "");
+      const [allowed] = await this.drizzle.query(
+        `SELECT 1 FROM class_subject_assignments WHERE organization_id = $1 AND section_id = $2 AND teacher_user_id = $3
+         UNION
+         SELECT 1 FROM sections WHERE organization_id = $1 AND id = $2 AND class_teacher_user_id = $3
+         LIMIT 1`,
+        [orgId, sectionId, actor.id],
+      );
+      if (!allowed) {
+        throw new ForbiddenException("You are not assigned to this class or section");
+      }
+    }
+
+    const [sender] = await this.drizzle.query(
+      `SELECT name FROM users WHERE id = $1 LIMIT 1`,
+      [actor.id],
+    );
+    const roleLabel = role === "principal" ? "Principal" : role === "teacher" ? "Teacher" : "School Admin";
+    const senderTitle = `${roleLabel} (${sender?.name || actor.email})`;
+
+    const [broadcast] = await this.drizzle.query(
+      `INSERT INTO school_broadcasts (
+        organization_id, title, message, channels, target_audience, priority, sent_by, sender_name, recipient_count, delivery_stats
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, '{"sent": 0, "delivered": 0, "failed": 0}')
+      RETURNING id, title, message, channels, target_audience AS "targetAudience", priority, sent_by AS "sentBy", sender_name AS "senderName", created_at AS "createdAt"`,
+      [
+        orgId,
+        dto.title.trim(),
+        dto.message.trim(),
+        dto.channels || ["in_app"],
+        targetAudience,
+        dto.priority || "normal",
+        actor.id,
+        senderTitle,
+      ],
+    );
+
+    await this.audit.record(this.drizzle, {
+      organizationId: orgId,
+      actorId: actor.id,
+      action: "broadcast.sent",
+      details: { broadcastId: broadcast.id, targetAudience, title: dto.title },
+    });
+
+    return broadcast;
+  }
+
+  async getTeacherBroadcastSections(orgId: string, actor: User) {
+    await this.authorizeCommunication(this.drizzle, orgId, actor);
+    return this.drizzle.query(
+      `SELECT DISTINCT s.id, s.name, 
+              (s.class_teacher_user_id = $2) AS "isClassTeacher",
+              p.name AS "programName",
+              CONCAT(p.name, ' ', s.name) AS "classSection"
+       FROM sections s
+       LEFT JOIN programs p ON p.id = s.program_id
+       WHERE s.organization_id = $1
+         AND (
+           s.class_teacher_user_id = $2
+           OR EXISTS (
+             SELECT 1 FROM class_subject_assignments c WHERE c.organization_id = $1 AND c.section_id = s.id AND c.teacher_user_id = $2
+           )
+         )
+       ORDER BY p.name ASC, s.name ASC`,
+      [orgId, actor.id],
+    );
+  }
   async getCommunicationRecipients(orgId: string, actor: User, role?: string, search = "") {
     await this.authorizeCommunication(this.drizzle, orgId, actor);
     const normalizedRole = ["school_admin", "principal", "teacher", "student", "parent", "staff"].includes(role || "") ? role : null;
@@ -3313,10 +3458,14 @@ export class SchoolAdminService {
       );
 
       const auditLogs = await manager.query(
-        `SELECT a.*, u.email as "actorEmail"
+        `SELECT a.*, u.email as "actorEmail", COALESCE(m.role, 'admin') as "actorRole", COALESCE(u.name, split_part(u.email, '@', 1), 'System') as "actorName"
          FROM audit_events a
          LEFT JOIN users u ON u.id = a.actor_id
+         LEFT JOIN memberships m ON m.user_id = a.actor_id AND m.organization_id = a.organization_id
          WHERE a.organization_id = $1
+           AND a.organization_id IS NOT NULL
+           AND COALESCE(u.is_platform_admin, false) = false
+           AND COALESCE(u.platform_role, 'none') = 'none'
          ORDER BY a.created_at DESC
          LIMIT 50`,
         [orgId],
@@ -3467,6 +3616,17 @@ export class SchoolAdminService {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
       const code = `INC-${Date.now().toString().slice(-6)}`;
+      let resolvedStudentId = dto.studentUserId;
+      if (!resolvedStudentId && dto.studentName) {
+        const [matched] = await manager.query(
+          `SELECT u.id FROM users u
+           JOIN memberships m ON m.user_id = u.id AND m.organization_id = $1 AND m.role = 'student'
+           WHERE LOWER(TRIM(u.name)) = LOWER(TRIM($2))
+           LIMIT 1`,
+          [orgId, dto.studentName],
+        );
+        if (matched) resolvedStudentId = matched.id;
+      }
       const [inc] = await manager.query(
         `INSERT INTO discipline_incidents
           (organization_id, incident_code, student_user_id, student_name, class_section, incident_type, severity, description, action_taken, reported_by_name, parent_notified)
@@ -3475,7 +3635,7 @@ export class SchoolAdminService {
         [
           orgId,
           code,
-          dto.studentUserId || null,
+          resolvedStudentId || null,
           dto.studentName,
           dto.classSection || "",
           dto.incidentType,

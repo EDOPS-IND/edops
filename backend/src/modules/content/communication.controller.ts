@@ -152,6 +152,30 @@ export class CommunicationController {
     return this.chat.updateCommunicationStatus(org, req.user, conversationId, dto);
   }
 
+  @Get("communication/notices")
+  getNotices(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.chat.getRoleNotices(org, req.user);
+  }
+
+  @Post("communication/notices")
+  createNotice(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: any,
+  ) {
+    return this.chat.createRoleNotice(org, req.user, dto);
+  }
+
+  @Get("communication/teacher-sections")
+  getTeacherSections(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.chat.getTeacherBroadcastSections(org, req.user);
+  }
   @Get("timeline")
   @Endpoint(
     "Read the authorized class timeline",

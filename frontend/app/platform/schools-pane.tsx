@@ -113,7 +113,7 @@ export function SchoolsPane({
             <h2 style={{ fontSize: "17px", fontWeight: 700, color: "#111827", margin: 0 }}>All Schools Directory</h2>
             <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#6B7280" }}>Manage school lifecycle, subscriptions, feature overrides, and health</p>
           </div>
-          <div style={{ display: "flex", gap: "8px" }}>
+          <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
             {["all", "active", "trial", "suspended", "archived"].map((st) => (
               <button
                 key={st}
@@ -130,8 +130,8 @@ export function SchoolsPane({
           </div>
         </div>
 
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
+        <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+          <table style={{ width: "100%", minWidth: "750px", borderCollapse: "collapse", fontSize: "13px", textAlign: "left" }}>
             <thead>
               <tr style={{ borderBottom: "2px solid #E5E7EB", color: "#4B5563" }}>
                 <th style={{ padding: "10px" }}>School Name & Code</th>

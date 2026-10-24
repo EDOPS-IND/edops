@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { TimetableSlot } from "./types";
 import {
   getSchoolAdminTimetable,
@@ -56,6 +56,9 @@ export function TimetablePane({
   // Raw entries from backend
   const [rawEntries, setRawEntries] = useState<any[]>([]);
   const [slots, setSlots] = useState<any[]>([]);
+
+  const scheduledSectionsCount = useMemo(() => new Set(slots.map((s) => s.sectionId).filter(Boolean)).size, [slots]);
+  const assignedTeachersCount = useMemo(() => new Set(slots.map((s) => s.teacherUserId).filter(Boolean)).size, [slots]);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -276,7 +279,7 @@ export function TimetablePane({
             <BookOpen size={18} />
           </div>
           <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#1a5c0a" }}>
-            {sections.length}
+            {scheduledSectionsCount}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: "11px" }}>Across registered class rosters</span>
@@ -305,7 +308,7 @@ export function TimetablePane({
             <User size={18} />
           </div>
           <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#0a5a7a" }}>
-            {teachers.length}
+            {assignedTeachersCount}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: "11px" }}>Instructional load balanced</span>

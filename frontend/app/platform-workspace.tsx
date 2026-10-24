@@ -33,7 +33,7 @@ export function PlatformWorkspace({
   activePanel?: string;
   onSelectPanel?: (panel: string) => void;
 }) {
-  const [tab, setTab] = useState(activePanel);
+  const [tab, setTab] = useState(activePanel === "logs" ? "security" : activePanel);
   const [schools, setSchools] = useState<School[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [featureCatalog, setFeatureCatalog] = useState<FeatureCatalogItem[]>([]);
@@ -77,7 +77,7 @@ export function PlatformWorkspace({
   }, []);
 
   useEffect(() => {
-    if (activePanel) setTab(activePanel);
+    if (activePanel) setTab(activePanel === "logs" ? "security" : activePanel);
   }, [activePanel]);
 
   // Initial Data Fetching from PostgreSQL & backend services
@@ -271,7 +271,11 @@ export function PlatformWorkspace({
 
   async function handleCreateTicket(newTicketData: any) {
     try {
-      const res = await createSupportTicket(newTicketData);
+      const payload = {
+        ...newTicketData,
+        organizationId: newTicketData.organizationId ? newTicketData.organizationId : undefined,
+      };
+      const res = await createSupportTicket(payload);
       setTickets(prev => [{ ...newTicketData, id: res.id, ticketCode: res.ticketCode, priority: newTicketData.priority as any, status: "open", createdAt: "Just now" }, ...prev]);
       setTicketModal(false);
       setSuccessMsg(`Ticket ${res.ticketCode} created`);
@@ -505,7 +509,7 @@ export function PlatformWorkspace({
         />
       )}
 
-      {tab === "security" && (
+      {(tab === "security" || tab === "logs") && (
         <SecurityPane
           auditLogs={auditLogs}
           staffData={staffData}

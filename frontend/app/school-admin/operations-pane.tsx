@@ -33,10 +33,19 @@ export function OperationsPane({
   }, [activeTab]);
 
   const [vehicles, setVehicles] = useState<TransportVehicle[]>(([] as any[]));
-
   const [books, setBooks] = useState<LibraryBook[]>(([] as any[]));
-
   const [assets, setAssets] = useState<SchoolAsset[]>(([] as any[]));
+
+  const [recordModalOpen, setRecordModalOpen] = useState(false);
+  const [ptmModalOpen, setPtmModalOpen] = useState(false);
+  const [ptmSessions, setPtmSessions] = useState<any[]>([
+    { id: "ptm-1", title: "Term 1 Academic Progress PTM", date: "2026-11-15", time: "09:00 AM - 01:00 PM", grades: "All Classes (Grades 1-12)", status: "Scheduled" },
+  ]);
+
+  const [transportForm, setTransportForm] = useState({ busNo: "", route: "", driverName: "", driverPhone: "", capacity: "40" });
+  const [libraryForm, setLibraryForm] = useState({ isbn: "", title: "", author: "", category: "General", totalCopies: "10" });
+  const [inventoryForm, setInventoryForm] = useState({ assetId: "", name: "", category: "IT / Electronics", location: "Main Campus", condition: "Good" });
+  const [ptmForm, setPtmForm] = useState({ title: "", date: "", time: "09:00 AM - 01:00 PM", grades: "All Classes" });
 
   useEffect(() => {
     if (!organizationId) return;
@@ -274,7 +283,18 @@ export function OperationsPane({
           ))}
         </div>
 
-        <button className="edops-operations-action" style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+        <button
+          type="button"
+          onClick={() => {
+            if (subtab === "ptm") {
+              setPtmModalOpen(true);
+            } else {
+              setRecordModalOpen(true);
+            }
+          }}
+          className="edops-operations-action"
+          style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
+        >
           <Plus size={15} /> Add Record
         </button>
       </div>
@@ -438,23 +458,258 @@ export function OperationsPane({
               <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Parent Teacher Meeting (PTM) Desk</h3>
               <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>Time slot booking, teacher tables, and attendance confirmation records</p>
             </div>
-            <button style={{ padding: "8px 14px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700 }}>
+            <button
+              type="button"
+              onClick={() => setPtmModalOpen(true)}
+              style={{ padding: "8px 14px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer" }}
+            >
               + Schedule Next PTM Window
             </button>
           </div>
 
-          <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ display: "grid", gap: "10px" }}>
+            {ptmSessions.map((ptm) => (
+              <div key={ptm.id} style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div>
+                  <b style={{ color: "#0c1e33", fontSize: "14px" }}>{ptm.title}</b>
+                  <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "4px" }}>
+                    📅 {ptm.date} &nbsp;·&nbsp; ⏰ {ptm.time} &nbsp;·&nbsp; 👥 {ptm.grades}
+                  </div>
+                </div>
+                <span style={{ background: "#ECFDF5", color: "#047857", padding: "4px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: 700 }}>
+                  ● {ptm.status}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* OPERATIONS RECORD MODAL */}
+      {recordModalOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(12, 30, 51, 0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "#FFFFFF", borderRadius: "10px", padding: "24px", maxWidth: "480px", width: "90%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.15)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid #E2E8F0", paddingBottom: "12px" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0C1E33" }}>
+                {subtab === "transport" ? "Add Transport Fleet Vehicle" : subtab === "library" ? "Catalog Library Book" : "Register School Asset"}
+              </h3>
+              <button onClick={() => setRecordModalOpen(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#64748B" }}>✕</button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (subtab === "transport") {
+                if (!transportForm.busNo.trim()) return;
+                setVehicles(prev => [
+                  ...prev,
+                  {
+                    id: `vh-${Date.now()}`,
+                    busNo: transportForm.busNo.trim(),
+                    route: transportForm.route.trim() || "Campus Route",
+                    driverName: transportForm.driverName.trim() || "Assigned Driver",
+                    driverPhone: transportForm.driverPhone.trim() || "+91 98765 43210",
+                    capacity: Number(transportForm.capacity) || 40,
+                    enrolledStudents: 0,
+                    currentStatus: "At School",
+                  }
+                ]);
+                setTransportForm({ busNo: "", route: "", driverName: "", driverPhone: "", capacity: "40" });
+              } else if (subtab === "library") {
+                if (!libraryForm.title.trim()) return;
+                setBooks(prev => [
+                  ...prev,
+                  {
+                    id: `bk-${Date.now()}`,
+                    isbn: libraryForm.isbn.trim() || `978-${Math.floor(100000000 + Math.random() * 900000000)}`,
+                    title: libraryForm.title.trim(),
+                    author: libraryForm.author.trim() || "Faculty Author",
+                    category: libraryForm.category || "General",
+                    totalCopies: Number(libraryForm.totalCopies) || 1,
+                    issuedCopies: 0,
+                  }
+                ]);
+                setLibraryForm({ isbn: "", title: "", author: "", category: "General", totalCopies: "10" });
+              } else if (subtab === "inventory") {
+                if (!inventoryForm.name.trim()) return;
+                setAssets(prev => [
+                  ...prev,
+                  {
+                    id: `as-${Date.now()}`,
+                    assetId: inventoryForm.assetId.trim() || `AST-${Date.now().toString().slice(-4)}`,
+                    name: inventoryForm.name.trim(),
+                    category: (inventoryForm.category || "Computers & IT") as any,
+                    location: inventoryForm.location.trim() || "Main Campus",
+                    condition: (inventoryForm.condition || "Good") as any,
+                    assignedTo: "General Inventory",
+                    purchaseDate: new Date().toISOString().split("T")[0],
+                    value: 0,
+                    warrantyUntil: "Active",
+                  }
+                ]);
+                setInventoryForm({ assetId: "", name: "", category: "IT / Electronics", location: "Main Campus", condition: "Good" });
+              }
+              setRecordModalOpen(false);
+            }} style={{ display: "grid", gap: "14px" }}>
+
+              {subtab === "transport" && (
+                <>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Vehicle / Bus Number *</label>
+                    <input required placeholder="e.g. Bus 14 (DL-01-AB-1234)" value={transportForm.busNo} onChange={e => setTransportForm({ ...transportForm, busNo: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Route Name / Description *</label>
+                    <input required placeholder="e.g. North Sector - Downtown - Campus" value={transportForm.route} onChange={e => setTransportForm({ ...transportForm, route: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Driver Name</label>
+                      <input placeholder="e.g. Ramesh Kumar" value={transportForm.driverName} onChange={e => setTransportForm({ ...transportForm, driverName: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Driver Phone</label>
+                      <input placeholder="+91 9876543210" value={transportForm.driverPhone} onChange={e => setTransportForm({ ...transportForm, driverPhone: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Passenger Capacity</label>
+                    <input type="number" min="1" value={transportForm.capacity} onChange={e => setTransportForm({ ...transportForm, capacity: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                  </div>
+                </>
+              )}
+
+              {subtab === "library" && (
+                <>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Book Title *</label>
+                    <input required placeholder="e.g. Principles of Physics - Class 11" value={libraryForm.title} onChange={e => setLibraryForm({ ...libraryForm, title: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Author *</label>
+                      <input required placeholder="e.g. H.C. Verma" value={libraryForm.author} onChange={e => setLibraryForm({ ...libraryForm, author: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>ISBN / Code</label>
+                      <input placeholder="e.g. 978-0198526636" value={libraryForm.isbn} onChange={e => setLibraryForm({ ...libraryForm, isbn: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Category</label>
+                      <select value={libraryForm.category} onChange={e => setLibraryForm({ ...libraryForm, category: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }}>
+                        <option value="Science">Science</option>
+                        <option value="Mathematics">Mathematics</option>
+                        <option value="Literature">Literature</option>
+                        <option value="Social Studies">Social Studies</option>
+                        <option value="Reference">Reference</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Total Copies</label>
+                      <input type="number" min="1" value={libraryForm.totalCopies} onChange={e => setLibraryForm({ ...libraryForm, totalCopies: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {subtab === "inventory" && (
+                <>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Asset Name *</label>
+                    <input required placeholder="e.g. Dell OptiPlex Desktop PC" value={inventoryForm.name} onChange={e => setInventoryForm({ ...inventoryForm, name: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Asset Code / ID</label>
+                      <input placeholder="e.g. IT-LAB1-024" value={inventoryForm.assetId} onChange={e => setInventoryForm({ ...inventoryForm, assetId: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Category</label>
+                      <select value={inventoryForm.category} onChange={e => setInventoryForm({ ...inventoryForm, category: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }}>
+                        <option value="IT / Electronics">IT / Electronics</option>
+                        <option value="Laboratory Equipment">Laboratory Equipment</option>
+                        <option value="Sports">Sports</option>
+                        <option value="Furniture">Furniture</option>
+                        <option value="Musical Instruments">Musical Instruments</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Location</label>
+                      <input placeholder="e.g. Computer Lab 2" value={inventoryForm.location} onChange={e => setInventoryForm({ ...inventoryForm, location: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Physical Condition</label>
+                      <select value={inventoryForm.condition} onChange={e => setInventoryForm({ ...inventoryForm, condition: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }}>
+                        <option value="Good">Good</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Needs Maintenance">Needs Maintenance</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                <button type="submit" style={{ flex: 1, padding: "10px", background: "#0C1E33", color: "#FFFFFF", border: "none", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Save Record</button>
+                <button type="button" onClick={() => setRecordModalOpen(false)} style={{ padding: "10px 16px", background: "#F1F5F9", color: "#475569", border: "1px solid #E2E8F0", borderRadius: "6px", fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* SCHEDULE PTM WINDOW MODAL */}
+      {ptmModalOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(12, 30, 51, 0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "#FFFFFF", borderRadius: "10px", padding: "24px", maxWidth: "480px", width: "90%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.15)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid #E2E8F0", paddingBottom: "12px" }}>
+              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0C1E33" }}>Schedule PTM Window</h3>
+              <button onClick={() => setPtmModalOpen(false)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#64748B" }}>✕</button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              if (!ptmForm.title.trim()) return;
+              setPtmSessions(prev => [
+                ...prev,
+                {
+                  id: `ptm-${Date.now()}`,
+                  title: ptmForm.title.trim(),
+                  date: ptmForm.date || new Date().toISOString().split("T")[0],
+                  time: ptmForm.time || "09:00 AM - 01:00 PM",
+                  grades: ptmForm.grades || "All Classes",
+                  status: "Scheduled",
+                }
+              ]);
+              setPtmForm({ title: "", date: "", time: "09:00 AM - 01:00 PM", grades: "All Classes" });
+              setPtmModalOpen(false);
+            }} style={{ display: "grid", gap: "14px" }}>
               <div>
-                <b style={{ color: "#0c1e33", fontSize: "14.5px" }}>PTM schedules</b>
-                <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "2px" }}>
-                  See saved meeting schedules
+                <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>PTM Session Title *</label>
+                <input required placeholder="e.g. Mid-Term Parent-Teacher Meeting" value={ptmForm.title} onChange={e => setPtmForm({ ...ptmForm, title: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Meeting Date *</label>
+                  <input required type="date" value={ptmForm.date} onChange={e => setPtmForm({ ...ptmForm, date: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Time Window</label>
+                  <input placeholder="09:00 AM - 01:00 PM" value={ptmForm.time} onChange={e => setPtmForm({ ...ptmForm, time: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
                 </div>
               </div>
-              <span style={{ background: "#ECFDF5", color: "#047857", padding: "4px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: 700 }}>
-                Meeting availability is based on saved bookings
-              </span>
-            </div>
+              <div>
+                <label style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33", display: "block", marginBottom: "4px" }}>Participating Classes / Grades</label>
+                <input placeholder="e.g. Grades 1-12 or Class 10 & 12" value={ptmForm.grades} onChange={e => setPtmForm({ ...ptmForm, grades: e.target.value })} style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB" }} />
+              </div>
+              <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                <button type="submit" style={{ flex: 1, padding: "10px", background: "#0C1E33", color: "#FFFFFF", border: "none", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Save PTM Window</button>
+                <button type="button" onClick={() => setPtmModalOpen(false)} style={{ padding: "10px 16px", background: "#F1F5F9", color: "#475569", border: "1px solid #E2E8F0", borderRadius: "6px", fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+              </div>
+            </form>
           </div>
         </div>
       )}

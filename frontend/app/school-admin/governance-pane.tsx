@@ -175,10 +175,12 @@ export function GovernancePane({
         setDocumentCount(loadedDocuments.length);
         if (data?.auditLogs && Array.isArray(data.auditLogs)) {
           setAuditLogs(
-            data.auditLogs.map((a: any) => ({
+            data.auditLogs
+              .filter((a: any) => !a.isPlatformAdmin && a.actorRole !== "platform_admin" && a.actorRole !== "super_admin")
+              .map((a: any) => ({
               id: a.id,
-              actor: a.actorEmail ? a.actorEmail.split("@")[0] : (a.actor || "Admin"),
-              role: "School Staff",
+              actor: a.actorName || (a.actorEmail ? a.actorEmail.split("@")[0] : (a.actor || "Admin")),
+              role: a.actorRole ? (a.actorRole.charAt(0).toUpperCase() + a.actorRole.slice(1).replace(/_/g, " ")) : "School Admin",
               action: formatAuditAction(a.action),
               resource: "System",
               resourceId: String(a.id).slice(0, 8),

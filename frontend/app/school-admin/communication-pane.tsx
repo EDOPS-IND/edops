@@ -3,7 +3,8 @@
 import React, { useRef, useState, useEffect } from "react";
 import { BroadcastRecord, CommunicationTicket } from "./types";
 import { CommunicationChat } from "../components/communication-chat";
-import { getSchoolAdminBroadcasts, createSchoolAdminBroadcast, getSchoolAdminConversations, getSchoolAdminConversation, markSchoolAdminConversationRead, updateSchoolAdminConversationStatus, openSchoolAdminCommunicationStream, getSchoolAdminCommunicationRecipients, sendSchoolAdminDirectMessage } from "../edops-api";
+import { NoticeBoard } from "../components/notice-board";
+import { getSchoolAdminBroadcasts, createSchoolAdminBroadcast, getSchoolAdminConversations, openSchoolAdminCommunicationStream } from "../edops-api";
 import {
   Send,
   MessageSquare,
@@ -54,37 +55,29 @@ export function CommunicationPane({
   onTabChange,
 }: {
   organizationId?: string;
-  activeTab?: "broadcast" | "inbox" | "newBroadcast";
-  onTabChange?: (tab: "broadcast" | "inbox" | "newBroadcast") => void;
+  activeTab?: "broadcast" | "chat" | "inbox" | "newBroadcast";
+  onTabChange?: (tab: "broadcast" | "chat" | "inbox" | "newBroadcast") => void;
 }) {
-  const [subtab, setSubtab] = useState<"broadcast" | "inbox" | "newBroadcast">(activeTab || "broadcast");
+  const [subtab, setSubtab] = useState<"broadcast" | "chat" | "newBroadcast">(
+    activeTab === "chat" || activeTab === "newBroadcast" ? activeTab : "broadcast"
+  );
 
   useEffect(() => {
-    if (activeTab && activeTab !== subtab) {
-      setSubtab(activeTab);
+    if (activeTab) {
+      if ((activeTab as string) === "inbox") {
+        setSubtab("chat");
+      } else if (activeTab !== subtab) {
+        setSubtab(activeTab as any);
+      }
     }
   }, [activeTab]);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(false);
-  const [showDirectMessage, setShowDirectMessage] = useState(false);
-  const [directRole, setDirectRole] = useState("teacher");
-  const [directSearch, setDirectSearch] = useState("");
-  const [directRecipients, setDirectRecipients] = useState<any[]>([]);
-  const [directRecipientsLoading, setDirectRecipientsLoading] = useState(false);
-  const [directRecipientsOpen, setDirectRecipientsOpen] = useState(false);
-  const [directRecipient, setDirectRecipient] = useState<any>(null);
-  const [directSubject, setDirectSubject] = useState("");
-  const [directBody, setDirectBody] = useState("");
-  const [directSending, setDirectSending] = useState(false);
-  const directSearchRequest = useRef(0);
-  const [openConversation, setOpenConversation] = useState<CommunicationTicket | null>(null);
-  const [conversationMessages, setConversationMessages] = useState<any[]>([]);
-  const [conversationReply, setConversationReply] = useState("");
-  const [conversationLoading, setConversationLoading] = useState(false);
   const [realtimeRevision, setRealtimeRevision] = useState(0);
 
   // Broadcasts history
   const [broadcasts, setBroadcasts] = useState<BroadcastRecord[]>(([] as any[]));
+  const [selectedDeliveryReport, setSelectedDeliveryReport] = useState<BroadcastRecord | null>(null);
 
   // Unified Inquiries & Tickets
   const [tickets, setTickets] = useState<CommunicationTicket[]>(([] as any[]));
@@ -115,28 +108,6 @@ export function CommunicationPane({
       getSchoolAdminConversations(organizationId).then((data) => setTickets(Array.isArray(data) ? data.map(normalizeConversation) : [])).catch(() => setLoadError(true));
     });
   }, [organizationId]);
-
-  useEffect(() => {
-    if (!organizationId || !openConversation?.conversationId || !realtimeRevision) return;
-    getSchoolAdminConversation(organizationId, openConversation.conversationId)
-      .then((messages) => setConversationMessages(Array.isArray(messages) ? messages : []))
-      .catch(() => undefined);
-  }, [organizationId, realtimeRevision, openConversation?.conversationId]);
-
-  useEffect(() => {
-    if (!organizationId || !showDirectMessage) return;
-    const requestId = ++directSearchRequest.current;
-    setDirectRecipientsLoading(true);
-    const timer = setTimeout(() => {
-      getSchoolAdminCommunicationRecipients(organizationId, directRole, directSearch)
-        .then((data) => {
-          if (requestId === directSearchRequest.current) setDirectRecipients(Array.isArray(data) ? data : []);
-        })
-        .catch(() => { if (requestId === directSearchRequest.current) setDirectRecipients([]); })
-        .finally(() => { if (requestId === directSearchRequest.current) setDirectRecipientsLoading(false); });
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [organizationId, showDirectMessage, directRole, directSearch]);
 
   // Form state for New Broadcast modal
   const [broadcastTitle, setBroadcastTitle] = useState("");
@@ -171,60 +142,6 @@ export function CommunicationPane({
     onTabChange?.("broadcast");
   };
 
-  const closeDirectMessage = () => {
-    setShowDirectMessage(false);
-    setDirectRecipient(null);
-    setDirectSubject("");
-    setDirectBody("");
-  };
-
-  const handleDirectMessage = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!organizationId || !directRecipient) return;
-    setDirectSending(true);
-    try {
-      await sendSchoolAdminDirectMessage(organizationId, {
-        recipientId: directRecipient.id,
-        recipientRole: directRole,
-        subject: directSubject,
-        body: directBody,
-        priority: "normal",
-      });
-      closeDirectMessage();
-    } finally {
-      setDirectSending(false);
-    }
-  };
-
-  const openConversationDrawer = async (ticket: CommunicationTicket) => {
-    if (!organizationId || !ticket.conversationId) return;
-    setOpenConversation(ticket);
-    setConversationLoading(true);
-    try {
-      const messages = await getSchoolAdminConversation(organizationId, ticket.conversationId);
-      setConversationMessages(Array.isArray(messages) ? messages : []);
-      await markSchoolAdminConversationRead(organizationId, ticket.conversationId);
-      setTickets((current) => current.map((item) => item.id === ticket.id ? { ...item, status: item.status === "Open" ? "In Progress" : item.status } : item));
-    } finally {
-      setConversationLoading(false);
-    }
-  };
-
-  const sendConversationReply = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!organizationId || !openConversation?.conversationId || !openConversation.recipientId || !openConversation.recipientRole || !conversationReply.trim()) return;
-    await sendSchoolAdminDirectMessage(organizationId, {
-      recipientId: openConversation.recipientId,
-      recipientRole: openConversation.recipientRole,
-      subject: openConversation.subject,
-      body: conversationReply.trim(),
-      conversationId: openConversation.conversationId,
-      priority: "normal",
-    });
-    await updateSchoolAdminConversationStatus(organizationId, openConversation.conversationId, "in_progress");
-    setConversationReply("");
-    setConversationMessages(await getSchoolAdminConversation(organizationId, openConversation.conversationId));
-  };
 
   return (
     <div className="edops-communication-pane" style={{ display: "grid", gap: "20px" }}>
@@ -304,11 +221,11 @@ export function CommunicationPane({
           </div>
         </article>
 
-        {/* 3. Open Inquiries Inbox (Pastel Sky) */}
+        {/* 3. Direct Messages (Pastel Sky) */}
         <article
           onClick={() => {
-            setSubtab("inbox");
-            if (onTabChange) onTabChange("inbox");
+            setSubtab("chat");
+            if (onTabChange) onTabChange("chat");
           }}
           style={{
             display: "flex",
@@ -328,7 +245,7 @@ export function CommunicationPane({
         >
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Inquiries &amp; Tickets
+              Direct Messages
             </span>
             <MessageSquare size={18} />
           </div>
@@ -336,8 +253,8 @@ export function CommunicationPane({
             {tickets.length}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <span style={{ fontSize: "11px" }}>Parent &amp; student academic triage</span>
-            <span style={{ fontSize: "11px", fontWeight: 600 }}>Inbox</span>
+            <span style={{ fontSize: "11px" }}>Parent, teacher &amp; student conversations</span>
+            <span style={{ fontSize: "11px", fontWeight: 600 }}>Chat</span>
           </div>
         </article>
 
@@ -381,14 +298,12 @@ export function CommunicationPane({
 
       {loadError && <CommunicationEmptyState>Communication data could not be loaded. Please refresh and try again.</CommunicationEmptyState>}
 
-      {organizationId && <CommunicationChat organizationId={organizationId} title="Direct Messages" onComposeBroadcast={() => { setSubtab("newBroadcast"); onTabChange?.("newBroadcast"); }} />}
-
       {/* Subtab Selector */}
-      <div className="edops-communication-nav" style={{ display: "none", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+      <div className="edops-communication-nav" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
         <div className="edops-communication-tabs" style={{ display: "flex", gap: "6px" }}>
           {[
-            { id: "broadcast", label: "Broadcast Dispatches" },
-            { id: "inbox", label: "Unified Inquiries Inbox" },
+            { id: "broadcast", label: "Official Notice Board" },
+            { id: "chat", label: "Direct Messages" },
           ].map((tab) => (
             <button
               key={tab.id}
@@ -414,202 +329,16 @@ export function CommunicationPane({
         </div>
       </div>
 
-      {/* 1. BROADCAST DISPATCHES TAB */}
-      {false && (
-        <div className="edops-communication-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Multi-Channel School Broadcast Center</h3>
-              <p style={{ margin: "2px 0 0", fontSize: "12px", color: "var(--muted)" }}>In-App announcements, WhatsApp notifications, and SMS alerts dispatch ledger</p>
-            </div>
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", justifyContent: "flex-end" }}>
-              <button
-                onClick={() => setShowDirectMessage(true)}
-                style={{ padding: "8px 14px", background: "#ffffff", color: "#0c1e33", border: "1px solid #cbd5e1", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                <MessageSquare size={14} /> Direct Message
-              </button>
-              <button
-                onClick={() => {
-                  setSubtab("newBroadcast");
-                  if (onTabChange) onTabChange("newBroadcast");
-                }}
-                style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
-              >
-                <Send size={14} /> Compose Broadcast
-              </button>
-            </div>
-          </div>
-
-          {loading ? <CommunicationEmptyState>Loading broadcasts…</CommunicationEmptyState> : broadcasts.length === 0 ? <CommunicationEmptyState>No broadcasts sent yet. Compose your first broadcast.</CommunicationEmptyState> : <div style={{ display: "grid", gap: "12px" }}>
-            {broadcasts.map((b) => (
-              <div key={b.id} style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                  <div>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center", marginBottom: "4px" }}>
-                      <span style={{ background: "#f0f4f9", color: "#0c1e33", padding: "2px 8px", borderRadius: "4px", fontSize: "10.5px", fontWeight: 700 }}>
-                        Target: {b.audience}
-                      </span>
-                      <div style={{ display: "flex", gap: "4px" }}>
-                        {b.channels.map((ch, idx) => (
-                          <span key={idx} style={{ background: "#ffffff", border: "1px solid #e4e6e9", color: "#0c1e33", padding: "1px 6px", borderRadius: "4px", fontSize: "10px", fontWeight: 700 }}>
-                            {ch}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                    <b style={{ color: "#0c1e33", fontSize: "15px" }}>{b.title}</b>
-                    <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#334155", lineHeight: 1.4 }}>{b.message}</p>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    <span style={{ fontSize: "11px", color: "var(--muted)" }}>{b.sentAt}</span>
-                    <div style={{ fontSize: "11px", color: "var(--muted)" }}>by {b.sentBy}</div>
-                  </div>
-                </div>
-
-                <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
-                  <div style={{ display: "flex", gap: "16px" }}>
-                    <span>Sent: <b>{b.deliveryStats.sent}</b></span>
-                    <span style={{ color: "#047857" }}>Delivered: <b>{b.deliveryStats.delivered}</b></span>
-                    <span style={{ color: b.deliveryStats.failed > 0 ? "#DC2626" : "var(--muted)" }}>Failed: <b>{b.deliveryStats.failed}</b></span>
-                  </div>
-                  <span style={{ color: "#0c1e33", fontWeight: 700, fontSize: "11.5px" }}>Delivery summary</span>
-                </div>
-              </div>
-            ))}
-          </div>}
-        </div>
+      {/* 1. OFFICIAL NOTICE BOARD */}
+      {subtab === "broadcast" && organizationId && (
+        <NoticeBoard organizationId={organizationId} role="school_admin" />
       )}
 
-      {/* 2. UNIFIED INBOX & TICKET TRIAGE */}
-      {false && (
-        <div className="edops-communication-panel" style={{ background: "#FFFFFF", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
-          <h3 style={{ margin: "0 0 4px", fontSize: "16px", fontWeight: 800, color: "#0c1e33" }}>Unified Inquiries & Escalation Inbox</h3>
-          <p style={{ margin: "0 0 16px", fontSize: "12px", color: "var(--muted)" }}>Parent queries, transport reports, teacher requests and administrative escalations</p>
-
-          {loading ? <CommunicationEmptyState>Loading inquiries…</CommunicationEmptyState> : tickets.length === 0 ? <CommunicationEmptyState>No inquiries or tickets yet.</CommunicationEmptyState> : <div style={{ display: "grid", gap: "10px" }}>
-            {tickets.map((t) => (
-              <div key={t.id} style={{ padding: "14px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
-                    <span style={{
-                      padding: "2px 8px", borderRadius: "4px", fontSize: "10.5px", fontWeight: 700,
-                      background: t.priority === "Urgent" ? "#FEE2E2" : t.priority === "High" ? "#FEF3C7" : "#ECFDF5",
-                      color: t.priority === "Urgent" ? "#991B1B" : t.priority === "High" ? "#92400E" : "#047857",
-                    }}>
-                      {t.priority}
-                    </span>
-                    <span style={{ fontSize: "11px", color: "var(--muted)", fontWeight: 650 }}>{t.senderRole}: <b>{t.senderName}</b></span>
-                    <span style={{ fontSize: "11px", color: "var(--muted)" }}>· {t.timestamp}</span>
-                  </div>
-                  <b style={{ fontSize: "14px", color: "#0c1e33" }}>{t.subject}</b>
-                  <p style={{ margin: "3px 0 0", fontSize: "12.5px", color: "#334155" }}>{t.snippet}</p>
-                </div>
-
-                <div style={{ textAlign: "right" }}>
-                  <span style={{ display: "inline-block", background: t.status === "Open" ? "#FEF3C7" : "#ECFDF5", color: t.status === "Open" ? "#92400E" : "#047857", padding: "2px 8px", borderRadius: "10px", fontSize: "11px", fontWeight: 700, marginBottom: "6px" }}>
-                    {t.status}
-                  </span>
-                  <div>
-                    <button onClick={() => openConversationDrawer(t)} style={{ padding: "4px 10px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", fontSize: "11.5px", fontWeight: 700, cursor: "pointer" }}>
-                      Open Conversation
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>}
-        </div>
+      {/* 2. DIRECT MESSAGES */}
+      {subtab === "chat" && organizationId && (
+        <CommunicationChat organizationId={organizationId} title="Direct Messages" />
       )}
 
-      {false && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 1350, display: "flex", justifyContent: "flex-end", background: "rgba(12, 30, 51, 0.65)", backdropFilter: "blur(4px)" }} onMouseDown={(e) => { if (e.target === e.currentTarget) setOpenConversation(null); }}>
-          <aside className="edops-right-drawer" role="dialog" aria-modal="true" aria-label="Conversation" style={{ height: "100vh", background: "#FFFFFF", boxShadow: "-10px 0 36px rgba(12, 30, 51, 0.22)", display: "flex", flexDirection: "column", animation: "edopsSlideInRight 0.22s cubic-bezier(0.16, 1, 0.3, 1)" }}>
-            <header className="edops-drawer-header" style={{ padding: "20px 24px", borderBottom: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAFB" }}>
-              <div>
-                <span style={{ fontSize: "11.5px", color: "var(--muted)", fontWeight: 600 }}>{openConversation.senderName}</span>
-                <h3 style={{ margin: "4px 0 0", fontSize: "18px", fontWeight: 800, color: "#0c1e33" }}>{openConversation.subject}</h3>
-              </div>
-              <button type="button" aria-label="Close conversation" onClick={() => setOpenConversation(null)} style={{ border: 0, background: "transparent", color: "#64748b", cursor: "pointer" }}><X size={24} /></button>
-            </header>
-            <div className="edops-drawer-body" style={{ padding: "22px 24px", overflowY: "auto", flex: 1, display: "grid", gap: "12px", alignContent: "start" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px" }}>
-                <span style={{ fontSize: "12px", color: "var(--muted)" }}>Conversation history</span>
-                <select value={openConversation.status === "Open" ? "open" : openConversation.status === "In Progress" ? "in_progress" : openConversation.status.toLowerCase()} onChange={async (e) => { if (!organizationId || !openConversation.conversationId) return; await updateSchoolAdminConversationStatus(organizationId, openConversation.conversationId, e.target.value); setOpenConversation({ ...openConversation, status: e.target.value === "in_progress" ? "In Progress" : e.target.value === "resolved" ? "Resolved" : e.target.value === "closed" ? "Closed" : "Open" }); }} style={{ padding: "6px 8px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "12px" }}>
-                  <option value="open">Open</option><option value="in_progress">In Progress</option><option value="resolved">Resolved</option><option value="closed">Closed</option>
-                </select>
-              </div>
-              {conversationLoading ? <CommunicationEmptyState>Loading conversation…</CommunicationEmptyState> : conversationMessages.map((message) => (
-                <div key={message.id} style={{ padding: "12px", borderRadius: "8px", background: "#f8fafc", border: "1px solid #e4e6e9" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", fontSize: "11px", color: "var(--muted)" }}><b style={{ color: "#0c1e33" }}>{message.senderName || "School Admin"}</b><span>{message.createdAt ? new Date(message.createdAt).toLocaleString() : ""}</span></div>
-                  <p style={{ margin: "7px 0 0", fontSize: "13px", lineHeight: 1.5, color: "#334155", whiteSpace: "pre-wrap" }}>{message.body}</p>
-                </div>
-              ))}
-            </div>
-            <form onSubmit={sendConversationReply} style={{ padding: "16px 24px", borderTop: "1px solid #e4e6e9", display: "grid", gap: "8px" }}>
-              <textarea required rows={3} value={conversationReply} onChange={(e) => setConversationReply(e.target.value)} placeholder="Write a reply…" style={{ width: "100%", padding: "9px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px", resize: "vertical" }} />
-              <button type="submit" style={{ padding: "10px 16px", background: "#0c1e33", color: "#ffffff", border: 0, borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}>Send Reply</button>
-            </form>
-          </aside>
-        </div>
-      )}
-
-      {false && (
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 1300, display: "flex", justifyContent: "flex-end", background: "rgba(12, 30, 51, 0.65)", backdropFilter: "blur(4px)" }}
-          onMouseDown={(e) => { if (e.target === e.currentTarget) closeDirectMessage(); }}
-        >
-          <aside className="edops-right-drawer" role="dialog" aria-modal="true" aria-label="Send Direct Message" style={{ height: "100vh", background: "#FFFFFF", boxShadow: "-10px 0 36px rgba(12, 30, 51, 0.22)", display: "flex", flexDirection: "column", animation: "edopsSlideInRight 0.22s cubic-bezier(0.16, 1, 0.3, 1)" }}>
-            <header className="edops-drawer-header" style={{ padding: "20px 24px", borderBottom: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center", background: "#FAFAFB" }}>
-              <div>
-                <span style={{ fontSize: "11.5px", color: "var(--muted)", fontWeight: 600 }}>Communication Center</span>
-                <h3 style={{ margin: "4px 0 0", fontSize: "18px", fontWeight: 800, color: "#0c1e33" }}>Send Direct Message</h3>
-              </div>
-              <button type="button" aria-label="Close direct message" onClick={closeDirectMessage} style={{ border: 0, background: "transparent", color: "#64748b", cursor: "pointer" }}><X size={24} /></button>
-            </header>
-            <div className="edops-drawer-body" style={{ padding: "22px 24px", overflowY: "auto", flex: 1 }}>
-              <form onSubmit={handleDirectMessage} style={{ display: "grid", gap: "14px" }}>
-                <div>
-                  <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33" }}>Recipient type</label>
-                  <select value={directRole} onChange={(e) => { setDirectRole(e.target.value); setDirectRecipient(null); }} style={{ width: "100%", padding: "9px", borderRadius: "6px", border: "1px solid #e4e6e9", marginTop: "4px", fontSize: "13px" }}>
-                    <option value="principal">Principal</option>
-                    <option value="teacher">Teacher</option>
-                    <option value="student">Student</option>
-                    <option value="parent">Parent</option>
-                    <option value="staff">Staff member</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33" }}>Search recipient</label>
-                  <div>
-                    <input value={directSearch} onFocus={() => setDirectRecipientsOpen(true)} onChange={(e) => { setDirectSearch(e.target.value); setDirectRecipient(null); setDirectRecipientsOpen(true); }} placeholder="Search by name or email" style={{ width: "100%", padding: "9px", borderRadius: "6px", border: "1px solid #e4e6e9", marginTop: "4px", fontSize: "13px" }} />
-                    {directRecipientsOpen && <div role="listbox" aria-live="polite" style={{ display: "grid", gap: "4px", maxHeight: "180px", overflowY: "auto", marginTop: "6px", padding: "6px", background: "#fff", border: "1px solid #e4e6e9", borderRadius: "8px", boxShadow: "0 4px 12px rgba(12,30,51,.08)" }}>
-                      {directRecipientsLoading ? <span style={{ padding: "10px", color: "var(--muted)", fontSize: "13px" }}>Searching recipients…</span> : directRecipients.length ? directRecipients.map((recipient) => (
-                        <button key={recipient.id} type="button" role="option" aria-selected={directRecipient?.id === recipient.id} onClick={() => { setDirectRecipient(recipient); setDirectSearch(recipient.name || recipient.email); setDirectRecipientsOpen(false); }} style={{ textAlign: "left", padding: "10px 12px", border: 0, borderRadius: "6px", background: directRecipient?.id === recipient.id ? "#f0f4f9" : "#fff", color: "#0c1e33", cursor: "pointer" }}>
-                          <strong>{recipient.name || recipient.email}</strong><span style={{ display: "block", marginTop: "2px", color: "var(--muted)", fontSize: "12px" }}>{recipient.email}</span>
-                        </button>
-                      )) : <span style={{ padding: "10px", color: "var(--muted)", fontSize: "13px" }}>No matching recipients</span>}
-                    </div>}
-                  </div>
-                  {directRecipient && <div style={{ marginTop: "6px", color: "#047857", fontSize: "12px" }}>Selected: {directRecipient.name || directRecipient.email}</div>}
-                </div>
-                <div>
-                  <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33" }}>Subject</label>
-                  <input required value={directSubject} onChange={(e) => setDirectSubject(e.target.value)} placeholder="Message subject" style={{ width: "100%", padding: "9px", borderRadius: "6px", border: "1px solid #e4e6e9", marginTop: "4px", fontSize: "13px" }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#0c1e33" }}>Message</label>
-                  <textarea required rows={6} value={directBody} onChange={(e) => setDirectBody(e.target.value)} placeholder="Write your message" style={{ width: "100%", padding: "9px", borderRadius: "6px", border: "1px solid #e4e6e9", marginTop: "4px", fontSize: "13px", resize: "vertical" }} />
-                </div>
-                <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
-                  <button type="submit" disabled={directSending} style={{ padding: "10px 20px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontWeight: 700, cursor: directSending ? "wait" : "pointer" }}>{directSending ? "Sending…" : "Send Message"}</button>
-                  <button type="button" onClick={closeDirectMessage} style={{ padding: "10px 16px", background: "#f8fafc", border: "1px solid #e4e6e9", color: "#0c1e33", borderRadius: "8px", fontWeight: 700, cursor: "pointer" }}>Cancel</button>
-                </div>
-              </form>
-            </div>
-          </aside>
-        </div>
-      )}
 
       {/* 3. COMPOSE BROADCAST FORM */}
       {subtab === "newBroadcast" && (
@@ -708,6 +437,56 @@ export function CommunicationPane({
           </form>
             </div>
           </aside>
+        </div>
+      )}
+      {/* 4. DELIVERY REPORT MODAL */}
+      {selectedDeliveryReport && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(12, 30, 51, 0.6)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <div style={{ background: "#FFFFFF", borderRadius: "10px", padding: "24px", maxWidth: "480px", width: "90%", boxShadow: "0 20px 25px -5px rgba(0,0,0,0.15)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid #E2E8F0", paddingBottom: "12px" }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0C1E33" }}>Delivery Report</h3>
+                <span style={{ fontSize: "11px", color: "#64748B" }}>Notice dispatch status and multi-channel audit</span>
+              </div>
+              <button onClick={() => setSelectedDeliveryReport(null)} style={{ background: "none", border: "none", fontSize: "18px", cursor: "pointer", color: "#64748B" }}>✕</button>
+            </div>
+            <div style={{ display: "grid", gap: "12px", fontSize: "13px" }}>
+              <div><b>Title:</b> {selectedDeliveryReport.title}</div>
+              <div><b>Target Audience:</b> {selectedDeliveryReport.audience}</div>
+              <div><b>Dispatched:</b> {selectedDeliveryReport.sentAt} by {selectedDeliveryReport.sentBy}</div>
+              <div style={{ background: "#F8FAFC", padding: "12px", borderRadius: "8px", border: "1px solid #E2E8F0", display: "grid", gap: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>In-App Noticeboard:</span>
+                  <span style={{ color: "#047857", fontWeight: 700 }}>✓ Published & Live</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Channels Included:</span>
+                  <b>{selectedDeliveryReport.channels?.join(", ") || "In-App"}</b>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Total Recipients:</span>
+                  <b>{selectedDeliveryReport.deliveryStats.sent > 0 ? selectedDeliveryReport.deliveryStats.sent : "All Enrolled"}</b>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Successfully Delivered:</span>
+                  <span style={{ color: "#047857", fontWeight: 700 }}>{selectedDeliveryReport.deliveryStats.sent > 0 ? selectedDeliveryReport.deliveryStats.delivered : "100%"}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <span>Delivery Failures:</span>
+                  <span style={{ color: selectedDeliveryReport.deliveryStats.failed > 0 ? "#DC2626" : "#64748B", fontWeight: 700 }}>{selectedDeliveryReport.deliveryStats.failed}</span>
+                </div>
+              </div>
+            </div>
+            <div style={{ marginTop: "18px", textAlign: "right" }}>
+              <button
+                type="button"
+                onClick={() => setSelectedDeliveryReport(null)}
+                style={{ padding: "8px 18px", background: "#0C1E33", color: "#FFFFFF", border: "none", borderRadius: "6px", fontWeight: 700, fontSize: "12.5px", cursor: "pointer" }}
+              >
+                Close Report
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

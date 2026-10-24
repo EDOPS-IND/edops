@@ -749,7 +749,11 @@ export function LearningExamsPane({
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <label style={{ display: "grid", gap: "4px", fontSize: "12px", fontWeight: 600, color: "#344054" }}>
                   <span>Maximum Marks</span>
-                  <input type="number" min="1" max="1000" value={examMaxMarks} onChange={(e) => setExamMaxMarks(Number(e.target.value))} style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }} />
+                  <input type="number" min="1" max="1000" value={examMaxMarks} onChange={(e) => {
+                    const newMax = Number(e.target.value);
+                    setExamMaxMarks(newMax);
+                    if (examPassingMarks > newMax) setExamPassingMarks(Math.max(1, Math.round(newMax * 0.33)));
+                  }} style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #e4e6e9", fontSize: "13px" }} />
                 </label>
                 <label style={{ display: "grid", gap: "4px", fontSize: "12px", fontWeight: 600, color: "#344054" }}>
                   <span>Subject Passing Marks</span>
