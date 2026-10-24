@@ -25,6 +25,7 @@ import {
 import { getTeacherDashboard } from "../../edops-api";
 import { TeacherTab } from "../types";
 import { NoticeBoard } from "../../components/notice-board";
+import { getTimeGreeting } from "../../components/greeting-helper";
 
 // Design tokens strictly matching Student Dashboard specification
 const S = {
@@ -156,7 +157,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
           {/* Greeting Row */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <span style={{ fontSize: "28px", lineHeight: 1 }} aria-hidden="true">
-              👋
+              {getTimeGreeting().icon}
             </span>
             <h1
               id="teacher-greeting"
@@ -169,10 +170,8 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
               }}
             >
               {(() => {
-                const hour = new Date().getHours();
-                const timeGreeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
                 const name = teacher.name.replace(/\s*\(Teacher\)|\s*\(Faculty\)/gi, "").trim();
-                return `${timeGreeting}, ${name}!`;
+                return `${getTimeGreeting().greeting}, ${name}!`;
               })()}
             </h1>
           </div>

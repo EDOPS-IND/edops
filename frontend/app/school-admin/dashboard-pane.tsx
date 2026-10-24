@@ -35,6 +35,7 @@ import {
 import { SchoolAdminTab } from "./types";
 import { getSchoolAdminDashboard, getSchoolAdminAcademics } from "../edops-api";
 import { formatAuditMessage, formatAuditBadge } from "../components/audit-formatter";
+import { getTimeGreeting } from "../components/greeting-helper";
 
 // ─── Design Tokens strictly matching Student & People UI ────────────────────
 const S = {
@@ -636,7 +637,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
           {/* Greeting Row */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
             <span style={{ fontSize: "28px", lineHeight: 1 }} aria-hidden="true">
-              👋
+              {getTimeGreeting().icon}
             </span>
             <h1
               id="admin-greeting"
@@ -648,12 +649,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                 letterSpacing: "-0.02em",
               }}
             >
-              {(() => {
-                const hour = new Date().getHours();
-                const timeGreeting =
-                  hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
-                return `${timeGreeting}, School Administrator!`;
-              })()}
+              {`${getTimeGreeting().greeting}, School Administrator!`}
             </h1>
           </div>
 

@@ -25,6 +25,7 @@ import { PrincipalSchoolKpis, TodayAcademicOperations } from "../types";
 import { formatAuditMessage } from "../../components/audit-formatter";
 import { RadarPillarsChart, SegmentedDonut, StackedProgressBar } from "../components/telemetry-charts";
 import { NoticeBoard } from "../../components/notice-board";
+import { getTimeGreeting } from "../../components/greeting-helper";
 
 // Unified design tokens strictly matching Student & Teacher Dashboard specification
 const S = {
@@ -170,6 +171,9 @@ export function DashboardPane({
         >
           {/* Greeting Row */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "28px", lineHeight: 1 }} aria-hidden="true">
+              {getTimeGreeting().icon}
+            </span>
             <h1
               id="principal-greeting"
               style={{
@@ -181,10 +185,8 @@ export function DashboardPane({
               }}
             >
               {(() => {
-                const hour = new Date().getHours();
-                const timeGreeting = hour < 12 ? "Good Morning" : hour < 17 ? "Good Afternoon" : "Good Evening";
                 const name = (principalName || liveData?.principalName || "Principal").replace(/\s*\(Principal\)|\s*\(Admin\)/gi, "").trim();
-                return `${timeGreeting}, ${name}!`;
+                return `${getTimeGreeting().greeting}, ${name}!`;
               })()}
             </h1>
           </div>
