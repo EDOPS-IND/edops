@@ -15,6 +15,17 @@ export type School = {
   state?: string;
   officialEmail?: string;
   officialPhone?: string;
+  schoolType?: string;
+  registrationNumber?: string;
+  affiliationNumber?: string;
+  establishedYear?: number;
+  addressLine1?: string;
+  addressLine2?: string;
+  country?: string;
+  pincode?: string;
+  website?: string;
+  timeZone?: string;
+  locale?: string;
   healthScore?: number;
   storageUsageGb?: number;
   apiRequests?: number;

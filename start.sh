@@ -35,16 +35,6 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo -e "${RED}[ERROR] Docker is not installed or not in PATH.${RESET}"
-  exit 1
-fi
-
-if ! docker info >/dev/null 2>&1; then
-  echo -e "${RED}[ERROR] Docker daemon is not running. Please start Docker Desktop first.${RESET}"
-  exit 1
-fi
-
 # ------------------------------------------------------------------------------
 # 2. Free up ports 3000 & 3001 if already occupied by stale processes
 # ------------------------------------------------------------------------------
@@ -58,11 +48,55 @@ for port in 3000 3001; do
 done
 
 # ------------------------------------------------------------------------------
-# 3. Start PostgreSQL via Docker Compose
+# 3. Ensure PostgreSQL is Running (Native Postgres.app or Docker Compose)
 # ------------------------------------------------------------------------------
-echo -e "${CYAN}[1/4] Starting PostgreSQL database...${RESET}"
-(cd "$BACKEND_DIR" && docker compose up -d --wait postgres)
-echo -e "${GREEN}✔ PostgreSQL is healthy on port 15432.${RESET}"
+echo -e "${CYAN}[1/4] Checking PostgreSQL database...${RESET}"
+DB_PORT=""
+
+check_postgres_port() {
+  local port=$1
+  if command -v pg_isready >/dev/null 2>&1; then
+    pg_isready -h 127.0.0.1 -p "$port" >/dev/null 2>&1
+  else
+    nc -z 127.0.0.1 "$port" >/dev/null 2>&1
+  fi
+}
+
+if check_postgres_port 5432; then
+  DB_PORT="5432"
+  echo -e "${GREEN}✔ PostgreSQL is running locally on port 5432.${RESET}"
+elif check_postgres_port 15432; then
+  DB_PORT="15432"
+  echo -e "${GREEN}✔ PostgreSQL is running on port 15432.${RESET}"
+else
+  # Try launching Postgres.app if installed
+  if [ -d "/Applications/Postgres.app" ]; then
+    echo -e "${YELLOW}Starting Postgres.app...${RESET}"
+    open -a Postgres || true
+    for i in {1..10}; do
+      if check_postgres_port 5432; then
+        DB_PORT="5432"
+        echo -e "${GREEN}✔ Postgres.app is healthy on port 5432.${RESET}"
+        break
+      fi
+      sleep 1
+    done
+  fi
+
+  # If still not running, try Docker Compose
+  if [ -z "$DB_PORT" ] && command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    echo -e "${YELLOW}Starting PostgreSQL via Docker Compose...${RESET}"
+    (cd "$BACKEND_DIR" && docker compose up -d --wait postgres)
+    DB_PORT="15432"
+    echo -e "${GREEN}✔ PostgreSQL is healthy on port 15432 (Docker).${RESET}"
+  fi
+fi
+
+if [ -z "$DB_PORT" ]; then
+  echo -e "${RED}[ERROR] PostgreSQL is not running.${RESET}"
+  echo -e "${YELLOW}Please start Postgres.app or start Docker Desktop and re-run.${RESET}"
+  exit 1
+fi
 
 # ------------------------------------------------------------------------------
 # 4. Backend Preparation & Database Migrations
@@ -71,6 +105,21 @@ echo -e "${CYAN}[2/4] Initializing backend environment and database schema...${R
 if [ ! -f "$BACKEND_DIR/.env" ]; then
   echo -e "${YELLOW}Creating backend .env file...${RESET}"
   (cd "$BACKEND_DIR" && npm run env:init)
+fi
+
+# Sync DATABASE_URL port in .env with active DB port
+if grep -q "127.0.0.1:[0-9]*/edops" "$BACKEND_DIR/.env"; then
+  sed -i '' "s|127.0.0.1:[0-9]*/edops|127.0.0.1:${DB_PORT}/edops|g" "$BACKEND_DIR/.env"
+fi
+
+if [ ! -d "$BACKEND_DIR/node_modules" ]; then
+  echo -e "${YELLOW}Installing backend dependencies...${RESET}"
+  (cd "$BACKEND_DIR" && npm install)
+fi
+
+if [ ! -d "$FRONTEND_DIR/node_modules" ]; then
+  echo -e "${YELLOW}Installing frontend dependencies...${RESET}"
+  (cd "$FRONTEND_DIR" && npm install)
 fi
 
 echo -e "Running database migrations..."

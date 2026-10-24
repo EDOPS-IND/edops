@@ -26,6 +26,7 @@ import {
   DetailedFeatureOverrideDto,
   SchoolLifecycleTransitionDto,
   OnboardSchoolFullDto,
+  UpdateSchoolDetailsDto,
 } from "./billing.dto";
 import { entitlements, seatUsage } from "./entitlements";
 import {
@@ -413,10 +414,21 @@ export class BillingService {
           o.id, o.name, o.slug, o.status, o.created_at AS "createdAt",
           COALESCE(o.code, UPPER(SUBSTRING(o.slug, 1, 3)) || '001') AS code,
           o.board AS board,
+          o.school_type AS "schoolType",
+          o.registration_number AS "registrationNumber",
+          o.affiliation_number AS "affiliationNumber",
+          o.established_year AS "establishedYear",
+          o.address_line1 AS "addressLine1",
+          o.address_line2 AS "addressLine2",
           o.city AS city,
           o.state AS state,
+          o.country AS country,
+          o.pincode AS pincode,
           o.official_email AS "officialEmail",
           COALESCE(o.official_phone, '') AS "officialPhone",
+          o.website AS website,
+          o.time_zone AS "timeZone",
+          o.locale AS locale,
           COALESCE(
             ROUND(
               COALESCE((
@@ -1524,29 +1536,176 @@ export class BillingService {
     });
   }
 
-  // : Global Search across schools, tickets, invoices, plans
+  // Platform Admin: Update School Details
+  updateSchoolDetails(actor: User, id: string, dto: UpdateSchoolDetailsDto) {
+    return this.platform(actor, async (m) => {
+      const [existing] = await m.query(
+        `SELECT * FROM organizations WHERE id = $1 FOR UPDATE LIMIT 1`,
+        [id],
+      );
+      if (!existing) throw new NotFoundException("School organization not found");
+
+      if (dto.slug && dto.slug !== existing.slug) {
+        const [dupSlug] = await m.query(
+          `SELECT id FROM organizations WHERE slug = $1 AND id != $2 LIMIT 1`,
+          [dto.slug, id],
+        );
+        if (dupSlug) {
+          throw new ConflictException(`Slug '${dto.slug}' is already in use by another school`);
+        }
+      }
+
+      if (dto.officialEmail && dto.officialEmail !== existing.official_email) {
+        const [dupEmail] = await m.query(
+          `SELECT id, name FROM organizations WHERE lower(btrim(official_email)) = lower(btrim($1)) AND id != $2 LIMIT 1`,
+          [dto.officialEmail, id],
+        );
+        if (dupEmail) {
+          throw new ConflictException(
+            `Official email '${dto.officialEmail}' is already registered with school '${dupEmail.name}'`,
+          );
+        }
+      }
+
+      if (dto.officialPhone && dto.officialPhone !== existing.official_phone) {
+        const [dupPhone] = await m.query(
+          `SELECT id, name FROM organizations WHERE btrim(official_phone) = btrim($1) AND id != $2 LIMIT 1`,
+          [dto.officialPhone, id],
+        );
+        if (dupPhone) {
+          throw new ConflictException(
+            `Official phone '${dto.officialPhone}' is already registered with school '${dupPhone.name}'`,
+          );
+        }
+      }
+
+      const mapping: Record<string, string> = {
+        name: "name",
+        slug: "slug",
+        code: "code",
+        schoolType: "school_type",
+        board: "board",
+        registrationNumber: "registration_number",
+        affiliationNumber: "affiliation_number",
+        establishedYear: "established_year",
+        addressLine1: "address_line1",
+        addressLine2: "address_line2",
+        city: "city",
+        state: "state",
+        country: "country",
+        pincode: "pincode",
+        officialEmail: "official_email",
+        officialPhone: "official_phone",
+        website: "website",
+        timeZone: "time_zone",
+        locale: "locale",
+      };
+
+      const updates: string[] = [];
+      const params: any[] = [];
+      let pIdx = 1;
+
+      for (const [key, col] of Object.entries(mapping)) {
+        if ((dto as any)[key] !== undefined) {
+          updates.push(`${col} = $${pIdx++}`);
+          params.push((dto as any)[key]);
+        }
+      }
+
+      if (updates.length === 0) {
+        throw new BadRequestException("No valid fields provided for update");
+      }
+
+      updates.push(`updated_at = NOW()`);
+      params.push(id);
+
+      const [updated] = await m.query(
+        `UPDATE organizations SET ${updates.join(", ")} WHERE id = $${pIdx} RETURNING *`,
+        params,
+      );
+
+      await this.audit.record(m, {
+        organizationId: id,
+        actorId: actor.id,
+        action: "organization.updated",
+        details: {
+          before: existing,
+          after: updated,
+          source: "platform_admin",
+        },
+      });
+
+      return {
+        id: updated.id,
+        name: updated.name,
+        slug: updated.slug,
+        status: updated.status,
+        code: updated.code,
+        board: updated.board,
+        schoolType: updated.school_type,
+        city: updated.city,
+        state: updated.state,
+        country: updated.country,
+        pincode: updated.pincode,
+        addressLine1: updated.address_line1,
+        addressLine2: updated.address_line2,
+        officialEmail: updated.official_email,
+        officialPhone: updated.official_phone,
+        website: updated.website,
+        registrationNumber: updated.registration_number,
+        affiliationNumber: updated.affiliation_number,
+        establishedYear: updated.established_year,
+        timeZone: updated.time_zone,
+        locale: updated.locale,
+        updatedAt: updated.updated_at,
+      };
+    });
+  }
+
+  // : Global Search across schools, tickets, invoices, plans, announcements
   globalSearch(actor: User, query: string) {
     return this.platform(actor, async (m) => {
-      const q = `%${(query || "").trim()}%`;
-      const [schools, tickets, invoices, plans] = await Promise.all([
+      const trimmed = (query || "").trim();
+      if (!trimmed) return { results: [] };
+      const q = `%${trimmed}%`;
+      const [schools, tickets, invoices, plans, announcements] = await Promise.all([
         m.query(
-          `SELECT id, name, slug, status, code, 'school' AS type FROM organizations WHERE name ILIKE $1 OR slug ILIKE $1 OR code ILIKE $1 LIMIT 5`,
+          `SELECT id, name, slug, status, code, board, city, state, 'school' AS type 
+           FROM organizations 
+           WHERE name ILIKE $1 OR slug ILIKE $1 OR code ILIKE $1 OR city ILIKE $1 OR state ILIKE $1 OR board ILIKE $1 OR official_email ILIKE $1 OR official_phone ILIKE $1 
+           LIMIT 8`,
           [q],
         ),
         m.query(
-          `SELECT id, ticket_code AS "ticketCode", subject, status, 'ticket' AS type FROM support_tickets WHERE ticket_code ILIKE $1 OR subject ILIKE $1 LIMIT 5`,
+          `SELECT id, ticket_code AS "ticketCode", subject, status, category, priority, 'ticket' AS type 
+           FROM support_tickets 
+           WHERE ticket_code ILIKE $1 OR subject ILIKE $1 OR category ILIKE $1 
+           LIMIT 6`,
           [q],
         ),
         m.query(
-          `SELECT id, payment_reference AS "paymentReference", amount_minor AS "amountMinor", status, 'invoice' AS type FROM invoices WHERE payment_reference ILIKE $1 LIMIT 5`,
+          `SELECT id, payment_reference AS "paymentReference", amount_minor AS "amountMinor", currency, status, 'invoice' AS type 
+           FROM invoices 
+           WHERE payment_reference ILIKE $1 OR id::text ILIKE $1 
+           LIMIT 5`,
           [q],
         ),
         m.query(
-          `SELECT id, name, 'plan' AS type FROM plans WHERE name ILIKE $1 LIMIT 5`,
+          `SELECT id, name, active, 'plan' AS type 
+           FROM plans 
+           WHERE name ILIKE $1 
+           LIMIT 5`,
           [q],
         ),
+        m.query(
+          `SELECT id, title, type AS "announcementType", priority, status, 'announcement' AS type 
+           FROM platform_announcements 
+           WHERE title ILIKE $1 OR message ILIKE $1 
+           LIMIT 5`,
+          [q],
+        ).catch(() => []),
       ]);
-      return { results: [...schools, ...tickets, ...invoices, ...plans] };
+      return { results: [...schools, ...tickets, ...invoices, ...plans, ...(announcements || [])] };
     });
   }
 
