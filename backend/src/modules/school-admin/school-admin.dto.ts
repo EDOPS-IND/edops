@@ -288,6 +288,52 @@ export class CreateBroadcastDto {
   priority?: "low" | "normal" | "high" | "urgent";
 }
 
+export class ReplyCommunicationTicketDto {
+  @ApiProperty({ description: "Reply message body" })
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(4000)
+  body!: string;
+}
+
+export class SendDirectCommunicationDto {
+  @ApiProperty({ format: "uuid" })
+  @IsUUID()
+  recipientId!: string;
+
+  @ApiProperty({ enum: ["school_admin", "principal", "teacher", "student", "parent", "staff"] })
+  @IsEnum(["school_admin", "principal", "teacher", "student", "parent", "staff"])
+  recipientRole!: "school_admin" | "principal" | "teacher" | "student" | "parent" | "staff";
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(255)
+  subject!: string;
+
+  @ApiProperty()
+  @IsNotEmpty()
+  @IsString()
+  @MaxLength(4000)
+  body!: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  conversationId?: string;
+
+  @ApiPropertyOptional({ enum: ["normal", "urgent"] })
+  @IsOptional()
+  @IsEnum(["normal", "urgent"])
+  priority?: "normal" | "urgent";
+}
+
+export class UpdateCommunicationStatusDto {
+  @ApiProperty({ enum: ["open", "in_progress", "resolved", "closed"] })
+  @IsEnum(["open", "in_progress", "resolved", "closed"])
+  status!: "open" | "in_progress" | "resolved" | "closed";
+}
+
 export class CreateDisciplineIncidentDto {
   @ApiPropertyOptional({ format: "uuid" })
   @IsOptional()

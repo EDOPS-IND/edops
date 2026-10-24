@@ -7,6 +7,7 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsUUID,
   Max,
   Min,
 } from "class-validator";
@@ -109,6 +110,11 @@ export class SendStudentMessageDto {
   @IsString()
   @IsNotEmpty()
   recipientId!: string;
+
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  conversationId?: string;
 
   @ApiProperty({ description: "Subject header" })
   @IsString()

@@ -10,7 +10,9 @@ import {
   Put,
   Query,
   Req,
+  Res,
 } from "@nestjs/common";
+import type { Response } from "express";
 import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { AuthenticatedRequest } from "../../common/auth.guard";
 import {
@@ -33,16 +35,20 @@ import {
   DirectAdmitStudentDto,
   GrantFeeConcessionDto,
   RecordOfflinePaymentDto,
+  ReplyCommunicationTicketDto,
+  SendDirectCommunicationDto,
   SchedulePtmDto,
   SendFeeReminderDto,
   UpdateLeaveStatusDto,
   UpdateParentChildrenDto,
   UpdateSchoolAdminClassTeacherDto,
   UpdateSchoolConfigDto,
+  UpdateCommunicationStatusDto,
   UpdateTeacherEmploymentDto,
   UpdateTimetableEntryDto,
 } from "./school-admin.dto";
 import { SchoolAdminService } from "./school-admin.service";
+import { CommunicationRealtimeService } from "./communication-realtime.service";
 
 @ApiTags("School Admin Control Center")
 @ApiParam({ name: "organizationId", format: "uuid" })
@@ -51,7 +57,7 @@ import { SchoolAdminService } from "./school-admin.service";
   version: "1",
 })
 export class SchoolAdminController {
-  constructor(private readonly service: SchoolAdminService) {}
+  constructor(private readonly service: SchoolAdminService, private readonly realtime: CommunicationRealtimeService) {}
 
   @Get("dashboard")
   @ApiOperation({ summary: "School Admin Dashboard & Health Score" })
@@ -505,6 +511,77 @@ export class SchoolAdminController {
     return this.service.createBroadcast(orgId, req.user, dto);
   }
 
+  @Get("communication/events")
+  @ApiOperation({ summary: "Stream live communication events" })
+  communicationEvents(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Res() response: Response,
+  ) {
+    this.realtime.connect(orgId, req.user.id, response);
+  }
+
+  @Get("communication/recipients")
+  @ApiOperation({ summary: "Search active direct-message recipients" })
+  recipients(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Query("role") role?: string,
+    @Query("search") search = "",
+  ) {
+    return this.service.getCommunicationRecipients(orgId, req.user, role, search);
+  }
+
+  @Get("communication/conversations")
+  @ApiOperation({ summary: "List direct-message conversations" })
+  conversations(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.getCommunicationConversations(orgId, req.user);
+  }
+
+  @Get("communication/conversations/:conversationId")
+  @ApiOperation({ summary: "Read a direct-message conversation" })
+  conversation(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("conversationId", ParseUUIDPipe) conversationId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.getCommunicationConversation(orgId, req.user, conversationId);
+  }
+
+  @Post("communication/messages")
+  @ApiOperation({ summary: "Send a direct message or conversation reply" })
+  sendDirectMessage(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: SendDirectCommunicationDto,
+  ) {
+    return this.service.sendDirectCommunication(orgId, req.user, dto);
+  }
+
+  @Patch("communication/conversations/:conversationId/read")
+  @ApiOperation({ summary: "Mark a conversation read" })
+  markConversationRead(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("conversationId", ParseUUIDPipe) conversationId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.markCommunicationConversationRead(orgId, req.user, conversationId);
+  }
+
+  @Patch("communication/conversations/:conversationId/status")
+  @ApiOperation({ summary: "Update a conversation status" })
+  updateConversationStatus(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("conversationId", ParseUUIDPipe) conversationId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UpdateCommunicationStatusDto,
+  ) {
+    return this.service.updateCommunicationStatus(orgId, req.user, conversationId, dto);
+  }
+
   @Get("communication/tickets")
   @ApiOperation({
     summary: "List incoming teacher messages and communication tickets",
@@ -514,6 +591,17 @@ export class SchoolAdminController {
     @Req() req: AuthenticatedRequest,
   ) {
     return this.service.getCommunicationTickets(orgId, req.user);
+  }
+
+  @Post("communication/tickets/:ticketId/reply")
+  @ApiOperation({ summary: "Reply to a communication ticket" })
+  replyToTicket(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("ticketId", ParseUUIDPipe) ticketId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: ReplyCommunicationTicketDto,
+  ) {
+    return this.service.replyToCommunicationTicket(orgId, req.user, ticketId, dto);
   }
 
   @Get("operations/overview")

@@ -11,6 +11,7 @@ import {
   Post,
   Query,
   Req,
+  Res,
   Type,
 } from "@nestjs/common";
 import { ApiParam, ApiProperty, ApiTags } from "@nestjs/swagger";
@@ -34,6 +35,11 @@ import {
 import { Recording } from "./recording.entity";
 import { RecordingsService } from "./recordings.service";
 import { StorageService } from "./storage.service";
+import type { Response } from "express";
+import { SchoolAdminModule } from "../school-admin/school-admin.module";
+import { SchoolAdminService } from "../school-admin/school-admin.service";
+import { CommunicationRealtimeService } from "../school-admin/communication-realtime.service";
+import { SendDirectCommunicationDto, UpdateCommunicationStatusDto } from "../school-admin/school-admin.dto";
 
 class TimelineEvent {
   @ApiProperty({ format: "uuid" }) id!: string;
@@ -107,7 +113,44 @@ export class CommunicationController {
   constructor(
     private readonly feed: FeedService,
     private readonly recordings: RecordingsService,
+    private readonly chat: SchoolAdminService,
+    private readonly realtime: CommunicationRealtimeService,
   ) {}
+
+  @Get("communication/events")
+  communicationEvents(@Param("organizationId", ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Res() response: Response) {
+    this.realtime.connect(org, req.user.id, response);
+  }
+
+  @Get("communication/recipients")
+  communicationRecipients(@Param("organizationId", ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Query("role") role?: string, @Query("search") search = "") {
+    return this.chat.getCommunicationRecipients(org, req.user, role, search);
+  }
+
+  @Get("communication/conversations")
+  communicationConversations(@Param("organizationId", ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest) {
+    return this.chat.getCommunicationConversations(org, req.user);
+  }
+
+  @Get("communication/conversations/:conversationId")
+  communicationConversation(@Param("organizationId", ParseUUIDPipe) org: string, @Param("conversationId", ParseUUIDPipe) conversationId: string, @Req() req: AuthenticatedRequest) {
+    return this.chat.getCommunicationConversation(org, req.user, conversationId);
+  }
+
+  @Post("communication/messages")
+  sendCommunicationMessage(@Param("organizationId", ParseUUIDPipe) org: string, @Req() req: AuthenticatedRequest, @Body() dto: SendDirectCommunicationDto) {
+    return this.chat.sendDirectCommunication(org, req.user, dto);
+  }
+
+  @Patch("communication/conversations/:conversationId/read")
+  markCommunicationRead(@Param("organizationId", ParseUUIDPipe) org: string, @Param("conversationId", ParseUUIDPipe) conversationId: string, @Req() req: AuthenticatedRequest) {
+    return this.chat.markCommunicationConversationRead(org, req.user, conversationId);
+  }
+
+  @Patch("communication/conversations/:conversationId/status")
+  updateCommunicationStatus(@Param("organizationId", ParseUUIDPipe) org: string, @Param("conversationId", ParseUUIDPipe) conversationId: string, @Req() req: AuthenticatedRequest, @Body() dto: UpdateCommunicationStatusDto) {
+    return this.chat.updateCommunicationStatus(org, req.user, conversationId, dto);
+  }
 
   @Get("timeline")
   @Endpoint(
@@ -324,7 +367,7 @@ export class CommunicationController {
 }
 
 @Module({
-  imports: [TeachingModule, AuditModule, OutboxModule],
+  imports: [TeachingModule, AuditModule, OutboxModule, SchoolAdminModule],
   controllers: [CommunicationController],
   providers: [FeedService, RecordingsService, StorageService],
 })
