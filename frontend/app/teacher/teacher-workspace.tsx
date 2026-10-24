@@ -33,6 +33,7 @@ import {
 
 import { OrganizationSummary, getTeacherClasses, getStudentAvatarUrl } from '../edops-api';
 import { useDashboardNavigation } from '../dashboard-navigation';
+import { NotificationBellDropdown } from '../components/notification-bell-dropdown';
 import { FeatureUnavailableCard, ThreeDotsLoading } from '../components/feature-unavailable-card';
 import { TeacherTab } from './types';
 
@@ -730,28 +731,19 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
               </button>
 
               {/* Notification bell button */}
-              <button
-                type="button"
-                onClick={() => navigateTo('activity')}
-                title="Faculty Activity & Notifications"
-                aria-label="Faculty Activity & Notifications"
-                style={{
-                  all: "unset",
-                  display: "grid",
-                  placeItems: "center",
+              <NotificationBellDropdown
+                organizationId={organization.id}
+                role="teacher"
+                onNavigate={(tab, subTab) => navigateTo(tab as any, subTab)}
+                buttonStyle={{
                   width: "36px",
                   height: "36px",
                   borderRadius: "8px",
                   background: S.chip,
                   color: S.navy,
-                  cursor: "pointer",
-                  transition: "background 0.15s ease",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#eaedf2")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = S.chip)}
-              >
-                <Bell size={17} />
-              </button>
+                iconSize={17}
+              />
 
               {/* Multi-Org Switcher */}
               {organizations.length > 1 && (

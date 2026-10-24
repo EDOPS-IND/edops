@@ -37,6 +37,7 @@ import { PrincipalWorkspace } from "./principal";
 import { TeacherWorkspace } from "./teacher";
 import { StudentWorkspace } from "./student";
 import { SchoolAdminWorkspace } from "./school-admin";
+import { NotificationBellDropdown } from "./components/notification-bell-dropdown";
 import {
   BarChart3,
   Bell,
@@ -2884,6 +2885,19 @@ function RoleWorkspace({
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <NotificationBellDropdown
+              organizationId={membership.id}
+              role={membership.role as any}
+              buttonStyle={{
+                width: "36px",
+                height: "36px",
+                borderRadius: "8px",
+                background: "#F9FAFB",
+                border: "1px solid #EAECF0",
+                color: "#101828",
+              }}
+              iconSize={17}
+            />
             <WorkspaceSelect
               profile={profile}
               value={workspace}
@@ -3199,18 +3213,21 @@ function PlatformScreen({
             />
             <span style={{ fontSize: "11px", color: "#6B7280", background: "#F3F4F6", padding: "1px 6px", borderRadius: "4px", border: "1px solid #E5E7EB", fontWeight: 600 }}>⌘K</span>
           </div>
-          <button
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
+          <NotificationBellDropdown
+            organizationId=""
+            role="platform"
+            onNavigate={(panel) => handleSelectPanel(panel as any)}
+            buttonStyle={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "8px",
+              background: "#F3F4F6",
+              border: "1px solid #E5E7EB",
               color: "#064E3B",
-              padding: "4px",
             }}
-            aria-label="Notifications"
-          >
-            <Bell size={18} />
-          </button>
+            iconSize={18}
+            iconColor="#064E3B"
+          />
           {profile.organizations.length > 0 && (
             <WorkspaceSelect
               profile={profile}

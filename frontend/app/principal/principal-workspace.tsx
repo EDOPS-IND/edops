@@ -41,6 +41,7 @@ import { AnalyticsAuditPane } from "./panes/analytics-audit-pane";
 import { AlertsPane } from "./panes/alerts-pane";
 import { ReportsPane } from "./panes/reports-pane";
 import { ActivityPane } from "./panes/activity-pane";
+import { NotificationBellDropdown } from "../components/notification-bell-dropdown";
 
 // Modals & Drawers
 import { AcademicHealthModal } from "./components/academic-health-modal";
@@ -642,29 +643,20 @@ export function PrincipalWorkspace({
             </button>
 
             {/* Academic Alerts */}
-            <button
-              type="button"
-              onClick={() => navigateTo("alerts")}
-              style={{
-                all: "unset",
-                boxSizing: "border-box",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
+            <NotificationBellDropdown
+              organizationId={organization.id}
+              role="principal"
+              onNavigate={(tab, subTab) => navigateTo(tab as any, subTab)}
+              buttonStyle={{
                 width: "36px",
                 height: "36px",
                 background: "#F9FAFB",
                 border: "1px solid #ced8e5",
                 borderRadius: "8px",
-                cursor: "pointer",
-                position: "relative",
+                color: "#0c1e33",
               }}
-              title="Academic Alerts"
-              aria-label="Academic Alerts"
-            >
-              <Bell size={15} style={{ color: "#0c1e33" }} />
-              <span style={{ position: "absolute", top: "7px", right: "7px", width: "6px", height: "6px", borderRadius: "50%", background: "#E84040" }} />
-            </button>
+              iconSize={15}
+            />
 
             {/* Principal Profile Avatar & Dropdown */}
             <div style={{ position: "relative" }}>
