@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Bell,
   CheckCircle2,
   Clock,
-  AlertTriangle,
   Megaphone,
-  MessageSquare,
   ShieldAlert,
   ChevronRight,
   X,
@@ -15,8 +13,10 @@ import {
   Calendar,
   BookOpen,
   Info,
+  RefreshCw,
+  Plus,
 } from "lucide-react";
-import { getCommunicationNotices } from "../edops-api";
+import { getCommunicationNotices, api, getPlatformDashboard } from "../edops-api";
 
 export type DropdownRole = "school_admin" | "principal" | "teacher" | "student" | "parent" | "platform";
 
@@ -31,6 +31,7 @@ export interface UnifiedNotification {
   read: boolean;
   targetTab?: string;
   targetSubTab?: string;
+  isDomainNotification?: boolean;
 }
 
 interface NotificationBellDropdownProps {
@@ -45,224 +46,6 @@ interface NotificationBellDropdownProps {
   ariaLabel?: string;
   title?: string;
 }
-
-// Sensible contextual fallback notifications if backend database table is empty for new tenants
-const ROLE_DEFAULT_NOTICES: Record<DropdownRole, UnifiedNotification[]> = {
-  school_admin: [
-    {
-      id: "sa-1",
-      title: "Fee Collection Cycle for Q3 Active",
-      message: "Automated fee reminders dispatched to 142 parent accounts. 84% on-time payment track.",
-      type: "alert",
-      priority: "high",
-      sender: "Finance Department",
-      createdAt: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
-      read: false,
-      targetTab: "finance",
-    },
-    {
-      id: "sa-2",
-      title: "Academic Term Calendar Approved",
-      message: "The Governing Council has approved the Annual Term Examination dates and gazetted holidays.",
-      type: "announcement",
-      priority: "normal",
-      sender: "Principal's Office",
-      createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
-      read: false,
-      targetTab: "communication",
-      targetSubTab: "broadcast",
-    },
-    {
-      id: "sa-3",
-      title: "Transport Route 4 Schedule Update",
-      message: "Maintenance scheduled for Bus #12. Alternate vehicle allocated for North Sector route.",
-      type: "system",
-      priority: "normal",
-      sender: "Operations Team",
-      createdAt: new Date(Date.now() - 26 * 3600 * 1000).toISOString(),
-      read: true,
-      targetTab: "operations",
-    },
-  ],
-  principal: [
-    {
-      id: "pr-1",
-      title: "At-Risk Student Attendance Alert",
-      message: "4 senior secondary students have fallen below the 75% attendance threshold this week.",
-      type: "alert",
-      priority: "urgent",
-      sender: "Academic Discipline",
-      createdAt: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
-      read: false,
-      targetTab: "alerts",
-    },
-    {
-      id: "pr-2",
-      title: "Curriculum Progress Milestone Reached",
-      message: "Grade 10 Science departments completed Unit 4 learning outcomes ahead of schedule.",
-      type: "academic",
-      priority: "normal",
-      sender: "HOD Sciences",
-      createdAt: new Date(Date.now() - 4 * 3600 * 1000).toISOString(),
-      read: false,
-      targetTab: "academics",
-      targetSubTab: "curriculum",
-    },
-    {
-      id: "pr-3",
-      title: "Teacher Substitution Arranged",
-      message: "Mr. Sharma on approved leave today. 2 periods reassigned to faculty successfully.",
-      type: "system",
-      priority: "normal",
-      sender: "Academic Coordinator",
-      createdAt: new Date(Date.now() - 22 * 3600 * 1000).toISOString(),
-      read: true,
-      targetTab: "timetable",
-    },
-  ],
-  teacher: [
-    {
-      id: "tc-1",
-      title: "Term Exam Question Paper Review",
-      message: "Please submit Grade 10 Mathematics question paper blueprint by Friday 4:00 PM.",
-      type: "academic",
-      priority: "high",
-      sender: "Examination Cell",
-      createdAt: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-      read: false,
-      targetTab: "assessment",
-    },
-    {
-      id: "tc-2",
-      title: "Parent Query Awaiting Response",
-      message: "Guardian of Aarav Sharma sent an inquiry regarding Term 1 physics scorecard.",
-      type: "announcement",
-      priority: "normal",
-      sender: "Parent Helpdesk",
-      createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-      read: false,
-      targetTab: "communication",
-    },
-    {
-      id: "tc-3",
-      title: "Period Register Finalization",
-      message: "Attendance register for Section 10-A is finalized and submitted to main school register.",
-      type: "attendance",
-      priority: "normal",
-      sender: "Attendance Registry",
-      createdAt: new Date(Date.now() - 20 * 3600 * 1000).toISOString(),
-      read: true,
-      targetTab: "attendance",
-    },
-  ],
-  student: [
-    {
-      id: "st-1",
-      title: "New Assignment Posted in Mathematics",
-      message: "Quadratic Equations Practice Set #3 published. Submission deadline: Tomorrow, 5:00 PM.",
-      type: "academic",
-      priority: "high",
-      sender: "Mr. Rajesh Kumar",
-      createdAt: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
-      read: false,
-      targetTab: "academics",
-      targetSubTab: "assignments",
-    },
-    {
-      id: "st-2",
-      title: "Annual Sports Meet Registration Open",
-      message: "Entries open for track and field events. Contact sports coaches before Friday.",
-      type: "announcement",
-      priority: "normal",
-      sender: "Physical Education Dept",
-      createdAt: new Date(Date.now() - 5 * 3600 * 1000).toISOString(),
-      read: false,
-      targetTab: "dashboard",
-    },
-    {
-      id: "st-3",
-      title: "Physics Unit Test Scorecard Published",
-      message: "Your score: 28/30 (A+ Grade). Class average: 23.4. Great effort!",
-      type: "academic",
-      priority: "normal",
-      sender: "Academic Evaluation",
-      createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
-      read: true,
-      targetTab: "academics",
-      targetSubTab: "assessments",
-    },
-  ],
-  parent: [
-    {
-      id: "pa-1",
-      title: "Term Exam Timetable & Admit Card",
-      message: "Mid-Term Examination schedule has been released. View dates and syllabus breakdown.",
-      type: "academic",
-      priority: "high",
-      sender: "School Administration",
-      createdAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-      read: false,
-      targetTab: "academics",
-    },
-    {
-      id: "pa-2",
-      title: "Daily Attendance Notification",
-      message: "Your ward was marked Present in school today at 08:10 AM.",
-      type: "attendance",
-      priority: "normal",
-      sender: "Automated Gate Register",
-      createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString(),
-      read: false,
-      targetTab: "attendance",
-    },
-    {
-      id: "pa-3",
-      title: "Upcoming Parent-Teacher Meeting (PTM)",
-      message: "Scheduled for Saturday from 9:30 AM to 1:00 PM. Book your preferred faculty slot.",
-      type: "announcement",
-      priority: "normal",
-      sender: "Principal's Desk",
-      createdAt: new Date(Date.now() - 28 * 3600 * 1000).toISOString(),
-      read: true,
-      targetTab: "ptm",
-    },
-  ],
-  platform: [
-    {
-      id: "pl-1",
-      title: "System Health: All Clusters Operational",
-      message: "Zero service degradations detected across database nodes, worker queues, and gateways.",
-      type: "system",
-      priority: "normal",
-      sender: "Platform Telemetry",
-      createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-      read: false,
-      targetTab: "health",
-    },
-    {
-      id: "pl-2",
-      title: "Database Backup Completed",
-      message: "Automated snapshot backup #20261025 completed and encrypted to cloud storage.",
-      type: "system",
-      priority: "normal",
-      sender: "Infrastructure Manager",
-      createdAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
-      read: false,
-      targetTab: "overview",
-    },
-    {
-      id: "pl-3",
-      title: "New School Tenant Provisioned",
-      message: "Delhi Public School tenant initialized with Enterprise plan features active.",
-      type: "announcement",
-      priority: "normal",
-      sender: "Tenant Provisioning Service",
-      createdAt: new Date(Date.now() - 18 * 3600 * 1000).toISOString(),
-      read: true,
-      targetTab: "schools",
-    },
-  ],
-};
 
 function formatRelativeTime(dateString: string): string {
   try {
@@ -282,6 +65,39 @@ function formatRelativeTime(dateString: string): string {
   }
 }
 
+function formatDomainEventTitle(eventType: string): string {
+  switch (eventType) {
+    case "assignment.published":
+      return "New Assignment Published";
+    case "submission.graded":
+      return "Assignment Evaluated & Graded";
+    case "attendance.finalized":
+      return "Daily Attendance Register Finalized";
+    case "recording.published":
+      return "Classroom Recording Available";
+    default:
+      return eventType
+        .split(".")
+        .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+        .join(" ");
+  }
+}
+
+function formatDomainEventMessage(item: any): string {
+  switch (item.eventType) {
+    case "assignment.published":
+      return "A new class assignment has been published and is ready for submission.";
+    case "submission.graded":
+      return "Your submitted assignment has been reviewed, scored, and updated in your scorecard.";
+    case "attendance.finalized":
+      return "Daily period attendance register has been verified and committed to the school register.";
+    case "recording.published":
+      return "A new recorded session from your class has been processed and is ready to stream.";
+    default:
+      return "An academic system event occurred in your classroom.";
+  }
+}
+
 export function NotificationBellDropdown({
   organizationId,
   role,
@@ -297,7 +113,8 @@ export function NotificationBellDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "unread" | "alerts">("all");
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const [liveNotices, setLiveNotices] = useState<UnifiedNotification[]>([]);
+  const [notifications, setNotifications] = useState<UnifiedNotification[]>([]);
+  const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<UnifiedNotification | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -317,7 +134,7 @@ export function NotificationBellDropdown({
   }, [storageKey]);
 
   // Persist read IDs to localStorage
-  const saveReadIds = (newSet: Set<string>) => {
+  const saveReadIds = useCallback((newSet: Set<string>) => {
     setReadIds(newSet);
     if (typeof window === "undefined") return;
     try {
@@ -325,79 +142,137 @@ export function NotificationBellDropdown({
     } catch {
       // ignore storage error
     }
-  };
+  }, [storageKey]);
 
-  // Fetch live notices from backend API
-  useEffect(() => {
-    let isMounted = true;
-    if (!organizationId) {
-      setLiveNotices([]);
+  // Fetch real notifications directly from PostgreSQL backend database
+  const fetchBackendNotifications = useCallback(async () => {
+    if (role === "platform") {
+      // Platform Administrator: load real platform audit logs and activities from PostgreSQL
+      try {
+        setLoading(true);
+        const dash = await getPlatformDashboard().catch(() => null);
+        const activities: any[] = dash?.recentActivities || [];
+        const mapped: UnifiedNotification[] = activities.map((act: any) => ({
+          id: String(act.id || `audit-${Math.random()}`),
+          title: act.schoolName ? `${act.schoolName} Activity` : "Platform Event",
+          message: `${act.action}: ${act.details ? (typeof act.details === "object" ? JSON.stringify(act.details) : String(act.details)) : "Logged by " + (act.actorEmail || "Administrator")}`,
+          type: "system",
+          priority: "normal",
+          sender: act.actorEmail || "Platform Service",
+          createdAt: act.createdAt || new Date().toISOString(),
+          read: false,
+          targetTab: "overview",
+        }));
+        setNotifications(mapped);
+      } catch {
+        setNotifications([]);
+      } finally {
+        setLoading(false);
+      }
       return;
     }
 
-    getCommunicationNotices(organizationId)
-      .then((data: any) => {
-        if (!isMounted) return;
-        if (Array.isArray(data) && data.length > 0) {
-          const mapped: UnifiedNotification[] = data.map((n: any) => ({
-            id: String(n.id || `notice-${Math.random()}`),
+    if (!organizationId) {
+      setNotifications([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Query database sources via backend APIs:
+      // 1. school_broadcasts table via GET /organizations/:orgId/communication/notices
+      // 2. notifications table via GET /organizations/:orgId/notifications?filter=all&limit=50
+      const [noticesData, domainData] = await Promise.all([
+        getCommunicationNotices(organizationId).catch(() => []),
+        api<any>(`/organizations/${organizationId}/notifications?filter=all&limit=50`).catch(() => ({ items: [] })),
+      ]);
+
+      const items: UnifiedNotification[] = [];
+
+      // Map broadcasts/notices from database
+      if (Array.isArray(noticesData)) {
+        noticesData.forEach((n: any) => {
+          if (!n || !n.id) return;
+          const isUrgent = n.priority === "urgent" || n.priority === "high";
+          items.push({
+            id: String(n.id),
             title: n.title || "School Circular",
             message: n.message || "",
-            type: (n.priority === "urgent" || n.priority === "high" ? "alert" : "announcement") as any,
+            type: isUrgent ? "alert" : "announcement",
             priority: (n.priority || "normal") as any,
             sender: n.senderName || n.sentBy || "School Administration",
             createdAt: n.createdAt || new Date().toISOString(),
             read: false,
-            targetTab: role === "parent" ? "notices" : "communication",
+            targetTab: role === "parent" ? "notices" : role === "principal" ? "alerts" : "communication",
             targetSubTab: "broadcast",
-          }));
-          setLiveNotices(mapped);
-        } else {
-          setLiveNotices([]);
-        }
-      })
-      .catch(() => {
-        if (isMounted) setLiveNotices([]);
+            isDomainNotification: false,
+          });
+        });
+      }
+
+      // Map domain event notifications from database
+      const domainItems: any[] = Array.isArray(domainData?.items) ? domainData.items : [];
+      domainItems.forEach((d: any) => {
+        if (!d || !d.id) return;
+        const eventType = d.eventType || "";
+        const isAcademic = eventType.startsWith("assignment") || eventType.startsWith("submission");
+        const isAtt = eventType.startsWith("attendance");
+        items.push({
+          id: String(d.id),
+          title: formatDomainEventTitle(eventType),
+          message: formatDomainEventMessage(d),
+          type: isAtt ? "attendance" : isAcademic ? "academic" : "system",
+          priority: "normal",
+          sender: "Academic Registry",
+          createdAt: d.occurredAt || d.createdAt || new Date().toISOString(),
+          read: Boolean(d.readAt),
+          targetTab: isAtt ? "attendance" : isAcademic ? (role === "student" ? "academics" : "learning") : "dashboard",
+          targetSubTab: isAcademic ? "assignments" : undefined,
+          isDomainNotification: true,
+        });
       });
 
-    return () => {
-      isMounted = false;
-    };
+      // Sort newest first by database creation date
+      items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      setNotifications(items);
+    } catch {
+      setNotifications([]);
+    } finally {
+      setLoading(false);
+    }
   }, [organizationId, role]);
 
-  // Combine live notices with curated role fallbacks
-  const allNotifications: UnifiedNotification[] = useMemo(() => {
-    const defaults = ROLE_DEFAULT_NOTICES[role] || ROLE_DEFAULT_NOTICES.school_admin;
-    const combined = [...liveNotices];
+  useEffect(() => {
+    fetchBackendNotifications();
+  }, [fetchBackendNotifications]);
 
-    // Append defaults not already in combined
-    for (const d of defaults) {
-      if (!combined.some((c) => c.title.toLowerCase() === d.title.toLowerCase())) {
-        combined.push(d);
-      }
-    }
-
-    return combined.map((n) => ({
+  // Combine with persistent read state
+  const resolvedNotifications: UnifiedNotification[] = useMemo(() => {
+    return notifications.map((n) => ({
       ...n,
-      read: readIds.has(n.id) || n.read,
+      read: n.read || readIds.has(n.id),
     }));
-  }, [liveNotices, role, readIds]);
+  }, [notifications, readIds]);
 
   const unreadCount = useMemo(() => {
-    return allNotifications.filter((n) => !n.read).length;
-  }, [allNotifications]);
+    return resolvedNotifications.filter((n) => !n.read).length;
+  }, [resolvedNotifications]);
 
   const filteredNotifications = useMemo(() => {
     if (filter === "unread") {
-      return allNotifications.filter((n) => !n.read);
+      return resolvedNotifications.filter((n) => !n.read);
     }
     if (filter === "alerts") {
-      return allNotifications.filter((n) => n.priority === "urgent" || n.priority === "high" || n.type === "alert");
+      return resolvedNotifications.filter(
+        (n) => n.priority === "urgent" || n.priority === "high" || n.type === "alert"
+      );
     }
-    return allNotifications;
-  }, [allNotifications, filter]);
+    return resolvedNotifications;
+  }, [resolvedNotifications, filter]);
 
-  // Close on outside click
+  // Close on outside click or Escape key
   useEffect(() => {
     if (!isOpen) return;
     function handleClickOutside(event: MouseEvent) {
@@ -418,16 +293,38 @@ export function NotificationBellDropdown({
     };
   }, [isOpen]);
 
-  const markAllRead = () => {
+  // Mark all notifications as read in client & backend database
+  const markAllRead = async () => {
     const next = new Set(readIds);
-    allNotifications.forEach((n) => next.add(n.id));
+    const domainNotifsToMark = resolvedNotifications.filter((n) => !n.read && n.isDomainNotification);
+
+    resolvedNotifications.forEach((n) => next.add(n.id));
     saveReadIds(next);
+
+    // Call backend API to persist read timestamp in PostgreSQL notifications table
+    if (organizationId && domainNotifsToMark.length > 0) {
+      domainNotifsToMark.forEach((n) => {
+        api(`/organizations/${organizationId}/notifications/${n.id}/read`, {
+          method: "PATCH",
+          body: {},
+        }).catch(() => {});
+      });
+    }
   };
 
-  const markItemRead = (item: UnifiedNotification) => {
+  // Mark a single notification as read
+  const markItemRead = async (item: UnifiedNotification) => {
     const next = new Set(readIds);
     next.add(item.id);
     saveReadIds(next);
+
+    // If it's a domain notification, persist in backend database
+    if (organizationId && item.isDomainNotification) {
+      api(`/organizations/${organizationId}/notifications/${item.id}/read`, {
+        method: "PATCH",
+        body: {},
+      }).catch(() => {});
+    }
   };
 
   const handleItemClick = (item: UnifiedNotification) => {
@@ -450,6 +347,8 @@ export function NotificationBellDropdown({
     else if (role === "parent") onNavigate("notices");
     else if (role === "platform") onNavigate("overview");
   };
+
+  const canPostNotices = role === "school_admin" || role === "principal" || role === "teacher";
 
   const getIconForType = (type: string, priority: string) => {
     if (priority === "urgent" || priority === "high") {
@@ -474,7 +373,12 @@ export function NotificationBellDropdown({
       {/* Trigger Button */}
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={() => {
+          setIsOpen((prev) => !prev);
+          if (!isOpen) {
+            fetchBackendNotifications();
+          }
+        }}
         aria-label={ariaLabel}
         aria-expanded={isOpen}
         title={title}
@@ -585,33 +489,59 @@ export function NotificationBellDropdown({
                   Notifications
                 </h3>
                 <span style={{ fontSize: "11px", color: "#64748b", fontWeight: 500 }}>
-                  {unreadCount > 0 ? `${unreadCount} unread update${unreadCount === 1 ? "" : "s"}` : "All updates caught up"}
+                  {loading
+                    ? "Syncing from database..."
+                    : unreadCount > 0
+                    ? `${unreadCount} unread update${unreadCount === 1 ? "" : "s"}`
+                    : "All updates caught up"}
                 </span>
               </div>
             </div>
 
-            {unreadCount > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
               <button
                 type="button"
-                onClick={markAllRead}
+                onClick={fetchBackendNotifications}
                 style={{
                   all: "unset",
                   display: "inline-flex",
                   alignItems: "center",
-                  gap: "4px",
-                  fontSize: "11px",
-                  fontWeight: 600,
-                  color: "#2563eb",
+                  justifyContent: "center",
+                  width: "24px",
+                  height: "24px",
+                  borderRadius: "5px",
+                  color: "#64748b",
                   cursor: "pointer",
-                  padding: "4px 8px",
-                  borderRadius: "6px",
-                  background: "#eff6ff",
+                  background: "#f1f5f9",
                 }}
-                title="Mark all as read"
+                title="Refresh notifications from database"
               >
-                <Check size={12} strokeWidth={2.5} /> Mark read
+                <RefreshCw size={12} className={loading ? "animate-spin" : ""} />
               </button>
-            )}
+
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={markAllRead}
+                  style={{
+                    all: "unset",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "4px",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    color: "#2563eb",
+                    cursor: "pointer",
+                    padding: "4px 8px",
+                    borderRadius: "6px",
+                    background: "#eff6ff",
+                  }}
+                  title="Mark all as read in database"
+                >
+                  <Check size={12} strokeWidth={2.5} /> Mark read
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Filter Pills */}
@@ -626,7 +556,7 @@ export function NotificationBellDropdown({
           >
             {(
               [
-                { id: "all", label: `All (${allNotifications.length})` },
+                { id: "all", label: `All (${resolvedNotifications.length})` },
                 { id: "unread", label: `Unread (${unreadCount})` },
                 { id: "alerts", label: "Alerts" },
               ] as const
@@ -664,7 +594,12 @@ export function NotificationBellDropdown({
               flexDirection: "column",
             }}
           >
-            {filteredNotifications.length === 0 ? (
+            {loading && notifications.length === 0 ? (
+              <div style={{ padding: "32px 20px", textAlign: "center", color: "#64748b" }}>
+                <RefreshCw size={24} className="animate-spin" style={{ margin: "0 auto 8px" }} />
+                <span style={{ fontSize: "12px", fontWeight: 500 }}>Connecting to database...</span>
+              </div>
+            ) : filteredNotifications.length === 0 ? (
               <div
                 style={{
                   padding: "36px 20px",
@@ -676,9 +611,35 @@ export function NotificationBellDropdown({
                 <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#334155" }}>
                   {filter === "unread" ? "No unread notifications" : "No notifications found"}
                 </p>
-                <span style={{ fontSize: "11px", color: "#64748b" }}>
-                  You are completely caught up with current circulars.
-                </span>
+                <p style={{ margin: "4px 0 12px", fontSize: "11.5px", color: "#64748b", lineHeight: 1.4 }}>
+                  There are no circulars, notices or updates in the database for your role.
+                </p>
+                {canPostNotices && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsOpen(false);
+                      if (onNavigate) {
+                        onNavigate(role === "principal" ? "communication" : "communication", "broadcast");
+                      }
+                    }}
+                    style={{
+                      all: "unset",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      background: "#0c1e33",
+                      color: "#ffffff",
+                      fontSize: "11.5px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
+                    <Plus size={13} /> Post Notice to Database
+                  </button>
+                )}
               </div>
             ) : (
               filteredNotifications.map((item) => {
