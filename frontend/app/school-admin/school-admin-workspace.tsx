@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { SchoolAdminTab } from "./types";
 import { useDashboardNavigation } from "../dashboard-navigation";
 import { FeatureUnavailableCard, ThreeDotsLoading } from "../components/feature-unavailable-card";
@@ -236,6 +236,8 @@ export function SchoolAdminWorkspace({
   const [selectedChildIds, setSelectedChildIds] = useState<string[]>([]);
   const [availableStudents, setAvailableStudents] = useState<any[]>([]);
   const [childSearch, setChildSearch] = useState("");
+  const [mapParentClassFilter, setMapParentClassFilter] = useState("all");
+  const [mapParentSectionFilter, setMapParentSectionFilter] = useState("all");
   const [deptName, setDeptName] = useState("");
   const [deptCode, setDeptCode] = useState("");
   const [deptHeadTeacherId, setDeptHeadTeacherId] = useState("");
@@ -262,6 +264,54 @@ export function SchoolAdminWorkspace({
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [supportTicketModalOpen, setSupportTicketModalOpen] = useState(false);
+  const availableClassesForMapParent = useMemo(() => {
+    const set = new Set<string>();
+    (academicPrograms || []).forEach((p: any) => {
+      if (p.name) set.add(p.name);
+    });
+    availableStudents.forEach((s) => {
+      const cls = s.grade || s.className;
+      if (cls) set.add(cls);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [academicPrograms, availableStudents]);
+
+  const availableSectionsForMapParent = useMemo(() => {
+    const set = new Set<string>();
+    (academicSections || []).forEach((sec: any) => {
+      if (mapParentClassFilter === "all" || (sec.programName || "").toLowerCase() === mapParentClassFilter.toLowerCase()) {
+        if (sec.name) set.add(sec.name);
+      }
+    });
+    availableStudents.forEach((s) => {
+      const cls = (s.grade || s.className || "").toLowerCase();
+      if (mapParentClassFilter !== "all" && cls !== mapParentClassFilter.toLowerCase()) return;
+      const sec = s.section || s.sectionName;
+      if (sec) set.add(sec);
+    });
+    return Array.from(set).sort();
+  }, [academicSections, availableStudents, mapParentClassFilter]);
+
+  const filteredStudentsForMapParent = useMemo(() => {
+    return availableStudents.filter((st) => {
+      if (mapParentClassFilter !== "all") {
+        const cls = (st.grade || st.className || "").toLowerCase();
+        if (cls !== mapParentClassFilter.toLowerCase()) return false;
+      }
+      if (mapParentSectionFilter !== "all") {
+        const sec = (st.section || st.sectionName || "").toLowerCase();
+        if (sec !== mapParentSectionFilter.toLowerCase()) return false;
+      }
+      if (childSearch.trim()) {
+        const q = childSearch.toLowerCase().trim();
+        const nameMatch = (st.name || "").toLowerCase().includes(q);
+        const admMatch = (st.admissionNo || st.admissionNumber || "").toLowerCase().includes(q);
+        const rollMatch = (st.rollNo || st.rollNumber || "").toLowerCase().includes(q);
+        if (!nameMatch && !admMatch && !rollMatch) return false;
+      }
+      return true;
+    });
+  }, [availableStudents, mapParentClassFilter, mapParentSectionFilter, childSearch]);
 
   React.useEffect(() => {
     const handleGlobalKey = (e: KeyboardEvent) => {
@@ -384,6 +434,7 @@ export function SchoolAdminWorkspace({
       setPersonName(""); setPersonEmail(""); setPersonPhone(""); setPersonSpecialty("");
       setPersonEmployeeId(""); setPersonEmploymentType(act === "addStaff" ? "Permanent Staff" : act === "addPrincipal" ? "Tenured Principal" : "Regular Faculty");
       setSelectedClass(""); setSelectedSectionId(""); setSelectedChildIds([]); setChildSearch("");
+      setMapParentClassFilter("all"); setMapParentSectionFilter("all");
       setStudentGender("Male"); setStudentDob(""); setStudentAdmissionNo(""); setStudentRollNo("");
       setDeptName(""); setDeptCode(""); setDeptHeadTeacherId(""); setDeptLocation(""); setDeptSubjectIds([]); setSubjectSearch("");
       setSectionYearId(""); setSectionProgramId(""); setSectionName("A"); setSectionCapacity(40);
@@ -426,6 +477,10 @@ export function SchoolAdminWorkspace({
       } else if ((act === "mapParent" || act === "addParent") && organizationId) {
         getSchoolAdminStudents(organizationId).then((st) => {
           if (st) setAvailableStudents(st);
+        }).catch(() => {});
+        getSchoolAdminAcademics(organizationId).then((data) => {
+          if (data?.programs) setAcademicPrograms(data.programs);
+          if (data?.sections) setAcademicSections(data.sections);
         }).catch(() => {});
       } else if (act === "addDepartment" && organizationId) {
         getSchoolAdminTeachers(organizationId).then((tc) => {
@@ -2047,38 +2102,301 @@ export function SchoolAdminWorkspace({
                       )}
 
                       {detectedRole === "parent" && (
-                        <div style={{ display: "grid", gap: "6px" }}>
+                        <div style={{ display: "grid", gap: "8px" }}>
                           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: "12px", fontWeight: 500, color: "#344054" }}>
-                              Select Child / Children
+                            <span style={{ fontSize: "12px", fontWeight: 600, color: "#344054" }}>
+                              Select Student Ward(s) to Map
                             </span>
                             {selectedChildIds.length > 0 && (
                               <span style={{ fontSize: "11px", fontWeight: 600, color: "#027A48", background: "#ECFDF5", border: "1px solid #A7F3D0", padding: "1px 8px", borderRadius: "10px" }}>
-                                {selectedChildIds.length} child{selectedChildIds.length > 1 ? "ren" : ""} selected
+                                {selectedChildIds.length} ward{selectedChildIds.length > 1 ? "s" : ""} selected
                               </span>
                             )}
                           </div>
 
-                          {availableStudents.length > 4 && (
+                          {/* Selected Children Tray */}
+                          {selectedChildIds.length > 0 && (
+                            <div style={{
+                              background: "#F8FAFC",
+                              border: "1px solid #E2E8F0",
+                              borderRadius: "6px",
+                              padding: "6px 8px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "4px",
+                            }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10.5px", fontWeight: 600, color: "#475569" }}>
+                                <span>Selected Wards ({selectedChildIds.length}):</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedChildIds([])}
+                                  style={{ background: "none", border: "none", color: "#DC2626", fontSize: "10px", cursor: "pointer", padding: 0, fontWeight: 600 }}
+                                >
+                                  Clear all
+                                </button>
+                              </div>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "5px" }}>
+                                {selectedChildIds.map((cid) => {
+                                  const st = availableStudents.find((s) => (s.id || s.userId) === cid);
+                                  const name = st?.name || "Student";
+                                  const cls = st ? [st.grade || st.className, st.section || st.sectionName].filter(Boolean).join(" • ") : "";
+                                  return (
+                                    <span
+                                      key={cid}
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "4px",
+                                        background: "#0C1E33",
+                                        color: "#F8E7C9",
+                                        padding: "2px 7px",
+                                        borderRadius: "100px",
+                                        fontSize: "10.5px",
+                                        fontWeight: 600,
+                                      }}
+                                    >
+                                      <span>{name}</span>
+                                      {cls && <span style={{ opacity: 0.8, fontSize: "9.5px" }}>({cls})</span>}
+                                      <button
+                                        type="button"
+                                        onClick={() => setSelectedChildIds((prev) => prev.filter((id) => id !== cid))}
+                                        style={{ background: "none", border: "none", color: "#F8E7C9", cursor: "pointer", padding: 0, display: "inline-flex", alignItems: "center" }}
+                                      >
+                                        <X size={11} />
+                                      </button>
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Filter Controls: Class Dropdown + Section Dropdown + Quick Pills */}
+                          <div style={{
+                            background: "#F8FAFC",
+                            border: "1px solid #E2E8F0",
+                            borderRadius: "6px",
+                            padding: "8px 10px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "6px",
+                          }}>
+                            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                              {/* Class Filter */}
+                              <div>
+                                <label style={{ display: "block", fontSize: "10.5px", fontWeight: 600, color: "#475569", marginBottom: "2px" }}>
+                                  Class / Grade:
+                                </label>
+                                <select
+                                  value={mapParentClassFilter}
+                                  onChange={(e) => {
+                                    setMapParentClassFilter(e.target.value);
+                                    setMapParentSectionFilter("all");
+                                  }}
+                                  style={{
+                                    width: "100%",
+                                    padding: "5px 7px",
+                                    fontSize: "11px",
+                                    fontWeight: mapParentClassFilter !== "all" ? 600 : 400,
+                                    border: "1px solid",
+                                    borderColor: mapParentClassFilter !== "all" ? "#0C1E33" : "#D0D5DD",
+                                    borderRadius: "5px",
+                                    background: mapParentClassFilter !== "all" ? "#0C1E33" : "#FFFFFF",
+                                    color: mapParentClassFilter !== "all" ? "#F8E7C9" : "#101828",
+                                    outline: "none",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <option value="all">All Classes</option>
+                                  {availableClassesForMapParent.map((cls) => (
+                                    <option key={cls} value={cls}>
+                                      {cls}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Section Filter */}
+                              <div>
+                                <label style={{ display: "block", fontSize: "10.5px", fontWeight: 600, color: "#475569", marginBottom: "2px" }}>
+                                  Section:
+                                </label>
+                                <select
+                                  value={mapParentSectionFilter}
+                                  onChange={(e) => setMapParentSectionFilter(e.target.value)}
+                                  style={{
+                                    width: "100%",
+                                    padding: "5px 7px",
+                                    fontSize: "11px",
+                                    fontWeight: mapParentSectionFilter !== "all" ? 600 : 400,
+                                    border: "1px solid",
+                                    borderColor: mapParentSectionFilter !== "all" ? "#0C1E33" : "#D0D5DD",
+                                    borderRadius: "5px",
+                                    background: mapParentSectionFilter !== "all" ? "#0C1E33" : "#FFFFFF",
+                                    color: mapParentSectionFilter !== "all" ? "#F8E7C9" : "#101828",
+                                    outline: "none",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <option value="all">All Sections</option>
+                                  {availableSectionsForMapParent.map((sec) => (
+                                    <option key={sec} value={sec}>
+                                      {sec}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Quick Class Pills */}
+                            {availableClassesForMapParent.length > 0 && (
+                              <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap", marginTop: "2px" }}>
+                                <span style={{ fontSize: "9.5px", color: "#64748B", fontWeight: 600 }}>Quick Class:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMapParentClassFilter("all");
+                                    setMapParentSectionFilter("all");
+                                  }}
+                                  style={{
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                    fontSize: "10px",
+                                    fontWeight: 600,
+                                    border: mapParentClassFilter === "all" ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                    background: mapParentClassFilter === "all" ? "#0C1E33" : "#FFFFFF",
+                                    color: mapParentClassFilter === "all" ? "#F8E7C9" : "#475569",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  All
+                                </button>
+                                {availableClassesForMapParent.map((cls) => {
+                                  const isSelected = mapParentClassFilter === cls;
+                                  return (
+                                    <button
+                                      key={cls}
+                                      type="button"
+                                      onClick={() => {
+                                        setMapParentClassFilter(cls);
+                                        setMapParentSectionFilter("all");
+                                      }}
+                                      style={{
+                                        padding: "2px 6px",
+                                        borderRadius: "4px",
+                                        fontSize: "10px",
+                                        fontWeight: 600,
+                                        border: isSelected ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                        background: isSelected ? "#0C1E33" : "#FFFFFF",
+                                        color: isSelected ? "#F8E7C9" : "#475569",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      {cls}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {/* Quick Section Pills (when class is chosen) */}
+                            {availableSectionsForMapParent.length > 0 && mapParentClassFilter !== "all" && (
+                              <div style={{ display: "flex", alignItems: "center", gap: "4px", flexWrap: "wrap" }}>
+                                <span style={{ fontSize: "9.5px", color: "#64748B", fontWeight: 600 }}>Section:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setMapParentSectionFilter("all")}
+                                  style={{
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                    fontSize: "10px",
+                                    fontWeight: 600,
+                                    border: mapParentSectionFilter === "all" ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                    background: mapParentSectionFilter === "all" ? "#0C1E33" : "#FFFFFF",
+                                    color: mapParentSectionFilter === "all" ? "#F8E7C9" : "#475569",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  All
+                                </button>
+                                {availableSectionsForMapParent.map((sec) => {
+                                  const isSelected = mapParentSectionFilter === sec;
+                                  return (
+                                    <button
+                                      key={sec}
+                                      type="button"
+                                      onClick={() => setMapParentSectionFilter(sec)}
+                                      style={{
+                                        padding: "2px 6px",
+                                        borderRadius: "4px",
+                                        fontSize: "10px",
+                                        fontWeight: 600,
+                                        border: isSelected ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                        background: isSelected ? "#0C1E33" : "#FFFFFF",
+                                        color: isSelected ? "#F8E7C9" : "#475569",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      {sec}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Search Input */}
+                          <div style={{ position: "relative" }}>
                             <input
                               type="text"
-                              placeholder="Search child by name or admission no..."
+                              placeholder="Search child by name, roll, or admission no..."
                               value={childSearch}
                               onChange={(e) => setChildSearch(e.target.value)}
                               style={{
-                                padding: "7px 10px",
+                                width: "100%",
+                                padding: "6px 26px 6px 10px",
                                 borderRadius: "6px",
                                 border: "1px solid #D0D5DD",
-                                fontSize: "12px",
+                                fontSize: "11.5px",
                                 outline: "none",
                                 background: "#FFFFFF",
-                                fontFamily: "inherit",
+                                boxSizing: "border-box",
                               }}
                             />
-                          )}
+                            {childSearch && (
+                              <button
+                                type="button"
+                                onClick={() => setChildSearch("")}
+                                style={{
+                                  position: "absolute",
+                                  right: "8px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  background: "none",
+                                  border: "none",
+                                  padding: 0,
+                                  cursor: "pointer",
+                                  color: "#94A3B8",
+                                  display: "flex",
+                                }}
+                              >
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
 
+                          {/* Scope Header */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "10.5px", color: "#64748B" }}>
+                            <span>
+                              Showing: <b>{mapParentClassFilter === "all" ? "All Classes" : mapParentClassFilter}</b>
+                              {mapParentSectionFilter !== "all" ? ` • ${mapParentSectionFilter}` : " • All Sections"}
+                            </span>
+                            <span><b>{filteredStudentsForMapParent.length}</b> student{filteredStudentsForMapParent.length === 1 ? "" : "s"}</span>
+                          </div>
+
+                          {/* Student Selection List */}
                           <div style={{
-                            maxHeight: "150px",
+                            maxHeight: "160px",
                             overflowY: "auto",
                             border: "1px solid #D0D5DD",
                             borderRadius: "8px",
@@ -2087,54 +2405,60 @@ export function SchoolAdminWorkspace({
                             gap: "4px",
                             background: "#FAFAFA",
                           }}>
-                            {availableStudents
-                              .filter((st) => {
-                                if (!childSearch.trim()) return true;
-                                const q = childSearch.toLowerCase();
-                                return (st.name || "").toLowerCase().includes(q) || (st.admissionNo || "").toLowerCase().includes(q);
-                              })
-                              .map((st) => {
-                                const studentId = st.id || st.userId;
-                                const isSelected = selectedChildIds.includes(studentId);
-                                return (
-                                  <label
-                                    key={studentId}
-                                    style={{
-                                      display: "flex",
-                                      alignItems: "center",
-                                      gap: "8px",
-                                      padding: "6px 10px",
-                                      borderRadius: "6px",
-                                      background: isSelected ? "#EFF8FF" : "#FFFFFF",
-                                      border: isSelected ? "1px solid #B2DDFF" : "1px solid #EAECF0",
-                                      cursor: "pointer",
-                                      fontSize: "12.5px",
-                                      color: "#101828",
+                            {filteredStudentsForMapParent.map((st) => {
+                              const studentId = st.id || st.userId;
+                              const isSelected = selectedChildIds.includes(studentId);
+                              return (
+                                <label
+                                  key={studentId}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "8px",
+                                    padding: "6px 10px",
+                                    borderRadius: "6px",
+                                    background: isSelected ? "#EFF8FF" : "#FFFFFF",
+                                    border: isSelected ? "1px solid #B2DDFF" : "1px solid #EAECF0",
+                                    cursor: "pointer",
+                                    fontSize: "12px",
+                                    color: "#101828",
+                                    transition: "all 0.1s ease",
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {
+                                      setSelectedChildIds((prev) =>
+                                        isSelected ? prev.filter((id) => id !== studentId) : [...prev, studentId]
+                                      );
                                     }}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={isSelected}
-                                      onChange={() => {
-                                        setSelectedChildIds((prev) =>
-                                          isSelected ? prev.filter((id) => id !== studentId) : [...prev, studentId]
-                                        );
-                                      }}
-                                      style={{ cursor: "pointer" }}
-                                    />
-                                    <span style={{ fontWeight: isSelected ? 600 : 450 }}>{st.name}</span>
-                                    {(st.grade || st.section) && (
-                                      <span style={{ fontSize: "11px", color: "#667085", marginLeft: "auto" }}>
-                                        {st.grade} {st.section ? `(${st.section})` : ""}
-                                      </span>
-                                    )}
-                                  </label>
-                                );
-                              })}
-                            {availableStudents.length === 0 && (
-                              <span style={{ fontSize: "12px", color: "#667085", padding: "10px", textAlign: "center" }}>
-                                Loading or no students enrolled yet.
-                              </span>
+                                    style={{ cursor: "pointer", accentColor: "#0C1E33" }}
+                                  />
+                                  <span style={{ fontWeight: isSelected ? 600 : 500 }}>{st.name}</span>
+                                  {st.admissionNo && (
+                                    <span style={{ fontSize: "10.5px", color: "#64748B" }}>({st.admissionNo})</span>
+                                  )}
+                                  {(st.grade || st.section) && (
+                                    <span style={{
+                                      fontSize: "10px",
+                                      fontWeight: 600,
+                                      color: "#1E293B",
+                                      background: "#E2E8F0",
+                                      padding: "1px 6px",
+                                      borderRadius: "4px",
+                                      marginLeft: "auto",
+                                    }}>
+                                      {[st.grade, st.section].filter(Boolean).join(" • ")}
+                                    </span>
+                                  )}
+                                </label>
+                              );
+                            })}
+                            {filteredStudentsForMapParent.length === 0 && (
+                              <div style={{ fontSize: "11.5px", color: "#667085", padding: "16px 10px", textAlign: "center" }}>
+                                No students found matching the selected class/section filter.
+                              </div>
                             )}
                           </div>
                         </div>

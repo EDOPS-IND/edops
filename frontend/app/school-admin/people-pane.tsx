@@ -21,6 +21,7 @@ import {
   getStudentAvatarUrl,
   sendStudentInvite,
   getSchoolAdminStudent360,
+  getSchoolAdminAcademics,
 } from "../edops-api";
 import {
   Users,
@@ -661,11 +662,11 @@ export function PeoplePane({
           prev.map((item) =>
             item.id === s.id || item.userId === studentId
               ? {
-                  ...item,
-                  inviteStatus: "pending",
-                  inviteToken: res.token,
-                  inviteExpiresAt: res.expiresAt,
-                }
+                ...item,
+                inviteStatus: "pending",
+                inviteToken: res.token,
+                inviteExpiresAt: res.expiresAt,
+              }
               : item
           )
         );
@@ -759,12 +760,22 @@ export function PeoplePane({
   const [isMappingWards, setIsMappingWards] = useState(false);
   const [selectedWardIds, setSelectedWardIds] = useState<string[]>([]);
   const [wardSearchQuery, setWardSearchQuery] = useState("");
+  const [wardClassFilter, setWardClassFilter] = useState("");
+  const [wardSectionFilter, setWardSectionFilter] = useState("all");
+  const [wardUnmappedOnly, setWardUnmappedOnly] = useState(false);
   const [savingWards, setSavingWards] = useState(false);
+  const [academicsData, setAcademicsData] = useState<{ programs: any[]; sections: any[] } | null>(null);
 
   const handleStartMappingWards = (parent: ParentRecord) => {
     const currentIds = (parent.children || []).map((ch: any) => ch.studentId || ch.id).filter(Boolean);
     setSelectedWardIds(currentIds);
     setWardSearchQuery("");
+    const firstChild = (parent.children || [])[0];
+    const initialClass = firstChild?.grade || "";
+    const initialSection = firstChild?.section || "all";
+    setWardClassFilter(initialClass);
+    setWardSectionFilter(initialSection);
+    setWardUnmappedOnly(false);
     setIsMappingWards(true);
   };
 
@@ -835,15 +846,89 @@ export function PeoplePane({
     }
   };
 
-  const filteredStudentsForWards = students.filter((s) => {
-    if (!wardSearchQuery.trim()) return true;
-    const q = wardSearchQuery.toLowerCase();
-    const nameMatch = (s.name || "").toLowerCase().includes(q);
-    const admMatch = (s.admissionNo || s.admissionNumber || "").toLowerCase().includes(q);
-    const classMatch = [s.grade, s.className, s.section, s.sectionName].filter(Boolean).join(" ").toLowerCase().includes(q);
-    const rollMatch = (s.rollNo || s.rollNumber || "").toLowerCase().includes(q);
-    return nameMatch || admMatch || classMatch || rollMatch;
-  });
+  const availableClassesForWards = useMemo(() => {
+    const set = new Set<string>();
+    (academicsData?.programs || []).forEach((p: any) => {
+      if (p.name) set.add(p.name);
+    });
+    students.forEach((s) => {
+      const cls = s.grade || s.className;
+      if (cls) set.add(cls);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  }, [academicsData, students]);
+
+  const availableSectionsForWards = useMemo(() => {
+    const set = new Set<string>();
+    (academicsData?.sections || []).forEach((sec: any) => {
+      if (!wardClassFilter || wardClassFilter === "all" || (sec.programName || "").toLowerCase() === wardClassFilter.toLowerCase()) {
+        if (sec.name) set.add(sec.name);
+      }
+    });
+    students.forEach((s) => {
+      const cls = (s.grade || s.className || "").toLowerCase();
+      if (wardClassFilter && wardClassFilter !== "all" && cls !== wardClassFilter.toLowerCase()) {
+        return;
+      }
+      const sec = s.section || s.sectionName;
+      if (sec) set.add(sec);
+    });
+    return Array.from(set).sort();
+  }, [academicsData, students, wardClassFilter]);
+
+  const studentGuardianMap = useMemo(() => {
+    const map = new Map<string, { parentName: string; rel?: string }[]>();
+    parents.forEach((p) => {
+      (p.children || []).forEach((ch: any) => {
+        const sid = ch.studentId || ch.id;
+        if (sid) {
+          const list = map.get(sid) || [];
+          list.push({ parentName: p.name || "Guardian", rel: p.relationship || "" });
+          map.set(sid, list);
+        }
+      });
+    });
+    return map;
+  }, [parents]);
+
+  const unlinkedStudentsCount = useMemo(() => {
+    return students.filter((s) => !studentGuardianMap.has(s.userId || s.id)).length;
+  }, [students, studentGuardianMap]);
+
+  const filteredStudentsForWards = useMemo(() => {
+    if (!wardClassFilter) {
+      return [];
+    }
+    return students.filter((s) => {
+      const sid = s.userId || s.id;
+      // Class/Grade filter
+      if (wardClassFilter !== "all") {
+        const cls = (s.grade || s.className || "").toLowerCase();
+        if (cls !== wardClassFilter.toLowerCase()) return false;
+      }
+      // Section filter
+      if (wardSectionFilter !== "all") {
+        const sec = (s.section || s.sectionName || "").toLowerCase();
+        if (sec !== wardSectionFilter.toLowerCase()) return false;
+      }
+      // Unmapped only filter
+      if (wardUnmappedOnly) {
+        const mapped = studentGuardianMap.has(sid);
+        const isCurrentSelected = selectedWardIds.includes(sid);
+        if (mapped && !isCurrentSelected) return false;
+      }
+      // Search query filter
+      if (wardSearchQuery.trim()) {
+        const q = wardSearchQuery.toLowerCase().trim();
+        const nameMatch = (s.name || "").toLowerCase().includes(q);
+        const admMatch = (s.admissionNo || s.admissionNumber || "").toLowerCase().includes(q);
+        const classMatch = [s.grade, s.className, s.section, s.sectionName].filter(Boolean).join(" ").toLowerCase().includes(q);
+        const rollMatch = (s.rollNo || s.rollNumber || "").toLowerCase().includes(q);
+        if (!nameMatch && !admMatch && !classMatch && !rollMatch) return false;
+      }
+      return true;
+    });
+  }, [students, wardSearchQuery, wardClassFilter, wardSectionFilter, wardUnmappedOnly, studentGuardianMap, selectedWardIds]);
 
   // Manage Department Subjects State (Embedded directly inside Department Dossier)
   const [isMappingDeptSubjects, setIsMappingDeptSubjects] = useState(false);
@@ -908,9 +993,9 @@ export function PeoplePane({
         setSelectedDept((prev) =>
           prev
             ? {
-                ...prev,
-                subjects: (prev.subjects || []).filter((s: any) => s.id !== subjectIdToUnlink),
-              }
+              ...prev,
+              subjects: (prev.subjects || []).filter((s: any) => s.id !== subjectIdToUnlink),
+            }
             : prev
         );
       }
@@ -931,12 +1016,12 @@ export function PeoplePane({
 
   const studentParents = selectedStudent
     ? parents.filter((p) =>
-        (p.children || []).some(
-          (ch: any) =>
-            (ch.id && ch.id === selectedStudent.id) ||
-            (ch.studentId && ch.studentId === selectedStudent.id)
-        )
+      (p.children || []).some(
+        (ch: any) =>
+          (ch.id && ch.id === selectedStudent.id) ||
+          (ch.studentId && ch.studentId === selectedStudent.id)
       )
+    )
     : [];
 
   // Prevent background scrolling when any drawer is open
@@ -950,6 +1035,15 @@ export function PeoplePane({
     }
   }, [selectedStudent, selectedTeacher, selectedStaff, selectedParent, selectedDept]);
 
+  // Load academics data (classes & sections) on demand for ward mapping
+  useEffect(() => {
+    if (organizationId && (subtab === "parents" || selectedParent || isMappingWards) && !academicsData) {
+      getSchoolAdminAcademics(organizationId)
+        .then((data) => setAcademicsData(data))
+        .catch(() => {});
+    }
+  }, [organizationId, subtab, selectedParent, isMappingWards, academicsData]);
+
   // Load students on demand if Parent Dossier is opened (for ward mapping)
   useEffect(() => {
     if (selectedParent && organizationId && !loadedTabs["students"]) {
@@ -958,7 +1052,7 @@ export function PeoplePane({
           setStudents(st || []);
           setLoadedTabs((prev) => ({ ...prev, students: true }));
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [selectedParent, organizationId, loadedTabs]);
 
@@ -978,10 +1072,12 @@ export function PeoplePane({
     } else if (subtab === "parents") {
       const p1 = getSchoolAdminParents(organizationId).then((pr) => setParents(pr || []));
       const p2 = !loadedTabs["students"]
-        ? getSchoolAdminStudents(organizationId).then((st) => {
-            setStudents(st || []);
-            setLoadedTabs((prev) => ({ ...prev, students: true }));
-          }).catch(() => {})
+        ? getSchoolAdminStudents(organizationId)
+            .then((st) => {
+              setStudents(st || []);
+              setLoadedTabs((prev) => ({ ...prev, students: true }));
+            })
+            .catch(() => { })
         : Promise.resolve();
       fetcher = Promise.all([p1, p2]);
     } else {
@@ -989,7 +1085,7 @@ export function PeoplePane({
     }
 
     fetcher
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => {
         setLoadedTabs((prev) => ({ ...prev, [subtab]: true }));
         setLoading(false);
@@ -1004,7 +1100,7 @@ export function PeoplePane({
           setParents(pr || []);
           setLoadedTabs((prev) => ({ ...prev, parents: true }));
         })
-        .catch(() => {});
+        .catch(() => { });
     }
   }, [selectedStudent, organizationId, loadedTabs]);
 
@@ -1330,12 +1426,12 @@ export function PeoplePane({
               {subtab === "students"
                 ? "Students"
                 : subtab === "teachers"
-                ? "Teachers & Workload"
-                : subtab === "staff"
-                ? "Staff Intelligence"
-                : subtab === "parents"
-                ? "Parents & Mappings"
-                : "Academic Units"}
+                  ? "Teachers & Workload"
+                  : subtab === "staff"
+                    ? "Staff Intelligence"
+                    : subtab === "parents"
+                      ? "Parents & Mappings"
+                      : "Academic Units"}
             </h1>
             <p
               style={{
@@ -1350,12 +1446,12 @@ export function PeoplePane({
               {subtab === "students"
                 ? "Directory of enrolled students across all grades, classes, and houses."
                 : subtab === "teachers"
-                ? "Faculty assignments, 28/30 weekly period distribution, and department mappings."
-                : subtab === "staff"
-                ? "Campus support staff roster, administrative roles, and shift allocations."
-                : subtab === "parents"
-                ? "Verified guardian profiles, ward mappings, and communication conduits."
-                : "Academic departments, subject heads, and curricular divisions."}
+                  ? "Faculty assignments, 28/30 weekly period distribution, and department mappings."
+                  : subtab === "staff"
+                    ? "Campus support staff roster, administrative roles, and shift allocations."
+                    : subtab === "parents"
+                      ? "Verified guardian profiles, ward mappings, and communication conduits."
+                      : "Academic departments, subject heads, and curricular divisions."}
             </p>
           </div>
 
@@ -1439,12 +1535,12 @@ export function PeoplePane({
                 {subtab === "students"
                   ? "Add Student"
                   : subtab === "teachers"
-                  ? "Add Teacher"
-                  : subtab === "staff"
-                  ? "Add Staff"
-                  : subtab === "parents"
-                  ? "Map Parent"
-                  : "New Department"}
+                    ? "Add Teacher"
+                    : subtab === "staff"
+                      ? "Add Staff"
+                      : subtab === "parents"
+                        ? "Map Parent"
+                        : "New Department"}
               </span>
             </button>
           </div>
@@ -1577,165 +1673,165 @@ export function PeoplePane({
                 width: "100%",
               }}
             >
-            {/* Card 1: Total Students (Pastel Violet) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#E0D3FF",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  TOTAL STUDENTS
-                </span>
-                <Users size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {totalStudentsCount > 0 ? totalStudentsCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
-                  Active in school roster
-                </span>
-                <div
-                  onClick={() => {
-                    setGradeFilter("all");
-                    setStatusFilter("all");
-                    setFeeFilter("all");
-                    setSearchQuery("");
-                  }}
-                  style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
-                >
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
-                    Directory
-                  </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Regular Attendance (Pastel Mint Green) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#D0EDC0",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  REGULAR ATTENDANCE
-                </span>
-                <UserCheck size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {goodAttendanceCount > 0 ? goodAttendanceCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
-                  {students.some((s) => s.attendancePct != null) ? "Above 75% statutory norm" : "No attendance recorded"}
-                </span>
+              {/* Card 1: Total Students (Pastel Violet) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#E0D3FF",
+                  borderRadius: "10px",
+                }}
+              >
                 <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
-                    Status
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    TOTAL STUDENTS
                   </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                  <Users size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {totalStudentsCount > 0 ? totalStudentsCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                    Active in school roster
+                  </span>
+                  <div
+                    onClick={() => {
+                      setGradeFilter("all");
+                      setStatusFilter("all");
+                      setFeeFilter("all");
+                      setSearchQuery("");
+                    }}
+                    style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+                  >
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                      Directory
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Card 3: Guardian Mappings (Pastel Sky Blue) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#BCE6F3",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  GUARDIAN MAPPINGS
-                </span>
-                <GraduationCap size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {mappedGuardiansCount > 0 ? mappedGuardiansCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
-                  Linked parent/guardian accounts
-                </span>
-                <div
-                  onClick={() => {
-                    setSubtab("parents");
-                    if (onTabChange) onTabChange("parents");
-                  }}
-                  style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
-                >
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
-                    Linked
-                  </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Transport Enrolled (Pastel Warm Coral) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#FADAC9",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  TRANSPORT ENROLLED
-                </span>
-                <Bus size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {transportEnrolledCount > 0 ? transportEnrolledCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
-                  Active bus routes & passes
-                </span>
+              {/* Card 2: Regular Attendance (Pastel Mint Green) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#D0EDC0",
+                  borderRadius: "10px",
+                }}
+              >
                 <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
-                    Transport
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    REGULAR ATTENDANCE
                   </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                  <UserCheck size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {goodAttendanceCount > 0 ? goodAttendanceCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                    {students.some((s) => s.attendancePct != null) ? "Above 75% statutory norm" : "No attendance recorded"}
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                      Status
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: Guardian Mappings (Pastel Sky Blue) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#BCE6F3",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    GUARDIAN MAPPINGS
+                  </span>
+                  <GraduationCap size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {mappedGuardiansCount > 0 ? mappedGuardiansCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                    Linked parent/guardian accounts
+                  </span>
+                  <div
+                    onClick={() => {
+                      setSubtab("parents");
+                      if (onTabChange) onTabChange("parents");
+                    }}
+                    style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+                  >
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                      Linked
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Transport Enrolled (Pastel Warm Coral) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#FADAC9",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    TRANSPORT ENROLLED
+                  </span>
+                  <Bus size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {transportEnrolledCount > 0 ? transportEnrolledCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                    Active bus routes & passes
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                      Transport
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
           {/* Student Directory Card (Not scrollable, 100% fluid width) */}
           <div
@@ -2044,18 +2140,18 @@ export function PeoplePane({
                     searchQuery
                       ? `No enrolled students match "${searchQuery}" or the active filter criteria.`
                       : gradeFilter !== "all" || statusFilter !== "all" || feeFilter !== "all" || studentSegment !== "all"
-                      ? "No student records match the active grade, fee, or attendance filters."
-                      : "No students have been enrolled in this school campus yet. Click 'Add Student' above to begin onboarding."
+                        ? "No student records match the active grade, fee, or attendance filters."
+                        : "No students have been enrolled in this school campus yet. Click 'Add Student' above to begin onboarding."
                   }
                   onReset={
                     searchQuery || gradeFilter !== "all" || statusFilter !== "all" || feeFilter !== "all" || studentSegment !== "all"
                       ? () => {
-                          setSearchQuery("");
-                          setGradeFilter("all");
-                          setStatusFilter("all");
-                          setFeeFilter("all");
-                          setStudentSegment("all");
-                        }
+                        setSearchQuery("");
+                        setGradeFilter("all");
+                        setStatusFilter("all");
+                        setFeeFilter("all");
+                        setStudentSegment("all");
+                      }
                       : undefined
                   }
                 />
@@ -2466,164 +2562,164 @@ export function PeoplePane({
                 width: "100%",
               }}
             >
-            {/* Card 1: Total Faculty (Pastel Violet) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#E0D3FF",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  TOTAL FACULTY
-                </span>
-                <GraduationCap size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {teachers.length > 0 ? teachers.length : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
-                  Active instructional faculty
-                </span>
-                <div
-                  onClick={() => {
-                    setTeacherSearch("");
-                    setTeacherDeptFilter("all");
-                    setTeacherWorkloadFilter("all");
-                  }}
-                  style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
-                >
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
-                    Directory
-                  </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Balanced Workload (Pastel Mint Green) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#D0EDC0",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  BALANCED WORKLOAD
-                </span>
-                <UserCheck size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {teachersBalancedCount > 0 ? teachersBalancedCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
-                  Within 24–28 periods/week
-                </span>
-                <div
-                  onClick={() => setTeacherWorkloadFilter("balanced")}
-                  style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
-                >
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
-                    Balanced
-                  </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Overloaded Faculty (Pastel Sky Blue) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#BCE6F3",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  OVERLOADED FACULTY
-                </span>
-                <AlertCircle size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {teachersOverloadedCount > 0 ? teachersOverloadedCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
-                  Exceeding statutory threshold
-                </span>
-                <div
-                  onClick={() => setTeacherWorkloadFilter("overloaded")}
-                  style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
-                >
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
-                    Flagged
-                  </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 4: Avg Weekly Load (Pastel Warm Coral) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#FADAC9",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  AVG PERIODS / WEEK
-                </span>
-                <Clock size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {teachersAvgPeriods > 0 ? `${teachersAvgPeriods} Per/Wk` : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
-                  Calculated institutional allocation
-                </span>
+              {/* Card 1: Total Faculty (Pastel Violet) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#E0D3FF",
+                  borderRadius: "10px",
+                }}
+              >
                 <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
-                    Workload
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    TOTAL FACULTY
                   </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                  <GraduationCap size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {teachers.length > 0 ? teachers.length : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                    Active instructional faculty
+                  </span>
+                  <div
+                    onClick={() => {
+                      setTeacherSearch("");
+                      setTeacherDeptFilter("all");
+                      setTeacherWorkloadFilter("all");
+                    }}
+                    style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+                  >
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                      Directory
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 2: Balanced Workload (Pastel Mint Green) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#D0EDC0",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    BALANCED WORKLOAD
+                  </span>
+                  <UserCheck size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {teachersBalancedCount > 0 ? teachersBalancedCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                    Within 24–28 periods/week
+                  </span>
+                  <div
+                    onClick={() => setTeacherWorkloadFilter("balanced")}
+                    style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+                  >
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                      Balanced
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: Overloaded Faculty (Pastel Sky Blue) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#BCE6F3",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    OVERLOADED FACULTY
+                  </span>
+                  <AlertCircle size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {teachersOverloadedCount > 0 ? teachersOverloadedCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                    Exceeding statutory threshold
+                  </span>
+                  <div
+                    onClick={() => setTeacherWorkloadFilter("overloaded")}
+                    style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+                  >
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                      Flagged
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Avg Weekly Load (Pastel Warm Coral) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#FADAC9",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    AVG PERIODS / WEEK
+                  </span>
+                  <Clock size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {teachersAvgPeriods > 0 ? `${teachersAvgPeriods} Per/Wk` : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                    Calculated institutional allocation
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                      Workload
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
           {/* Directory Card with Heading, Filters, and Alternating Table */}
           <div
@@ -2925,16 +3021,16 @@ export function PeoplePane({
                     teacherSearch
                       ? `No faculty records match "${teacherSearch}".`
                       : teacherDeptFilter !== "all" || teacherSegment !== "all"
-                      ? "No faculty members match the selected department or workload filters."
-                      : "No faculty members are currently registered in this school roster. Click 'Add Teacher' above to onboard teachers."
+                        ? "No faculty members match the selected department or workload filters."
+                        : "No faculty members are currently registered in this school roster. Click 'Add Teacher' above to onboard teachers."
                   }
                   onReset={
                     teacherSearch || teacherDeptFilter !== "all" || teacherSegment !== "all"
                       ? () => {
-                          setTeacherSearch("");
-                          setTeacherDeptFilter("all");
-                          setTeacherSegment("all");
-                        }
+                        setTeacherSearch("");
+                        setTeacherDeptFilter("all");
+                        setTeacherSegment("all");
+                      }
                       : undefined
                   }
                 />
@@ -3136,14 +3232,14 @@ export function PeoplePane({
                               isPending
                                 ? "#FEF3C7"
                                 : st.includes("active")
-                                ? "#ECFDF5"
-                                : "#F1F5F9",
+                                  ? "#ECFDF5"
+                                  : "#F1F5F9",
                             color:
                               isPending
                                 ? "#92400E"
                                 : st.includes("active")
-                                ? "#047857"
-                                : "#475569",
+                                  ? "#047857"
+                                  : "#475569",
                             whiteSpace: "nowrap",
                           }}
                         >
@@ -3207,161 +3303,161 @@ export function PeoplePane({
                 width: "100%",
               }}
             >
-            {/* Card 1: Total Staff (Pastel Violet) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#E0D3FF",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  TOTAL STAFF
-                </span>
-                <Briefcase size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {staff.length > 0 ? staff.length : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
-                  Active administrative & support
-                </span>
-                <div
-                  onClick={() => {
-                    setStaffSearch("");
-                    setStaffDeptFilter("all");
-                    setStaffTypeFilter("all");
-                  }}
-                  style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
-                >
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
-                    Directory
-                  </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Full-Time Employees (Pastel Mint Green) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#D0EDC0",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  FULL-TIME STAFF
-                </span>
-                <UserCheck size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {staffFullTimeCount > 0 ? staffFullTimeCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
-                  Regular operational shift
-                </span>
-                <div
-                  onClick={() => setStaffTypeFilter("full")}
-                  style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
-                >
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
-                    Full-Time
-                  </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Active On Duty (Pastel Sky Blue) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#BCE6F3",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  ACTIVE ON DUTY
-                </span>
-                <CheckCircle2 size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {staffActiveCount > 0 ? staffActiveCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
-                  Operational roster standing
-                </span>
+              {/* Card 1: Total Staff (Pastel Violet) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#E0D3FF",
+                  borderRadius: "10px",
+                }}
+              >
                 <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
-                    On Duty
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    TOTAL STAFF
                   </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                  <Briefcase size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {staff.length > 0 ? staff.length : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                    Active administrative & support
+                  </span>
+                  <div
+                    onClick={() => {
+                      setStaffSearch("");
+                      setStaffDeptFilter("all");
+                      setStaffTypeFilter("all");
+                    }}
+                    style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+                  >
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                      Directory
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Card 4: Departments Covered (Pastel Warm Coral) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#FADAC9",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  DEPARTMENTS COVERED
-                </span>
-                <Building2 size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {staffDeptsCount > 0 ? staffDeptsCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
-                  Administrative & campus wings
-                </span>
+              {/* Card 2: Full-Time Employees (Pastel Mint Green) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#D0EDC0",
+                  borderRadius: "10px",
+                }}
+              >
                 <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
-                    Wings
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    FULL-TIME STAFF
                   </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                  <UserCheck size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {staffFullTimeCount > 0 ? staffFullTimeCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                    Regular operational shift
+                  </span>
+                  <div
+                    onClick={() => setStaffTypeFilter("full")}
+                    style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+                  >
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                      Full-Time
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: Active On Duty (Pastel Sky Blue) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#BCE6F3",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    ACTIVE ON DUTY
+                  </span>
+                  <CheckCircle2 size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {staffActiveCount > 0 ? staffActiveCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                    Operational roster standing
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                      On Duty
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Departments Covered (Pastel Warm Coral) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#FADAC9",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    DEPARTMENTS COVERED
+                  </span>
+                  <Building2 size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {staffDeptsCount > 0 ? staffDeptsCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                    Administrative & campus wings
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                      Wings
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
           {/* Directory Card with Heading, Filters, and Alternating Table */}
           <div
@@ -3693,17 +3789,17 @@ export function PeoplePane({
                     staffSearch
                       ? `No staff members match "${staffSearch}".`
                       : staffDeptFilter !== "all" || staffTypeFilter !== "all" || staffSegment !== "all"
-                      ? "No staff personnel match the selected department, employment type, or segment filters."
-                      : "No non-teaching or operational staff records exist for this school campus yet."
+                        ? "No staff personnel match the selected department, employment type, or segment filters."
+                        : "No non-teaching or operational staff records exist for this school campus yet."
                   }
                   onReset={
                     staffSearch || staffDeptFilter !== "all" || staffTypeFilter !== "all" || staffSegment !== "all"
                       ? () => {
-                          setStaffSearch("");
-                          setStaffDeptFilter("all");
-                          setStaffTypeFilter("all");
-                          setStaffSegment("all");
-                        }
+                        setStaffSearch("");
+                        setStaffDeptFilter("all");
+                        setStaffTypeFilter("all");
+                        setStaffSegment("all");
+                      }
                       : undefined
                   }
                 />
@@ -3970,161 +4066,161 @@ export function PeoplePane({
                 width: "100%",
               }}
             >
-            {/* Card 1: Mapped Guardians (Pastel Violet) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#E0D3FF",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  MAPPED GUARDIANS
-                </span>
-                <HeartHandshake size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {parents.length > 0 ? parents.length : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
-                  Registered parent/guardian accounts
-                </span>
-                <div
-                  onClick={() => {
-                    setParentSearch("");
-                    setParentStatusFilter("all");
-                    setParentRelFilter("all");
-                  }}
-                  style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
-                >
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
-                    Directory
-                  </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Verified Contacts (Pastel Mint Green) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#D0EDC0",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  VERIFIED CONTACTS
-                </span>
-                <Phone size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {parentsVerifiedCount > 0 ? parentsVerifiedCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
-                  Mobile phones verified for SMS
-                </span>
+              {/* Card 1: Mapped Guardians (Pastel Violet) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#E0D3FF",
+                  borderRadius: "10px",
+                }}
+              >
                 <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
-                    Verified
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    MAPPED GUARDIANS
                   </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                  <HeartHandshake size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {parents.length > 0 ? parents.length : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                    Registered parent/guardian accounts
+                  </span>
+                  <div
+                    onClick={() => {
+                      setParentSearch("");
+                      setParentStatusFilter("all");
+                      setParentRelFilter("all");
+                    }}
+                    style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+                  >
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                      Directory
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Card 3: Linked Wards (Pastel Sky Blue) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#BCE6F3",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  LINKED WARDS
-                </span>
-                <Users size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {parentsWardsCount > 0 ? parentsWardsCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
-                  Total enrolled student linkages
-                </span>
+              {/* Card 2: Verified Contacts (Pastel Mint Green) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#D0EDC0",
+                  borderRadius: "10px",
+                }}
+              >
                 <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
-                    Linkages
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    VERIFIED CONTACTS
                   </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                  <Phone size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {parentsVerifiedCount > 0 ? parentsVerifiedCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                    Mobile phones verified for SMS
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                      Verified
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Card 4: Invites Accepted (Pastel Warm Coral) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#FADAC9",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  INVITATIONS ACCEPTED
-                </span>
-                <Send size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {parentsAcceptedCount > 0 ? parentsAcceptedCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
-                  Encrypted token activations
-                </span>
-                <div
-                  onClick={() => setParentStatusFilter("accepted")}
-                  style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
-                >
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
-                    Active
+              {/* Card 3: Linked Wards (Pastel Sky Blue) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#BCE6F3",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    LINKED WARDS
                   </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                  <Users size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {parentsWardsCount > 0 ? parentsWardsCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                    Total enrolled student linkages
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                      Linkages
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Invites Accepted (Pastel Warm Coral) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#FADAC9",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    INVITATIONS ACCEPTED
+                  </span>
+                  <Send size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {parentsAcceptedCount > 0 ? parentsAcceptedCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                    Encrypted token activations
+                  </span>
+                  <div
+                    onClick={() => setParentStatusFilter("accepted")}
+                    style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+                  >
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                      Active
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
           {/* Directory Card with Heading, Filters, and Alternating Table */}
           <div
@@ -4450,17 +4546,17 @@ export function PeoplePane({
                     parentSearch
                       ? `No guardian profiles match "${parentSearch}".`
                       : parentStatusFilter !== "all" || parentRelFilter !== "all" || parentSegment !== "all"
-                      ? "No guardians match the selected invitation status, relationship, or segment filters."
-                      : "No parent or guardian records have been registered for this school campus yet."
+                        ? "No guardians match the selected invitation status, relationship, or segment filters."
+                        : "No parent or guardian records have been registered for this school campus yet."
                   }
                   onReset={
                     parentSearch || parentStatusFilter !== "all" || parentRelFilter !== "all" || parentSegment !== "all"
                       ? () => {
-                          setParentSearch("");
-                          setParentStatusFilter("all");
-                          setParentRelFilter("all");
-                          setParentSegment("all");
-                        }
+                        setParentSearch("");
+                        setParentStatusFilter("all");
+                        setParentRelFilter("all");
+                        setParentSegment("all");
+                      }
                       : undefined
                   }
                 />
@@ -4636,26 +4732,78 @@ export function PeoplePane({
                       </div>
 
                       {/* Linked Wards */}
-                      <div style={{ flex: "1.8 1 160px", minWidth: 0, display: "flex", gap: "4px", alignItems: "center", overflow: "hidden" }}>
+                      <div style={{ flex: "1.8 1 170px", minWidth: 0, display: "flex", gap: "5px", alignItems: "center", flexWrap: "wrap", overflow: "hidden" }}>
                         {p.children && p.children.length > 0 ? (
-                          p.children.map((ch: any, cIdx: number) => (
-                            <span
-                              key={cIdx}
-                              style={{
-                                background: "#FFFFFF",
-                                border: "1px solid #E2E8F0",
-                                padding: "2px 6px",
-                                borderRadius: "4px",
-                                fontSize: "11px",
-                                color: "#0C1E33",
-                                whiteSpace: "nowrap",
+                          <>
+                            {p.children.map((ch: any, cIdx: number) => (
+                              <span
+                                key={cIdx}
+                                style={{
+                                  background: "#FFFFFF",
+                                  border: "1px solid #E2E8F0",
+                                  padding: "2px 6px",
+                                  borderRadius: "4px",
+                                  fontSize: "11px",
+                                  color: "#0C1E33",
+                                  whiteSpace: "nowrap",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px",
+                                }}
+                              >
+                                <b>{ch.studentName || ch.name}</b>
+                                {ch.grade && <span style={{ fontSize: "10px", color: "#64748B" }}>({ch.grade})</span>}
+                              </span>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedParent(p);
+                                setParent360Tab("wards");
+                                handleStartMappingWards(p);
                               }}
+                              style={{
+                                border: "none",
+                                background: "none",
+                                padding: "2px",
+                                cursor: "pointer",
+                                color: "#0C1E33",
+                                display: "inline-flex",
+                                alignItems: "center",
+                              }}
+                              title="Edit linked student wards"
                             >
-                              <b>{ch.studentName || ch.name}</b>
-                            </span>
-                          ))
+                              <Edit2 size={11} />
+                            </button>
+                          </>
                         ) : (
-                          <span style={{ fontSize: "11.5px", color: "#94A3B8" }}>—</span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedParent(p);
+                              setParent360Tab("wards");
+                              handleStartMappingWards(p);
+                            }}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "3px",
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              border: "1px dashed #94A3B8",
+                              background: "#F8FAFC",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              color: "#0C1E33",
+                              cursor: "pointer",
+                            }}
+                            title="Link students to this guardian"
+                          >
+                            <Plus size={11} />
+                            <span>Link Ward</span>
+                          </button>
                         )}
                       </div>
 
@@ -4741,157 +4889,157 @@ export function PeoplePane({
                 width: "100%",
               }}
             >
-            {/* Card 1: Academic Departments (Pastel Violet) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#E0D3FF",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  ACADEMIC DEPARTMENTS
-                </span>
-                <Building2 size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {departments.length > 0 ? departments.length : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
-                  Chartered discipline units
-                </span>
-                <div
-                  onClick={() => {
-                    setDeptSearch("");
-                    setDeptStatusFilter("all");
-                  }}
-                  style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
-                >
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
-                    Directory
-                  </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 2: Mapped Subjects (Pastel Mint Green) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#D0EDC0",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  MAPPED SUBJECTS
-                </span>
-                <BookOpen size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {deptSubjectsCount > 0 ? deptSubjectsCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
-                  Curriculum syllabus courses
-                </span>
+              {/* Card 1: Academic Departments (Pastel Violet) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#E0D3FF",
+                  borderRadius: "10px",
+                }}
+              >
                 <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
-                    Courses
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    ACADEMIC DEPARTMENTS
                   </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                  <Building2 size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {departments.length > 0 ? departments.length : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                    Chartered discipline units
+                  </span>
+                  <div
+                    onClick={() => {
+                      setDeptSearch("");
+                      setDeptStatusFilter("all");
+                    }}
+                    style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+                  >
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                      Directory
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Card 3: Affiliated Faculty (Pastel Sky Blue) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#BCE6F3",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  AFFILIATED FACULTY
-                </span>
-                <GraduationCap size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {deptFacultyCount > 0 ? deptFacultyCount : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
-                  Instructors assigned to departments
-                </span>
+              {/* Card 2: Mapped Subjects (Pastel Mint Green) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#D0EDC0",
+                  borderRadius: "10px",
+                }}
+              >
                 <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
-                    Affiliated
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    MAPPED SUBJECTS
                   </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                  <BookOpen size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {deptSubjectsCount > 0 ? deptSubjectsCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                    Curriculum syllabus courses
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                      Courses
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Card 4: Avg Syllabus Progress (Pastel Warm Coral) */}
-            <div
-              style={{
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-                height: "164px",
-                padding: "20px",
-                gap: "12px",
-                background: "#FADAC9",
-                borderRadius: "10px",
-              }}
-            >
-              <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-                  AVG SYLLABUS PROGRESS
-                </span>
-                <Award size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
-              </div>
-              <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
-                {deptAvgProgress > 0 ? `${deptAvgProgress}%` : "-"}
-              </p>
-              <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
-                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
-                  Overall curriculum completion
-                </span>
+              {/* Card 3: Affiliated Faculty (Pastel Sky Blue) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#BCE6F3",
+                  borderRadius: "10px",
+                }}
+              >
                 <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
-                    Curriculum
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    AFFILIATED FACULTY
                   </span>
-                  <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                  <GraduationCap size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {deptFacultyCount > 0 ? deptFacultyCount : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                    Instructors assigned to departments
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                      Affiliated
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Avg Syllabus Progress (Pastel Warm Coral) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#FADAC9",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    AVG SYLLABUS PROGRESS
+                  </span>
+                  <Award size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                </div>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {deptAvgProgress > 0 ? `${deptAvgProgress}%` : "-"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                    Overall curriculum completion
+                  </span>
+                  <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                    <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                      Curriculum
+                    </span>
+                    <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
           {/* Directory Card with Heading, Filters, and Alternating Table */}
           <div
@@ -5175,16 +5323,16 @@ export function PeoplePane({
                     deptSearch
                       ? `No academic department matches "${deptSearch}".`
                       : deptStatusFilter !== "all" || deptSegment !== "all"
-                      ? "No academic departments match the selected operational status or unit filters."
-                      : "No academic units or departments have been configured for this institution yet."
+                        ? "No academic departments match the selected operational status or unit filters."
+                        : "No academic units or departments have been configured for this institution yet."
                   }
                   onReset={
                     deptSearch || deptStatusFilter !== "all" || deptSegment !== "all"
                       ? () => {
-                          setDeptSearch("");
-                          setDeptStatusFilter("all");
-                          setDeptSegment("all");
-                        }
+                        setDeptSearch("");
+                        setDeptStatusFilter("all");
+                        setDeptSegment("all");
+                      }
                       : undefined
                   }
                 />
@@ -5403,13 +5551,13 @@ export function PeoplePane({
                         </button>
                       </div>
                     </div>
-              );
-            })
-          )}
+                  );
+                })
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  )}
+      )}
 
       {/* ============================================================== */}
       {/* STUDENT 360° PROFILE DRAWER (: Minimalist Right-Side Panel)   */}
@@ -6086,12 +6234,12 @@ export function PeoplePane({
                       {student360Dossier.activity.map((act: any, idx: number) => {
                         const eventDate = act.createdAt
                           ? new Date(act.createdAt).toLocaleString("en-US", {
-                              month: "short",
-                              day: "numeric",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })
                           : "Recent";
                         const actionName = (act.action || "activity.logged").replace(/[._]/g, " ").toUpperCase();
 
@@ -7048,33 +7196,36 @@ export function PeoplePane({
                     </div>
 
                     {isMappingWards ? (
-                      /* Inline Ward Mapping Selector inside the Dossier */
+                      /* Enhanced Inline Ward Mapping Selector inside the Dossier */
                       <div
                         style={{
                           background: "#FFFFFF",
                           border: "1px solid #CBD5E1",
-                          borderRadius: "8px",
-                          padding: "14px",
+                          borderRadius: "10px",
+                          padding: "16px",
                           display: "flex",
                           flexDirection: "column",
-                          gap: "10px",
+                          gap: "12px",
+                          boxShadow: "0 4px 14px rgba(12, 30, 51, 0.05)",
                         }}
                       >
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        {/* Selector Header */}
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                           <div>
-                            <div style={{ fontSize: "12.5px", fontWeight: 700, color: "#0C1E33" }}>
-                              Select Wards to Link
+                            <div style={{ fontSize: "13.5px", fontWeight: 700, color: "#0C1E33" }}>
+                              Link Student Wards
                             </div>
-                            <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px" }}>
-                              Check students to link to <b>{selectedParent.name}</b>
+                            <div style={{ fontSize: "11.5px", color: "#64748B", marginTop: "2px" }}>
+                              Assign enrolled student records to <b>{selectedParent.name}</b>
                             </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => setIsMappingWards(false)}
                             style={{
-                              background: "none",
+                              background: "#F1F5F9",
                               border: "none",
+                              borderRadius: "4px",
                               fontSize: "11.5px",
                               fontWeight: 600,
                               color: "#64748B",
@@ -7086,72 +7237,412 @@ export function PeoplePane({
                           </button>
                         </div>
 
-                        {/* Search Input */}
-                        <div style={{ position: "relative" }}>
-                          <Search
-                            size={14}
+                        {/* Selected Wards Chip Tray (Always visible so selections across searches aren't lost!) */}
+                        {selectedWardIds.length > 0 && (
+                          <div
                             style={{
-                              position: "absolute",
-                              left: "10px",
-                              top: "50%",
-                              transform: "translateY(-50%)",
-                              color: "#94A3B8",
-                            }}
-                          />
-                          <input
-                            type="text"
-                            placeholder="Search students by name, class, roll, admission no..."
-                            value={wardSearchQuery}
-                            onChange={(e) => setWardSearchQuery(e.target.value)}
-                            style={{
-                              width: "100%",
-                              padding: "7px 10px 7px 32px",
-                              fontSize: "12px",
+                              background: "#F8FAFC",
                               border: "1px solid #E2E8F0",
                               borderRadius: "6px",
-                              outline: "none",
-                              boxSizing: "border-box",
-                              fontFamily: "'Poppins', sans-serif",
+                              padding: "8px 10px",
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: "6px",
                             }}
-                          />
-                        </div>
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "11px", fontWeight: 700, color: "#0C1E33" }}>
+                              <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                                <CheckCircle2 size={13} color="#059669" />
+                                Selected Wards ({selectedWardIds.length})
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedWardIds([])}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: "#DC2626",
+                                  fontSize: "10.5px",
+                                  cursor: "pointer",
+                                  padding: 0,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                Clear all
+                              </button>
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+                              {selectedWardIds.map((sid) => {
+                                const s = students.find((x) => (x.userId || x.id) === sid);
+                                const name = s ? s.name : "Student";
+                                const cls = s ? [s.grade || s.className, s.section || s.sectionName].filter(Boolean).join("-") : "";
+                                return (
+                                  <span
+                                    key={sid}
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "5px",
+                                      background: "#0C1E33",
+                                      color: "#F8E7C9",
+                                      padding: "3px 8px",
+                                      borderRadius: "100px",
+                                      fontSize: "11px",
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    <span>{name}</span>
+                                    {cls && <span style={{ opacity: 0.8, fontSize: "10px" }}>({cls})</span>}
+                                    <button
+                                      type="button"
+                                      onClick={() => setSelectedWardIds((prev) => prev.filter((id) => id !== sid))}
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "#F8E7C9",
+                                        cursor: "pointer",
+                                        padding: 0,
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                      }}
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
 
-                        {/* Selection status */}
+                        {/* Step 1: Dedicated Class & Section Scope Selector */}
                         <div
                           style={{
+                            background: "#F8FAFC",
+                            border: "1px solid #E2E8F0",
+                            borderRadius: "8px",
+                            padding: "10px 12px",
                             display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            fontSize: "11.5px",
-                            color: "#64748B",
+                            flexDirection: "column",
+                            gap: "8px",
                           }}
                         >
-                          <span>
-                            <b>{selectedWardIds.length}</b> student{selectedWardIds.length === 1 ? "" : "s"} selected
-                          </span>
-                          {selectedWardIds.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedWardIds([])}
-                              style={{
-                                background: "none",
-                                border: "none",
-                                color: "#DC2626",
-                                fontSize: "11px",
-                                cursor: "pointer",
-                                padding: 0,
-                                fontWeight: 600,
-                              }}
-                            >
-                              Clear selection
-                            </button>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "11px", fontWeight: 700, color: "#0C1E33", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                              Step 1: Select Class & Section
+                            </span>
+                            {wardClassFilter && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWardClassFilter("");
+                                  setWardSectionFilter("all");
+                                  setWardSearchQuery("");
+                                }}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  color: "#DC2626",
+                                  fontSize: "10.5px",
+                                  fontWeight: 600,
+                                  cursor: "pointer",
+                                  padding: 0,
+                                }}
+                              >
+                                Change Class
+                              </button>
+                            )}
+                          </div>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                            {/* Class Selector */}
+                            <div>
+                              <label style={{ display: "block", fontSize: "10.5px", fontWeight: 600, color: "#475569", marginBottom: "3px" }}>
+                                Class / Grade
+                              </label>
+                              <select
+                                value={wardClassFilter}
+                                onChange={(e) => {
+                                  setWardClassFilter(e.target.value);
+                                  setWardSectionFilter("all");
+                                }}
+                                style={{
+                                  width: "100%",
+                                  padding: "6px 8px",
+                                  fontSize: "12px",
+                                  fontWeight: wardClassFilter ? 600 : 400,
+                                  border: "1.5px solid",
+                                  borderColor: wardClassFilter ? "#0C1E33" : "#CBD5E1",
+                                  borderRadius: "6px",
+                                  background: wardClassFilter ? "#0C1E33" : "#FFFFFF",
+                                  color: wardClassFilter ? "#F8E7C9" : "#0C1E33",
+                                  outline: "none",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                <option value="">-- Choose Class --</option>
+                                <option value="all">All Classes (School-wide)</option>
+                                {availableClassesForWards.map((cls) => (
+                                  <option key={cls} value={cls}>
+                                    {cls}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Section Selector */}
+                            <div>
+                              <label style={{ display: "block", fontSize: "10.5px", fontWeight: 600, color: "#475569", marginBottom: "3px" }}>
+                                Section
+                              </label>
+                              <select
+                                value={wardSectionFilter}
+                                disabled={!wardClassFilter}
+                                onChange={(e) => setWardSectionFilter(e.target.value)}
+                                style={{
+                                  width: "100%",
+                                  padding: "6px 8px",
+                                  fontSize: "12px",
+                                  fontWeight: wardSectionFilter !== "all" ? 600 : 400,
+                                  border: "1.5px solid",
+                                  borderColor: !wardClassFilter ? "#E2E8F0" : wardSectionFilter !== "all" ? "#0C1E33" : "#CBD5E1",
+                                  borderRadius: "6px",
+                                  background: !wardClassFilter ? "#F1F5F9" : wardSectionFilter !== "all" ? "#0C1E33" : "#FFFFFF",
+                                  color: !wardClassFilter ? "#94A3B8" : wardSectionFilter !== "all" ? "#F8E7C9" : "#0C1E33",
+                                  outline: "none",
+                                  cursor: !wardClassFilter ? "not-allowed" : "pointer",
+                                }}
+                              >
+                                <option value="all">
+                                  {wardClassFilter ? `All Sections in ${wardClassFilter}` : "Select Class first"}
+                                </option>
+                                {availableSectionsForWards.map((sec) => (
+                                  <option key={sec} value={sec}>
+                                    {sec}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Quick Class Pills for 1-click selection */}
+                          {availableClassesForWards.length > 0 && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap", marginTop: "2px" }}>
+                              <span style={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>Quick Class:</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWardClassFilter("all");
+                                  setWardSectionFilter("all");
+                                }}
+                                style={{
+                                  padding: "2px 8px",
+                                  borderRadius: "4px",
+                                  fontSize: "10.5px",
+                                  fontWeight: 600,
+                                  border: wardClassFilter === "all" ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                  background: wardClassFilter === "all" ? "#0C1E33" : "#FFFFFF",
+                                  color: wardClassFilter === "all" ? "#F8E7C9" : "#334155",
+                                  cursor: "pointer",
+                                  transition: "all 0.1s ease",
+                                }}
+                              >
+                                All Classes
+                              </button>
+                              {availableClassesForWards.map((cls) => {
+                                const isSelected = wardClassFilter === cls;
+                                return (
+                                  <button
+                                    key={cls}
+                                    type="button"
+                                    onClick={() => {
+                                      setWardClassFilter(cls);
+                                      setWardSectionFilter("all");
+                                    }}
+                                    style={{
+                                      padding: "2px 8px",
+                                      borderRadius: "4px",
+                                      fontSize: "10.5px",
+                                      fontWeight: 600,
+                                      border: isSelected ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                      background: isSelected ? "#0C1E33" : "#FFFFFF",
+                                      color: isSelected ? "#F8E7C9" : "#334155",
+                                      cursor: "pointer",
+                                      transition: "all 0.1s ease",
+                                    }}
+                                  >
+                                    {cls}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+
+                          {/* Quick Section Pills (when class is chosen and sections exist) */}
+                          {availableSectionsForWards.length > 0 && wardClassFilter && (
+                            <div style={{ display: "flex", alignItems: "center", gap: "5px", flexWrap: "wrap", marginTop: "4px" }}>
+                              <span style={{ fontSize: "10px", color: "#64748B", fontWeight: 600 }}>Section:</span>
+                              <button
+                                type="button"
+                                onClick={() => setWardSectionFilter("all")}
+                                style={{
+                                  padding: "2px 7px",
+                                  borderRadius: "4px",
+                                  fontSize: "10px",
+                                  fontWeight: 600,
+                                  border: wardSectionFilter === "all" ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                  background: wardSectionFilter === "all" ? "#0C1E33" : "#FFFFFF",
+                                  color: wardSectionFilter === "all" ? "#F8E7C9" : "#334155",
+                                  cursor: "pointer",
+                                }}
+                              >
+                                All
+                              </button>
+                              {availableSectionsForWards.map((sec) => {
+                                const isSelected = wardSectionFilter === sec;
+                                return (
+                                  <button
+                                    key={sec}
+                                    type="button"
+                                    onClick={() => setWardSectionFilter(sec)}
+                                    style={{
+                                      padding: "2px 7px",
+                                      borderRadius: "4px",
+                                      fontSize: "10px",
+                                      fontWeight: 600,
+                                      border: isSelected ? "1px solid #0C1E33" : "1px solid #CBD5E1",
+                                      background: isSelected ? "#0C1E33" : "#FFFFFF",
+                                      color: isSelected ? "#F8E7C9" : "#334155",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    {sec}
+                                  </button>
+                                );
+                              })}
+                            </div>
                           )}
                         </div>
+
+                        {/* Step 2: Student Search & Filter Bar (Active when Class is selected) */}
+                        {wardClassFilter ? (
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                              {/* Search Input */}
+                              <div style={{ position: "relative", flex: 1 }}>
+                                <Search
+                                  size={14}
+                                  style={{
+                                    position: "absolute",
+                                    left: "10px",
+                                    top: "50%",
+                                    transform: "translateY(-50%)",
+                                    color: "#94A3B8",
+                                  }}
+                                />
+                                <input
+                                  type="text"
+                                  placeholder={`Search ${wardClassFilter !== "all" ? wardClassFilter : "students"} by name, roll, admission no...`}
+                                  value={wardSearchQuery}
+                                  onChange={(e) => setWardSearchQuery(e.target.value)}
+                                  style={{
+                                    width: "100%",
+                                    padding: "6px 26px 6px 30px",
+                                    fontSize: "11.5px",
+                                    border: "1px solid #CBD5E1",
+                                    borderRadius: "6px",
+                                    outline: "none",
+                                    boxSizing: "border-box",
+                                    fontFamily: "'Poppins', sans-serif",
+                                    background: "#FFFFFF",
+                                  }}
+                                />
+                                {wardSearchQuery && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setWardSearchQuery("")}
+                                    style={{
+                                      position: "absolute",
+                                      right: "8px",
+                                      top: "50%",
+                                      transform: "translateY(-50%)",
+                                      background: "none",
+                                      border: "none",
+                                      padding: 0,
+                                      cursor: "pointer",
+                                      color: "#94A3B8",
+                                      display: "flex",
+                                    }}
+                                  >
+                                    <X size={13} />
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* Unlinked Only Filter Toggle */}
+                              <button
+                                type="button"
+                                onClick={() => setWardUnmappedOnly((prev) => !prev)}
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  padding: "5px 9px",
+                                  borderRadius: "6px",
+                                  fontSize: "11px",
+                                  fontWeight: 600,
+                                  border: "1px solid",
+                                  borderColor: wardUnmappedOnly ? "#0C1E33" : "#CBD5E1",
+                                  background: wardUnmappedOnly ? "#0C1E33" : "#FFFFFF",
+                                  color: wardUnmappedOnly ? "#F8E7C9" : "#475569",
+                                  cursor: "pointer",
+                                  whiteSpace: "nowrap",
+                                  transition: "all 0.12s ease",
+                                }}
+                                title="Show only students who do not have any guardian linked yet"
+                              >
+                                <span>Unlinked</span>
+                                <span
+                                  style={{
+                                    fontSize: "9.5px",
+                                    padding: "1px 5px",
+                                    borderRadius: "100px",
+                                    background: wardUnmappedOnly ? "rgba(248, 231, 201, 0.25)" : "#F1F5F9",
+                                  }}
+                                >
+                                  {unlinkedStudentsCount}
+                                </span>
+                              </button>
+                            </div>
+
+                            {/* Active Class & Section Scope Banner */}
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                padding: "4px 8px",
+                                background: "#F1F5F9",
+                                borderRadius: "4px",
+                                fontSize: "10.5px",
+                                color: "#334155",
+                              }}
+                            >
+                              <span>
+                                Showing: <b>{wardClassFilter !== "all" ? wardClassFilter : "All Classes"}</b>
+                                {wardSectionFilter !== "all" ? ` • ${wardSectionFilter}` : " • All Sections"}
+                              </span>
+                              <span style={{ color: "#64748B" }}>
+                                <b>{filteredStudentsForWards.length}</b> student{filteredStudentsForWards.length === 1 ? "" : "s"} found
+                              </span>
+                            </div>
+                          </div>
+                        ) : null}
 
                         {/* Student selection list */}
                         <div
                           style={{
-                            maxHeight: "260px",
+                            maxHeight: "270px",
                             overflowY: "auto",
                             display: "flex",
                             flexDirection: "column",
@@ -7159,15 +7650,140 @@ export function PeoplePane({
                             paddingRight: "4px",
                           }}
                         >
-                          {filteredStudentsForWards.length === 0 ? (
-                            <StudentProfileEmptyState
-                              title="No Matching Students"
-                              description="No enrolled student records match your search criteria."
-                            />
+                          {!wardClassFilter ? (
+                            <div
+                              style={{
+                                padding: "28px 16px",
+                                textAlign: "center",
+                                background: "#F8FAFC",
+                                border: "1px dashed #CBD5E1",
+                                borderRadius: "8px",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: "8px",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  width: "40px",
+                                  height: "40px",
+                                  borderRadius: "50%",
+                                  background: "#EFF6FF",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "#2563EB",
+                                }}
+                              >
+                                <GraduationCap size={22} />
+                              </div>
+                              <div>
+                                <div style={{ fontSize: "12.5px", fontWeight: 700, color: "#0C1E33" }}>
+                                  Select Class & Section to View Students
+                                </div>
+                                <div style={{ fontSize: "11px", color: "#64748B", marginTop: "2px", maxWidth: "320px" }}>
+                                  Choose a Class and Section above to display students from the database for ward mapping.
+                                </div>
+                              </div>
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", justifyContent: "center", marginTop: "4px" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setWardClassFilter("all");
+                                    setWardSectionFilter("all");
+                                  }}
+                                  style={{
+                                    padding: "5px 12px",
+                                    background: "#0C1E33",
+                                    border: "1px solid #0C1E33",
+                                    borderRadius: "5px",
+                                    fontSize: "11px",
+                                    color: "#F8E7C9",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                    boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                                  }}
+                                >
+                                  All Classes (School-wide)
+                                </button>
+                                {availableClassesForWards.map((cls) => (
+                                  <button
+                                    key={cls}
+                                    type="button"
+                                    onClick={() => {
+                                      setWardClassFilter(cls);
+                                      setWardSectionFilter("all");
+                                    }}
+                                    style={{
+                                      padding: "5px 12px",
+                                      background: "#FFFFFF",
+                                      border: "1px solid #CBD5E1",
+                                      borderRadius: "5px",
+                                      fontSize: "11px",
+                                      color: "#0C1E33",
+                                      cursor: "pointer",
+                                      fontWeight: 600,
+                                      boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+                                    }}
+                                  >
+                                    {cls}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : filteredStudentsForWards.length === 0 ? (
+                            <div
+                              style={{
+                                padding: "24px 16px",
+                                textAlign: "center",
+                                background: "#F8FAFC",
+                                border: "1px dashed #CBD5E1",
+                                borderRadius: "6px",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: "6px",
+                              }}
+                            >
+                              <Search size={20} color="#94A3B8" />
+                              <div style={{ fontSize: "12px", fontWeight: 600, color: "#334155" }}>
+                                No Students Found in {wardClassFilter} {wardSectionFilter !== "all" ? `(${wardSectionFilter})` : ""}
+                              </div>
+                              <div style={{ fontSize: "11px", color: "#64748B", maxWidth: "290px" }}>
+                                {wardSearchQuery
+                                  ? `No students matching "${wardSearchQuery}".`
+                                  : "No students enrolled in this section yet."}
+                              </div>
+                              {wardSearchQuery && (
+                                <button
+                                  type="button"
+                                  onClick={() => setWardSearchQuery("")}
+                                  style={{
+                                    marginTop: "4px",
+                                    padding: "3px 8px",
+                                    background: "#FFFFFF",
+                                    border: "1px solid #CBD5E1",
+                                    borderRadius: "4px",
+                                    fontSize: "11px",
+                                    color: "#0C1E33",
+                                    cursor: "pointer",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  Clear Search
+                                </button>
+                              )}
+                            </div>
                           ) : (
                             filteredStudentsForWards.map((s) => {
                               const sid = s.userId || s.id;
                               const isChecked = selectedWardIds.includes(sid);
+                              const existingGuardians = studentGuardianMap.get(sid) || [];
+                              const isOtherGuardianLinked = existingGuardians.some(
+                                (g) => g.parentName !== selectedParent.name
+                              );
+
                               return (
                                 <label
                                   key={sid}
@@ -7198,12 +7814,13 @@ export function PeoplePane({
                                       height: "15px",
                                       accentColor: "#0C1E33",
                                       cursor: "pointer",
+                                      flexShrink: 0,
                                     }}
                                   />
                                   <div
                                     style={{
-                                      width: "28px",
-                                      height: "28px",
+                                      width: "30px",
+                                      height: "30px",
                                       borderRadius: "50%",
                                       overflow: "hidden",
                                       background: "#F1F5F9",
@@ -7218,12 +7835,47 @@ export function PeoplePane({
                                     />
                                   </div>
                                   <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#0C1E33" }}>
-                                      {s.name}
+                                    <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                                      <span style={{ fontSize: "12.5px", fontWeight: 600, color: "#0C1E33" }}>
+                                        {s.name}
+                                      </span>
+                                      {(s.grade || s.className || s.section || s.sectionName) && (
+                                        <span
+                                          style={{
+                                            fontSize: "10px",
+                                            fontWeight: 600,
+                                            padding: "1px 7px",
+                                            borderRadius: "4px",
+                                            background: "#E2E8F0",
+                                            color: "#1E293B",
+                                          }}
+                                        >
+                                          {[s.grade || s.className, s.section || s.sectionName].filter(Boolean).join(" • ")}
+                                        </span>
+                                      )}
                                     </div>
-                                    <div style={{ fontSize: "11px", color: "#64748B" }}>
-                                      {[s.grade || s.className, s.section || s.sectionName].filter(Boolean).join(" · ") || "Enrolled"}
-                                      {(s.admissionNo || s.admissionNumber) ? ` · Adm: ${s.admissionNo || s.admissionNumber}` : ""}
+                                    <div style={{ fontSize: "11px", color: "#64748B", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginTop: "2px" }}>
+                                      {(s.admissionNo || s.admissionNumber) && (
+                                        <span>Adm: <b>{s.admissionNo || s.admissionNumber}</b></span>
+                                      )}
+                                      {(s.rollNo || s.rollNumber) && (
+                                        <span>Roll: <b>{s.rollNo || s.rollNumber}</b></span>
+                                      )}
+                                      {isOtherGuardianLinked && (
+                                        <span
+                                          style={{
+                                            fontSize: "10px",
+                                            color: "#B45309",
+                                            background: "#FEF3C7",
+                                            padding: "1px 5px",
+                                            borderRadius: "3px",
+                                            fontWeight: 500,
+                                          }}
+                                          title={`Also linked to: ${existingGuardians.map((g) => g.parentName).join(", ")}`}
+                                        >
+                                          Also linked to: {existingGuardians[0].parentName}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 </label>
@@ -7236,49 +7888,54 @@ export function PeoplePane({
                         <div
                           style={{
                             display: "flex",
-                            justifyContent: "flex-end",
-                            gap: "8px",
+                            justifyContent: "space-between",
+                            alignItems: "center",
                             paddingTop: "10px",
                             borderTop: "1px solid #F1F5F9",
                           }}
                         >
-                          <button
-                            type="button"
-                            onClick={() => setIsMappingWards(false)}
-                            disabled={savingWards}
-                            style={{
-                              padding: "6px 14px",
-                              background: "#FFFFFF",
-                              border: "1px solid #CBD5E1",
-                              borderRadius: "6px",
-                              fontSize: "11.5px",
-                              fontWeight: 600,
-                              cursor: savingWards ? "not-allowed" : "pointer",
-                              color: "#475569",
-                              fontFamily: "'Poppins', sans-serif",
-                            }}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            type="button"
-                            onClick={handleSaveWardsInsideDossier}
-                            disabled={savingWards}
-                            style={{
-                              padding: "6px 16px",
-                              background: "#0C1E33",
-                              border: "none",
-                              borderRadius: "6px",
-                              fontSize: "11.5px",
-                              fontWeight: 600,
-                              cursor: savingWards ? "not-allowed" : "pointer",
-                              color: "#FFFFFF",
-                              opacity: savingWards ? 0.7 : 1,
-                              fontFamily: "'Poppins', sans-serif",
-                            }}
-                          >
-                            {savingWards ? "Saving Changes..." : "Save Mapped Wards"}
-                          </button>
+                          <div style={{ fontSize: "11px", color: "#64748B" }}>
+                            <b>{selectedWardIds.length}</b> student{selectedWardIds.length === 1 ? "" : "s"} selected
+                          </div>
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            <button
+                              type="button"
+                              onClick={() => setIsMappingWards(false)}
+                              disabled={savingWards}
+                              style={{
+                                padding: "6px 14px",
+                                background: "#FFFFFF",
+                                border: "1px solid #CBD5E1",
+                                borderRadius: "6px",
+                                fontSize: "11.5px",
+                                fontWeight: 600,
+                                cursor: savingWards ? "not-allowed" : "pointer",
+                                color: "#475569",
+                                fontFamily: "'Poppins', sans-serif",
+                              }}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSaveWardsInsideDossier}
+                              disabled={savingWards}
+                              style={{
+                                padding: "6px 16px",
+                                background: "#0C1E33",
+                                border: "none",
+                                borderRadius: "6px",
+                                fontSize: "11.5px",
+                                fontWeight: 600,
+                                cursor: savingWards ? "not-allowed" : "pointer",
+                                color: "#FFFFFF",
+                                opacity: savingWards ? 0.7 : 1,
+                                fontFamily: "'Poppins', sans-serif",
+                              }}
+                            >
+                              {savingWards ? "Saving Changes..." : "Save Mapped Wards"}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ) : (

@@ -831,7 +831,7 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
                   onSubmitAssignment={handleOpenSubmit}
                   onStartArena={handleOpenArena}
                   onOpenLecture={handleOpenLecture}
-                  onAskTeacher={() => setSupportModalOpen(true)}
+                  onAskTeacher={() => navigateTo('communication')}
                 />
               )}
 
