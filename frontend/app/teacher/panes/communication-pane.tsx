@@ -26,6 +26,7 @@ import {
   sendTeacherChatMessage,
   startTeacherConversation,
 } from "../../edops-api";
+import { CommunicationChat } from "../../components/communication-chat";
 
 const T = {
   navy: "#0c1e33",
@@ -185,6 +186,8 @@ export function CommunicationPane({
   const parentThreads = threads.filter((t: any) => t.channel === "parents").length;
   const studentThreads = threads.filter((t: any) => t.channel === "students").length;
   const adminThreads = threads.filter((t: any) => t.channel === "principal" || t.channel === "school_admin").length;
+
+  return <CommunicationChat organizationId={organizationId} title="Direct Messages" />;
 
   if (loading) {
     return (
@@ -619,6 +622,8 @@ export function CommunicationPane({
           )}
         </div>
       </div>
+
+      <CommunicationChat organizationId={organizationId} title="Direct Messages" />
 
       {/* 4. Redesigned Compose Message Modal */}
       {showComposeModal && (

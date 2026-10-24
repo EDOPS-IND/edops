@@ -129,9 +129,14 @@ export class TeacherCommunicationService {
   async sendMessage(organizationId: string, user: User, dto: SendTeacherMessageDto) {
     const [recipient] = await this.drizzle.query(`SELECT user_id,role FROM memberships WHERE organization_id=$1 AND user_id=$2 AND status='active'`, [organizationId,dto.recipientId]);
     if (!recipient || recipient.role!==dto.recipientRole) throw new NotFoundException('Recipient not found in this school');
+    if (dto.conversationId) {
+      const [conversation] = await this.drizzle.query(`SELECT id FROM teacher_messages WHERE organization_id=$1 AND conversation_id=$2 AND ((sender_id=$3 AND recipient_id=$4) OR (sender_id=$4 AND recipient_id=$3)) LIMIT 1`, [organizationId,dto.conversationId,user.id,recipient.user_id]);
+      if (!conversation) throw new NotFoundException('Conversation not found');
+    }
     const [message] = await this.drizzle.query(
-      `INSERT INTO teacher_messages (organization_id,sender_id,recipient_id,recipient_role,section_id,subject_id,subject_line,body,priority)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`, [organizationId,user.id,recipient.user_id,recipient.role,dto.sectionId || null,dto.subjectId || null,dto.subjectLine,dto.body,dto.priority || 'normal']);
+      `INSERT INTO teacher_messages (organization_id,conversation_id,sender_id,recipient_id,recipient_role,section_id,subject_id,subject_line,body,priority)
+       VALUES ($1,COALESCE($2,gen_random_uuid()),$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`, [organizationId,dto.conversationId || null,user.id,recipient.user_id,recipient.role,dto.sectionId || null,dto.subjectId || null,dto.subjectLine,dto.body,dto.priority || 'normal']);
+    await this.drizzle.query("SELECT pg_notify($1, $2)", ["edops_communication", JSON.stringify({ organizationId, userIds: [user.id, recipient.user_id], type: "message.created", conversationId: message.conversation_id, messageId: message.id })]);
     return { success:true,message:{ ...message,id:message.id,senderId:user.id,senderName:user.name || user.email,recipientId:recipient.user_id,otherPartyId:recipient.user_id,isOutgoing:true,subjectLine:message.subject_line,body:message.body,timestamp:message.created_at } };
   }
 }

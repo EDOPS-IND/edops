@@ -245,6 +245,9 @@ export interface BroadcastRecord {
 
 export interface CommunicationTicket {
   id: string;
+  conversationId?: string;
+  recipientId?: string;
+  recipientRole?: "principal" | "teacher" | "student" | "parent" | "staff";
   senderName: string;
   senderRole: "Parent" | "Teacher" | "Staff";
   subject: string;

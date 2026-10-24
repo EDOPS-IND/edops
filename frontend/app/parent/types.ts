@@ -4,7 +4,8 @@ export type ParentTab =
   | 'attendance'
   | 'fees'
   | 'ptm'
-  | 'notices';
+  | 'notices'
+  | 'communication';
 
 export interface WardInfo {
   studentUserId: string;

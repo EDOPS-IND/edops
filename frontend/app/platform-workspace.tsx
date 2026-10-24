@@ -24,6 +24,7 @@ import {
   BroadcastAnnouncementModal, CreateTicketModal
 } from "./platform";
 import { GlobalPortalSearch } from "./components/global-portal-search";
+import { CommunicationChat } from "./components/communication-chat";
 
 export function PlatformWorkspace({
   activePanel = "overview",
@@ -512,13 +513,16 @@ export function PlatformWorkspace({
       )}
 
       {tab === "support" && (
-        <SupportPane
-          tickets={tickets}
-          announcements={announcements}
-          onOpenTicketModal={() => setTicketModal(true)}
-          onOpenAnnouncementModal={() => setAnnouncementModal(true)}
-          onResolveTicket={handleResolveTicket}
-        />
+        <>
+          <SupportPane
+            tickets={tickets}
+            announcements={announcements}
+            onOpenTicketModal={() => setTicketModal(true)}
+            onOpenAnnouncementModal={() => setAnnouncementModal(true)}
+            onResolveTicket={handleResolveTicket}
+          />
+          {selectedSchool && <CommunicationChat organizationId={selectedSchool.id} title={`School communication · ${selectedSchool.name}`} />}
+        </>
       )}
 
       {tab === "health" && (

@@ -30,6 +30,7 @@ export type SchoolData = { organization: Organization; years: ListResult<Academi
 
 let jwtAccessToken: string | undefined;
 let jwtRefreshToken: string | undefined;
+let refreshPromise: Promise<string | null> | null = null;
 
 if (typeof window !== "undefined") {
   jwtAccessToken = localStorage.getItem("edops_jwt_token") || undefined;
@@ -59,6 +60,36 @@ function generateUUID(): string {
   });
 }
 
+function refreshAccessToken(): Promise<string | null> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = (async () => {
+    try {
+      const refreshRes = await fetch(`${baseUrl()}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
+        body: JSON.stringify({ refreshToken: jwtRefreshToken }),
+      });
+      if (!refreshRes.ok) return null;
+      const refreshText = await refreshRes.text();
+      const refreshData = refreshText ? JSON.parse(refreshText) : null;
+      if (!refreshData?.accessToken) return null;
+      jwtAccessToken = refreshData.accessToken;
+      if (refreshData.refreshToken) jwtRefreshToken = refreshData.refreshToken;
+      if (typeof window !== "undefined") {
+        localStorage.setItem("edops_jwt_token", refreshData.accessToken);
+        if (refreshData.refreshToken) localStorage.setItem("edops_refresh_token", refreshData.refreshToken);
+      }
+      return refreshData.accessToken as string;
+    } catch {
+      return null;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+  return refreshPromise;
+}
+
 async function request<T>(path: string, options: { method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE"; body?: unknown; idempotent?: boolean } = {}): Promise<T> {
   const method = options.method ?? "GET";
   const headers: Record<string, string> = {};
@@ -73,29 +104,10 @@ async function request<T>(path: string, options: { method?: "GET" | "POST" | "PA
   
   // Silent auto-refresh on 401 when using JWT
   if (response.status === 401 && (jwtAccessToken || jwtRefreshToken) && path !== "/auth/refresh" && path !== "/auth/login") {
-    try {
-      const refreshRes = await fetch(`${baseUrl()}/auth/refresh`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json", "ngrok-skip-browser-warning": "true" },
-        body: JSON.stringify({ refreshToken: jwtRefreshToken }),
-      });
-      if (refreshRes.ok) {
-        const refreshText = await refreshRes.text();
-        const refreshData = refreshText ? JSON.parse(refreshText) : null;
-        if (refreshData?.accessToken) {
-          jwtAccessToken = refreshData.accessToken;
-          if (refreshData.refreshToken) jwtRefreshToken = refreshData.refreshToken;
-          if (typeof window !== "undefined") {
-            localStorage.setItem("edops_jwt_token", refreshData.accessToken);
-            if (refreshData.refreshToken) localStorage.setItem("edops_refresh_token", refreshData.refreshToken);
-          }
-          headers["Authorization"] = `Bearer ${jwtAccessToken}`;
-          response = await fetch(`${baseUrl()}${path}`, { method, credentials: "include", headers, body: options.body === undefined ? undefined : JSON.stringify(options.body) });
-        }
-      }
-    } catch {
-      // Refresh failed, proceed to error
+    const refreshedAccessToken = await refreshAccessToken();
+    if (refreshedAccessToken) {
+      headers["Authorization"] = `Bearer ${refreshedAccessToken}`;
+      response = await fetch(`${baseUrl()}${path}`, { method, credentials: "include", headers, body: options.body === undefined ? undefined : JSON.stringify(options.body) });
     }
   }
 
@@ -570,6 +582,77 @@ export async function getSchoolAdminBroadcasts(orgId: string) {
 export async function getSchoolAdminTickets(orgId: string) {
   return api<any[]>(`/organizations/${orgId}/school-admin/communication/tickets`);
 }
+export function replyToSchoolAdminTicket(orgId: string, ticketId: string, body: string) {
+  return api<any>(`/organizations/${orgId}/school-admin/communication/tickets/${ticketId}/reply`, { method: "POST", body: { body } });
+}
+export function getSchoolAdminCommunicationRecipients(orgId: string, role?: string, search = "") {
+  const query = new URLSearchParams();
+  if (role) query.set("role", role);
+  if (search) query.set("search", search);
+  return api<any[]>(`/organizations/${orgId}/school-admin/communication/recipients${query.toString() ? `?${query}` : ""}`);
+}
+export function getSchoolAdminConversations(orgId: string) {
+  return api<any[]>(`/organizations/${orgId}/school-admin/communication/conversations`);
+}
+export function getSchoolAdminConversation(orgId: string, conversationId: string) {
+  return api<any[]>(`/organizations/${orgId}/school-admin/communication/conversations/${conversationId}`);
+}
+export function sendSchoolAdminDirectMessage(orgId: string, body: any) {
+  return api<any>(`/organizations/${orgId}/school-admin/communication/messages`, { method: "POST", body });
+}
+export function markSchoolAdminConversationRead(orgId: string, conversationId: string) {
+  return api<any>(`/organizations/${orgId}/school-admin/communication/conversations/${conversationId}/read`, { method: "PATCH", body: {} });
+}
+export function updateSchoolAdminConversationStatus(orgId: string, conversationId: string, status: string) {
+  return api<any>(`/organizations/${orgId}/school-admin/communication/conversations/${conversationId}/status`, { method: "PATCH", body: { status } });
+}
+export type SchoolAdminCommunicationEvent = { type: string; conversationId: string; messageId?: string };
+function openCommunicationEventStream(orgId: string, route: string, onEvent: (event: SchoolAdminCommunicationEvent) => void) {
+  let closed = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let controller: AbortController | undefined;
+
+  const connect = async () => {
+    if (closed) return;
+    controller = new AbortController();
+    try {
+      const headers: Record<string, string> = { Accept: "text/event-stream" };
+      if (jwtAccessToken) headers.Authorization = `Bearer ${jwtAccessToken}`;
+      let response = await fetch(`${baseUrl()}/organizations/${orgId}/${route}/events`, { headers, credentials: "include", signal: controller.signal });
+      if (response.status === 401 && (jwtAccessToken || jwtRefreshToken)) {
+        const token = await refreshAccessToken();
+        if (token) {
+          headers.Authorization = `Bearer ${token}`;
+          response = await fetch(`${baseUrl()}/organizations/${orgId}/${route}/events`, { headers, credentials: "include", signal: controller.signal });
+        }
+      }
+      if (!response.ok || !response.body) throw new Error(`Communication stream failed (${response.status})`);
+      onEvent({ type: "communication.resync", conversationId: "" });
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (!closed) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const chunks = buffer.split("\n\n");
+        buffer = chunks.pop() || "";
+        for (const chunk of chunks) {
+          const data = chunk.split("\n").find((line) => line.startsWith("data: "))?.slice(6);
+          if (data) onEvent(JSON.parse(data));
+        }
+      }
+      if (!closed) throw new Error("Communication stream closed");
+    } catch {
+      if (!closed) timer = setTimeout(connect, 5000);
+    }
+  };
+  connect();
+  return () => { closed = true; if (timer) clearTimeout(timer); controller?.abort(); };
+}
+export function openSchoolAdminCommunicationStream(orgId: string, onEvent: (event: SchoolAdminCommunicationEvent) => void) {
+  return openCommunicationEventStream(orgId, "school-admin/communication", onEvent);
+}
 
 export function createSchoolAdminBroadcast(orgId: string, data: any) { return api<any>(`/organizations/${orgId}/school-admin/communication/broadcast`, { method: "POST", body: data }); }
 
@@ -1018,6 +1101,22 @@ export async function getStudentMessages(orgId: string): Promise<any> {
 }
 
 export function sendStudentMessage(orgId: string, body: any) { return api<any>(`/organizations/${orgId}/student/messages`, { method: "POST", body }); }
+
+// Shared chat API used by every authenticated dashboard.
+export function getCommunicationConversations(orgId: string) { return api<any[]>(`/organizations/${orgId}/communication/conversations`); }
+export function getCommunicationConversation(orgId: string, conversationId: string) { return api<any[]>(`/organizations/${orgId}/communication/conversations/${conversationId}`); }
+export function getCommunicationRecipients(orgId: string, role?: string, search = "") {
+  const params = new URLSearchParams();
+  if (role) params.set("role", role);
+  if (search) params.set("search", search);
+  return api<any[]>(`/organizations/${orgId}/communication/recipients${params.toString() ? `?${params}` : ""}`);
+}
+export function sendCommunicationMessage(orgId: string, body: any) { return api<any>(`/organizations/${orgId}/communication/messages`, { method: "POST", body }); }
+export function markCommunicationRead(orgId: string, conversationId: string) { return api<any>(`/organizations/${orgId}/communication/conversations/${conversationId}/read`, { method: "PATCH", body: {} }); }
+export function updateCommunicationStatus(orgId: string, conversationId: string, status: string) { return api<any>(`/organizations/${orgId}/communication/conversations/${conversationId}/status`, { method: "PATCH", body: { status } }); }
+export function openCommunicationStream(orgId: string, onEvent: (event: any) => void) {
+  return openCommunicationEventStream(orgId, "communication", onEvent);
+}
 
 // Parent Workspace APIs (Scoping verified children)
 export function getParentDashboard(orgId: string) { return loadRoleWorkspace(orgId); }

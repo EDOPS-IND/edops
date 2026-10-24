@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, Send, CheckCircle2, User, Plus, Search, HelpCircle, ArrowLeft } from 'lucide-react';
 import { getStudentMessages, sendStudentMessage } from '../../edops-api';
+import { CommunicationChat } from '../../components/communication-chat';
 
 const T = {
   navy: '#0c1e33',
@@ -69,6 +70,8 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
 
   const rawMessages: any[] = data?.messages || [];
   const teachersList: any[] = data?.teachersList || [];
+
+  return <CommunicationChat organizationId={organizationId} title="Direct Messages" />;
 
   const threadsMap: Record<
     string,
@@ -528,6 +531,7 @@ export const CommunicationPane: React.FC<CommunicationPaneProps> = ({
           )}
         </div>
       </div>
+      <CommunicationChat organizationId={organizationId} title="Direct Messages" />
     </div>
   );
 };

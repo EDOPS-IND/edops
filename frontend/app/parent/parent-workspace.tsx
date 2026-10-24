@@ -32,6 +32,7 @@ import {
 } from "../edops-api";
 import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from "./types";
 import { ThreeDotsLoading } from "../components/feature-unavailable-card";
+import { CommunicationChat } from "../components/communication-chat";
 
 // Panes
 import { OverviewPane } from "./panes/overview-pane";
@@ -218,6 +219,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
     { id: "fees", label: "Fee Invoicing & Dues", icon: CreditCard, tab: "fees" as ParentTab },
     { id: "ptm", label: "PTM Appointments", icon: CalendarDays, tab: "ptm" as ParentTab },
     { id: "notices", label: "Notices & Grievances", icon: Bell, tab: "notices" as ParentTab },
+    { id: "communication", label: "Direct Messages", icon: MessageSquare, tab: "communication" as ParentTab },
   ];
 
   if (loading) {
@@ -826,6 +828,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                 onOpenQueryModal={() => setQueryModalOpen(true)}
               />
             )}
+            {activeTab === "communication" && <CommunicationChat organizationId={organization.id} title="Direct Messages" />}
             </>
           )}
           </div>

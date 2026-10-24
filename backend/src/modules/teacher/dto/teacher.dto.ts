@@ -375,6 +375,11 @@ export class SendTeacherMessageDto {
   @ApiPropertyOptional({ format: 'uuid' })
   @IsOptional()
   @IsUUID()
+  conversationId?: string;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
   sectionId?: string;
 
   @ApiPropertyOptional({ format: 'uuid' })

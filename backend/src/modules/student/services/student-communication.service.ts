@@ -28,9 +28,14 @@ export class StudentCommunicationService {
     const [recipient] = await this.drizzle.query(
       `SELECT user_id FROM memberships WHERE organization_id=$1 AND user_id=$2 AND role='teacher' AND status='active'`, [organizationId,dto.recipientId]);
     if (!recipient) throw new NotFoundException('Teacher not found in this school');
+    if (dto.conversationId) {
+      const [conversation] = await this.drizzle.query(`SELECT id FROM teacher_messages WHERE organization_id=$1 AND conversation_id=$2 AND ((sender_id=$3 AND recipient_id=$4) OR (sender_id=$4 AND recipient_id=$3)) LIMIT 1`, [organizationId,dto.conversationId,studentUserId,dto.recipientId]);
+      if (!conversation) throw new NotFoundException('Conversation not found');
+    }
     const [message] = await this.drizzle.query(
-      `INSERT INTO teacher_messages (organization_id,sender_id,recipient_id,recipient_role,subject_line,body,priority)
-       VALUES ($1,$2,$3,'teacher',$4,$5,$6) RETURNING *`, [organizationId,studentUserId,dto.recipientId,dto.subjectLine,dto.body,dto.priority || 'normal']);
+      `INSERT INTO teacher_messages (organization_id,conversation_id,sender_id,recipient_id,recipient_role,subject_line,body,priority)
+       VALUES ($1,COALESCE($2,gen_random_uuid()),$3,$4,'teacher',$5,$6,$7) RETURNING *`, [organizationId,dto.conversationId || null,studentUserId,dto.recipientId,dto.subjectLine,dto.body,dto.priority || 'normal']);
+    await this.drizzle.query("SELECT pg_notify($1, $2)", ["edops_communication", JSON.stringify({ organizationId, userIds: [studentUserId, dto.recipientId], type: "message.created", conversationId: message.conversation_id, messageId: message.id })]);
     return { success:true, messageId:message.id, message };
   }
 }

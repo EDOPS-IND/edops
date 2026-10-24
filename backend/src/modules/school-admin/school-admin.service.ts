@@ -31,6 +31,8 @@ import {
   GrantFeeConcessionDto,
   RecordOfflinePaymentDto,
   SchedulePtmDto,
+  SendDirectCommunicationDto,
+  UpdateCommunicationStatusDto,
   SendFeeReminderDto,
   UpdateLeaveStatusDto,
   UpdateSchoolConfigDto,
@@ -41,6 +43,7 @@ import {
 import { DrizzleService } from "../../database/drizzle.service";
 import { Queryable } from "../billing/entitlements";
 import { StorageService } from "../content/storage.service";
+import { CommunicationRealtimeService } from "./communication-realtime.service";
 
 @Injectable()
 export class SchoolAdminService {
@@ -49,6 +52,7 @@ export class SchoolAdminService {
     private readonly audit: AuditService,
     private readonly mail: MailService,
     private readonly storage: StorageService,
+    private readonly realtime: CommunicationRealtimeService,
   ) {}
 
   private async authorize(
@@ -79,6 +83,19 @@ export class SchoolAdminService {
       throw new ForbiddenException("School administrator access required");
     }
     return row;
+  }
+
+  private async authorizeCommunication(manager: Queryable, orgId: string, actor: User): Promise<void> {
+    const [row] = await manager.query(
+      `SELECT o.id, o.status, m.user_id
+       FROM organizations o
+       LEFT JOIN memberships m ON m.organization_id = o.id AND m.user_id = $2 AND m.status = 'active'
+       WHERE o.id = $1 LIMIT 1`,
+      [orgId, actor.id],
+    );
+    if (!row) throw new NotFoundException("Organization not found");
+    if (row.status !== "active") throw new ForbiddenException("School is suspended");
+    if (!actor.isPlatformAdmin && !row.user_id) throw new NotFoundException("Organization not found");
   }
 
   // 1. DASHBOARD & HEALTH SCORE
@@ -2787,6 +2804,127 @@ export class SchoolAdminService {
     });
   }
 
+  async getCommunicationRecipients(orgId: string, actor: User, role?: string, search = "") {
+    await this.authorizeCommunication(this.drizzle, orgId, actor);
+    const normalizedRole = ["school_admin", "principal", "teacher", "student", "parent", "staff"].includes(role || "") ? role : null;
+    const term = search.trim();
+    return this.drizzle.query(
+      `SELECT m.user_id AS id, u.name, u.email, m.role
+       FROM memberships m JOIN users u ON u.id = m.user_id
+       WHERE m.organization_id = $1 AND m.user_id <> $2 AND m.status = 'active' AND u.is_active = true
+         AND ($3::text IS NULL OR m.role = $3)
+         AND ($4 = '' OR u.name ILIKE '%' || $4 || '%' OR u.email ILIKE '%' || $4 || '%')
+       ORDER BY lower(coalesce(u.name, u.email)) LIMIT 50`,
+      [orgId, actor.id, normalizedRole, term],
+    );
+  }
+
+  async getCommunicationConversations(orgId: string, actor: User) {
+    await this.authorizeCommunication(this.drizzle, orgId, actor);
+    return this.drizzle.query(
+      `WITH ranked AS (
+         SELECT tm.*, row_number() OVER (PARTITION BY tm.conversation_id ORDER BY tm.created_at DESC, tm.id DESC) AS rn,
+                count(*) OVER (PARTITION BY tm.conversation_id)::int AS message_count,
+                count(*) FILTER (WHERE tm.recipient_id = $2 AND tm.is_read = false)
+                  OVER (PARTITION BY tm.conversation_id)::int AS unread_count
+         FROM teacher_messages tm
+         WHERE tm.organization_id = $1 AND (tm.sender_id = $2 OR tm.recipient_id = $2)
+       )
+       SELECT r.conversation_id AS "conversationId", r.subject_line AS subject, r.body AS preview,
+              r.created_at AS "lastMessageAt", r.status, r.message_count AS "messageCount",
+              r.unread_count AS "unreadCount",
+              CASE WHEN r.sender_id = $2 THEN ru.name ELSE su.name END AS "participantName",
+              CASE WHEN r.sender_id = $2 THEN ru.email ELSE su.email END AS "participantEmail",
+              CASE WHEN r.sender_id = $2 THEN r.recipient_id ELSE r.sender_id END AS "participantId",
+              CASE WHEN r.sender_id = $2 THEN rm.role ELSE sm.role END AS "participantRole"
+       FROM ranked r
+       LEFT JOIN users su ON su.id = r.sender_id
+       LEFT JOIN users ru ON ru.id = r.recipient_id
+       LEFT JOIN memberships sm ON sm.organization_id = r.organization_id AND sm.user_id = r.sender_id
+       LEFT JOIN memberships rm ON rm.organization_id = r.organization_id AND rm.user_id = r.recipient_id
+       WHERE r.rn = 1 ORDER BY r.created_at DESC LIMIT 100`,
+      [orgId, actor.id],
+    );
+  }
+
+  async getCommunicationConversation(orgId: string, actor: User, conversationId: string) {
+    await this.authorizeCommunication(this.drizzle, orgId, actor);
+    const rows = await this.drizzle.query(
+      `SELECT tm.id, tm.conversation_id AS "conversationId", tm.sender_id AS "senderId",
+              tm.recipient_id AS "recipientId", tm.subject_line AS subject, tm.body,
+              tm.priority, tm.status, tm.is_read AS "isRead", tm.created_at AS "createdAt",
+              su.name AS "senderName", su.email AS "senderEmail"
+       FROM teacher_messages tm LEFT JOIN users su ON su.id = tm.sender_id
+       WHERE tm.organization_id = $1 AND tm.conversation_id = $2
+         AND (tm.sender_id = $3 OR tm.recipient_id = $3)
+       ORDER BY tm.created_at ASC, tm.id ASC`,
+      [orgId, conversationId, actor.id],
+    );
+    if (!rows.length) throw new NotFoundException("Conversation not found");
+    return rows;
+  }
+
+  async sendDirectCommunication(orgId: string, actor: User, dto: SendDirectCommunicationDto) {
+    const result = await this.drizzle.transaction(async (manager) => {
+      await this.authorizeCommunication(manager, orgId, actor);
+      const [recipient] = await manager.query(
+        `SELECT user_id, role FROM memberships WHERE organization_id = $1 AND user_id = $2 AND role = $3 AND status = 'active' LIMIT 1`,
+        [orgId, dto.recipientId, dto.recipientRole],
+      );
+      if (!recipient) throw new NotFoundException("Recipient not found in this school");
+      const conversationId = dto.conversationId || randomUUID();
+      if (dto.conversationId) {
+        const [conversation] = await manager.query(
+          `SELECT id FROM teacher_messages WHERE organization_id = $1 AND conversation_id = $2
+           AND ((sender_id = $3 AND recipient_id = $4) OR (sender_id = $4 AND recipient_id = $3)) LIMIT 1`,
+          [orgId, conversationId, actor.id, recipient.user_id],
+        );
+        if (!conversation) throw new NotFoundException("Conversation not found");
+      }
+      const [message] = await manager.query(
+        `INSERT INTO teacher_messages
+          (organization_id, conversation_id, sender_id, recipient_id, recipient_role, subject_line, body, priority)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [orgId, conversationId, actor.id, recipient.user_id, recipient.role, dto.subject.trim(), dto.body.trim(), dto.priority || "normal"],
+      );
+      return message;
+    });
+    await this.realtime.publish({ organizationId: orgId, userIds: [actor.id, dto.recipientId], type: "message.created", conversationId: result.conversation_id, messageId: result.id });
+    return { success: true, message: result };
+  }
+
+  async markCommunicationConversationRead(orgId: string, actor: User, conversationId: string) {
+    await this.authorizeCommunication(this.drizzle, orgId, actor);
+    const rows = await this.drizzle.query(
+      `UPDATE teacher_messages SET is_read = true
+       WHERE organization_id = $1 AND conversation_id = $2 AND recipient_id = $3 RETURNING id`,
+      [orgId, conversationId, actor.id],
+    );
+    if (!rows.length) {
+      const [conversation] = await this.drizzle.query(
+        `SELECT id FROM teacher_messages WHERE organization_id = $1 AND conversation_id = $2
+         AND (sender_id = $3 OR recipient_id = $3) LIMIT 1`,
+        [orgId, conversationId, actor.id],
+      );
+      if (!conversation) throw new NotFoundException("Conversation not found");
+    }
+    await this.realtime.publish({ organizationId: orgId, userIds: [actor.id], type: "conversation.read", conversationId });
+    return { success: true, readCount: rows.length };
+  }
+
+  async updateCommunicationStatus(orgId: string, actor: User, conversationId: string, dto: UpdateCommunicationStatusDto) {
+    await this.authorizeCommunication(this.drizzle, orgId, actor);
+    const rows = await this.drizzle.query(
+      `UPDATE teacher_messages SET status = $4
+       WHERE organization_id = $1 AND conversation_id = $2 AND (sender_id = $3 OR recipient_id = $3)
+       RETURNING conversation_id`,
+      [orgId, conversationId, actor.id, dto.status],
+    );
+    if (!rows.length) throw new NotFoundException("Conversation not found");
+    await this.realtime.publish({ organizationId: orgId, userIds: [actor.id], type: "conversation.updated", conversationId });
+    return { success: true, status: dto.status };
+  }
+
   async getCommunicationTickets(orgId: string, actor: User) {
     return this.drizzle.transaction(async (manager) => {
       await this.authorize(manager, orgId, actor);
@@ -2803,6 +2941,8 @@ export class SchoolAdminService {
         if (rows && rows.length > 0) {
           return rows.map((m: any) => ({
             id: m.id,
+            conversationId: m.conversation_id,
+            senderId: m.sender_id,
             senderName: m.sender_name || "Academic Staff",
             senderRole: m.sender_role
               ? m.sender_role.charAt(0).toUpperCase() + m.sender_role.slice(1)
@@ -2810,7 +2950,7 @@ export class SchoolAdminService {
             subject: m.subject_line,
             snippet: m.body,
             priority: m.priority === "urgent" ? "Urgent" : "High",
-            status: m.is_read ? "Resolved" : "Open",
+            status: m.status === "in_progress" ? "In Progress" : m.status === "resolved" ? "Resolved" : m.status === "closed" ? "Closed" : "Open",
             timestamp: new Date(m.created_at).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -2826,6 +2966,32 @@ export class SchoolAdminService {
 
       return [];
     });
+  }
+
+  async replyToCommunicationTicket(orgId: string, actor: User, ticketId: string, dto: { body: string }) {
+    const result = await this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+      const [ticket] = await manager.query(
+        `SELECT tm.sender_id, tm.conversation_id, tm.subject_line, sm.role AS sender_role
+         FROM teacher_messages tm
+         LEFT JOIN memberships sm ON sm.user_id = tm.sender_id AND sm.organization_id = tm.organization_id
+         WHERE tm.id = $1 AND tm.organization_id = $2
+           AND (tm.recipient_role = 'school_admin' OR tm.recipient_id = $3)
+         LIMIT 1`,
+        [ticketId, orgId, actor.id],
+      );
+      if (!ticket) throw new NotFoundException("Communication ticket not found");
+      const [message] = await manager.query(
+        `INSERT INTO teacher_messages
+          (organization_id, conversation_id, sender_id, recipient_id, recipient_role, subject_line, body, priority)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'normal') RETURNING *`,
+        [orgId, ticket.conversation_id, actor.id, ticket.sender_id, ticket.sender_role || "teacher", `Re: ${ticket.subject_line || "Communication ticket"}`, dto.body.trim()],
+      );
+      await manager.query(`UPDATE teacher_messages SET is_read = true WHERE id = $1 AND organization_id = $2`, [ticketId, orgId]);
+      return { message, recipientId: ticket.sender_id, conversationId: ticket.conversation_id };
+    });
+    await this.realtime.publish({ organizationId: orgId, userIds: [actor.id, result.recipientId], type: "message.created", conversationId: result.conversationId, messageId: result.message.id });
+    return { success: true, message: result.message };
   }
 
   async createBroadcast(orgId: string, actor: User, dto: CreateBroadcastDto) {
