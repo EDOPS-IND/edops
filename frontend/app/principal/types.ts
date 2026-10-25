@@ -92,17 +92,39 @@ export interface ClassPerformanceItem {
   trend: string;
 }
 
+export interface SubjectSectionDetail {
+  sectionId: string;
+  sectionName: string;
+  programName: string;
+  displayName: string;
+  teacherUserId?: string | null;
+  teacherName: string;
+  teacherEmail?: string | null;
+  studentCount: number;
+  averageScore: number | null;
+  assignmentRate: number | null;
+  passRate: number | null;
+  attendanceRate: number | null;
+  status: string;
+}
+
 export interface SubjectPerformanceItem {
   id: string;
   name: string;
+  code?: string;
+  isElective?: boolean;
   teacher: string;
   classes: string;
-  average: number;
-  passRate: number;
-  curriculum: number;
-  expectedCurriculum: number;
-  gap: number;
+  sectionCount?: number;
+  teacherCount?: number;
+  average: number | null;
+  passRate: number | null;
+  assignmentRate?: number | null;
+  curriculum: number | null;
+  expectedCurriculum: number | null;
+  gap: number | null;
   status: string;
+  sections?: SubjectSectionDetail[];
 }
 
 export interface CurriculumNodeItem {

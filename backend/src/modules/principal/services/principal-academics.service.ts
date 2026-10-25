@@ -40,12 +40,16 @@ export class PrincipalAcademicsService {
 
     const classesList = sections.map((c: any) => ({
       id: c.id,
-      className: c.programName,
+      name: c.name,
       sectionName: c.name,
+      programName: c.programName,
+      className: c.programName,
       displayName: `${c.programName} - ${c.name}`,
       code: `${c.programName?.replace(/^Class\s*/i, "") || ""} ${c.name}`.trim(),
+      enrolledCount: Number(c.enrolledCount || 0),
       studentCount: Number(c.enrolledCount || 0),
       capacity: Number(c.capacity || 40),
+      isOverCapacity: Number(c.enrolledCount || 0) > Number(c.capacity || 40),
       classTeacherUserId: c.classTeacherUserId || null,
       classTeacherName: c.classTeacherName || null,
       classTeacherEmail: c.classTeacherEmail || null,
@@ -60,31 +64,16 @@ export class PrincipalAcademicsService {
       trend: null,
     }));
 
-    const subjectRows = await manager.query(
-      `SELECT s.id, s.name, count(DISTINCT csa.section_id)::int AS "sectionCount",
-              string_agg(DISTINCT u.name, ', ') AS "teachers"
-       FROM subjects s
-       LEFT JOIN class_subject_assignments csa ON csa.subject_id = s.id AND csa.organization_id = s.organization_id
-       LEFT JOIN users u ON u.id = csa.teacher_user_id
-       WHERE s.organization_id = $1
-       GROUP BY s.id, s.name ORDER BY s.name`,
-      [orgId],
-    );
-    const subjects = subjectRows.map((s: any) => ({
-      id: s.id,
-      name: s.name,
-      teacher: s.teachers || "Unassigned",
-      classes: `${s.sectionCount} sections`,
-      average: null,
-      passRate: null,
-      curriculum: null,
-      expectedCurriculum: null,
-      gap: null,
-      status: "No performance data",
-    }));
-
     const [year] = await manager.query(
-      `SELECT start_date FROM academic_years WHERE organization_id = $1 AND is_current = true LIMIT 1`,
+      `SELECT start_date, end_date,
+              ROUND(
+                LEAST(100.0, GREATEST(0.0,
+                  (CURRENT_DATE - start_date)::numeric / NULLIF((end_date - start_date)::numeric, 0) * 100.0
+                )), 0
+              )::int as "expectedYearPct"
+       FROM academic_years 
+       WHERE organization_id = $1 AND (is_current = true OR start_date <= CURRENT_DATE) 
+       ORDER BY is_current DESC, start_date DESC LIMIT 1`,
       [orgId],
     );
     const currentWeek = year?.start_date
@@ -98,21 +87,35 @@ export class PrincipalAcademicsService {
     const nodeRows = await manager.query(
       `SELECT id, grade, subject_name, unit_name, chapter_name, expected_completion_week,
               actual_completion_percentage, learning_outcomes, competencies, status
-       FROM principal_curriculum_nodes WHERE organization_id = $1 ORDER BY grade, subject_name, unit_name, chapter_name`,
+       FROM principal_curriculum_nodes 
+       WHERE organization_id = $1 
+       ORDER BY grade, subject_name, expected_completion_week ASC, chapter_name`,
       [orgId],
     );
-    const curriculumNodes = nodeRows.map((n: any) => {
-      // ponytail: linear weekly target; replace with milestones when chapter schedules are stored.
-      const expectedProgress =
-        currentWeek === null
-          ? null
-          : Math.min(
-              100,
-              Math.round(
-                (currentWeek / Math.max(1, n.expected_completion_week)) * 100,
-              ),
-            );
-      const actualProgress = Number(n.actual_completion_percentage);
+
+    // Sequential chapter pacing: Chapter 2 starts only after Chapter 1 window
+    const curriculumNodes = nodeRows.map((n: any, idx: number) => {
+      const actualProgress = Number(n.actual_completion_percentage || 0);
+      let expectedProgress: number | null = null;
+      if (currentWeek !== null) {
+        // Find prior chapter end week for the same grade & subject
+        let prevEndWeek = 0;
+        for (let j = idx - 1; j >= 0; j--) {
+          if (nodeRows[j].grade === n.grade && nodeRows[j].subject_name?.toLowerCase() === n.subject_name?.toLowerCase()) {
+            prevEndWeek = Number(nodeRows[j].expected_completion_week || 0);
+            break;
+          }
+        }
+        const targetWeek = Math.max(prevEndWeek + 1, Number(n.expected_completion_week || 10));
+        if (currentWeek <= prevEndWeek) {
+          expectedProgress = 0; // Upcoming chapter, not started yet
+        } else if (currentWeek >= targetWeek) {
+          expectedProgress = 100; // Target deadline has elapsed
+        } else {
+          expectedProgress = Math.min(100, Math.round(((currentWeek - prevEndWeek) / (targetWeek - prevEndWeek)) * 100));
+        }
+      }
+
       return {
         id: n.id,
         grade: n.grade,
@@ -122,11 +125,181 @@ export class PrincipalAcademicsService {
         expectedWeek: n.expected_completion_week,
         expectedProgress,
         actualProgress,
-        gap:
-          expectedProgress === null ? null : actualProgress - expectedProgress,
+        gap: expectedProgress === null ? null : actualProgress - expectedProgress,
         status: n.status,
         learningOutcomes: n.learning_outcomes || [],
         competency: (n.competencies || []).join(", "),
+      };
+    });
+
+    // Query subjects with aggregated faculty & section counts
+    const subjectRows = await manager.query(
+      `SELECT s.id, s.name, s.code, s.is_elective as "isElective",
+              count(DISTINCT csa.section_id)::int AS "sectionCount",
+              count(DISTINCT csa.teacher_user_id)::int AS "teacherCount",
+              string_agg(DISTINCT u.name, ', ') AS "teachers"
+       FROM subjects s
+       LEFT JOIN class_subject_assignments csa ON csa.subject_id = s.id AND csa.organization_id = s.organization_id
+       LEFT JOIN users u ON u.id = csa.teacher_user_id
+       WHERE s.organization_id = $1
+       GROUP BY s.id, s.name, s.code, s.is_elective ORDER BY s.name`,
+      [orgId],
+    );
+
+    // Query class allocations per subject
+    const sectionAllocations = await manager.query(
+      `SELECT 
+        csa.subject_id AS "subjectId",
+        sec.id AS "sectionId",
+        sec.name AS "sectionName",
+        p.name AS "programName",
+        concat(p.name, ' - ', sec.name) AS "displayName",
+        u.id AS "teacherUserId",
+        coalesce(u.name, 'Unassigned') AS "teacherName",
+        u.email AS "teacherEmail",
+        (SELECT count(*)::int FROM enrollments e WHERE e.section_id = sec.id AND e.organization_id = $1 AND e.status = 'active') AS "studentCount",
+        (SELECT round(avg(CASE WHEN ar.status IN ('present','late') THEN 100.0 ELSE 0.0 END), 0)::int 
+         FROM attendance_records ar 
+         JOIN attendance_sessions ats ON ats.id = ar.attendance_session_id AND ats.organization_id = ar.organization_id
+         WHERE ar.organization_id = $1 AND ats.section_id = sec.id AND ats.status = 'finalized') AS "attendanceRate"
+       FROM class_subject_assignments csa
+       JOIN sections sec ON sec.id = csa.section_id AND sec.organization_id = csa.organization_id
+       JOIN programs p ON p.id = sec.program_id
+       LEFT JOIN users u ON u.id = csa.teacher_user_id
+       WHERE csa.organization_id = $1
+       ORDER BY p.sequence_order ASC, sec.name ASC`,
+      [orgId],
+    );
+
+    // Query assignment turn-in & score stats per subject-section
+    const assignmentStats = await manager.query(
+      `SELECT 
+        a.subject_id AS "subjectId",
+        a.section_id AS "sectionId",
+        count(DISTINCT a.id)::int AS "totalAssignments",
+        count(sub.id)::int AS "submittedCount",
+        round(avg(CASE WHEN sub.status = 'graded' THEN 100.0 * sub.score / nullif(a.max_score, 0) ELSE null END)::numeric, 0)::int AS "avgScore"
+       FROM assignments a
+       LEFT JOIN submissions sub ON sub.assignment_id = a.id AND sub.organization_id = a.organization_id
+       WHERE a.organization_id = $1
+       GROUP BY a.subject_id, a.section_id`,
+      [orgId],
+    );
+
+    // Query exam evaluations per subject-section
+    const examStats = await manager.query(
+      `SELECT ee.subject_id AS "subjectId", ee.section_id AS "sectionId", ee.max_marks AS "maxMarks", ee.student_scores AS "studentScores"
+       FROM exam_evaluations ee
+       WHERE ee.organization_id = $1`,
+      [orgId],
+    );
+
+    const subjects = subjectRows.map((s: any) => {
+      // Find all sections teaching this subject
+      const matchingAllocations = sectionAllocations.filter((a: any) => a.subjectId === s.id);
+      
+      const sections = matchingAllocations.map((sec: any) => {
+        const asg = assignmentStats.find((a: any) => a.subjectId === s.id && a.sectionId === sec.sectionId);
+        const totalAsg = asg?.totalAssignments || 0;
+        const subCount = asg?.submittedCount || 0;
+        const asgAvg = asg?.avgScore ?? null;
+        const asgRate = (totalAsg > 0 && sec.studentCount > 0) 
+          ? Math.min(100, Math.round((subCount / (totalAsg * sec.studentCount)) * 100)) 
+          : null;
+
+        const matchingExams = examStats.filter((e: any) => e.subjectId === s.id && e.sectionId === sec.sectionId);
+        let examScoreSum = 0;
+        let examScoreCount = 0;
+        let examPassCount = 0;
+        matchingExams.forEach((ex: any) => {
+          const rawScores = typeof ex.studentScores === "string" ? JSON.parse(ex.studentScores) : (ex.studentScores || {});
+          const maxM = Number(ex.maxMarks) || 100;
+          Object.values(rawScores).forEach((sc: any) => {
+            const val = Number(sc);
+            if (Number.isFinite(val)) {
+              examScoreSum += Math.min(100, Math.round((val / maxM) * 100));
+              examScoreCount++;
+              if (val >= maxM * 0.4) examPassCount++;
+            }
+          });
+        });
+
+        const examAvg = examScoreCount > 0 ? Math.round(examScoreSum / examScoreCount) : null;
+        const examPassRate = examScoreCount > 0 ? Math.round((examPassCount / examScoreCount) * 100) : null;
+        const sectionAvgScore = examAvg ?? asgAvg;
+        const sectionPassRate = examPassRate ?? (sectionAvgScore !== null ? (sectionAvgScore >= 40 ? 100 : 0) : null);
+        const sectionStatus = sectionAvgScore !== null 
+          ? (sectionAvgScore < 50 ? "Needs Attention" : sectionAvgScore >= 75 ? "Excelling" : "On Track")
+          : "Active";
+
+        return {
+          sectionId: sec.sectionId,
+          sectionName: sec.sectionName,
+          programName: sec.programName,
+          displayName: sec.displayName,
+          teacherUserId: sec.teacherUserId || null,
+          teacherName: sec.teacherName,
+          teacherEmail: sec.teacherEmail || null,
+          studentCount: Number(sec.studentCount || 0),
+          averageScore: sectionAvgScore,
+          assignmentRate: asgRate,
+          passRate: sectionPassRate,
+          attendanceRate: sec.attendanceRate != null ? Number(sec.attendanceRate) : null,
+          status: sectionStatus,
+        };
+      });
+
+      // Aggregate metrics across sections
+      const scoredSections = sections.filter((d: any) => d.averageScore != null);
+      const avgScore = scoredSections.length 
+        ? Math.round(scoredSections.reduce((acc: number, d: any) => acc + d.averageScore, 0) / scoredSections.length) 
+        : null;
+
+      const passedSections = sections.filter((d: any) => d.passRate != null);
+      const passRate = passedSections.length 
+        ? Math.round(passedSections.reduce((acc: number, d: any) => acc + d.passRate, 0) / passedSections.length) 
+        : null;
+
+      const asgSections = sections.filter((d: any) => d.assignmentRate != null);
+      const assignmentRate = asgSections.length 
+        ? Math.round(asgSections.reduce((acc: number, d: any) => acc + d.assignmentRate, 0) / asgSections.length) 
+        : null;
+
+      // Match curriculum progress for this subject
+      const subNodes = curriculumNodes.filter((n: any) => n.subject && n.subject.toLowerCase() === s.name.toLowerCase());
+      const curriculum = subNodes.length 
+        ? Math.round(subNodes.reduce((acc: number, n: any) => acc + (n.actualProgress || 0), 0) / subNodes.length) 
+        : null;
+      const expectedCurriculum = subNodes.length 
+        ? (year?.expectedYearPct != null 
+            ? Number(year.expectedYearPct) 
+            : Math.round(subNodes.reduce((acc: number, n: any) => acc + (n.expectedProgress || 0), 0) / subNodes.length))
+        : null;
+      const gap = (curriculum !== null && expectedCurriculum !== null) ? curriculum - expectedCurriculum : null;
+
+      const status = sections.length === 0 
+        ? "Unassigned" 
+        : (gap !== null && gap < -5) || (avgScore !== null && avgScore < 50) 
+        ? "Needs Attention" 
+        : "On Track";
+
+      return {
+        id: s.id,
+        name: s.name,
+        code: s.code,
+        isElective: Boolean(s.isElective),
+        teacher: s.teachers || "Unassigned",
+        teacherCount: Number(s.teacherCount || 0),
+        sectionCount: Number(s.sectionCount || 0),
+        classes: `${s.sectionCount} sections`,
+        average: avgScore,
+        passRate,
+        assignmentRate,
+        curriculum,
+        expectedCurriculum,
+        gap,
+        status,
+        sections,
       };
     });
 
@@ -151,11 +324,17 @@ export class PrincipalAcademicsService {
       principalFeedback: p.principal_feedback,
     }));
 
+    const programs = await manager.query(
+      `SELECT id, name, sequence_order as "sequenceOrder" FROM programs WHERE organization_id = $1 ORDER BY sequence_order, name`,
+      [orgId],
+    );
+
     return {
       classes: classesList,
       subjects,
       curriculumNodes,
       lessonPlans,
+      programs,
     };
   }
 

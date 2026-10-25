@@ -238,7 +238,7 @@ export function PlanningPane({
             <TargetIcon size={16} color="#4a0e8f" />
           </div>
           <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#360a69", lineHeight: 1 }}>{targets.length}</div>
+            <div style={{ fontSize: "28px", fontWeight: 800, color: "#360a69", lineHeight: 1 }}>{(data?.targets ?? []).length}</div>
             <div style={{ fontSize: "11px", color: "#5d1cb3", marginTop: "6px", fontWeight: 600 }}>
               Measurable Academic Milestones
             </div>
@@ -767,9 +767,11 @@ export function PlanningPane({
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                     <div>
                       <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                        Baseline Value
+                        Baseline Value *
                       </label>
                       <input
+                        required
+                        placeholder="e.g. 70%"
                         value={form.baselineValue ?? ""}
                         onChange={(e) => field("baselineValue", e.target.value)}
                         style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
@@ -777,9 +779,11 @@ export function PlanningPane({
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                        Target Value
+                        Target Value *
                       </label>
                       <input
+                        required
+                        placeholder="e.g. 85%"
                         value={form.targetValue ?? ""}
                         onChange={(e) => field("targetValue", e.target.value)}
                         style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
@@ -795,6 +799,153 @@ export function PlanningPane({
                       required
                       value={form.deadline ?? ""}
                       onChange={(e) => field("deadline", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {formKind === "action" && (
+                <>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Issue / Academic Gap *
+                    </label>
+                    <input
+                      required
+                      placeholder="e.g. Class 10 Math PT2 fell by 11%"
+                      value={form.issue ?? ""}
+                      onChange={(e) => field("issue", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Corrective Action / Strategy *
+                    </label>
+                    <textarea
+                      required
+                      rows={2}
+                      placeholder="e.g. Conduct remedial sessions on Quadratic Equations"
+                      value={form.action ?? ""}
+                      onChange={(e) => field("action", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Owner Name *
+                    </label>
+                    <input
+                      required
+                      placeholder="e.g. HOD Mathematics"
+                      value={form.ownerName ?? ""}
+                      onChange={(e) => field("ownerName", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                    />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                        Implementation Deadline *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={form.deadline ?? ""}
+                        onChange={(e) => field("deadline", e.target.value)}
+                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                        Review Date *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={form.reviewDate ?? ""}
+                        onChange={(e) => field("reviewDate", e.target.value)}
+                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Target Outcome / Expected Result
+                    </label>
+                    <input
+                      placeholder="e.g. Re-test score >= 75%"
+                      value={form.expectedResult ?? ""}
+                      onChange={(e) => field("expectedResult", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {formKind === "meeting" && (
+                <>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Meeting Type *
+                    </label>
+                    <input
+                      required
+                      placeholder="e.g. Monthly Academic Review"
+                      value={form.meetingType ?? ""}
+                      onChange={(e) => field("meetingType", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                    />
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                        Meeting Date *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={form.meetingDate ?? ""}
+                        onChange={(e) => field("meetingDate", e.target.value)}
+                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                        Participants (comma-separated) *
+                      </label>
+                      <input
+                        required
+                        placeholder="Principal, HOD Math, Science Lead"
+                        value={form.participants ?? ""}
+                        onChange={(e) => field("participants", e.target.value)}
+                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Agenda & Focus *
+                    </label>
+                    <textarea
+                      required
+                      rows={2}
+                      placeholder="e.g. Syllabus completion pace and Term 1 pre-board readiness"
+                      value={form.agenda ?? ""}
+                      onChange={(e) => field("agenda", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Decisions & Next Steps
+                    </label>
+                    <textarea
+                      rows={2}
+                      placeholder="e.g. Conduct remedial tests every Saturday"
+                      value={form.decisions ?? ""}
+                      onChange={(e) => field("decisions", e.target.value)}
                       style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
                     />
                   </div>

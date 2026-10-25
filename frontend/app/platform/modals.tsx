@@ -57,8 +57,11 @@ export function CreatePlanModal({
   onCreate: (plan: any) => void;
 }) {
   const [newPlan, setNewPlan] = useState({
-    id: "", name: "", amountMinor: 5000000, maxStudents: 1000, maxTeachers: 70, maxParents: 2000, maxStorageGb: 100, maxApiRequests: 500000,
-    features: {}
+    name: "",
+    amountMinor: 5000000,
+    maxStudents: 1000,
+    maxTeachers: 70,
+    features: {},
   });
 
   return (
@@ -75,7 +78,7 @@ export function CreatePlanModal({
               type="text"
               placeholder="e.g. Premium Plus"
               value={newPlan.name}
-              onChange={e => setNewPlan({ ...newPlan, name: e.target.value, id: crypto.randomUUID() })}
+              onChange={e => setNewPlan({ ...newPlan, name: e.target.value })}
               style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px" }}
             />
           </div>
@@ -112,8 +115,15 @@ export function CreatePlanModal({
           <button onClick={onClose} style={{ padding: "8px 14px", background: "#F8E7C9", color: "#064E3B", border: "1px solid #E5CCA2", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Cancel</button>
           <button
             onClick={() => {
-              const planId = newPlan.id || crypto.randomUUID();
-              onCreate({ ...newPlan, id: planId, currency: "INR", billingCycle: "monthly" });
+              if (!newPlan.name.trim()) return;
+              onCreate({
+                id: crypto.randomUUID(),
+                name: newPlan.name.trim(),
+                amountMinor: Math.max(0, Math.round(Number(newPlan.amountMinor) || 0)),
+                maxStudents: Math.max(1, Math.min(100000, Math.round(Number(newPlan.maxStudents) || 1))),
+                maxTeachers: Math.max(1, Math.min(10000, Math.round(Number(newPlan.maxTeachers) || 1))),
+                features: newPlan.features || {},
+              });
             }}
             style={{ padding: "8px 18px", background: "#064E3B", color: "#F8E7C9", border: "1px solid #064E3B", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}
           >

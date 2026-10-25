@@ -335,7 +335,7 @@ export class BillingService {
   }
   createPlan(actor: User, dto: CreatePlanDto) {
     return this.platform(actor, async (m) => {
-      const features = await this.validatePlanFeatures(m, dto.features);
+      const features = await this.validatePlanFeatures(m, dto.features || {});
       const rows = await m.query(
         `INSERT INTO plans(id,name,amount_minor,max_students,max_teachers,features) VALUES($1,$2,$3,$4,$5,$6)
         ON CONFLICT(id) DO NOTHING RETURNING ${planFields}`,

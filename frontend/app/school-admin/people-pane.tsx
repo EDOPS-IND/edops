@@ -23,6 +23,7 @@ import {
   getSchoolAdminStudent360,
   getSchoolAdminAcademics,
 } from "../edops-api";
+import { TeacherAllocationManager } from "../components/teacher-allocation-manager";
 import {
   Users,
   User,
@@ -766,7 +767,7 @@ export function PeoplePane({
   const [wardSectionFilter, setWardSectionFilter] = useState("all");
   const [wardUnmappedOnly, setWardUnmappedOnly] = useState(false);
   const [savingWards, setSavingWards] = useState(false);
-  const [academicsData, setAcademicsData] = useState<{ programs: any[]; sections: any[] } | null>(null);
+  const [academicsData, setAcademicsData] = useState<{ programs?: any[]; sections?: any[]; subjects?: any[]; [key: string]: any } | null>(null);
 
   const handleStartMappingWards = (parent: ParentRecord) => {
     const currentIds = (parent.children || []).map((ch: any) => ch.studentId || ch.id).filter(Boolean);
@@ -1037,14 +1038,14 @@ export function PeoplePane({
     }
   }, [selectedStudent, selectedTeacher, selectedStaff, selectedParent, selectedDept]);
 
-  // Load academics data (classes & sections) on demand for ward mapping
+  // Load academics data (classes & sections) on demand for ward mapping and teacher allocation
   useEffect(() => {
-    if (organizationId && (subtab === "parents" || selectedParent || isMappingWards) && !academicsData) {
+    if (organizationId && (subtab === "parents" || selectedParent || selectedTeacher || isMappingWards) && !academicsData) {
       getSchoolAdminAcademics(organizationId)
         .then((data) => setAcademicsData(data))
         .catch(() => {});
     }
-  }, [organizationId, subtab, selectedParent, isMappingWards, academicsData]);
+  }, [organizationId, subtab, selectedParent, selectedTeacher, isMappingWards, academicsData]);
 
   // Load students on demand if Parent Dossier is opened (for ward mapping)
   useEffect(() => {
@@ -9948,44 +9949,26 @@ export function PeoplePane({
                 </div>
               )}
 
-              {/* TAB 2: ASSIGNED CLASSES */}
+              {/* TAB 2: ASSIGNED CLASSES & ANNUAL ACADEMIC ALLOCATIONS */}
               {teacher360Tab === "classes" && (
                 <div>
-                  {selectedTeacher.classes && selectedTeacher.classes.length > 0 ? (
-                    <div style={{ border: "1px solid #E2E8F0", borderRadius: "8px", padding: "16px 18px", background: "#FFFFFF" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "14px", color: "#0C1E33" }}>
-                        <GraduationCap size={14} style={{ color: "#475569" }} />
-                        <h4 style={{ margin: 0, fontSize: "13.5px", fontWeight: 600 }}>Assigned Classroom Sections ({selectedTeacher.classes.length})</h4>
-                      </div>
-
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: "10px" }}>
-                        {selectedTeacher.classes.map((cls, idx) => (
-                          <div
-                            key={idx}
-                            style={{
-                              padding: "12px",
-                              border: "1px solid #E2E8F0",
-                              borderRadius: "6px",
-                              background: "#F8FAFC",
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: "4px",
-                            }}
-                          >
-                            <span style={{ fontSize: "13px", fontWeight: 600, color: "#0C1E33" }}>Class {cls}</span>
-                            <span style={{ fontSize: "11px", color: "#64748B" }}>
-                              {selectedTeacher.subjects?.[0] || "Instructional Subject"}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <StudentProfileEmptyState
-                      title="No Classes Assigned"
-                      description={`There are currently no class sections or cohorts mapped to ${selectedTeacher.name}.`}
-                    />
-                  )}
+                  <TeacherAllocationManager
+                    organizationId={organizationId || ""}
+                    teacher={selectedTeacher}
+                    sections={academicsData?.sections || []}
+                    subjects={academicsData?.subjects || []}
+                    availableTeachers={teachers.filter(
+                      (t) => (t.userId || t.id) !== (selectedTeacher.userId || selectedTeacher.id)
+                    )}
+                    onAllocationsUpdated={async () => {
+                      if (!organizationId) return;
+                      const updated = await getSchoolAdminTeachers(organizationId);
+                      setTeachers(updated || []);
+                      const teacherId = selectedTeacher.userId || selectedTeacher.id;
+                      const fresh = (updated || []).find((t: any) => (t.userId || t.id) === teacherId);
+                      if (fresh) setSelectedTeacher(fresh);
+                    }}
+                  />
                 </div>
               )}
 

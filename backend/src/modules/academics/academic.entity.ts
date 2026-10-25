@@ -21,6 +21,7 @@ export class Program extends AcademicRecord {
 export class Subject extends AcademicRecord {
   @ApiProperty() name!: string;
   @ApiProperty() code!: string;
+  @ApiPropertyOptional({ default: false }) isElective?: boolean;
 }
 
 export class Section extends AcademicRecord {

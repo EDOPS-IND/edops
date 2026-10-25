@@ -63,6 +63,7 @@ export interface TeacherRecord {
   designation: string;
   subjects: string[];
   classes: string[];
+  allocations?: any[];
   joiningDate: string;
   employmentType?: "Full Time" | "Part Time" | "Contract" | "Visiting" | string;
   weeklyPeriods: number;

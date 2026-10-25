@@ -235,7 +235,20 @@ export async function getPlatformSchools(limit = 50, offset = 0) {
 export async function getPlatformPlans(limit = 50, offset = 0) {
   return api<ListResult<any>>(`/platform/plans?limit=${limit}&offset=${offset}`);
 }
-export function createPlatformPlan(plan: any) { return api<any>("/platform/plans", { method: "POST", body: plan }); }
+export function createPlatformPlan(plan: any) {
+  const { id, name, amountMinor, maxStudents, maxTeachers, features } = plan;
+  return api<any>("/platform/plans", {
+    method: "POST",
+    body: {
+      id: id || crypto.randomUUID(),
+      name,
+      amountMinor: Number(amountMinor),
+      maxStudents: Number(maxStudents),
+      maxTeachers: Number(maxTeachers),
+      features: features || {},
+    },
+  });
+}
 export function updatePlanStatus(id: string, active: boolean) { return api<any>(`/platform/plans/${id}/status`, { method: "PATCH", body: { active } }); }
 export async function getPlatformFeatures() {
   return api<any[]>("/platform/features");

@@ -89,6 +89,7 @@ export const subjects = pgTable('subjects', {
   organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
   name: varchar('name', { length: 120 }).notNull(),
   code: varchar('code', { length: 32 }).notNull(),
+  isElective: boolean('is_elective').default(false).notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
