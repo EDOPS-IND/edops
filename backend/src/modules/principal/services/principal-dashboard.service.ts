@@ -1,5 +1,5 @@
 import { DrizzleService } from "../../../database/drizzle.service";
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { User } from "../../auth/user.entity";
 
 @Injectable()
@@ -184,6 +184,16 @@ export class PrincipalDashboardService {
     );
 
     const marked = Number(summary?.markedRecords ?? 0);
+    const allStudents = students.map((student: any) => ({
+      ...student,
+      attendanceRate:
+        student.markedRecords > 0
+          ? Number(
+              ((100 * student.presentRecords) / student.markedRecords).toFixed(1),
+            )
+          : null,
+    }));
+
     return {
       date: summary?.date,
       enrolledStudents: Number(summary?.enrolledStudents ?? 0),
@@ -192,6 +202,7 @@ export class PrincipalDashboardService {
         ? Number(((100 * Number(summary.presentRecords)) / marked).toFixed(1))
         : null,
       pendingRegisters: Number(summary?.pendingRegisters ?? 0),
+      students: allStudents,
       atRisk,
       trend: trend.map((day: any) => ({
         ...day,
@@ -659,5 +670,63 @@ export class PrincipalDashboardService {
         })),
       ],
     };
+  }
+
+  async getLeaves(orgId: string) {
+    const staffLeaves = await this.drizzle.query(
+      `SELECT lr.id, lr.user_id as "teacherId", lr.applicant_name as "teacherName",
+              u.email as "teacherEmail", lr.leave_type as "leaveType",
+              to_char(lr.start_date, 'YYYY-MM-DD') as "startDate",
+              to_char(lr.end_date, 'YYYY-MM-DD') as "endDate",
+              lr.days_count as "daysCount", lr.reason, lr.status,
+              lr.review_notes as "reviewNotes", lr.created_at as "submittedAt",
+              lr.reviewed_at as "reviewedAt", reviewer.name as "reviewerName"
+       FROM leave_requests lr
+       LEFT JOIN users u ON u.id = lr.user_id
+       LEFT JOIN users reviewer ON reviewer.id = lr.reviewed_by
+       WHERE lr.organization_id = $1 AND lr.applicant_role = 'teacher'
+       ORDER BY lr.created_at DESC`,
+      [orgId],
+    );
+
+    const studentLeaves = await this.drizzle.query(
+      `SELECT lr.id, lr.user_id as "studentId", lr.applicant_name as "studentName",
+              lr.leave_type as "leaveType",
+              to_char(lr.start_date, 'YYYY-MM-DD') as "startDate",
+              to_char(lr.end_date, 'YYYY-MM-DD') as "endDate",
+              lr.days_count as "daysCount", lr.reason, lr.status,
+              lr.review_notes as "reviewNotes", lr.created_at as "submittedAt",
+              lr.reviewed_at as "reviewedAt", reviewer.name as "reviewerName",
+              s.name as "sectionName", p.name as "className", e.roll_number as "rollNo",
+              ct.name as "classTeacherName"
+       FROM leave_requests lr
+       LEFT JOIN users reviewer ON reviewer.id = lr.reviewed_by
+       LEFT JOIN enrollments e ON e.student_user_id = lr.user_id AND e.organization_id = lr.organization_id AND e.status = 'active'
+       LEFT JOIN sections s ON s.id = e.section_id AND s.organization_id = lr.organization_id
+       LEFT JOIN programs p ON p.id = s.program_id
+       LEFT JOIN users ct ON ct.id = s.class_teacher_user_id
+       WHERE lr.organization_id = $1 AND lr.applicant_role = 'student'
+       ORDER BY lr.created_at DESC`,
+      [orgId],
+    );
+
+    return { staffLeaves, studentLeaves };
+  }
+
+  async updateLeaveStatus(orgId: string, actor: User, id: string, status: string, reviewNotes?: string) {
+    if (!['approved', 'rejected'].includes(status)) {
+      throw new BadRequestException('Status must be approved or rejected');
+    }
+    const [updated] = await this.drizzle.query(
+      `UPDATE leave_requests
+       SET status = $1, reviewed_by = $2, reviewed_at = now(), review_notes = $3
+       WHERE id = $4 AND organization_id = $5
+       RETURNING id, applicant_role as "applicantRole", status, review_notes as "reviewNotes", reviewed_at as "reviewedAt"`,
+      [status, actor.id, reviewNotes || null, id, orgId],
+    );
+    if (!updated) {
+      throw new NotFoundException('Leave request not found');
+    }
+    return updated;
   }
 }

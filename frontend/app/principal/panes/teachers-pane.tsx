@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Eye, Plus, Users, GraduationCap, BookOpen, Award, Search, X } from "lucide-react";
+import { Eye, Plus, Users, GraduationCap, BookOpen, Award, Search, X, ArrowRight, UserCheck, UserX } from "lucide-react";
 import {
   assignPrincipalCoordinator,
   assignPrincipalDepartmentHead,
@@ -10,9 +10,13 @@ import {
   completePrincipalDevelopment,
   createPrincipalDepartment,
   getPrincipalTeachers,
+  getSchoolAdminDepartments,
   recordPrincipalObservation,
   getStudentAvatarUrl,
 } from "../../edops-api";
+import { DepartmentRecord } from "../../school-admin/types";
+import { DepartmentDossierDrawer } from "../../school-admin/components/department-dossier-drawer";
+import { MemberLifecycleModal, MemberLifecycleTarget } from "../../components/member-lifecycle-modal";
 
 type View = "hods" | "coordinators" | "assignments" | "workload" | "development";
 type Action = "observation" | "development" | "department" | "head";
@@ -25,6 +29,7 @@ type Teacher = {
   weeklyPeriods: number;
   lessonPlanCompliance: number | null;
   observationsCount: number;
+  status?: string;
 };
 type Assignment = { id: string; teacherUserId: string; teacherName: string; className: string; subjectName: string };
 type Department = { id: string; name: string; code: string; headTeacherId: string | null; headName: string | null };
@@ -67,15 +72,28 @@ export function TeachersPane({
   const [action, setAction] = useState<Action | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  const [adminDepartments, setAdminDepartments] = useState<DepartmentRecord[]>([]);
+  const [selectedDept, setSelectedDept] = useState<DepartmentRecord | null>(null);
+  const [lifecycleTarget, setLifecycleTarget] = useState<MemberLifecycleTarget | null>(null);
 
   useEffect(() => {
-    setCurrentView(view);
+    if (view) setCurrentView(view);
   }, [view]);
 
-  const reload = () => getPrincipalTeachers(organizationId).then(setData);
+  const reload = () => {
+    getSchoolAdminDepartments(organizationId)
+      .then((depts) => setAdminDepartments(depts || []))
+      .catch(() => {});
+    return getPrincipalTeachers(organizationId).then(setData);
+  };
 
   useEffect(() => {
     let active = true;
+    getSchoolAdminDepartments(organizationId)
+      .then((depts) => {
+        if (active) setAdminDepartments(depts || []);
+      })
+      .catch(() => {});
     getPrincipalTeachers(organizationId)
       .then((result) => {
         if (active) setData(result);
@@ -550,7 +568,23 @@ export function TeachersPane({
                             }}
                           />
                           <div>
-                            <div style={{ fontWeight: 700, color: "#1e293b" }}>{teacher.name || teacher.email}</div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ fontWeight: 700, color: "#1e293b" }}>{teacher.name || teacher.email}</span>
+                              {(teacher.status || "").toLowerCase() === "inactive" && (
+                                <span
+                                  style={{
+                                    fontSize: "10px",
+                                    fontWeight: 700,
+                                    padding: "2px 6px",
+                                    borderRadius: "4px",
+                                    background: "#FEE2E2",
+                                    color: "#DC2626",
+                                  }}
+                                >
+                                  Inactive
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontSize: "11px", color: "#64748b" }}>{teacher.email}</div>
                           </div>
                         </div>
@@ -599,25 +633,64 @@ export function TeachersPane({
                         {teacher.observationsCount} conducted
                       </td>
                       <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                        <button
-                          type="button"
-                          onClick={() => onOpenProfile(teacher.id)}
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                            padding: "6px 12px",
-                            borderRadius: "6px",
-                            border: "1px solid #e4e6e9",
-                            background: "#ffffff",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            color: "#0c1e33",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <Eye size={13} /> View Dossier
-                        </button>
+                        <div style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
+                          <button
+                            type="button"
+                            onClick={() => onOpenProfile(teacher.id)}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px",
+                              padding: "6px 12px",
+                              borderRadius: "6px",
+                              border: "1px solid #e4e6e9",
+                              background: "#ffffff",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              color: "#0c1e33",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <Eye size={13} /> View Dossier
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setLifecycleTarget({
+                                id: teacher.id,
+                                name: teacher.name,
+                                email: teacher.email,
+                                role: "teacher",
+                                status: teacher.status || "Active",
+                                sublabel: `${teacher.department || "Faculty"} · ${teacher.weeklyPeriods || 0} periods/wk`,
+                              })
+                            }
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              padding: "6px 10px",
+                              borderRadius: "6px",
+                              border: (teacher.status || "").toLowerCase() === "inactive" ? "1px solid #86EFAC" : "1px solid #FCA5A5",
+                              background: (teacher.status || "").toLowerCase() === "inactive" ? "#DCFCE7" : "#FEE2E2",
+                              color: (teacher.status || "").toLowerCase() === "inactive" ? "#166534" : "#DC2626",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                            title={(teacher.status || "").toLowerCase() === "inactive" ? "Reactivate Teacher" : "Deactivate or Remove Teacher"}
+                          >
+                            {(teacher.status || "").toLowerCase() === "inactive" ? (
+                              <>
+                                <UserCheck size={12} /> Reactivate
+                              </>
+                            ) : (
+                              <>
+                                <UserX size={12} /> Deactivate
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -628,59 +701,288 @@ export function TeachersPane({
         </div>
       )}
 
-      {currentView === "hods" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                <th style={{ padding: "12px 16px" }}>Department</th>
-                <th style={{ padding: "12px 16px" }}>Department Code</th>
-                <th style={{ padding: "12px 16px" }}>Designated Head of Department</th>
-              </tr>
-            </thead>
-            <tbody>
-              {departments.length === 0 ? (
-                <tr>
-                  <td colSpan={3} style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>
-                    No departments created yet. Use "Add Department" to start.
-                  </td>
-                </tr>
-              ) : (
-                departments.map((department) => (
-                  <tr key={department.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1e293b" }}>{department.name}</td>
-                    <td style={{ padding: "12px 16px", color: "#64748b", fontFamily: "monospace" }}>{department.code}</td>
-                    <td style={{ padding: "12px 16px" }}>
-                      {department.headTeacherId ? (
-                        <button
-                          type="button"
-                          onClick={() => onOpenProfile(department.headTeacherId!)}
+      {currentView === "hods" && (() => {
+        const departmentsList = adminDepartments.length > 0 ? adminDepartments : (departments as any);
+
+        return (
+          <div style={{ width: "100%" }}>
+            {departmentsList.length === 0 ? (
+              <div
+                style={{
+                  padding: "36px 24px",
+                  textAlign: "center",
+                  background: "#FFFFFF",
+                  border: "1px dashed #CBD5E1",
+                  borderRadius: "10px",
+                  color: "#64748B",
+                  fontSize: "13px",
+                }}
+              >
+                No academic departments created yet. Use &ldquo;Add Department&rdquo; to start.
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                  gap: "18px",
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+              >
+                {departmentsList.map((d: any) => {
+                  const subjectsList = d.subjects || [];
+                  const isPending = (d.status || "").toLowerCase().includes("pend");
+                  const hasHod = Boolean(
+                    d.headTeacherId ||
+                    (d.headName && d.headName !== "Unassigned" && d.headName !== "Department Head")
+                  );
+
+                  return (
+                    <div
+                      key={d.id}
+                      onClick={() => {
+                        setSelectedDept(d);
+                      }}
+                      style={{
+                        boxSizing: "border-box",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        padding: "18px 20px",
+                        background: "#FFFFFF",
+                        border: "1.5px solid #E2E8F0",
+                        borderRadius: "12px",
+                        cursor: "pointer",
+                        transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+                        boxShadow: "0 2px 5px rgba(12, 30, 51, 0.03)",
+                        gap: "14px",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = "#94A3B8";
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.boxShadow = "0 8px 20px rgba(12, 30, 51, 0.08)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "#E2E8F0";
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "0 2px 5px rgba(12, 30, 51, 0.03)";
+                      }}
+                    >
+                      {/* Top Header */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+                          <div
+                            style={{
+                              width: "40px",
+                              height: "40px",
+                              borderRadius: "8px",
+                              background: "#E0D3FF",
+                              color: "#51249A",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontWeight: 700,
+                              fontSize: "13px",
+                              flexShrink: 0,
+                              letterSpacing: "0.02em",
+                            }}
+                          >
+                            {d.code?.slice(0, 4) || "DEPT"}
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <h3
+                              style={{
+                                margin: 0,
+                                fontSize: "15px",
+                                fontWeight: 700,
+                                color: "#0C1E33",
+                                lineHeight: "125%",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                              title={d.name}
+                            >
+                              {d.name}
+                            </h3>
+                            <span style={{ fontSize: "11px", color: "#64748B" }}>
+                              {d.location || "Academic Wing"}
+                            </span>
+                          </div>
+                        </div>
+                        <span
                           style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "4px 8px",
-                            borderRadius: "6px",
-                            background: "#f1f5f9",
-                            border: "none",
+                            fontSize: "10.5px",
                             fontWeight: 600,
-                            color: "#0c1e33",
-                            cursor: "pointer",
+                            padding: "2px 7px",
+                            borderRadius: "100px",
+                            background: isPending ? "#FEF3C7" : "#DCFCE7",
+                            color: isPending ? "#92400E" : "#166534",
+                            whiteSpace: "nowrap",
+                            flexShrink: 0,
                           }}
                         >
-                          {department.headName}
-                        </button>
-                      ) : (
-                        <span style={{ color: "#94a3b8", fontStyle: "italic" }}>Unassigned</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
+                          {isPending ? "Pending Setup" : "Active"}
+                        </span>
+                      </div>
+
+                      {/* HOD Section */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "9px 12px",
+                          background: hasHod ? "#F8FAFC" : "#FFFBEB",
+                          border: hasHod ? "1px solid #F1F5F9" : "1px dashed #F59E0B",
+                          borderRadius: "8px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "9px", minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: "28px",
+                              height: "28px",
+                              borderRadius: "50%",
+                              background: hasHod ? "#DBEAFE" : "#FEF3C7",
+                              color: hasHod ? "#1E40AF" : "#D97706",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontWeight: 700,
+                              fontSize: "11px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {hasHod ? (d.headName?.charAt(0) || "H") : "!"}
+                          </div>
+                          <div style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
+                            <span style={{ fontSize: "10px", color: "#64748B", textTransform: "uppercase", fontWeight: 600 }}>
+                              Head of Department
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                color: hasHod ? "#0C1E33" : "#D97706",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {hasHod ? d.headName : "No HOD Assigned"}
+                            </span>
+                          </div>
+                        </div>
+                        <span style={{ fontSize: "11px", color: "#2563EB", fontWeight: 600 }}>
+                          {hasHod ? "Edit" : "Assign"}
+                        </span>
+                      </div>
+
+                      {/* Mapped Subjects Preview */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748B", textTransform: "uppercase" }}>
+                            Curriculum Subjects ({subjectsList.length})
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", minHeight: "26px" }}>
+                          {subjectsList.length > 0 ? (
+                            <>
+                              {subjectsList.slice(0, 3).map((sub: any) => (
+                                <span
+                                  key={sub.id}
+                                  style={{
+                                    fontSize: "11px",
+                                    padding: "3px 8px",
+                                    borderRadius: "6px",
+                                    background: "#F1F5F9",
+                                    color: "#334155",
+                                    fontWeight: 500,
+                                    maxWidth: "110px",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  title={sub.name}
+                                >
+                                  {sub.name}
+                                </span>
+                              ))}
+                              {subjectsList.length > 3 && (
+                                <span
+                                  style={{
+                                    fontSize: "10.5px",
+                                    padding: "3px 7px",
+                                    borderRadius: "6px",
+                                    background: "#E2E8F0",
+                                    color: "#475569",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  +{subjectsList.length - 3} more
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span style={{ fontSize: "11.5px", color: "#94A3B8", fontStyle: "italic" }}>
+                              No subjects mapped
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Footer Metrics & Dossier Action */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          paddingTop: "12px",
+                          borderTop: "1px solid #F1F5F9",
+                          marginTop: "auto",
+                        }}
+                      >
+                        <div style={{ display: "flex", gap: "12px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                            <GraduationCap size={14} style={{ color: "#64748B" }} />
+                            <span style={{ fontSize: "11.5px", color: "#334155", fontWeight: 600 }}>
+                              {d.teachersCount ?? 0}
+                            </span>
+                            <span style={{ fontSize: "11px", color: "#64748B" }}>faculty</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                            <Users size={14} style={{ color: "#64748B" }} />
+                            <span style={{ fontSize: "11.5px", color: "#334155", fontWeight: 600 }}>
+                              {d.studentsCount ?? 0}
+                            </span>
+                            <span style={{ fontSize: "11px", color: "#64748B" }}>students</span>
+                          </div>
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            color: "#2563EB",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                          }}
+                        >
+                          <span>Dossier</span>
+                          <ArrowRight size={13} />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {currentView === "assignments" && (
         <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
@@ -1285,6 +1587,42 @@ export function TeachersPane({
           </div>
         </div>
       )}
+      {/* Reusable Department Dossier Drawer */}
+      <DepartmentDossierDrawer
+        department={selectedDept}
+        isOpen={Boolean(selectedDept)}
+        organizationId={organizationId}
+        allTeachers={teachers}
+        allDepartments={adminDepartments.length > 0 ? adminDepartments : (departments as any)}
+        onClose={() => setSelectedDept(null)}
+        onDepartmentUpdated={async () => {
+          if (organizationId) {
+            try {
+              const updatedDepts = await getSchoolAdminDepartments(organizationId);
+              setAdminDepartments(updatedDepts || []);
+              if (selectedDept) {
+                const refreshed = (updatedDepts || []).find((d: any) => d.id === selectedDept.id);
+                setSelectedDept(refreshed || null);
+              }
+              reload();
+            } catch (err) {
+              console.error("Failed to refresh departments:", err);
+            }
+          }
+        }}
+      />
+
+      {/* Reusable Member Lifecycle Management Modal */}
+      <MemberLifecycleModal
+        member={lifecycleTarget}
+        isOpen={Boolean(lifecycleTarget)}
+        organizationId={organizationId}
+        onClose={() => setLifecycleTarget(null)}
+        onSuccess={() => {
+          reload();
+          setLifecycleTarget(null);
+        }}
+      />
     </div>
   );
 }

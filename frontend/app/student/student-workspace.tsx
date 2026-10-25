@@ -839,7 +839,11 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
               )}
 
               {activeTab === 'timetable' && (
-                <TimetablePane organizationId={organization.id} />
+                <TimetablePane
+                  organizationId={organization.id}
+                  activeViewMode={(activeSubTab as any) || "weekly"}
+                  onViewModeChange={(mode) => navigateTo('timetable', mode)}
+                />
               )}
 
               {activeTab === 'assignments' && (

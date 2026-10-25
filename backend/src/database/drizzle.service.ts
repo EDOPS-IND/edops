@@ -90,6 +90,16 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
         );
         CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_lookup ON password_reset_tokens(token_hash);
       `);
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS broadcast_reads (
+          organization_id uuid NOT NULL,
+          broadcast_id uuid NOT NULL,
+          user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          read_at timestamptz NOT NULL DEFAULT now(),
+          PRIMARY KEY (organization_id, broadcast_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_broadcast_reads_user ON broadcast_reads(organization_id, user_id);
+      `);
       // Cleanup legacy session table: authentication is now fully stateless JWT
       await this.pool.query('DROP TABLE IF EXISTS sessions CASCADE;');
     } catch {

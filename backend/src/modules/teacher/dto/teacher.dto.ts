@@ -402,3 +402,37 @@ export class SendTeacherMessageDto {
   @IsIn(['normal', 'urgent'])
   priority?: 'normal' | 'urgent';
 }
+
+export class TeacherApplyLeaveDto {
+  @ApiProperty({ example: 'casual' })
+  @IsString()
+  @IsNotEmpty()
+  leaveType!: string;
+
+  @ApiProperty({ example: '2026-10-26' })
+  @IsString()
+  @IsNotEmpty()
+  startDate!: string;
+
+  @ApiProperty({ example: '2026-10-27' })
+  @IsString()
+  @IsNotEmpty()
+  endDate!: string;
+
+  @ApiPropertyOptional({ example: 'Family event' })
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
+export class TeacherReviewLeaveDto {
+  @ApiProperty({ enum: ['approved', 'rejected'] })
+  @IsIn(['approved', 'rejected'])
+  status!: 'approved' | 'rejected';
+
+  @ApiPropertyOptional({ example: 'Approved' })
+  @IsOptional()
+  @IsString()
+  reviewNotes?: string;
+}
+

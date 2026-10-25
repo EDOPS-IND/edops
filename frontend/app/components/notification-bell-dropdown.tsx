@@ -16,9 +16,47 @@ import {
   RefreshCw,
   Plus,
 } from "lucide-react";
-import { getCommunicationNotices, api, getPlatformDashboard } from "../edops-api";
+import {
+  getCommunicationNotices,
+  api,
+  getPlatformDashboard,
+} from "../edops-api";
 
 export type DropdownRole = "school_admin" | "principal" | "teacher" | "student" | "parent" | "platform";
+
+let lastChimeTime = 0;
+export function playNotificationSound() {
+  if (typeof window === "undefined") return;
+  const now = Date.now();
+  if (now - lastChimeTime < 1000) return;
+  lastChimeTime = now;
+
+  try {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.12);
+
+    gain.gain.setValueAtTime(0.18, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.35);
+  } catch {
+    // browser auto-play policy guard
+  }
+}
 
 export interface UnifiedNotification {
   id: string;
@@ -116,9 +154,18 @@ export function NotificationBellDropdown({
   const [notifications, setNotifications] = useState<UnifiedNotification[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<UnifiedNotification | null>(null);
+  const [toastItem, setToastItem] = useState<UnifiedNotification | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const toastTimerRef = useRef<any>(null);
+  const knownIdsRef = useRef<Set<string>>(new Set());
+  const isInitialFetchRef = useRef<boolean>(true);
   const storageKey = `edops_notif_read_${role}_${organizationId || "global"}`;
+
+  const readIdsRef = useRef<Set<string>>(readIds);
+  useEffect(() => {
+    readIdsRef.current = readIds;
+  }, [readIds]);
 
   // Restore read IDs from localStorage
   useEffect(() => {
@@ -126,7 +173,9 @@ export function NotificationBellDropdown({
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
-        setReadIds(new Set(JSON.parse(saved)));
+        const parsed = new Set<string>(JSON.parse(saved));
+        setReadIds(parsed);
+        readIdsRef.current = parsed;
       }
     } catch {
       // ignore storage error
@@ -136,6 +185,7 @@ export function NotificationBellDropdown({
   // Persist read IDs to localStorage
   const saveReadIds = useCallback((newSet: Set<string>) => {
     setReadIds(newSet);
+    readIdsRef.current = newSet;
     if (typeof window === "undefined") return;
     try {
       localStorage.setItem(storageKey, JSON.stringify(Array.from(newSet)));
@@ -184,8 +234,8 @@ export function NotificationBellDropdown({
       // 1. school_broadcasts table via GET /organizations/:orgId/communication/notices
       // 2. notifications table via GET /organizations/:orgId/notifications?filter=all&limit=50
       const [noticesData, domainData] = await Promise.all([
-        getCommunicationNotices(organizationId).catch(() => []),
-        api<any>(`/organizations/${organizationId}/notifications?filter=all&limit=50`).catch(() => ({ items: [] })),
+        getCommunicationNotices(organizationId, { silent: true }).catch(() => []),
+        api<any>(`/organizations/${organizationId}/notifications?filter=all&limit=50`, { silent: true }).catch(() => ({ items: [] })),
       ]);
 
       const items: UnifiedNotification[] = [];
@@ -195,17 +245,28 @@ export function NotificationBellDropdown({
         noticesData.forEach((n: any) => {
           if (!n || !n.id) return;
           const isUrgent = n.priority === "urgent" || n.priority === "high";
+          const titleLower = (n.title || "").toLowerCase();
+          const isLeaveNotice = titleLower.includes("leave");
+
+          let targetTab = role === "parent" ? "notices" : role === "principal" ? "alerts" : "communication";
+          let targetSubTab: string | undefined = "broadcast";
+
+          if (isLeaveNotice) {
+            targetTab = "attendance";
+            targetSubTab = role === "principal" ? "leaves" : "student_leaves";
+          }
+
           items.push({
             id: String(n.id),
             title: n.title || "School Circular",
             message: n.message || "",
-            type: isUrgent ? "alert" : "announcement",
+            type: isLeaveNotice || isUrgent ? "alert" : "announcement",
             priority: (n.priority || "normal") as any,
             sender: n.senderName || n.sentBy || "School Administration",
             createdAt: n.createdAt || new Date().toISOString(),
-            read: false,
-            targetTab: role === "parent" ? "notices" : role === "principal" ? "alerts" : "communication",
-            targetSubTab: "broadcast",
+            read: Boolean(n.isRead),
+            targetTab,
+            targetSubTab,
             isDomainNotification: false,
           });
         });
@@ -236,6 +297,26 @@ export function NotificationBellDropdown({
       // Sort newest first by database creation date
       items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
+      // Sound & 2-Second In-Page Toast for newly arrived unread notifications
+      const newUnreadItems = items.filter(
+        (it) => !it.read && !readIdsRef.current.has(it.id) && !knownIdsRef.current.has(it.id)
+      );
+
+      if (!isInitialFetchRef.current && newUnreadItems.length > 0) {
+        const newest = newUnreadItems[0];
+        playNotificationSound();
+        setToastItem(newest);
+
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => {
+          setToastItem(null);
+        }, 2000);
+      }
+
+      // Update known IDs
+      items.forEach((it) => knownIdsRef.current.add(it.id));
+      isInitialFetchRef.current = false;
+
       setNotifications(items);
     } catch {
       setNotifications([]);
@@ -246,6 +327,24 @@ export function NotificationBellDropdown({
 
   useEffect(() => {
     fetchBackendNotifications();
+
+    // Poll for new notifications every 10 seconds
+    const interval = setInterval(() => {
+      fetchBackendNotifications();
+    }, 10000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchBackendNotifications();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    };
   }, [fetchBackendNotifications]);
 
   // Combine with persistent read state
@@ -293,37 +392,50 @@ export function NotificationBellDropdown({
     };
   }, [isOpen]);
 
-  // Mark all notifications as read in client & backend database
+  // Mark all notifications as read in client & backend database permanently
   const markAllRead = async () => {
     const next = new Set(readIds);
-    const domainNotifsToMark = resolvedNotifications.filter((n) => !n.read && n.isDomainNotification);
-
     resolvedNotifications.forEach((n) => next.add(n.id));
     saveReadIds(next);
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
 
-    // Call backend API to persist read timestamp in PostgreSQL notifications table
-    if (organizationId && domainNotifsToMark.length > 0) {
-      domainNotifsToMark.forEach((n) => {
-        api(`/organizations/${organizationId}/notifications/${n.id}/read`, {
+    // Persist permanently in PostgreSQL for both notices and domain events
+    if (organizationId) {
+      Promise.all([
+        api(`/organizations/${organizationId}/communication/notices/read-all`, {
           method: "PATCH",
           body: {},
-        }).catch(() => {});
-      });
+        }).catch(() => {}),
+        api(`/organizations/${organizationId}/notifications/read-all`, {
+          method: "PATCH",
+          body: {},
+        }).catch(() => {}),
+      ]);
     }
   };
 
-  // Mark a single notification as read
+  // Mark a single notification as read in client & backend database permanently
   const markItemRead = async (item: UnifiedNotification) => {
     const next = new Set(readIds);
     next.add(item.id);
     saveReadIds(next);
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === item.id ? { ...n, read: true } : n))
+    );
 
-    // If it's a domain notification, persist in backend database
-    if (organizationId && item.isDomainNotification) {
-      api(`/organizations/${organizationId}/notifications/${item.id}/read`, {
-        method: "PATCH",
-        body: {},
-      }).catch(() => {});
+    // Persist permanently in PostgreSQL
+    if (organizationId) {
+      if (item.isDomainNotification) {
+        api(`/organizations/${organizationId}/notifications/${item.id}/read`, {
+          method: "PATCH",
+          body: {},
+        }).catch(() => {});
+      } else {
+        api(`/organizations/${organizationId}/communication/notices/${item.id}/read`, {
+          method: "PATCH",
+          body: {},
+        }).catch(() => {});
+      }
     }
   };
 
@@ -780,6 +892,32 @@ export function NotificationBellDropdown({
                             Urgent
                           </span>
                         )}
+                        {!item.read && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              markItemRead(item);
+                            }}
+                            title="Mark as read"
+                            style={{
+                              marginLeft: "auto",
+                              background: "#f1f5f9",
+                              border: "none",
+                              cursor: "pointer",
+                              color: "#475569",
+                              fontSize: "10.5px",
+                              fontWeight: 600,
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "3px",
+                              padding: "2px 7px",
+                              borderRadius: "4px",
+                            }}
+                          >
+                            <Check size={11} strokeWidth={2.5} /> Mark read
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -964,6 +1102,99 @@ export function NotificationBellDropdown({
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* 2-Second In-Page Floating Notification Toast Popup */}
+      {toastItem && (
+        <div
+          role="status"
+          aria-live="polite"
+          onClick={() => {
+            if (toastItem.targetTab && onNavigate) {
+              onNavigate(toastItem.targetTab, toastItem.targetSubTab);
+            }
+            setToastItem(null);
+          }}
+          style={{
+            position: "fixed",
+            top: "20px",
+            right: "20px",
+            zIndex: 999999,
+            background: "#0c1e33",
+            color: "#ffffff",
+            padding: "12px 16px",
+            borderRadius: "10px",
+            boxShadow: "0 12px 30px rgba(12, 30, 51, 0.45), 0 2px 6px rgba(0,0,0,0.2)",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+            maxWidth: "380px",
+            cursor: toastItem.targetTab ? "pointer" : "default",
+            border: "1px solid rgba(255, 255, 255, 0.18)",
+            backdropFilter: "blur(6px)",
+            animation: "fadeIn 0.2s ease-in-out",
+          }}
+        >
+          <div
+            style={{
+              width: "36px",
+              height: "36px",
+              borderRadius: "50%",
+              background: "rgba(56, 189, 248, 0.18)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Bell size={18} color="#38bdf8" />
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", marginBottom: "2px" }}>
+              <span style={{ fontSize: "12.5px", fontWeight: 700, color: "#ffffff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {toastItem.title}
+              </span>
+              <span style={{ fontSize: "10px", color: "#94a3b8", flexShrink: 0 }}>
+                Just now
+              </span>
+            </div>
+            <p
+              style={{
+                margin: 0,
+                fontSize: "11.5px",
+                color: "#cbd5e1",
+                lineHeight: 1.35,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {toastItem.message}
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setToastItem(null);
+            }}
+            aria-label="Close notification"
+            style={{
+              background: "none",
+              border: "none",
+              color: "#94a3b8",
+              cursor: "pointer",
+              padding: "4px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <X size={15} />
+          </button>
         </div>
       )}
     </div>

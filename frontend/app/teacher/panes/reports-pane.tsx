@@ -27,14 +27,28 @@ const pastelPeach = { bg: '#ffd8c7', text: '#782a00' };
 
 interface ReportsPaneProps {
   organizationId: string;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
 }
 
-export const ReportsPane: React.FC<ReportsPaneProps> = ({ organizationId }) => {
+export const ReportsPane: React.FC<ReportsPaneProps> = ({
+  organizationId,
+  initialTab = 'loHeatmap',
+  onTabChange,
+}) => {
   const [loading, setLoading] = useState(true);
   const [reportData, setReportData] = useState<any>(null);
   const [classesList, setClassesList] = useState<any[]>([]);
   const [selectedClass, setSelectedClass] = useState('');
-  const [activeTab, setActiveTab] = useState<'loHeatmap' | 'cohortSummary' | 'cbseRegister'>('loHeatmap');
+  const [activeTab, setActiveTab] = useState<'loHeatmap' | 'cohortSummary' | 'cbseRegister'>(
+    initialTab === 'cohortSummary' || initialTab === 'cbseRegister' ? initialTab : 'loHeatmap'
+  );
+
+  useEffect(() => {
+    if (initialTab && (initialTab === 'loHeatmap' || initialTab === 'cohortSummary' || initialTab === 'cbseRegister')) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   useEffect(() => {
     loadClasses();
@@ -318,7 +332,10 @@ export const ReportsPane: React.FC<ReportsPaneProps> = ({ organizationId }) => {
         ].map((t) => (
           <button
             key={t.id}
-            onClick={() => setActiveTab(t.id as any)}
+            onClick={() => {
+              setActiveTab(t.id as any);
+              onTabChange?.(t.id);
+            }}
             style={{
               all: "unset",
               padding: "6px 14px",

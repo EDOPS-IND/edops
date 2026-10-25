@@ -37,6 +37,7 @@ import {
   UpdateLeaveStatusDto,
   UpdateSchoolConfigDto,
   UpdateTeacherEmploymentDto,
+  UpdateMemberStatusDto,
   UpdateTimetableEntryDto,
 } from "./school-admin.dto";
 
@@ -59,7 +60,7 @@ export class SchoolAdminService {
     manager: Queryable,
     orgId: string,
     actor: User,
-    principalTimetable = false,
+    allowPrincipal = false,
   ): Promise<Organization> {
     const [row] = await manager.query(
       `SELECT o.*, m.role AS "memberRole"
@@ -78,7 +79,7 @@ export class SchoolAdminService {
     if (!role) throw new NotFoundException("Organization not found");
     if (
       role !== "school_admin" &&
-      !(principalTimetable && role === "principal")
+      !(allowPrincipal && role === "principal")
     ) {
       throw new ForbiddenException("School administrator access required");
     }
@@ -516,7 +517,7 @@ export class SchoolAdminService {
           COALESCE(e.roll_number, '') as "rollNo",
           COALESCE(s.name, '') as "section",
           COALESCE(p.name, '') as "grade",
-          CASE WHEN sp.status = 'active' THEN 'Active' ELSE COALESCE(sp.status, 'Active') END as "status",
+          CASE WHEN m.status = 'inactive' OR sp.status = 'inactive' THEN 'Inactive' ELSE COALESCE(sp.status, 'Active') END as "status",
           COALESCE(sp.gender, '') as "gender",
           COALESCE(sp.blood_group, '') as "bloodGroup",
           sp.guardian_name as "parentName",
@@ -1083,7 +1084,7 @@ export class SchoolAdminService {
   // 3. PEOPLE — TEACHERS & WORKLOAD
   async getTeachers(orgId: string, actor: User) {
     return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
+      await this.authorize(manager, orgId, actor, true);
 
       const rows = await manager.query(
         `SELECT
@@ -1101,7 +1102,7 @@ export class SchoolAdminService {
           m.employment_type as "employmentType",
           (SELECT count(*)::int FROM timetable_entries t JOIN academic_years y ON y.id=t.academic_year_id AND y.organization_id=t.organization_id AND y.is_current WHERE t.organization_id=m.organization_id AND t.teacher_user_id=u.id) as "weeklyPeriods",
           28 as "maxPeriods",
-          'Active' as "status",
+          CASE WHEN m.status = 'inactive' THEN 'Inactive' ELSE 'Active' END as "status",
           COUNT(DISTINCT csa.id) as "assignedSectionsCount",
           COUNT(DISTINCT csa.subject_id) as "assignedSubjectsCount",
           NULL::text as "workloadStatus",
@@ -1127,8 +1128,8 @@ export class SchoolAdminService {
          LEFT JOIN subjects sub ON sub.id=csa.subject_id AND sub.organization_id=csa.organization_id
          LEFT JOIN sections sec ON sec.id=csa.section_id AND sec.organization_id=csa.organization_id
          LEFT JOIN programs p ON p.id = sec.program_id AND p.organization_id = m.organization_id
-         WHERE m.organization_id = $1 AND m.role = 'teacher' AND m.status = 'active'
-         GROUP BY u.id, u.email, u.name, u.phone, m.specialty, m.employee_id, m.employment_type, m.created_at, m.organization_id
+         WHERE m.organization_id = $1 AND m.role = 'teacher'
+         GROUP BY u.id, u.email, u.name, u.phone, m.specialty, m.employee_id, m.employment_type, m.created_at, m.organization_id, m.status
 
          UNION ALL
 
@@ -1204,6 +1205,201 @@ export class SchoolAdminService {
     });
   }
 
+  async updateMemberStatus(
+    orgId: string,
+    actor: User,
+    userId: string,
+    dto: UpdateMemberStatusDto,
+  ) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor, true);
+
+      const memberships = await manager.query(
+        `SELECT role, status FROM memberships WHERE organization_id = $1 AND user_id = $2`,
+        [orgId, userId],
+      );
+      if (!memberships || memberships.length === 0) {
+        throw new NotFoundException("School member record not found");
+      }
+
+      const role = memberships[0].role;
+      const newStatus = dto.status;
+      const deactivatedParents: any[] = [];
+
+      // 1. Update the membership status in this organization
+      await manager.query(
+        `UPDATE memberships 
+         SET status = $1, updated_at = NOW() 
+         WHERE organization_id = $2 AND user_id = $3`,
+        [newStatus, orgId, userId],
+      );
+
+      // 2. Role-specific cascade logic
+      if (role === "student") {
+        await manager.query(
+          `UPDATE student_profiles SET status = $1, updated_at = NOW() WHERE organization_id = $2 AND student_user_id = $3`,
+          [newStatus, orgId, userId],
+        );
+        await manager.query(
+          `UPDATE enrollments SET status = $1, updated_at = NOW() WHERE organization_id = $2 AND student_user_id = $3`,
+          [newStatus, orgId, userId],
+        );
+
+        if (newStatus === "inactive" || newStatus === "withdrawn") {
+          // Find all linked parents of this student
+          const linkedParents = await manager.query(
+            `SELECT DISTINCT psr.parent_id, COALESCE(NULLIF(u.name, ''), split_part(u.email, '@', 1)) as name, u.email
+             FROM parent_student_relationships psr
+             JOIN users u ON u.id = psr.parent_id
+             WHERE psr.school_id = $1 AND psr.student_id = $2`,
+            [orgId, userId],
+          );
+
+          // For each parent, check if they have any OTHER active child in this school
+          for (const p of linkedParents) {
+            const [otherActive] = await manager.query(
+              `SELECT 1 
+               FROM parent_student_relationships psr
+               JOIN memberships sm ON sm.user_id = psr.student_id AND sm.organization_id = psr.school_id
+               WHERE psr.school_id = $1 
+                 AND psr.parent_id = $2 
+                 AND psr.student_id != $3 
+                 AND sm.status = 'active'
+               LIMIT 1`,
+              [orgId, p.parent_id, userId],
+            );
+
+            // If no other active child, deactivate parent membership as well!
+            if (!otherActive) {
+              await manager.query(
+                `UPDATE memberships 
+                 SET status = 'inactive', updated_at = NOW() 
+                 WHERE organization_id = $1 AND user_id = $2 AND role = 'parent'`,
+                [orgId, p.parent_id],
+              );
+              deactivatedParents.push({ id: p.parent_id, name: p.name, email: p.email });
+            }
+
+            // Mark relationship with this student as inactive
+            await manager.query(
+              `UPDATE parent_student_relationships 
+               SET status = 'inactive'
+               WHERE school_id = $1 AND student_id = $2`,
+              [orgId, userId],
+            );
+          }
+        } else if (newStatus === "active") {
+          // If reactivating student, re-activate relationship and parent membership
+          await manager.query(
+            `UPDATE parent_student_relationships SET status = 'active' WHERE school_id = $1 AND student_id = $2`,
+            [orgId, userId],
+          );
+          await manager.query(
+            `UPDATE memberships SET status = 'active', updated_at = NOW() 
+             WHERE organization_id = $1 AND role = 'parent' AND user_id IN (
+               SELECT parent_id FROM parent_student_relationships WHERE school_id = $1 AND student_id = $2
+             )`,
+            [orgId, userId],
+          );
+        }
+      } else if (role === "teacher") {
+        if (newStatus === "inactive" || newStatus === "withdrawn") {
+          // If teacher is HOD of any department, unlink them
+          await manager.query(
+            `UPDATE school_departments 
+             SET head_teacher_id = NULL, head_teacher_name = NULL, updated_at = NOW() 
+             WHERE organization_id = $1 AND head_teacher_id = $2`,
+            [orgId, userId],
+          );
+          // Unassign from timetable/classes
+          await manager.query(
+            `DELETE FROM class_subject_assignments WHERE organization_id = $1 AND teacher_user_id = $2`,
+            [orgId, userId],
+          );
+        }
+      }
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: `member.status_${newStatus}`,
+        details: { userId, role, newStatus, reason: dto.reason, deactivatedParents },
+      });
+
+      return {
+        success: true,
+        userId,
+        role,
+        status: newStatus,
+        deactivatedParents,
+      };
+    });
+  }
+
+  async deleteMember(
+    orgId: string,
+    actor: User,
+    userId: string,
+    targetRole?: string,
+  ) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor, true);
+
+      const [m] = await manager.query(
+        `SELECT role FROM memberships WHERE organization_id = $1 AND user_id = $2`,
+        [orgId, userId],
+      );
+      if (!m) {
+        throw new NotFoundException("School member not found");
+      }
+
+      const role = targetRole || m.role;
+
+      if (role === "student") {
+        await manager.query(
+          `DELETE FROM enrollments WHERE organization_id = $1 AND student_user_id = $2`,
+          [orgId, userId],
+        );
+        await manager.query(
+          `DELETE FROM parent_student_relationships WHERE school_id = $1 AND student_id = $2`,
+          [orgId, userId],
+        );
+        await manager.query(
+          `DELETE FROM student_profiles WHERE organization_id = $1 AND student_user_id = $2`,
+          [orgId, userId],
+        );
+      } else if (role === "teacher") {
+        await manager.query(
+          `UPDATE school_departments SET head_teacher_id = NULL, head_teacher_name = NULL, updated_at = NOW() WHERE organization_id = $1 AND head_teacher_id = $2`,
+          [orgId, userId],
+        );
+        await manager.query(
+          `DELETE FROM class_subject_assignments WHERE organization_id = $1 AND teacher_user_id = $2`,
+          [orgId, userId],
+        );
+      } else if (role === "parent") {
+        await manager.query(
+          `DELETE FROM parent_student_relationships WHERE school_id = $1 AND parent_id = $2`,
+          [orgId, userId],
+        );
+      }
+
+      await manager.query(
+        `DELETE FROM memberships WHERE organization_id = $1 AND user_id = $2`,
+        [orgId, userId],
+      );
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "member.deleted",
+        details: { userId, role },
+      });
+
+      return { success: true, userId, role };
+    });
+  }
+
   // PEOPLE — STAFF
   async getStaff(orgId: string, actor: User) {
     return this.drizzle.transaction(async (manager) => {
@@ -1220,7 +1416,7 @@ export class SchoolAdminService {
           CASE WHEN m.role = 'principal' THEN 'Principal / Head of School' ELSE 'Staff Officer' END as "designation",
           m.employment_type as "employmentType",
           to_char(m.created_at, 'YYYY-MM-DD') as "joiningDate",
-          'Active' as "status",
+          CASE WHEN m.status = 'inactive' THEN 'Inactive' ELSE 'Active' END as "status",
           NULL::text as "inviteToken",
           NULL::timestamptz as "inviteExpiresAt"
          FROM memberships m
@@ -1291,7 +1487,8 @@ export class SchoolAdminService {
           NULL as "occupation",
           NULL as "address",
           u.phone as "emergencyContact",
-          'Active' as "accountStatus",
+          CASE WHEN m.status = 'inactive' THEN 'Inactive' ELSE 'Active' END as "accountStatus",
+          CASE WHEN m.status = 'inactive' THEN 'Inactive' ELSE 'Active' END as "status",
           NULL as "invitationStatus",
           COALESCE((
             SELECT json_agg(json_build_object(
@@ -1353,6 +1550,7 @@ export class SchoolAdminService {
           NULL as "address",
           i.phone as "emergencyContact",
           'Pending Invite' as "accountStatus",
+          'Pending Invite' as "status",
           'Pending' as "invitationStatus",
           COALESCE((
             SELECT json_agg(json_build_object(
@@ -1477,146 +1675,102 @@ export class SchoolAdminService {
   // 4. PEOPLE — DEPARTMENTS
   async getDepartments(orgId: string, actor: User) {
     return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
+      await this.authorize(manager, orgId, actor, true);
 
-      const queryDepartments = async () => {
-        return manager.query(
-          `SELECT 
-            d.id,
-            d.name,
-            d.code,
-            CASE WHEN d.head_teacher_name IS NULL OR d.head_teacher_name IN ('', 'Department Head') THEN 'Unassigned' ELSE d.head_teacher_name END as "headName",
-            COALESCE(u.email, '') as "headEmail",
-            (
-              SELECT COUNT(DISTINCT m.user_id)::int
-              FROM memberships m
-              WHERE m.organization_id = d.organization_id AND m.role = 'teacher' AND m.status = 'active'
-              AND (
-                LOWER(m.specialty) = LOWER(d.name)
-                OR EXISTS (
-                  SELECT 1 FROM class_subject_assignments csa
-                  JOIN subjects s ON s.id = csa.subject_id AND s.organization_id = m.organization_id
-                  WHERE csa.teacher_user_id = m.user_id AND (s.department_id = d.id OR LOWER(s.name) = LOWER(d.name) OR UPPER(s.code) = UPPER(d.code))
-                )
+      const rows = await manager.query(
+        `SELECT 
+          d.id,
+          d.name,
+          d.code,
+          d.head_teacher_id as "headTeacherId",
+          CASE WHEN d.head_teacher_name IS NULL OR d.head_teacher_name IN ('', 'Department Head') THEN 'Unassigned' ELSE d.head_teacher_name END as "headName",
+          COALESCE(u.email, '') as "headEmail",
+          COALESCE(u.phone, '') as "headPhone",
+          (
+            SELECT COUNT(DISTINCT m.user_id)::int
+            FROM memberships m
+            WHERE m.organization_id = d.organization_id AND m.role = 'teacher' AND m.status = 'active'
+            AND (
+              m.user_id = d.head_teacher_id
+              OR EXISTS (
+                SELECT 1 FROM class_subject_assignments csa
+                JOIN subjects s ON s.id = csa.subject_id AND s.organization_id = m.organization_id
+                WHERE csa.teacher_user_id = m.user_id AND s.department_id = d.id
               )
-            ) as "teachersCount",
-            (
-              SELECT COUNT(DISTINCT enr.student_user_id)::int 
-              FROM subjects s 
-              JOIN class_subject_assignments csa ON csa.subject_id = s.id AND csa.organization_id = d.organization_id
-              JOIN enrollments enr ON enr.section_id = csa.section_id AND enr.organization_id = d.organization_id AND enr.status = 'active'
-              WHERE s.department_id = d.id OR LOWER(s.name) = LOWER(d.name) OR UPPER(s.code) = UPPER(d.code)
-            ) as "studentsCount",
-            COALESCE(d.location, 'Academic Wing') as "location",
-            CASE 
-              WHEN (
-                EXISTS (
-                  SELECT 1 FROM subjects s 
-                  WHERE s.organization_id = d.organization_id AND (s.department_id = d.id OR LOWER(s.name) = LOWER(d.name))
-                ) OR EXISTS (
-                  SELECT 1 FROM memberships m
-                  WHERE m.organization_id = d.organization_id AND m.role = 'teacher' AND LOWER(m.specialty) = LOWER(d.name)
-                )
-              ) THEN 'Active'
-              ELSE 'Pending Setup'
-            END as "status",
-            COALESCE((
-              SELECT json_agg(json_build_object(
-                'id', s.id, 
-                'name', s.name, 
-                'code', s.code,
-                'teachersCount', (
-                  SELECT COUNT(DISTINCT csa.teacher_user_id)::int
-                  FROM class_subject_assignments csa
-                  WHERE csa.subject_id = s.id AND csa.organization_id = d.organization_id
-                ),
-                'sectionsCount', (
-                  SELECT COUNT(DISTINCT csa.section_id)::int
-                  FROM class_subject_assignments csa
-                  WHERE csa.subject_id = s.id AND csa.organization_id = d.organization_id
-                ),
-                'teachers', COALESCE((
-                  SELECT json_agg(json_build_object(
-                    'id', tu.id, 
-                    'name', COALESCE(NULLIF(tu.name, ''), split_part(tu.email, '@', 1)), 
-                    'email', tu.email
-                  ))
-                  FROM class_subject_assignments csa
-                  JOIN users tu ON tu.id = csa.teacher_user_id
-                  WHERE csa.subject_id = s.id AND csa.organization_id = d.organization_id
-                ), '[]'::json)
-              ) ORDER BY s.name)
-              FROM subjects s
-              WHERE s.organization_id = d.organization_id AND (s.department_id = d.id OR LOWER(s.name) = LOWER(d.name) OR UPPER(s.code) = UPPER(d.code))
-            ), '[]'::json) as "subjects",
-            COALESCE((
-              SELECT json_agg(json_build_object(
-                'id', u.id,
-                'name', COALESCE(NULLIF(u.name, ''), split_part(u.email, '@', 1)),
-                'email', u.email,
-                'phone', COALESCE(u.phone, '-'),
-                'empId', m.employee_id,
-                'designation', 'Faculty Teacher'
-              ) ORDER BY u.name)
-              FROM memberships m
-              JOIN users u ON u.id = m.user_id
-              WHERE m.organization_id = d.organization_id AND m.role = 'teacher' AND m.status = 'active'
-              AND (
-                LOWER(m.specialty) = LOWER(d.name)
-                OR EXISTS (
-                  SELECT 1 FROM class_subject_assignments csa
-                  JOIN subjects s ON s.id = csa.subject_id AND s.organization_id = m.organization_id
-                  WHERE csa.teacher_user_id = m.user_id AND (s.department_id = d.id OR LOWER(s.name) = LOWER(d.name) OR UPPER(s.code) = UPPER(d.code))
-                )
+            )
+          ) as "teachersCount",
+          (
+            SELECT COUNT(DISTINCT enr.student_user_id)::int 
+            FROM subjects s 
+            JOIN class_subject_assignments csa ON csa.subject_id = s.id AND csa.organization_id = d.organization_id
+            JOIN enrollments enr ON enr.section_id = csa.section_id AND enr.organization_id = d.organization_id AND enr.status = 'active'
+            WHERE s.department_id = d.id
+          ) as "studentsCount",
+          COALESCE(d.location, 'Academic Wing') as "location",
+          CASE 
+            WHEN EXISTS (
+              SELECT 1 FROM subjects s 
+              WHERE s.organization_id = d.organization_id AND s.department_id = d.id
+            ) OR d.head_teacher_id IS NOT NULL THEN 'Active'
+            ELSE 'Pending Setup'
+          END as "status",
+          COALESCE((
+            SELECT json_agg(json_build_object(
+              'id', s.id, 
+              'name', s.name, 
+              'code', s.code,
+              'teachersCount', (
+                SELECT COUNT(DISTINCT csa.teacher_user_id)::int
+                FROM class_subject_assignments csa
+                WHERE csa.subject_id = s.id AND csa.organization_id = d.organization_id
+              ),
+              'sectionsCount', (
+                SELECT COUNT(DISTINCT csa.section_id)::int
+                FROM class_subject_assignments csa
+                WHERE csa.subject_id = s.id AND csa.organization_id = d.organization_id
+              ),
+              'teachers', COALESCE((
+                SELECT json_agg(json_build_object(
+                  'id', tu.id, 
+                  'name', COALESCE(NULLIF(tu.name, ''), split_part(tu.email, '@', 1)), 
+                  'email', tu.email
+                ))
+                FROM class_subject_assignments csa
+                JOIN users tu ON tu.id = csa.teacher_user_id
+                WHERE csa.subject_id = s.id AND csa.organization_id = d.organization_id
+              ), '[]'::json)
+            ) ORDER BY s.name)
+            FROM subjects s
+            WHERE s.organization_id = d.organization_id AND s.department_id = d.id
+          ), '[]'::json) as "subjects",
+          COALESCE((
+            SELECT json_agg(json_build_object(
+              'id', u2.id,
+              'name', COALESCE(NULLIF(u2.name, ''), split_part(u2.email, '@', 1)),
+              'email', u2.email,
+              'phone', COALESCE(u2.phone, '-'),
+              'empId', m.employee_id,
+              'designation', CASE WHEN d.head_teacher_id = u2.id THEN 'Head of Department' ELSE 'Faculty Teacher' END,
+              'isHod', (d.head_teacher_id = u2.id)
+            ) ORDER BY (d.head_teacher_id = u2.id) DESC, u2.name)
+            FROM memberships m
+            JOIN users u2 ON u2.id = m.user_id
+            WHERE m.organization_id = d.organization_id AND m.role = 'teacher' AND m.status = 'active'
+            AND (
+              u2.id = d.head_teacher_id
+              OR EXISTS (
+                SELECT 1 FROM class_subject_assignments csa
+                JOIN subjects s ON s.id = csa.subject_id AND s.organization_id = m.organization_id
+                WHERE csa.teacher_user_id = m.user_id AND s.department_id = d.id
               )
-            ), '[]'::json) as "teachers"
-           FROM school_departments d
-           LEFT JOIN users u ON u.id = d.head_teacher_id
-           WHERE d.organization_id = $1 
-           ORDER BY d.name`,
-          [orgId],
-        );
-      };
-
-      let rows = await queryDepartments();
-
-      // If no departments exist yet, auto-synchronize departments from existing curriculum subjects and faculty specialties
-      if (rows.length === 0) {
-        const existingSubjects = await manager.query(
-          `SELECT DISTINCT name, code FROM subjects WHERE organization_id = $1`,
-          [orgId],
-        );
-        const teacherSpecialties = await manager.query(
-          `SELECT DISTINCT specialty as name FROM memberships WHERE organization_id = $1 AND role = 'teacher' AND specialty IS NOT NULL AND specialty != ''`,
-          [orgId],
-        );
-        const deptNames = Array.from(
-          new Set([
-            ...existingSubjects.map((s: any) => s.name?.trim()),
-            ...teacherSpecialties.map((t: any) => t.name?.trim()),
-          ]),
-        ).filter(Boolean);
-
-        if (deptNames.length > 0) {
-          for (const rawName of deptNames) {
-            const name = rawName.charAt(0).toUpperCase() + rawName.slice(1);
-            const code = name.slice(0, 4).toUpperCase();
-            await manager.query(
-              `INSERT INTO school_departments (organization_id, name, code, head_teacher_name, location)
-               VALUES ($1, $2, $3, NULL, 'Academic Wing')
-               ON CONFLICT DO NOTHING`,
-              [orgId, name, code],
-            );
-            await manager.query(
-              `UPDATE subjects s 
-               SET department_id = (SELECT id FROM school_departments WHERE organization_id = $1 AND name = $2 LIMIT 1)
-               WHERE s.organization_id = $1 AND LOWER(s.name) = LOWER($2) AND s.department_id IS NULL`,
-              [orgId, name],
-            );
-          }
-          rows = await queryDepartments();
-        }
-      }
+            )
+          ), '[]'::json) as "teachers"
+         FROM school_departments d
+         LEFT JOIN users u ON u.id = d.head_teacher_id
+         WHERE d.organization_id = $1 
+         ORDER BY d.name`,
+        [orgId],
+      );
 
       return rows;
     });
@@ -1629,26 +1783,133 @@ export class SchoolAdminService {
     subjectIds: string[],
   ) {
     return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
+      await this.authorize(manager, orgId, actor, true);
       // Unlink subjects currently mapped to this department
       await manager.query(
         `UPDATE subjects SET department_id = NULL WHERE organization_id = $1 AND department_id = $2`,
         [orgId, departmentId],
       );
-      // Link selected subjects
+      // Link selected subjects (also implicitly pulls them away from any other department, keeping 1 subject in 1 dept)
       if (subjectIds && subjectIds.length > 0) {
         await manager.query(
           `UPDATE subjects SET department_id = $1 WHERE organization_id = $2 AND id = ANY($3::uuid[])`,
           [departmentId, orgId, subjectIds],
         );
       }
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "department.subjects_updated",
+        details: { departmentId, subjectIds },
+      });
+      return { success: true };
+    });
+  }
+
+  async updateDepartmentHod(
+    orgId: string,
+    actor: User,
+    departmentId: string,
+    teacherId?: string | null,
+  ) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor, true);
+
+      const [dept] = await manager.query(
+        `SELECT id, name FROM school_departments WHERE organization_id = $1 AND id = $2`,
+        [orgId, departmentId],
+      );
+      if (!dept) {
+        throw new NotFoundException("Department not found");
+      }
+
+      if (teacherId) {
+        const [teacher] = await manager.query(
+          `SELECT u.id, COALESCE(NULLIF(u.name, ''), split_part(u.email, '@', 1)) as name, u.email
+           FROM memberships m
+           JOIN users u ON u.id = m.user_id
+           WHERE m.organization_id = $1 AND m.user_id = $2 AND m.role = 'teacher' AND m.status = 'active'`,
+          [orgId, teacherId],
+        );
+        if (!teacher) {
+          throw new BadRequestException("Selected faculty member not found or is inactive.");
+        }
+
+        // Rule: 1 Teacher can be HOD of ONLY 1 Department at a time
+        const [conflict] = await manager.query(
+          `SELECT id, name FROM school_departments WHERE organization_id = $1 AND head_teacher_id = $2 AND id != $3 LIMIT 1`,
+          [orgId, teacherId, departmentId],
+        );
+        if (conflict) {
+          throw new BadRequestException(
+            `This faculty member is already the Head of Department for "${conflict.name}". A teacher can only head one department at a time.`,
+          );
+        }
+
+        await manager.query(
+          `UPDATE school_departments 
+           SET head_teacher_id = $1, head_teacher_name = $2, updated_at = NOW()
+           WHERE organization_id = $3 AND id = $4`,
+          [teacher.id, teacher.name, orgId, departmentId],
+        );
+      } else {
+        await manager.query(
+          `UPDATE school_departments 
+           SET head_teacher_id = NULL, head_teacher_name = NULL, updated_at = NOW()
+           WHERE organization_id = $1 AND id = $2`,
+          [orgId, departmentId],
+        );
+      }
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "department.hod_updated",
+        details: { departmentId, teacherId: teacherId ?? null },
+      });
+
+      return { success: true };
+    });
+  }
+
+  async deleteDepartment(orgId: string, actor: User, departmentId: string) {
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor, true);
+
+      const [dept] = await manager.query(
+        `SELECT id, name FROM school_departments WHERE organization_id = $1 AND id = $2`,
+        [orgId, departmentId],
+      );
+      if (!dept) {
+        throw new NotFoundException("Department not found");
+      }
+
+      // Safely unlink subjects
+      await manager.query(
+        `UPDATE subjects SET department_id = NULL WHERE organization_id = $1 AND department_id = $2`,
+        [orgId, departmentId],
+      );
+
+      // Delete the department
+      await manager.query(
+        `DELETE FROM school_departments WHERE organization_id = $1 AND id = $2`,
+        [orgId, departmentId],
+      );
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "department.deleted",
+        details: { departmentId, name: dept.name },
+      });
+
       return { success: true };
     });
   }
 
   async getAvailableSubjects(orgId: string, actor: User) {
     return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
+      await this.authorize(manager, orgId, actor, true);
       return manager.query(
         `SELECT s.id, s.name, s.code, s.department_id as "departmentId", d.name as "departmentName"
          FROM subjects s
@@ -1662,10 +1923,21 @@ export class SchoolAdminService {
 
   async createDepartment(orgId: string, actor: User, dto: CreateDepartmentDto) {
     return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
+      await this.authorize(manager, orgId, actor, true);
 
       let headName = dto.headTeacherName || null;
       if (dto.headTeacherId) {
+        // Rule: 1 Teacher can be HOD of ONLY 1 Department at a time
+        const [conflict] = await manager.query(
+          `SELECT id, name FROM school_departments WHERE organization_id = $1 AND head_teacher_id = $2 LIMIT 1`,
+          [orgId, dto.headTeacherId],
+        );
+        if (conflict) {
+          throw new BadRequestException(
+            `This faculty member is already the Head of Department for "${conflict.name}". A teacher can only head one department at a time.`,
+          );
+        }
+
         const [t] = await manager.query(
           `SELECT COALESCE(NULLIF(name, ''), split_part(email, '@', 1)) as name FROM users WHERE id = $1`,
           [dto.headTeacherId],
@@ -1728,7 +2000,7 @@ export class SchoolAdminService {
   // 5. ACADEMICS & TIMETABLE
   async getAcademicsOverview(orgId: string, actor: User) {
     return this.drizzle.transaction(async (manager) => {
-      await this.authorize(manager, orgId, actor);
+      await this.authorize(manager, orgId, actor, true);
 
       const years = await manager.query(
         `SELECT * FROM academic_years WHERE organization_id = $1 ORDER BY start_date DESC`,
@@ -2886,7 +3158,11 @@ export class SchoolAdminService {
               b.priority, b.sent_by AS "sentBy", b.sender_name AS "senderName",
               b.created_at AS "createdAt",
               COALESCE(CONCAT(p.name, ' ', sec.name), sec.name) AS "sectionName",
-              p.name AS "programName"
+              p.name AS "programName",
+              EXISTS (
+                SELECT 1 FROM broadcast_reads br
+                WHERE br.organization_id = b.organization_id AND br.broadcast_id = b.id AND br.user_id = $3
+              ) AS "isRead"
        FROM school_broadcasts b
        LEFT JOIN sections sec ON sec.id::text = REPLACE(b.target_audience, 'section:', '') AND sec.organization_id = b.organization_id
        LEFT JOIN programs p ON p.id = sec.program_id
@@ -2915,6 +3191,30 @@ export class SchoolAdminService {
        LIMIT 50`,
       [orgId, role, actor.id],
     );
+  }
+
+  async markNoticeRead(orgId: string, actor: User, noticeId: string) {
+    await this.authorizeCommunication(this.drizzle, orgId, actor);
+    await this.drizzle.query(
+      `INSERT INTO broadcast_reads (organization_id, broadcast_id, user_id, read_at)
+       VALUES ($1, $2, $3, clock_timestamp())
+       ON CONFLICT (organization_id, broadcast_id, user_id) DO UPDATE SET read_at = clock_timestamp()`,
+      [orgId, noticeId, actor.id],
+    );
+    return { success: true, noticeId };
+  }
+
+  async markAllNoticesRead(orgId: string, actor: User) {
+    await this.authorizeCommunication(this.drizzle, orgId, actor);
+    await this.drizzle.query(
+      `INSERT INTO broadcast_reads (organization_id, broadcast_id, user_id, read_at)
+       SELECT b.organization_id, b.id, $2, clock_timestamp()
+       FROM school_broadcasts b
+       WHERE b.organization_id = $1
+       ON CONFLICT (organization_id, broadcast_id, user_id) DO NOTHING`,
+      [orgId, actor.id],
+    );
+    return { success: true };
   }
 
   async createRoleNotice(orgId: string, actor: User, dto: any) {

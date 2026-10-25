@@ -4354,6 +4354,7 @@ export function AcademicsPane({
                   onClick={() => {
                     setSelectedSectionDossier(null);
                     setTab('promotions');
+                    if (onTabChange) onTabChange('promotions');
                     setSourceSectionId(selectedSectionDossier.id);
                   }}
                   style={{
@@ -4613,6 +4614,7 @@ export function AcademicsPane({
                     const sub = selectedSubjectDossier;
                     setSelectedSubjectDossier(null);
                     setTab('curriculum');
+                    if (onTabChange) onTabChange('curriculum');
                     setActiveModalSubject(sub);
                   }}
                   style={{

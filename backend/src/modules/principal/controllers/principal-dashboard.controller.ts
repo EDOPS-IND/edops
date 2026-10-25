@@ -1,14 +1,17 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
   ParseUUIDPipe,
+  Patch,
   Query,
   Req,
   UseGuards,
 } from "@nestjs/common";
 import { ApiOperation, ApiParam, ApiTags } from "@nestjs/swagger";
 import { AuthenticatedRequest } from "../../../common/auth.guard";
+import { PrincipalReviewLeaveDto } from "../dto/principal.dto";
 import { PrincipalGuard } from "../guards/principal.guard";
 import { PrincipalDashboardService } from "../services/principal-dashboard.service";
 
@@ -76,5 +79,26 @@ export class PrincipalDashboardController {
     @Query("q") q: string,
   ) {
     return this.service.globalSearch(orgId, req.user, q);
+  }
+
+  @Get("leaves")
+  @ApiOperation({
+    summary: "Get faculty and escalated student leave requests for Principal review",
+  })
+  leaves(@Param("organizationId", ParseUUIDPipe) orgId: string) {
+    return this.service.getLeaves(orgId);
+  }
+
+  @Patch("leaves/:id/status")
+  @ApiOperation({
+    summary: "Approve or reject a staff or student leave request as Principal",
+  })
+  updateLeaveStatus(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: PrincipalReviewLeaveDto,
+  ) {
+    return this.service.updateLeaveStatus(orgId, req.user, id, dto.status, dto.reviewNotes);
   }
 }

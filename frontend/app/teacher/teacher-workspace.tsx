@@ -941,6 +941,8 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
               {activeTab === 'timetable' && (
                 <TimetablePane
                   organizationId={organization.id}
+                  activeViewMode={(activeSubTab as any) || "weekly"}
+                  onViewModeChange={(mode) => navigateTo('timetable', mode)}
                   onTakeAttendance={handleOpenAttendance}
                   onLogLesson={handleOpenLesson}
                 />
@@ -950,6 +952,8 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
                 <AttendancePane
                   key={`att-${attendanceRefreshKey}`}
                   organizationId={organization.id}
+                  initialTab={activeSubTab}
+                  onTabChange={(sub) => navigateTo('attendance', sub)}
                   onTakeAttendance={handleOpenAttendance}
                 />
               )}
@@ -1023,7 +1027,11 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
               )}
 
               {activeTab === 'reports' && (
-                <ReportsPane organizationId={organization.id} />
+                <ReportsPane
+                  organizationId={organization.id}
+                  initialTab={activeSubTab}
+                  onTabChange={(sub) => navigateTo('reports', sub)}
+                />
               )}
 
               {activeTab === 'activity' && (
