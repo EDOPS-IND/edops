@@ -24,6 +24,8 @@ import {
   getSchoolAdminAcademics,
 } from "../edops-api";
 import { TeacherAllocationManager } from "../components/teacher-allocation-manager";
+import { DepartmentDossierDrawer } from "./components/department-dossier-drawer";
+import { MemberLifecycleModal, MemberLifecycleTarget } from "../components/member-lifecycle-modal";
 import {
   Users,
   User,
@@ -36,6 +38,7 @@ import {
   Eye,
   Edit2,
   UserCheck,
+  UserX,
   Mail,
   Phone,
   AlertCircle,
@@ -758,6 +761,7 @@ export function PeoplePane({
   const [staff, setStaff] = useState<StaffRecord[]>([]);
   const [parents, setParents] = useState<ParentRecord[]>([]);
   const [departments, setDepartments] = useState<DepartmentRecord[]>([]);
+  const [lifecycleTarget, setLifecycleTarget] = useState<MemberLifecycleTarget | null>(null);
 
   // Manage Wards State (Embedded directly inside Guardian Dossier)
   const [isMappingWards, setIsMappingWards] = useState(false);
@@ -5614,49 +5618,13 @@ export function PeoplePane({
               })}
             </div>
 
-            {/* Department Table Area (Fits 100% width, No horizontal scrollbar) */}
-            <div style={{ width: "100%", padding: "0px 24px", boxSizing: "border-box" }}>
-              {/* Column headings */}
-              <div
-                style={{
-                  boxSizing: "border-box",
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  padding: "0px 8px",
-                  width: "100%",
-                  height: "44px",
-                  borderBottom: "1px solid #E0E5EB",
-                  userSelect: "none",
-                }}
-              >
-                <div style={{ flex: "2.4 1 190px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  DEPARTMENT & CODE
-                </div>
-                <div style={{ flex: "2.1 1 170px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  HEAD OF DEPARTMENT
-                </div>
-                <div style={{ flex: "2.1 1 170px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  CURRICULUM SUBJECTS
-                </div>
-                <div style={{ flex: "1.2 1 100px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  FACULTY
-                </div>
-                <div style={{ flex: "1.2 1 100px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  STUDENT LOAD
-                </div>
-                <div style={{ flex: "1.0 1 85px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  STATUS
-                </div>
-                <div style={{ flex: "0 0 110px", textAlign: "right", fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                  ACTIONS
-                </div>
+            {/* Department Responsive Grid Cards */}
+            {loading || refreshing || isSwitching ? (
+              <div style={{ padding: "0 24px 24px", width: "100%", boxSizing: "border-box" }}>
+                <TeacherSkeletonRows rows={4} />
               </div>
-
-              {/* Department rows */}
-              {loading || refreshing || isSwitching ? (
-                <TeacherSkeletonRows rows={6} />
-              ) : filteredDepartments.length === 0 ? (
+            ) : filteredDepartments.length === 0 ? (
+              <div style={{ padding: "0 24px 24px", width: "100%", boxSizing: "border-box" }}>
                 <NoResultState
                   title={
                     deptSearch || deptStatusFilter !== "all" || deptSegment !== "all"
@@ -5680,225 +5648,268 @@ export function PeoplePane({
                       : undefined
                   }
                 />
-              ) : (
-                filteredDepartments.map((d, idx) => {
-                  const isEven = idx % 2 === 0;
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                  gap: "18px",
+                  padding: "0px 24px 24px",
+                  width: "100%",
+                  boxSizing: "border-box",
+                }}
+              >
+                {filteredDepartments.map((d) => {
                   const subjectsList = d.subjects || [];
+                  const isPending = (d.status || "").toLowerCase().includes("pend");
+                  const hasHod = Boolean(
+                    d.headTeacherId ||
+                    (d.headName && d.headName !== "Unassigned" && d.headName !== "Department Head")
+                  );
 
                   return (
                     <div
                       key={d.id}
                       onClick={() => {
                         setSelectedDept(d);
-                        setDept360Tab("overview");
                       }}
                       style={{
                         boxSizing: "border-box",
                         display: "flex",
-                        flexDirection: "row",
-                        alignItems: "center",
-                        padding: "0 8px",
-                        width: "100%",
-                        height: "52px",
-                        minHeight: "52px",
-                        background: isEven ? "#FFFFFF" : "#F8FAFC",
-                        borderBottom: "1px solid #E0E5EB",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        padding: "18px 20px",
+                        background: "#FFFFFF",
+                        border: "1.5px solid #E2E8F0",
+                        borderRadius: "12px",
                         cursor: "pointer",
-                        transition: "background 0.15s ease",
+                        transition: "all 0.18s cubic-bezier(0.16, 1, 0.3, 1)",
+                        boxShadow: "0 2px 5px rgba(12, 30, 51, 0.03)",
+                        gap: "14px",
                       }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "#F1F5F9")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = isEven ? "#FFFFFF" : "#F8FAFC")}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = "#94A3B8";
+                        e.currentTarget.style.transform = "translateY(-2px)";
+                        e.currentTarget.style.boxShadow = "0 8px 20px rgba(12, 30, 51, 0.08)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = "#E2E8F0";
+                        e.currentTarget.style.transform = "translateY(0)";
+                        e.currentTarget.style.boxShadow = "0 2px 5px rgba(12, 30, 51, 0.03)";
+                      }}
                     >
-                      {/* Department & Code */}
-                      <div
-                        style={{
-                          flex: "2.4 1 190px",
-                          minWidth: 0,
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "1px",
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <span
+                      {/* Top Header */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0, flex: 1 }}>
+                          <div
                             style={{
-                              fontFamily: "'Poppins', sans-serif",
-                              fontWeight: 650,
+                              width: "40px",
+                              height: "40px",
+                              borderRadius: "8px",
+                              background: "#E0D3FF",
+                              color: "#51249A",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontWeight: 700,
                               fontSize: "13px",
-                              color: "#0C1E33",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
+                              flexShrink: 0,
+                              letterSpacing: "0.02em",
                             }}
-                            title={d.name}
                           >
-                            {d.name || "—"}
-                          </span>
-                          <span style={{ fontSize: "10px", fontWeight: 700, padding: "1px 5px", borderRadius: "4px", background: "#F1F5F9", color: "#0C1E33", border: "1px solid #E2E8F0", fontFamily: "monospace" }}>
-                            {d.code || "—"}
-                          </span>
+                            {d.code?.slice(0, 4) || "DEPT"}
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <h3
+                              style={{
+                                margin: 0,
+                                fontSize: "15px",
+                                fontWeight: 700,
+                                color: "#0C1E33",
+                                lineHeight: "125%",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                              title={d.name}
+                            >
+                              {d.name}
+                            </h3>
+                            <span style={{ fontSize: "11px", color: "#64748B" }}>
+                              {d.location || "Academic Wing"}
+                            </span>
+                          </div>
                         </div>
-                        <span style={{ fontSize: "11px", color: "#64748B", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                          {d.location || "Central Campus Wing"}
-                        </span>
-                      </div>
-
-                      {/* Head of Department */}
-                      <div
-                        style={{
-                          flex: "2.1 1 170px",
-                          minWidth: 0,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: "28px",
-                            height: "28px",
-                            borderRadius: "50%",
-                            overflow: "hidden",
-                            background: "#F5F6F8",
-                            border: "1px solid #E4E6E9",
-                            flexShrink: 0,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                          }}
-                        >
-                          <img
-                            src={getStudentAvatarUrl(d.headName || d.name, d.headEmail || d.code)}
-                            alt=""
-                            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                          />
-                        </div>
-                        <div style={{ display: "flex", flexDirection: "column", minWidth: 0, flex: 1, gap: "1px" }}>
-                          <span style={{ fontWeight: 600, color: "#0C1E33", fontSize: "12.5px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.headName || "Unassigned"}>
-                            {d.headName && d.headName !== "Department Head" ? d.headName : "Unassigned"}
-                          </span>
-                          <span style={{ fontSize: "11px", color: "#64748B", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }} title={d.headEmail || "No contact email on file"}>
-                            {d.headEmail ? d.headEmail : (d.headName && d.headName !== "Unassigned" && d.headName !== "Department Head" ? "No email on file" : "Not assigned")}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Curriculum Subjects */}
-                      <div style={{ flex: "2.1 1 170px", minWidth: 0, display: "flex", gap: "4px", alignItems: "center", overflow: "hidden" }}>
-                        {subjectsList.length > 0 ? (
-                          <>
-                            {subjectsList.slice(0, 2).map((s: any) => (
-                              <span
-                                key={s.id}
-                                style={{
-                                  fontSize: "11px",
-                                  padding: "2px 7px",
-                                  borderRadius: "4px",
-                                  background: "#FFFFFF",
-                                  color: "#0C1E33",
-                                  fontWeight: 500,
-                                  border: "1px solid #E2E8F0",
-                                  whiteSpace: "nowrap",
-                                  overflow: "hidden",
-                                  textOverflow: "ellipsis",
-                                  maxWidth: "100px",
-                                }}
-                                title={s.name}
-                              >
-                                {s.name}
-                              </span>
-                            ))}
-                            {subjectsList.length > 2 && (
-                              <span style={{ fontSize: "10.5px", padding: "1px 6px", borderRadius: "4px", background: "#F1F5F9", color: "#475569", fontWeight: 600, whiteSpace: "nowrap", flexShrink: 0 }}>
-                                +{subjectsList.length - 2}
-                              </span>
-                            )}
-                          </>
-                        ) : (
-                          <span style={{ fontSize: "11.5px", color: "#94A3B8" }}>None Mapped</span>
-                        )}
-                      </div>
-
-                      {/* Faculty Count */}
-                      <div style={{ flex: "1.2 1 100px", minWidth: 0, display: "flex", flexDirection: "column", gap: "1px" }}>
-                        <span style={{ fontWeight: 600, fontSize: "12.5px", color: "#0C1E33" }}>
-                          {d.teachersCount != null ? `${d.teachersCount} ${d.teachersCount === 1 ? "Instructor" : "Instructors"}` : "0 Instructors"}
-                        </span>
-                        <span style={{ fontSize: "11px", color: "#64748B" }}>
-                          Teaching Staff
-                        </span>
-                      </div>
-
-                      {/* Student Load */}
-                      <div style={{ flex: "1.2 1 100px", minWidth: 0, display: "flex", flexDirection: "column", gap: "1px" }}>
-                        <span style={{ fontWeight: 600, fontSize: "12.5px", color: "#0C1E33" }}>
-                          {d.studentsCount != null ? `${d.studentsCount} Students` : "0 Students"}
-                        </span>
-                        <span style={{ fontSize: "11px", color: "#64748B" }}>
-                          Total Enrolled
-                        </span>
-                      </div>
-
-                      {/* Status */}
-                      <div style={{ flex: "1.0 1 85px", minWidth: 0, display: "flex", alignItems: "center" }}>
                         <span
                           style={{
-                            fontSize: "11px",
+                            fontSize: "10.5px",
                             fontWeight: 600,
-                            padding: "2px 8px",
-                            borderRadius: "10px",
-                            background: (d.status || "").toLowerCase().includes("pend") ? "#FEF3C7" : "#ECFDF5",
-                            color: (d.status || "").toLowerCase().includes("pend") ? "#92400E" : "#047857",
+                            padding: "2px 7px",
+                            borderRadius: "100px",
+                            background: isPending ? "#FEF3C7" : "#DCFCE7",
+                            color: isPending ? "#92400E" : "#166534",
                             whiteSpace: "nowrap",
+                            flexShrink: 0,
                           }}
                         >
-                          {d.status || "Active"}
+                          {isPending ? "Pending Setup" : "Active"}
                         </span>
                       </div>
 
-                      {/* Actions */}
-                      <div style={{ flex: "0 0 110px", display: "flex", justifyContent: "flex-end" }}>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedDept(d);
-                            setDept360Tab("overview");
-                          }}
+                      {/* HOD Section */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "9px 12px",
+                          background: hasHod ? "#F8FAFC" : "#FFFBEB",
+                          border: hasHod ? "1px solid #F1F5F9" : "1px dashed #F59E0B",
+                          borderRadius: "8px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "9px", minWidth: 0 }}>
+                          <div
+                            style={{
+                              width: "28px",
+                              height: "28px",
+                              borderRadius: "50%",
+                              background: hasHod ? "#DBEAFE" : "#FEF3C7",
+                              color: hasHod ? "#1E40AF" : "#D97706",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontWeight: 700,
+                              fontSize: "11px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {hasHod ? (d.headName?.charAt(0) || "H") : "!"}
+                          </div>
+                          <div style={{ minWidth: 0, display: "flex", flexDirection: "column" }}>
+                            <span style={{ fontSize: "10px", color: "#64748B", textTransform: "uppercase", fontWeight: 600 }}>
+                              Head of Department
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "12px",
+                                fontWeight: 600,
+                                color: hasHod ? "#0C1E33" : "#D97706",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {hasHod ? d.headName : "No HOD Assigned"}
+                            </span>
+                          </div>
+                        </div>
+                        <span style={{ fontSize: "11px", color: "#2563EB", fontWeight: 600 }}>
+                          {hasHod ? "Edit" : "Assign"}
+                        </span>
+                      </div>
+
+                      {/* Mapped Subjects Preview */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <span style={{ fontSize: "11px", fontWeight: 600, color: "#64748B", textTransform: "uppercase" }}>
+                            Curriculum Subjects ({subjectsList.length})
+                          </span>
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", minHeight: "26px" }}>
+                          {subjectsList.length > 0 ? (
+                            <>
+                              {subjectsList.slice(0, 3).map((sub: any) => (
+                                <span
+                                  key={sub.id}
+                                  style={{
+                                    fontSize: "11px",
+                                    padding: "3px 8px",
+                                    borderRadius: "6px",
+                                    background: "#F1F5F9",
+                                    color: "#334155",
+                                    fontWeight: 500,
+                                    maxWidth: "110px",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                    whiteSpace: "nowrap",
+                                  }}
+                                  title={sub.name}
+                                >
+                                  {sub.name}
+                                </span>
+                              ))}
+                              {subjectsList.length > 3 && (
+                                <span
+                                  style={{
+                                    fontSize: "10.5px",
+                                    padding: "3px 7px",
+                                    borderRadius: "6px",
+                                    background: "#E2E8F0",
+                                    color: "#475569",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  +{subjectsList.length - 3} more
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            <span style={{ fontSize: "11.5px", color: "#94A3B8", fontStyle: "italic" }}>
+                              No subjects mapped
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Footer Metrics & Dossier Action */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          paddingTop: "12px",
+                          borderTop: "1px solid #F1F5F9",
+                          marginTop: "auto",
+                        }}
+                      >
+                        <div style={{ display: "flex", gap: "12px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                            <GraduationCap size={14} style={{ color: "#64748B" }} />
+                            <span style={{ fontSize: "11.5px", color: "#334155", fontWeight: 600 }}>
+                              {d.teachersCount ?? 0}
+                            </span>
+                            <span style={{ fontSize: "11px", color: "#64748B" }}>faculty</span>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                            <Users size={14} style={{ color: "#64748B" }} />
+                            <span style={{ fontSize: "11.5px", color: "#334155", fontWeight: 600 }}>
+                              {d.studentsCount ?? 0}
+                            </span>
+                            <span style={{ fontSize: "11px", color: "#64748B" }}>students</span>
+                          </div>
+                        </div>
+
+                        <div
                           style={{
-                            display: "inline-flex",
+                            display: "flex",
                             alignItems: "center",
-                            gap: "6px",
-                            padding: "6px 12px",
-                            background: "#0C1E33",
-                            border: "1px solid #0C1E33",
-                            color: "#FFFFFF",
-                            borderRadius: "6px",
-                            fontSize: "11.5px",
-                            fontWeight: 500,
-                            cursor: "pointer",
-                            fontFamily: "'Poppins', sans-serif",
-                            transition: "all 0.15s ease",
-                          }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = "#1B3654";
-                            e.currentTarget.style.borderColor = "#1B3654";
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = "#0C1E33";
-                            e.currentTarget.style.borderColor = "#0C1E33";
+                            gap: "4px",
+                            color: "#2563EB",
+                            fontSize: "12px",
+                            fontWeight: 600,
                           }}
                         >
                           <span>Dossier</span>
-                          <ChevronRight size={13} />
-                        </button>
+                          <ArrowRight size={13} />
+                        </div>
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -6670,25 +6681,67 @@ export function PeoplePane({
                 Admission #{selectedStudent.admissionNo || "-"} · Class {selectedStudent.grade || "-"} ({selectedStudent.section || "-"})
               </span>
 
-              <button
-                onClick={() => setSelectedStudent(null)}
-                style={{
-                  padding: "6px 16px",
-                  background: "#F1F5F9",
-                  color: "#0C1E33",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: "6px",
-                  fontWeight: 500,
-                  fontSize: "12.5px",
-                  cursor: "pointer",
-                  fontFamily: "'Poppins', sans-serif",
-                  transition: "background 0.12s ease",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#E2E8F0")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#F1F5F9")}
-              >
-                Close
-              </button>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLifecycleTarget({
+                      id: selectedStudent.id,
+                      name: selectedStudent.name,
+                      email: selectedStudent.email,
+                      role: "student",
+                      status: selectedStudent.status,
+                      sublabel: `Admission #${selectedStudent.admissionNo || "-"}`,
+                    })
+                  }
+                  style={{
+                    padding: "6px 14px",
+                    background: (selectedStudent.status || "").toLowerCase() === "inactive" ? "#DCFCE7" : "#FEE2E2",
+                    color: (selectedStudent.status || "").toLowerCase() === "inactive" ? "#166534" : "#DC2626",
+                    border: (selectedStudent.status || "").toLowerCase() === "inactive" ? "1px solid #86EFAC" : "1px solid #FCA5A5",
+                    borderRadius: "6px",
+                    fontWeight: 600,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  {(selectedStudent.status || "").toLowerCase() === "inactive" ? (
+                    <>
+                      <UserCheck size={13} />
+                      <span>Reactivate Student</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserX size={13} />
+                      <span>Deactivate / Remove</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setSelectedStudent(null)}
+                  style={{
+                    padding: "6px 16px",
+                    background: "#F1F5F9",
+                    color: "#0C1E33",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: "6px",
+                    fontWeight: 500,
+                    fontSize: "12.5px",
+                    cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
+                    transition: "background 0.12s ease",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#E2E8F0")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#F1F5F9")}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </aside>
         </div>
@@ -7178,25 +7231,67 @@ export function PeoplePane({
                 Staff #{selectedStaff.empId || selectedStaff.id?.slice(0, 8)} · {selectedStaff.department || "Operations & Support"}
               </span>
 
-              <button
-                onClick={() => setSelectedStaff(null)}
-                style={{
-                  padding: "6px 16px",
-                  background: "#F1F5F9",
-                  color: "#0C1E33",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: "6px",
-                  fontWeight: 500,
-                  fontSize: "12.5px",
-                  cursor: "pointer",
-                  fontFamily: "'Poppins', sans-serif",
-                  transition: "background 0.12s ease",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#E2E8F0")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#F1F5F9")}
-              >
-                Close
-              </button>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLifecycleTarget({
+                      id: (selectedStaff as any).userId || selectedStaff.id,
+                      name: selectedStaff.name,
+                      email: selectedStaff.email,
+                      role: "staff",
+                      status: selectedStaff.status,
+                      sublabel: `Staff #${selectedStaff.empId || selectedStaff.id?.slice(0, 8)}`,
+                    })
+                  }
+                  style={{
+                    padding: "6px 14px",
+                    background: (selectedStaff.status || "").toLowerCase() === "inactive" ? "#DCFCE7" : "#FEE2E2",
+                    color: (selectedStaff.status || "").toLowerCase() === "inactive" ? "#166534" : "#DC2626",
+                    border: (selectedStaff.status || "").toLowerCase() === "inactive" ? "1px solid #86EFAC" : "1px solid #FCA5A5",
+                    borderRadius: "6px",
+                    fontWeight: 600,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  {(selectedStaff.status || "").toLowerCase() === "inactive" ? (
+                    <>
+                      <UserCheck size={13} />
+                      <span>Reactivate Staff</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserX size={13} />
+                      <span>Deactivate / Remove</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setSelectedStaff(null)}
+                  style={{
+                    padding: "6px 16px",
+                    background: "#F1F5F9",
+                    color: "#0C1E33",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: "6px",
+                    fontWeight: 500,
+                    fontSize: "12.5px",
+                    cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
+                    transition: "background 0.12s ease",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#E2E8F0")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#F1F5F9")}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </aside>
         </div>
@@ -8475,942 +8570,97 @@ export function PeoplePane({
                 Guardian #{selectedParent.id ? selectedParent.id.slice(0, 8).toUpperCase() : "-"} · {selectedParent.relationship || "Guardian"} ({selectedParent.children?.length || 0} Ward{selectedParent.children?.length === 1 ? "" : "s"})
               </span>
 
-              <button
-                onClick={() => setSelectedParent(null)}
-                style={{
-                  padding: "6px 16px",
-                  background: "#F1F5F9",
-                  color: "#0C1E33",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: "6px",
-                  fontWeight: 500,
-                  fontSize: "12.5px",
-                  cursor: "pointer",
-                  fontFamily: "'Poppins', sans-serif",
-                  transition: "background 0.12s ease",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#E2E8F0")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#F1F5F9")}
-              >
-                Close
-              </button>
-            </div>
-          </aside>
-        </div>
-      )}
-
-      {/* ============================================================== */}
-      {/* 3. ACADEMIC DEPARTMENT DOSSIER DRAWER (RIGHT SIDE SLIDE-IN)     */}
-      {/* ============================================================== */}
-      {selectedDept && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(12, 30, 51, 0.45)",
-            backdropFilter: "blur(4px)",
-            zIndex: 1000,
-            display: "flex",
-            justifyContent: "flex-end",
-            overflow: "hidden",
-          }}
-          onMouseDown={(e) => {
-            if (e.target === e.currentTarget) setSelectedDept(null);
-          }}
-        >
-          <aside
-            className="edops-right-drawer"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`Department Profile - ${selectedDept.name}`}
-            style={{
-              width: "var(--edops-drawer-width)",
-              maxWidth: "100vw",
-              height: "100vh",
-              background: "#FFFFFF",
-              boxShadow: "-8px 0 32px rgba(12, 30, 51, 0.14)",
-              display: "flex",
-              flexDirection: "column",
-              animation: "edopsSlideInRight 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
-              position: "relative",
-              zIndex: 1001,
-              borderLeft: "1px solid #E2E8F0",
-              fontFamily: "'Poppins', sans-serif",
-            }}
-          >
-            {/* Header: Clean, minimalist with breadcrumb & close */}
-            {/* Header: Clean, minimalist with breadcrumb & close */}
-            <div
-              style={{
-                padding: "18px 24px 14px",
-                borderBottom: "1px solid #E2E8F0",
-                background: "#FFFFFF",
-                flexShrink: 0,
-              }}
-            >
-              {/* Top row */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: "12px",
-                }}
-              >
-                <span style={{ fontSize: "11.5px", color: "#64748B", fontWeight: 500, letterSpacing: "0.02em" }}>
-                  Academic Department Dossier · {selectedDept.code || "DEPT"}
-                </span>
-
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                 <button
-                  onClick={() => setSelectedDept(null)}
-                  title="Close (Esc)"
+                  type="button"
+                  onClick={() =>
+                    setLifecycleTarget({
+                      id: (selectedParent as any).userId || selectedParent.id,
+                      name: selectedParent.name,
+                      email: selectedParent.email,
+                      role: "parent",
+                      status: selectedParent.status || "Active",
+                      sublabel: `Guardian · ${selectedParent.relationship || "Parent"}`,
+                    })
+                  }
                   style={{
-                    width: "28px",
-                    height: "28px",
+                    padding: "6px 14px",
+                    background: (selectedParent.status || "").toLowerCase() === "inactive" ? "#DCFCE7" : "#FEE2E2",
+                    color: (selectedParent.status || "").toLowerCase() === "inactive" ? "#166534" : "#DC2626",
+                    border: (selectedParent.status || "").toLowerCase() === "inactive" ? "1px solid #86EFAC" : "1px solid #FCA5A5",
                     borderRadius: "6px",
-                    border: "1px solid #E2E8F0",
-                    background: "#FFFFFF",
-                    color: "#64748B",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    fontWeight: 600,
+                    fontSize: "12px",
                     cursor: "pointer",
-                    transition: "all 0.12s ease",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#F1F5F9";
-                    e.currentTarget.style.color = "#0C1E33";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#FFFFFF";
-                    e.currentTarget.style.color = "#64748B";
-                  }}
-                >
-                  <X size={15} />
-                </button>
-              </div>
-
-              {/* Profile identity banner */}
-              <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-                <div
-                  style={{
-                    width: "50px",
-                    height: "50px",
-                    borderRadius: "50%",
-                    overflow: "hidden",
-                    border: "1px solid #E2E8F0",
-                    background: "#F8FAFC",
-                    flexShrink: 0,
-                    display: "flex",
+                    fontFamily: "'Poppins', sans-serif",
+                    display: "inline-flex",
                     alignItems: "center",
-                    justifyContent: "center",
+                    gap: "6px",
                   }}
                 >
-                  <Building2 size={22} style={{ color: "#0C1E33" }} />
-                </div>
-
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <h3
-                      style={{
-                        margin: 0,
-                        fontSize: "17px",
-                        fontWeight: 650,
-                        color: "#0C1E33",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {selectedDept.name}
-                    </h3>
-                  </div>
-
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      marginTop: "4px",
-                      fontSize: "12px",
-                      color: "#64748B",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <span>Discipline: <b style={{ color: "#0C1E33", fontFamily: "monospace" }}>{selectedDept.code || "—"}</b></span>
-                    <span style={{ color: "#CBD5E1" }}>•</span>
-                    <span>HOD: <span style={{ color: "#0C1E33", fontWeight: 500 }}>{selectedDept.headName || "Unassigned"}</span></span>
-                    <span style={{ color: "#CBD5E1" }}>•</span>
-                    <span>{selectedDept.location || "Academic Wing"}</span>
-                    {selectedDept.headEmail && (
-                      <>
-                        <span style={{ color: "#CBD5E1" }}>•</span>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", color: "#475569" }}>
-                          <Mail size={12} style={{ color: "#94A3B8" }} />
-                          {selectedDept.headEmail}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Underline Tab Navigation */}
-            <div
-              style={{
-                display: "flex",
-                overflowX: "auto",
-                background: "#FFFFFF",
-                borderBottom: "1px solid #E2E8F0",
-                padding: "0 20px",
-                scrollbarWidth: "none",
-                flexShrink: 0,
-              }}
-            >
-              {[
-                { id: "overview", label: "Overview & Metrics", icon: BookOpen },
-                { id: "subjects", label: `Curriculum Subjects (${selectedDept.subjects?.length || 0})`, icon: FileText },
-                { id: "faculty", label: `Faculty Load (${selectedDept.teachersCount || 0})`, icon: GraduationCap },
-              ].map((tab) => {
-                const isActive = dept360Tab === tab.id;
-                const TabIcon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setDept360Tab(tab.id as any)}
-                    style={{
-                      boxSizing: "border-box",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      padding: "10px 12px",
-                      fontSize: "12.5px",
-                      fontFamily: "'Poppins', sans-serif",
-                      fontWeight: isActive ? 600 : 500,
-                      background: "transparent",
-                      color: isActive ? "#0C1E33" : "#64748B",
-                      border: "none",
-                      borderBottom: isActive ? "2px solid #0C1E33" : "2px solid transparent",
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      flexShrink: 0,
-                      transition: "all 0.12s ease",
-                      marginBottom: "-1px",
-                    }}
-                    onMouseEnter={(e) => {
-                      if (!isActive) e.currentTarget.style.color = "#0C1E33";
-                    }}
-                    onMouseLeave={(e) => {
-                      if (!isActive) e.currentTarget.style.color = "#64748B";
-                    }}
-                  >
-                    <TabIcon size={13} style={{ color: isActive ? "#0C1E33" : "#94A3B8" }} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Scrollable body */}
-            <div
-              style={{
-                flex: 1,
-                overflowY: "auto",
-                padding: "20px 24px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "18px",
-                scrollbarWidth: "none",
-              }}
-            >
-              {dept360Tab === "overview" && (
-                <>
-                  {/* Metrics 4-grid */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "12px" }}>
-                    <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "8px", padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                        <span style={{ fontSize: "11px", color: "#64748B", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                          Active Faculty
-                        </span>
-                        <GraduationCap size={15} style={{ color: "#94A3B8" }} />
-                      </div>
-                      <div style={{ fontSize: "20px", fontWeight: 700, color: "#0C1E33" }}>
-                        {selectedDept.teachersCount || selectedDept.teachers?.length || 0}
-                        <span style={{ fontSize: "13px", fontWeight: 500, color: "#64748B", marginLeft: "6px" }}>Instructors</span>
-                      </div>
-                    </div>
-
-                    <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "8px", padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                        <span style={{ fontSize: "11px", color: "#64748B", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                          Curriculum Subjects
-                        </span>
-                        <BookOpen size={15} style={{ color: "#94A3B8" }} />
-                      </div>
-                      <div style={{ fontSize: "20px", fontWeight: 700, color: "#0C1E33" }}>
-                        {selectedDept.subjects?.length || 0}
-                        <span style={{ fontSize: "13px", fontWeight: 500, color: "#64748B", marginLeft: "6px" }}>Subjects</span>
-                      </div>
-                    </div>
-
-                    <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "8px", padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                        <span style={{ fontSize: "11px", color: "#64748B", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                          Student Load
-                        </span>
-                        <Users size={15} style={{ color: "#94A3B8" }} />
-                      </div>
-                      <div style={{ fontSize: "20px", fontWeight: 700, color: "#0C1E33" }}>
-                        {selectedDept.studentsCount || 0}
-                        <span style={{ fontSize: "13px", fontWeight: 500, color: "#64748B", marginLeft: "6px" }}>Students</span>
-                      </div>
-                    </div>
-
-                    <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "8px", padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                        <span style={{ fontSize: "11px", color: "#64748B", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.03em" }}>
-                          Operating Status
-                        </span>
-                        <Building2 size={15} style={{ color: "#94A3B8" }} />
-                      </div>
-                      <div style={{ marginTop: "2px" }}>
-                        {(() => {
-                          const isPending = (selectedDept.status || "").toLowerCase().includes("pend");
-                          return (
-                            <span
-                              style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "6px",
-                                padding: "4px 10px",
-                                borderRadius: "12px",
-                                fontSize: "12px",
-                                fontWeight: 600,
-                                background: isPending ? "#FEF3C7" : "#ECFDF5",
-                                color: isPending ? "#92400E" : "#047857",
-                              }}
-                            >
-                              <span
-                                style={{
-                                  width: "6px",
-                                  height: "6px",
-                                  borderRadius: "50%",
-                                  background: isPending ? "#F59E0B" : "#10B981",
-                                }}
-                              />
-                              {isPending ? "Pending Setup" : (selectedDept.status || "Active Unit")}
-                            </span>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Department Academic Configuration Card */}
-                  <div style={{ border: "1px solid #E2E8F0", borderRadius: "8px", padding: "16px 18px", background: "#FFFFFF" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "14px", color: "#0C1E33" }}>
-                      <Building2 size={14} style={{ color: "#475569" }} />
-                      <h4 style={{ margin: 0, fontSize: "13.5px", fontWeight: 600 }}>Department Configuration & Academic Scope</h4>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 16px" }}>
-                      <div>
-                        <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Department Unit</div>
-                        <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px" }}>
-                          {selectedDept.name}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Discipline Code</div>
-                        <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px", fontFamily: "monospace" }}>
-                          {selectedDept.code}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Physical Wing / Location</div>
-                        <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px" }}>
-                          {selectedDept.location || "Academic Wing"}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Affiliated Subjects</div>
-                        <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px" }}>
-                          {selectedDept.subjects?.length || 0} Curriculum Courses Linked
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Operating Status</div>
-                        <div style={{ fontSize: "13px", color: (selectedDept.status || "").toLowerCase().includes("pend") ? "#92400E" : "#047857", fontWeight: 600, marginTop: "2px" }}>
-                          ● {(selectedDept.status || "").toLowerCase().includes("pend") ? "Pending Setup" : "Active (Verified)"}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Faculty Assignment</div>
-                        <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px" }}>
-                          {selectedDept.teachersCount || selectedDept.teachers?.length || 0} Instructors Assigned
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Governance & Leadership Card */}
-                  <div style={{ border: "1px solid #E2E8F0", borderRadius: "8px", padding: "16px 18px", background: "#FFFFFF" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "14px", color: "#0C1E33" }}>
-                      <UserCheck size={14} style={{ color: "#475569" }} />
-                      <h4 style={{ margin: 0, fontSize: "13.5px", fontWeight: 600 }}>Department Leadership & Governance</h4>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px 16px" }}>
-                      <div>
-                        <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Head of Department</div>
-                        <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px" }}>
-                          {selectedDept.headName || "Unassigned"}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>HOD Contact Email</div>
-                        <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px" }}>
-                          {selectedDept.headEmail || "No contact email on file"}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Governance Role</div>
-                        <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px" }}>
-                          Department Chair / Faculty Lead
-                        </div>
-                      </div>
-
-                      <div>
-                        <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Administrative Office</div>
-                        <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px" }}>
-                          {selectedDept.location ? `${selectedDept.location} Admin Suite` : "Main Academic Office"}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {dept360Tab === "subjects" && (
-                <div
-                  style={{
-                    background: "#FFFFFF",
-                    border: "1px solid #E2E8F0",
-                    borderRadius: "8px",
-                    padding: "16px 18px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "14px",
-                  }}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                    }}
-                  >
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <BookOpen size={14} style={{ color: "#475569" }} />
-                        <h4 style={{ margin: 0, fontSize: "13.5px", fontWeight: 600, color: "#0C1E33" }}>
-                          Curriculum Subjects ({selectedDept.subjects?.length || 0})
-                        </h4>
-                      </div>
-                      <div style={{ fontSize: "11.5px", color: "#64748B", marginTop: "2px" }}>
-                        Academic courses and curriculum disciplines assigned to this department
-                      </div>
-                    </div>
-                    {!isMappingDeptSubjects && (
-                      <button
-                        type="button"
-                        onClick={() => handleStartMappingDeptSubjects(selectedDept)}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          padding: "6px 12px",
-                          background: "#0C1E33",
-                          color: "#FFFFFF",
-                          border: "none",
-                          borderRadius: "6px",
-                          fontSize: "11.5px",
-                          fontWeight: 500,
-                          cursor: "pointer",
-                          fontFamily: "'Poppins', sans-serif",
-                          transition: "background 0.12s ease",
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = "#1E293B";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "#0C1E33";
-                        }}
-                      >
-                        <Plus size={13} />
-                        <span>Manage Subjects</span>
-                      </button>
-                    )}
-                  </div>
-
-                  {isMappingDeptSubjects ? (
-                    <div
-                      style={{
-                        background: "#F8FAFC",
-                        border: "1px solid #CBD5E1",
-                        borderRadius: "8px",
-                        padding: "14px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: "12px",
-                      }}
-                    >
-                      <div style={{ fontSize: "12px", color: "#475569" }}>
-                        Select the curriculum subjects to link with <b>{selectedDept.name}</b>.
-                      </div>
-
-                      {/* Search box */}
-                      <div
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "8px",
-                          background: "#FFFFFF",
-                          border: "1px solid #CBD5E1",
-                          borderRadius: "6px",
-                          padding: "6px 10px",
-                        }}
-                      >
-                        <Search size={14} style={{ color: "#94A3B8" }} />
-                        <input
-                          type="text"
-                          value={deptSubjectSearchQuery}
-                          onChange={(e) => setDeptSubjectSearchQuery(e.target.value)}
-                          placeholder="Search subjects by title or code..."
-                          style={{
-                            border: "none",
-                            outline: "none",
-                            fontSize: "12px",
-                            fontFamily: "'Poppins', sans-serif",
-                            width: "100%",
-                            background: "transparent",
-                          }}
-                        />
-                        {deptSubjectSearchQuery && (
-                          <button
-                            type="button"
-                            onClick={() => setDeptSubjectSearchQuery("")}
-                            style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                          >
-                            <X size={13} style={{ color: "#94A3B8" }} />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* List of subjects to select */}
-                      <div
-                        style={{
-                          maxHeight: "260px",
-                          overflowY: "auto",
-                          display: "flex",
-                          flexDirection: "column",
-                          gap: "6px",
-                          paddingRight: "4px",
-                        }}
-                      >
-                        {filteredAvailableSubjects.length === 0 ? (
-                          <div style={{ textAlign: "center", padding: "20px 0", color: "#64748B", fontSize: "12px" }}>
-                            No subjects found matching "{deptSubjectSearchQuery}"
-                          </div>
-                        ) : (
-                          filteredAvailableSubjects.map((sub: any) => {
-                            const subId = sub.id;
-                            const isChecked = selectedDeptSubjectIds.includes(subId);
-                            const isCurrentDept = sub.departmentId === selectedDept.id;
-                            const isOtherDept = sub.departmentName && sub.departmentId && !isCurrentDept;
-
-                            return (
-                              <label
-                                key={subId}
-                                style={{
-                                  display: "flex",
-                                  alignItems: "center",
-                                  gap: "10px",
-                                  padding: "8px 12px",
-                                  background: isChecked ? "#EFF6FF" : "#FFFFFF",
-                                  border: isChecked ? "1px solid #93C5FD" : "1px solid #E2E8F0",
-                                  borderRadius: "6px",
-                                  cursor: "pointer",
-                                  transition: "all 0.12s ease",
-                                }}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={(e) => {
-                                    if (e.target.checked) {
-                                      setSelectedDeptSubjectIds((prev) => [...prev, subId]);
-                                    } else {
-                                      setSelectedDeptSubjectIds((prev) => prev.filter((id) => id !== subId));
-                                    }
-                                  }}
-                                  style={{
-                                    width: "15px",
-                                    height: "15px",
-                                    accentColor: "#0C1E33",
-                                    cursor: "pointer",
-                                  }}
-                                />
-                                <div
-                                  style={{
-                                    width: "28px",
-                                    height: "28px",
-                                    borderRadius: "6px",
-                                    background: isChecked ? "#DBEAFE" : "#F1F5F9",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  <BookOpen size={14} style={{ color: isChecked ? "#1D4ED8" : "#64748B" }} />
-                                </div>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#0C1E33" }}>
-                                    {sub.name}
-                                  </div>
-                                  <div style={{ fontSize: "11px", color: "#64748B" }}>
-                                    {sub.code ? `Code: ${sub.code}` : "Curriculum Unit"}
-                                    {sub.teacherName ? ` · Lead: ${sub.teacherName}` : ""}
-                                  </div>
-                                </div>
-                                {isOtherDept && (
-                                  <span
-                                    style={{
-                                      fontSize: "10px",
-                                      color: "#64748B",
-                                      background: "#F1F5F9",
-                                      border: "1px solid #E2E8F0",
-                                      padding: "2px 6px",
-                                      borderRadius: "4px",
-                                      whiteSpace: "nowrap",
-                                    }}
-                                  >
-                                    Currently in: {sub.departmentName}
-                                  </span>
-                                )}
-                              </label>
-                            );
-                          })
-                        )}
-                      </div>
-
-                      {/* Save & Cancel buttons */}
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "flex-end",
-                          gap: "8px",
-                          paddingTop: "10px",
-                          borderTop: "1px solid #F1F5F9",
-                        }}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => setIsMappingDeptSubjects(false)}
-                          disabled={savingDeptSubjects}
-                          style={{
-                            padding: "6px 14px",
-                            background: "#FFFFFF",
-                            border: "1px solid #CBD5E1",
-                            borderRadius: "6px",
-                            fontSize: "11.5px",
-                            fontWeight: 600,
-                            cursor: savingDeptSubjects ? "not-allowed" : "pointer",
-                            color: "#475569",
-                            fontFamily: "'Poppins', sans-serif",
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleSaveDeptSubjectsInsideDossier}
-                          disabled={savingDeptSubjects}
-                          style={{
-                            padding: "6px 16px",
-                            background: "#0C1E33",
-                            border: "none",
-                            borderRadius: "6px",
-                            fontSize: "11.5px",
-                            fontWeight: 600,
-                            cursor: savingDeptSubjects ? "not-allowed" : "pointer",
-                            color: "#FFFFFF",
-                            opacity: savingDeptSubjects ? 0.7 : 1,
-                            fontFamily: "'Poppins', sans-serif",
-                          }}
-                        >
-                          {savingDeptSubjects ? "Saving Changes..." : "Save Mapped Subjects"}
-                        </button>
-                      </div>
-                    </div>
+                  {(selectedParent.status || "").toLowerCase() === "inactive" ? (
+                    <>
+                      <UserCheck size={13} />
+                      <span>Reactivate Guardian</span>
+                    </>
                   ) : (
                     <>
-                      {selectedDept.subjects && selectedDept.subjects.length > 0 ? (
-                        <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                          {selectedDept.subjects.map((sub: any, idx: number) => {
-                            const subId = sub.id || idx;
-                            return (
-                              <div
-                                key={subId}
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                  padding: "10px 14px",
-                                  background: "#FFFFFF",
-                                  borderRadius: "6px",
-                                  border: "1px solid #E2E8F0",
-                                  fontSize: "12.5px",
-                                }}
-                              >
-                                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                                  <div
-                                    style={{
-                                      width: "32px",
-                                      height: "32px",
-                                      borderRadius: "6px",
-                                      background: "#F8FAFC",
-                                      border: "1px solid #E2E8F0",
-                                      display: "flex",
-                                      alignItems: "center",
-                                      justifyContent: "center",
-                                      flexShrink: 0,
-                                    }}
-                                  >
-                                    <BookOpen size={15} style={{ color: "#0C1E33" }} />
-                                  </div>
-                                  <div>
-                                    <div style={{ fontWeight: 600, color: "#0C1E33" }}>{sub.name}</div>
-                                    <div style={{ fontSize: "11px", color: "#64748B" }}>
-                                      {sub.code ? `Code: ${sub.code}` : "Curriculum Subject"}
-                                      {sub.teacherName ? ` · Lead: ${sub.teacherName}` : ""}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                  {sub.code && (
-                                    <span
-                                      style={{
-                                        fontSize: "10.5px",
-                                        fontFamily: "monospace",
-                                        color: "#475569",
-                                        background: "#F8FAFC",
-                                        border: "1px solid #E2E8F0",
-                                        padding: "2px 8px",
-                                        borderRadius: "4px",
-                                      }}
-                                    >
-                                      {sub.code}
-                                    </span>
-                                  )}
-                                  <button
-                                    type="button"
-                                    title="Unlink subject from department"
-                                    onClick={() => handleUnlinkDeptSubject(sub.id)}
-                                    disabled={savingDeptSubjects}
-                                    style={{
-                                      background: "none",
-                                      border: "1px solid #E2E8F0",
-                                      borderRadius: "6px",
-                                      padding: "4px 8px",
-                                      color: "#64748B",
-                                      cursor: savingDeptSubjects ? "not-allowed" : "pointer",
-                                      fontSize: "11px",
-                                      fontWeight: 500,
-                                      display: "inline-flex",
-                                      alignItems: "center",
-                                      gap: "4px",
-                                      transition: "all 0.12s ease",
-                                    }}
-                                    onMouseEnter={(e) => {
-                                      e.currentTarget.style.background = "#FEE2E2";
-                                      e.currentTarget.style.borderColor = "#FCA5A5";
-                                      e.currentTarget.style.color = "#DC2626";
-                                    }}
-                                    onMouseLeave={(e) => {
-                                      e.currentTarget.style.background = "none";
-                                      e.currentTarget.style.borderColor = "#E2E8F0";
-                                      e.currentTarget.style.color = "#64748B";
-                                    }}
-                                  >
-                                    <span>Unlink</span>
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        <StudentProfileEmptyState
-                          title="No Mapped Subjects"
-                          description="No curriculum subjects are currently linked to this academic department."
-                          actionLabel="+ Link Subjects"
-                          onAction={() => handleStartMappingDeptSubjects(selectedDept)}
-                        />
-                      )}
+                      <UserX size={13} />
+                      <span>Deactivate / Remove</span>
                     </>
                   )}
-                </div>
-              )}
+                </button>
 
-              {dept360Tab === "faculty" && (
-                <div
+                <button
+                  onClick={() => setSelectedParent(null)}
                   style={{
-                    background: "#FFFFFF",
+                    padding: "6px 16px",
+                    background: "#F1F5F9",
+                    color: "#0C1E33",
                     border: "1px solid #E2E8F0",
-                    borderRadius: "8px",
-                    padding: "16px 18px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "12px",
+                    borderRadius: "6px",
+                    fontWeight: 500,
+                    fontSize: "12.5px",
+                    cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
+                    transition: "background 0.12s ease",
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#E2E8F0")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#F1F5F9")}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div>
-                      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                        <GraduationCap size={14} style={{ color: "#475569" }} />
-                        <h4 style={{ margin: 0, fontSize: "13.5px", fontWeight: 600, color: "#0C1E33" }}>
-                          Affiliated Faculty Members ({selectedDept.teachersCount || selectedDept.teachers?.length || 0})
-                        </h4>
-                      </div>
-                      <div style={{ fontSize: "11.5px", color: "#64748B", marginTop: "2px" }}>
-                        Instructors and educational specialists affiliated with {selectedDept.name}
-                      </div>
-                    </div>
-                  </div>
-
-                  {selectedDept.teachers && selectedDept.teachers.length > 0 ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                      {selectedDept.teachers.map((t: any, idx: number) => {
-                        const tId = t.id || idx;
-                        return (
-                          <div
-                            key={tId}
-                            style={{
-                              padding: "10px 14px",
-                              background: "#FFFFFF",
-                              border: "1px solid #E2E8F0",
-                              borderRadius: "8px",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                              <div
-                                style={{
-                                  width: "34px",
-                                  height: "34px",
-                                  borderRadius: "50%",
-                                  overflow: "hidden",
-                                  background: "#F1F5F9",
-                                  border: "1px solid #E2E8F0",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <img
-                                  src={t.avatarUrl || getStudentAvatarUrl(t.name, t.email || t.employeeId || tId)}
-                                  alt=""
-                                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                />
-                              </div>
-                              <div>
-                                <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#0C1E33" }}>
-                                  {t.name}
-                                </div>
-                                <div style={{ fontSize: "11px", color: "#64748B" }}>
-                                  {t.designation || "Faculty Member"}
-                                  {t.employeeId ? ` · ID: ${t.employeeId}` : ""}
-                                  {t.email ? ` · ${t.email}` : ""}
-                                </div>
-                              </div>
-                            </div>
-
-                            <span
-                              style={{
-                                fontSize: "10.5px",
-                                fontWeight: 600,
-                                padding: "2px 8px",
-                                borderRadius: "10px",
-                                background: "#ECFDF5",
-                                color: "#047857",
-                              }}
-                            >
-                              Active Faculty
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <StudentProfileEmptyState
-                      title="No Affiliated Faculty"
-                      description={`No faculty instructors are currently assigned to the ${selectedDept.name} department.`}
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Sticky Drawer Footer */}
-            <div
-              style={{
-                padding: "12px 24px",
-                background: "#FFFFFF",
-                borderTop: "1px solid #E2E8F0",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                flexShrink: 0,
-              }}
-            >
-              <span style={{ fontSize: "12px", color: "#64748B" }}>
-                Department #{selectedDept.code} · {selectedDept.location || "Academic Wing"}
-              </span>
-
-              <button
-                onClick={() => setSelectedDept(null)}
-                style={{
-                  padding: "6px 16px",
-                  background: "#F1F5F9",
-                  color: "#0C1E33",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: "6px",
-                  fontWeight: 500,
-                  fontSize: "12.5px",
-                  cursor: "pointer",
-                  fontFamily: "'Poppins', sans-serif",
-                  transition: "background 0.12s ease",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#E2E8F0")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#F1F5F9")}
-              >
-                Close
-              </button>
+                  Close
+                </button>
+              </div>
             </div>
           </aside>
         </div>
       )}
+
+      {/* ============================================================== */}
+      {/* 3. ACADEMIC DEPARTMENT DOSSIER DRAWER (REUSABLE COMPONENT)     */}
+      {/* ============================================================== */}
+      <DepartmentDossierDrawer
+        department={selectedDept}
+        isOpen={Boolean(selectedDept)}
+        organizationId={organizationId || ""}
+        allTeachers={teachers}
+        allDepartments={departments}
+        onClose={() => setSelectedDept(null)}
+        onDepartmentUpdated={async () => {
+          if (organizationId) {
+            try {
+              const updatedDepts = await getSchoolAdminDepartments(organizationId);
+              setDepartments(updatedDepts || []);
+              if (selectedDept) {
+                const refreshed = (updatedDepts || []).find((d) => d.id === selectedDept.id);
+                setSelectedDept(refreshed || null);
+              }
+            } catch (err) {
+              console.error("Failed to refresh departments:", err);
+            }
+          }
+        }}
+      />
 
       {/* ============================================================== */}
       {/* TEACHER WORKLOAD PROFILE MODAL                                 */}
@@ -10081,29 +9331,94 @@ export function PeoplePane({
                 Employee ID #{selectedTeacher.empId || "-"} · {selectedTeacher.department || "Faculty"}
               </span>
 
-              <button
-                onClick={() => setSelectedTeacher(null)}
-                style={{
-                  padding: "6px 16px",
-                  background: "#F1F5F9",
-                  color: "#0C1E33",
-                  border: "1px solid #E2E8F0",
-                  borderRadius: "6px",
-                  fontWeight: 500,
-                  fontSize: "12.5px",
-                  cursor: "pointer",
-                  fontFamily: "'Poppins', sans-serif",
-                  transition: "background 0.12s ease",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "#E2E8F0")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "#F1F5F9")}
-              >
-                Close
-              </button>
+              <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLifecycleTarget({
+                      id: selectedTeacher.userId || selectedTeacher.id,
+                      name: selectedTeacher.name,
+                      email: selectedTeacher.email,
+                      role: "teacher",
+                      status: selectedTeacher.status,
+                      sublabel: `Emp ID #${selectedTeacher.empId || "-"} · ${selectedTeacher.department || "Faculty"}`,
+                    })
+                  }
+                  style={{
+                    padding: "6px 14px",
+                    background: (selectedTeacher.status || "").toLowerCase() === "inactive" ? "#DCFCE7" : "#FEE2E2",
+                    color: (selectedTeacher.status || "").toLowerCase() === "inactive" ? "#166534" : "#DC2626",
+                    border: (selectedTeacher.status || "").toLowerCase() === "inactive" ? "1px solid #86EFAC" : "1px solid #FCA5A5",
+                    borderRadius: "6px",
+                    fontWeight: 600,
+                    fontSize: "12px",
+                    cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  {(selectedTeacher.status || "").toLowerCase() === "inactive" ? (
+                    <>
+                      <UserCheck size={13} />
+                      <span>Reactivate Teacher</span>
+                    </>
+                  ) : (
+                    <>
+                      <UserX size={13} />
+                      <span>Deactivate / Remove</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => setSelectedTeacher(null)}
+                  style={{
+                    padding: "6px 16px",
+                    background: "#F1F5F9",
+                    color: "#0C1E33",
+                    border: "1px solid #E2E8F0",
+                    borderRadius: "6px",
+                    fontWeight: 500,
+                    fontSize: "12.5px",
+                    cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
+                    transition: "background 0.12s ease",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = "#E2E8F0")}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = "#F1F5F9")}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </aside>
         </div>
       )}
+
+      {/* Reusable Member Lifecycle Management Modal */}
+      <MemberLifecycleModal
+        member={lifecycleTarget}
+        isOpen={Boolean(lifecycleTarget)}
+        organizationId={organizationId || ""}
+        onClose={() => setLifecycleTarget(null)}
+        onSuccess={() => {
+          handleRefresh();
+          if (selectedStudent && (selectedStudent.id === lifecycleTarget?.id || selectedStudent.userId === lifecycleTarget?.id)) {
+            setSelectedStudent(null);
+          }
+          if (selectedTeacher && (selectedTeacher.id === lifecycleTarget?.id || selectedTeacher.userId === lifecycleTarget?.id)) {
+            setSelectedTeacher(null);
+          }
+          if (selectedStaff && (selectedStaff.id === lifecycleTarget?.id || (selectedStaff as any).userId === lifecycleTarget?.id)) {
+            setSelectedStaff(null);
+          }
+          if (selectedParent && (selectedParent.id === lifecycleTarget?.id || (selectedParent as any).userId === lifecycleTarget?.id)) {
+            setSelectedParent(null);
+          }
+        }}
+      />
     </div>
   );
 }

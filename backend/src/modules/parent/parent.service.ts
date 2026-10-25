@@ -147,8 +147,12 @@ export class ParentService {
       student,
       "parent.leave.created",
       async (m, child) => {
+        const start = new Date(dto.startDate);
+        const end = new Date(dto.endDate);
+        const daysCount = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+
         const [row] = await m.query(
-          `INSERT INTO leave_requests (organization_id,user_id,applicant_name,applicant_role,leave_type,start_date,end_date,days_count,reason) VALUES ($1,$2,$3,'student',$4,$5,$6,($6::date-$5::date)+1,$7) RETURNING *`,
+          `INSERT INTO leave_requests (organization_id,user_id,applicant_name,applicant_role,leave_type,start_date,end_date,days_count,reason) VALUES ($1,$2,$3,'student',$4,$5,$6,$7,$8) RETURNING *`,
           [
             org,
             student,
@@ -156,9 +160,40 @@ export class ParentService {
             dto.leaveType,
             dto.startDate,
             dto.endDate,
+            daysCount,
             dto.reason,
           ],
         );
+
+        // Fetch section info to route notification to class teacher or principal
+        const [sec] = await m.query(
+          `SELECT s.id as "sectionId", s.name as "sectionName", p.name as "programName"
+           FROM enrollments e
+           JOIN sections s ON s.id = e.section_id AND s.organization_id = e.organization_id
+           JOIN programs p ON p.id = s.program_id
+           WHERE e.organization_id = $1 AND e.student_user_id = $2 AND e.status = 'active'
+           LIMIT 1`,
+          [org, student],
+        ).catch(() => []);
+
+        const className = sec ? `${sec.programName} - ${sec.sectionName}` : 'Student';
+        const targetAudience = daysCount <= 2 && sec?.sectionId ? `section:${sec.sectionId}` : 'principal';
+        const title = daysCount <= 2 ? 'Student Leave Application (≤ 2 Days)' : 'Escalated Student Leave (> 2 Days)';
+
+        await m.query(
+          `INSERT INTO school_broadcasts (organization_id, title, message, channels, target_audience, priority, sent_by, sender_name)
+           VALUES ($1, $2, $3, '{"in_app"}', $4, $5, $6, $7)`,
+          [
+            org,
+            title,
+            `${child.name || 'Student'} (${className}) parent applied for ${daysCount}-day ${dto.leaveType} leave: "${dto.reason || ''}"`,
+            targetAudience,
+            daysCount > 2 ? 'high' : 'normal',
+            actor.id,
+            actor.name || actor.email || 'Parent',
+          ],
+        ).catch(() => null);
+
         return row;
       },
     );

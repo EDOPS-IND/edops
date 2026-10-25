@@ -12,8 +12,18 @@ import {
   FileCheck,
   CheckSquare,
   ArrowRight,
+  Plus,
 } from "lucide-react";
-import { getTeacherAttendance, getTeacherClasses, getTeacherTodayTimetable } from "../../edops-api";
+import {
+  applyTeacherLeave,
+  getTeacherAttendance,
+  getTeacherClasses,
+  getTeacherLeaves,
+  getTeacherStudentLeaves,
+  getTeacherTodayTimetable,
+  updateTeacherStudentLeaveStatus,
+} from "../../edops-api";
+import { ApplyLeaveModal, LeaveItem, LeaveTable } from "../../components/leave-desk";
 
 const T = {
   navy: "#0c1e33",
@@ -38,12 +48,16 @@ const T = {
 
 interface AttendancePaneProps {
   organizationId: string;
+  initialTab?: string;
+  onTabChange?: (tab: string) => void;
   onTakeAttendance: (sectionId: string, periodNumber?: number, classSection?: string) => void;
   onContactParent?: (studentName: string) => void;
 }
 
 export function AttendancePane({
   organizationId,
+  initialTab = "registers",
+  onTabChange,
   onTakeAttendance,
   onContactParent,
 }: AttendancePaneProps) {
@@ -52,10 +66,46 @@ export function AttendancePane({
   const [activeSlot, setActiveSlot] = useState<any>(null);
   const [defaultSectionId, setDefaultSectionId] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"registers" | "my_leaves" | "student_leaves">(
+    initialTab === "my_leaves" || initialTab === "student_leaves" ? initialTab : "registers"
+  );
+  const [myLeaves, setMyLeaves] = useState<any[]>([]);
+  const [studentLeaves, setStudentLeaves] = useState<any[]>([]);
+  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (initialTab && (initialTab === "registers" || initialTab === "my_leaves" || initialTab === "student_leaves")) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   useEffect(() => {
     loadData();
+    loadLeaveData();
   }, [organizationId]);
+
+  async function loadLeaveData() {
+    try {
+      const [leaves, stLeaves] = await Promise.all([
+        getTeacherLeaves(organizationId).catch(() => []),
+        getTeacherStudentLeaves(organizationId).catch(() => []),
+      ]);
+      setMyLeaves(Array.isArray(leaves) ? leaves : []);
+      setStudentLeaves(Array.isArray(stLeaves) ? stLeaves : []);
+    } catch {
+      // ignore
+    }
+  }
+
+  const handleApplyLeave = async (dto: { leaveType: string; startDate: string; endDate: string; reason: string }) => {
+    await applyTeacherLeave(organizationId, dto);
+    await loadLeaveData();
+  };
+
+  const handleReviewStudentLeave = async (id: string, status: "approved" | "rejected", reviewNotes?: string) => {
+    await updateTeacherStudentLeaveStatus(organizationId, id, status, reviewNotes);
+    await loadLeaveData();
+  };
 
   async function loadData() {
     setLoading(true);
@@ -138,64 +188,88 @@ export function AttendancePane({
           </p>
         </div>
 
-        {activeSlot ? (
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
           <button
             type="button"
-            onClick={() => onTakeAttendance(activeSlot.sectionId, activeSlot.period, activeSlot.classSection)}
+            onClick={() => setIsApplyModalOpen(true)}
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: "8px",
-              padding: "8px 16px",
+              gap: "6px",
+              padding: "8px 14px",
               borderRadius: "8px",
-              background: T.navy,
-              color: T.white,
+              border: `1px solid ${T.border}`,
+              background: T.white,
+              color: T.navy,
               fontSize: "12px",
               fontWeight: 600,
               cursor: "pointer",
-              border: "none",
-              boxShadow: "0 2px 6px rgba(12, 30, 51, 0.2)",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
             }}
           >
-            <CheckSquare size={14} />
-            <span>Take Attendance: {activeSlot.classSection} (P{activeSlot.period})</span>
+            <Calendar size={14} />
+            <span>Apply Leave</span>
           </button>
-        ) : todaySlots.length > 0 && todaySlots.every((s) => s.attendanceTaken) ? (
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "6px 14px",
-              borderRadius: "100px",
-              background: T.greenBg,
-              color: T.greenDark,
-              fontSize: "11px",
-              fontWeight: 600,
-            }}
-          >
-            <CheckCircle2 size={13} color={T.greenDark} />
-            <span>All Periods Finalized Today</span>
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              padding: "6px 14px",
-              borderRadius: "100px",
-              background: T.chip,
-              color: T.slate,
-              fontSize: "11px",
-              fontWeight: 600,
-              border: `1px solid ${T.border}`,
-            }}
-          >
-            <Clock size={13} color={T.slate} />
-            <span>No Active Class Right Now</span>
-          </div>
-        )}
+
+          {activeSlot ? (
+            <button
+              type="button"
+              onClick={() => onTakeAttendance(activeSlot.sectionId, activeSlot.period, activeSlot.classSection)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "8px",
+                padding: "8px 16px",
+                borderRadius: "8px",
+                background: T.navy,
+                color: T.white,
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                border: "none",
+                boxShadow: "0 2px 6px rgba(12, 30, 51, 0.2)",
+              }}
+            >
+              <CheckSquare size={14} />
+              <span>Take Attendance: {activeSlot.classSection} (P{activeSlot.period})</span>
+            </button>
+          ) : todaySlots.length > 0 && todaySlots.every((s) => s.attendanceTaken) ? (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                borderRadius: "100px",
+                background: T.greenBg,
+                color: T.greenDark,
+                fontSize: "11px",
+                fontWeight: 600,
+              }}
+            >
+              <CheckCircle2 size={13} color={T.greenDark} />
+              <span>All Periods Finalized Today</span>
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                borderRadius: "100px",
+                background: T.chip,
+                color: T.slate,
+                fontSize: "11px",
+                fontWeight: 600,
+                border: `1px solid ${T.border}`,
+              }}
+            >
+              <Clock size={13} color={T.slate} />
+              <span>No Active Class Right Now</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 2. Top 4 Metric Cards - Strict DESIGN.md Section 2.1 Palettes */}
@@ -323,8 +397,50 @@ export function AttendancePane({
         </div>
       </div>
 
-      {/* 3. Today's Timetable Periods & Attendance Status */}
-      {todaySlots.length > 0 && (
+      {/* Tab Navigation Strip */}
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+        {[
+          { id: "registers", label: "Daily Registers & Timetable" },
+          {
+            id: "my_leaves",
+            label: `My Leave Applications${myLeaves.filter((l) => l.status === "pending").length > 0 ? ` (${myLeaves.filter((l) => l.status === "pending").length})` : ""}`,
+          },
+          {
+            id: "student_leaves",
+            label: `Class Student Leaves (≤ 2 Days)${studentLeaves.filter((l) => l.status === "pending").length > 0 ? ` (${studentLeaves.filter((l) => l.status === "pending").length})` : ""}`,
+          },
+        ].map((t) => {
+          const isActive = activeTab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => {
+                setActiveTab(t.id as any);
+                onTabChange?.(t.id);
+              }}
+              style={{
+                padding: "8px 16px",
+                borderRadius: "8px",
+                border: "1px solid",
+                borderColor: isActive ? T.navy : T.border,
+                background: isActive ? T.navy : T.white,
+                color: isActive ? T.white : T.slate,
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === "registers" && (
+        <>
+          {/* 3. Today's Timetable Periods & Attendance Status */}
+          {todaySlots.length > 0 && (
         <div
           style={{
             background: T.white,
@@ -549,6 +665,64 @@ export function AttendancePane({
           </div>
         )}
       </div>
+      </>
+      )}
+
+      {activeTab === "my_leaves" && (
+        <LeaveTable
+          title="My Leave History & Status"
+          subtitle="Your personal leave applications submitted to Principal"
+          leaves={myLeaves.map((l: any) => ({
+            id: l.id,
+            applicantName: "Me (Teacher)",
+            applicantRole: "teacher",
+            leaveType: l.leaveType,
+            startDate: l.startDate,
+            endDate: l.endDate,
+            daysCount: l.daysCount,
+            reason: l.reason,
+            status: l.status,
+            submittedAt: l.submittedAt,
+            reviewNotes: l.reviewNotes,
+          }))}
+          canApprove={false}
+          emptyTitle="No leave applications submitted"
+          emptySubtitle="Click 'Apply Leave' above to submit a new leave request to the Principal."
+        />
+      )}
+
+      {activeTab === "student_leaves" && (
+        <LeaveTable
+          title="Student Leave Verification (≤ 2 Days)"
+          subtitle="Parent-submitted leave requests for your assigned class section"
+          leaves={studentLeaves.map((l: any) => ({
+            id: l.id,
+            applicantName: l.studentName,
+            applicantRole: "student",
+            detail: `${l.className || "Class"} ${l.sectionName || ""}${l.rollNo ? ` · Roll ${l.rollNo}` : ""}`,
+            leaveType: l.leaveType,
+            startDate: l.startDate,
+            endDate: l.endDate,
+            daysCount: l.daysCount,
+            reason: l.reason,
+            status: l.status,
+            submittedAt: l.submittedAt,
+            reviewNotes: l.reviewNotes,
+          }))}
+          canApprove={true}
+          onAction={handleReviewStudentLeave}
+          emptyTitle="No student leave requests"
+          emptySubtitle="Short leave requests (≤ 2 days) applied by parents for your class will appear here."
+        />
+      )}
+
+      <ApplyLeaveModal
+        isOpen={isApplyModalOpen}
+        onClose={() => setIsApplyModalOpen(false)}
+        title="Apply for Teacher Leave"
+        applicantLabel="Submitted to Principal for academic verification & substitution planning"
+        onSubmit={handleApplyLeave}
+      />
     </div>
   );
 }

@@ -520,6 +520,29 @@ export class CreateDepartmentDto {
   location?: string;
 }
 
+export class UpdateDepartmentHodDto {
+  @ApiPropertyOptional({
+    format: "uuid",
+    nullable: true,
+    description: "Teacher UUID to assign as HOD, or null to remove HOD",
+  })
+  @IsOptional()
+  @IsUUID()
+  teacherId?: string | null;
+}
+
+export class UpdateMemberStatusDto {
+  @ApiProperty({ enum: ["active", "inactive", "withdrawn"] })
+  @IsNotEmpty()
+  @IsEnum(["active", "inactive", "withdrawn"])
+  status!: "active" | "inactive" | "withdrawn";
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  reason?: string;
+}
+
 export class UpdateParentChildrenDto {
   @ApiProperty({
     type: [String],

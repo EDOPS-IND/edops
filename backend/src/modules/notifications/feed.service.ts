@@ -139,4 +139,22 @@ export class FeedService {
       },
     );
   }
+
+  markAllRead(org: string, actor: User) {
+    return this.access.forFeature("communication")(
+      org,
+      actor,
+      "notification.read",
+      { id: "all" },
+      null,
+      async () => {},
+      async (manager) => {
+        await manager.query(
+          "UPDATE notifications SET read_at=clock_timestamp() WHERE organization_id=$1 AND user_id=$2 AND read_at IS NULL",
+          [org, actor.id],
+        );
+        return { success: true };
+      },
+    );
+  }
 }

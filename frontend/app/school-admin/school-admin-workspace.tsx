@@ -378,7 +378,9 @@ export function SchoolAdminWorkspace({
       if (onSubTabChange) onSubTabChange(tab, subTab);
       else if (onTabChange) onTabChange(tab);
     } else {
-      if (onTabChange) onTabChange(tab);
+      setCurrentSubTab("");
+      if (onSubTabChange) onSubTabChange(tab, "");
+      else if (onTabChange) onTabChange(tab);
     }
   };
 

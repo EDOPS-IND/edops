@@ -23,6 +23,8 @@ import {
   CreateCourseworkDto,
   CreateCurriculumNodeDto,
   CreateDepartmentDto,
+  UpdateDepartmentHodDto,
+  UpdateMemberStatusDto,
   CreateDisciplineIncidentDto,
   CreateFeeStructureDto,
   CreateLeaveRequestDto,
@@ -193,6 +195,28 @@ export class SchoolAdminController {
     );
   }
 
+  @Patch("people/members/:userId/status")
+  @ApiOperation({ summary: "Update school member status (active, inactive, withdrawn) with automatic parent cascade" })
+  updateMemberStatus(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("userId", ParseUUIDPipe) userId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UpdateMemberStatusDto,
+  ) {
+    return this.service.updateMemberStatus(orgId, req.user, userId, dto);
+  }
+
+  @Delete("people/members/:userId")
+  @ApiOperation({ summary: "Delete school member record completely" })
+  deleteMember(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("userId", ParseUUIDPipe) userId: string,
+    @Req() req: AuthenticatedRequest,
+    @Query("role") role?: string,
+  ) {
+    return this.service.deleteMember(orgId, req.user, userId, role);
+  }
+
   @Get("people/departments")
   @ApiOperation({
     summary:
@@ -230,6 +254,32 @@ export class SchoolAdminController {
       departmentId,
       dto.subjectIds || [],
     );
+  }
+
+  @Put("people/departments/:departmentId/hod")
+  @ApiOperation({ summary: "Assign, update, or remove Head of Department (HOD)" })
+  updateDepartmentHod(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("departmentId", ParseUUIDPipe) departmentId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: UpdateDepartmentHodDto,
+  ) {
+    return this.service.updateDepartmentHod(
+      orgId,
+      req.user,
+      departmentId,
+      dto.teacherId,
+    );
+  }
+
+  @Delete("people/departments/:departmentId")
+  @ApiOperation({ summary: "Delete an academic department and unlink its subjects" })
+  deleteDepartment(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Param("departmentId", ParseUUIDPipe) departmentId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.service.deleteDepartment(orgId, req.user, departmentId);
   }
 
   @Post("people/departments")

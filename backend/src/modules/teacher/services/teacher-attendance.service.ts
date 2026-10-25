@@ -151,4 +151,80 @@ export class TeacherAttendanceService {
     await this.attendanceService.finalize(organizationId,user,session.id,randomUUID());
     return { success:true,sessionId:session.id,markedStudents:dto.records.length };
   }
+
+  async applyLeave(organizationId: string, user: User, dto: { leaveType: string; startDate: string; endDate: string; reason: string }) {
+    if (dto.endDate < dto.startDate) throw new BadRequestException('End date must not precede start date');
+    const start = new Date(dto.startDate);
+    const end = new Date(dto.endDate);
+    const daysCount = Math.max(1, Math.round((end.getTime() - start.getTime()) / 86400000) + 1);
+
+    const [req] = await this.drizzle.query(
+      `INSERT INTO leave_requests (organization_id, user_id, applicant_name, applicant_role, leave_type, start_date, end_date, days_count, reason, status)
+       VALUES ($1, $2, $3, 'teacher', $4, $5, $6, $7, $8, 'pending')
+       RETURNING id, leave_type as "leaveType", to_char(start_date, 'YYYY-MM-DD') as "startDate", to_char(end_date, 'YYYY-MM-DD') as "endDate", days_count as "daysCount", reason, status, created_at as "submittedAt"`,
+      [organizationId, user.id, user.name || user.email, dto.leaveType, dto.startDate, dto.endDate, daysCount, dto.reason || '']
+    );
+
+    // Notify Principal immediately via communication outbox
+    await this.drizzle.query(
+      `INSERT INTO school_broadcasts (organization_id, title, message, channels, target_audience, priority, sent_by, sender_name)
+       VALUES ($1, $2, $3, '{"in_app"}', 'principal', 'high', $4, $5)`,
+      [
+        organizationId,
+        'Faculty Leave Application',
+        `${user.name || user.email} applied for ${dto.leaveType} leave (${daysCount} days): "${dto.reason || 'Personal leave request'}"`,
+        user.id,
+        user.name || user.email || 'Teacher',
+      ],
+    ).catch(() => null);
+
+    return req;
+  }
+
+  async getMyLeaves(organizationId: string, user: User) {
+    return this.drizzle.query(
+      `SELECT id, leave_type as "leaveType", to_char(start_date, 'YYYY-MM-DD') as "startDate",
+              to_char(end_date, 'YYYY-MM-DD') as "endDate", days_count as "daysCount",
+              reason, status, review_notes as "reviewNotes", created_at as "submittedAt"
+       FROM leave_requests
+       WHERE organization_id = $1 AND user_id = $2 AND applicant_role = 'teacher'
+       ORDER BY created_at DESC`,
+      [organizationId, user.id]
+    );
+  }
+
+  async getClassStudentLeaves(organizationId: string, user: User) {
+    return this.drizzle.query(
+      `SELECT lr.id, lr.applicant_name as "studentName", lr.user_id as "studentId",
+              lr.leave_type as "leaveType", to_char(lr.start_date, 'YYYY-MM-DD') as "startDate",
+              to_char(lr.end_date, 'YYYY-MM-DD') as "endDate", lr.days_count as "daysCount",
+              lr.reason, lr.status, lr.review_notes as "reviewNotes", lr.created_at as "submittedAt",
+              s.name as "sectionName", p.name as "className", e.roll_number as "rollNo"
+       FROM leave_requests lr
+       JOIN enrollments e ON e.student_user_id = lr.user_id AND e.organization_id = lr.organization_id AND e.status = 'active'
+       JOIN sections s ON s.id = e.section_id AND s.organization_id = lr.organization_id
+       JOIN programs p ON p.id = s.program_id
+       WHERE lr.organization_id = $1 AND lr.applicant_role = 'student'
+         AND s.class_teacher_user_id = $2
+         AND lr.days_count <= 2
+       ORDER BY lr.created_at DESC`,
+      [organizationId, user.id]
+    );
+  }
+
+  async updateStudentLeaveStatus(organizationId: string, user: User, id: string, status: string, reviewNotes?: string) {
+    if (!['approved', 'rejected'].includes(status)) throw new BadRequestException('Status must be approved or rejected');
+    const [updated] = await this.drizzle.query(
+      `UPDATE leave_requests lr
+       SET status = $1, reviewed_by = $2, reviewed_at = now(), review_notes = $3
+       FROM sections s, enrollments e
+       WHERE lr.id = $4 AND lr.organization_id = $5 AND lr.applicant_role = 'student' AND lr.days_count <= 2
+         AND e.student_user_id = lr.user_id AND e.organization_id = lr.organization_id AND e.section_id = s.id
+         AND s.class_teacher_user_id = $2
+       RETURNING lr.id, lr.status, lr.review_notes as "reviewNotes", lr.reviewed_at as "reviewedAt"`,
+      [status, user.id, reviewNotes || null, id, organizationId]
+    );
+    if (!updated) throw new BadRequestException('Could not update leave request. Verify you are the assigned class teacher and request duration is <= 2 days.');
+    return updated;
+  }
 }

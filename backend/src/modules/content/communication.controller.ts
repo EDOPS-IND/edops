@@ -169,6 +169,23 @@ export class CommunicationController {
     return this.chat.createRoleNotice(org, req.user, dto);
   }
 
+  @Patch("communication/notices/read-all")
+  markAllNoticesRead(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.chat.markAllNoticesRead(org, req.user);
+  }
+
+  @Patch("communication/notices/:id/read")
+  markNoticeRead(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.chat.markNoticeRead(org, req.user, id);
+  }
+
   @Get("communication/teacher-sections")
   getTeacherSections(
     @Param("organizationId", ParseUUIDPipe) org: string,
@@ -206,6 +223,14 @@ export class CommunicationController {
     @Query() query: InboxQuery,
   ) {
     return this.feed.inbox(org, req.user, query);
+  }
+
+  @Patch("notifications/read-all")
+  markAllNotificationsRead(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.feed.markAllRead(org, req.user);
   }
 
   @Patch("notifications/:id/read")

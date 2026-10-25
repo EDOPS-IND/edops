@@ -99,6 +99,7 @@ export interface ParentRecord {
   address: string;
   emergencyContact: string;
   accountStatus: "Active" | "Invited" | "Inactive";
+  status?: "Active" | "Inactive" | string;
   invitationStatus: "Accepted" | "Pending" | "Expired" | "Revoked";
   inviteToken?: string | null;
   inviteExpiresAt?: string | null;
@@ -117,8 +118,10 @@ export interface DepartmentRecord {
   id: string;
   name: string;
   code: string;
+  headTeacherId?: string | null;
   headName: string;
   headEmail?: string;
+  headPhone?: string;
   teachersCount: number;
   staffCount?: number;
   studentsCount?: number;
@@ -128,9 +131,10 @@ export interface DepartmentRecord {
   budgetSpent?: number;
   avgAttendancePct?: number;
   syllabusCompletionPct?: number;
-  status?: "Active" | "Inactive";
+  status?: "Active" | "Inactive" | string;
   location?: string;
-  subjects?: { id: string; name: string; code?: string }[];
+  subjects?: { id: string; name: string; code?: string; teachersCount?: number; sectionsCount?: number; teachers?: any[] }[];
+  teachers?: { id: string; name: string; email: string; phone?: string; empId?: string; designation?: string; isHod?: boolean }[];
   [key: string]: any;
 }
 

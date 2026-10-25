@@ -90,7 +90,14 @@ function refreshAccessToken(): Promise<string | null> {
   return refreshPromise;
 }
 
-async function request<T>(path: string, options: { method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE"; body?: unknown; idempotent?: boolean } = {}): Promise<T> {
+export type ApiRequestOptions = {
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  body?: unknown;
+  idempotent?: boolean;
+  silent?: boolean;
+};
+
+async function request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const method = options.method ?? "GET";
   const headers: Record<string, string> = {};
   if (typeof window !== "undefined" && window.location.hostname.includes("ngrok")) {
@@ -157,11 +164,27 @@ async function request<T>(path: string, options: { method?: "GET" | "POST" | "PA
   return data as T;
 }
 
-export async function api<T>(path: string, options: Parameters<typeof request>[1] = {}): Promise<T> {
-  try { return await request<T>(path, options); }
-  catch (error) {
-    if (typeof window !== 'undefined' && !path.startsWith('/auth/')) {
-      window.dispatchEvent(new CustomEvent('edops:request-error', { detail: { message:error instanceof Error?error.message:'Request failed', mutation:!!options.method && options.method!=='GET' } }));
+export async function api<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
+  try {
+    return await request<T>(path, options);
+  } catch (error: any) {
+    if (typeof window !== 'undefined' && !options.silent && !path.startsWith('/auth/')) {
+      const isAbort = error?.name === 'AbortError' || error?.name === 'DOMException';
+      const isNetworkAbort = error?.message === 'Failed to fetch' || error?.message === 'Load failed';
+      const isMutation = !!options.method && options.method !== 'GET';
+
+      // Suppress noisy global banner on aborted navigation fetches or passive background GETs
+      // Real mutation failures (POST/PUT/PATCH/DELETE) and non-network errors still alert cleanly
+      if (!isAbort && (isMutation || !isNetworkAbort)) {
+        window.dispatchEvent(
+          new CustomEvent('edops:request-error', {
+            detail: {
+              message: error instanceof Error ? error.message : 'Request failed',
+              mutation: isMutation,
+            },
+          })
+        );
+      }
     }
     throw error;
   }
@@ -397,6 +420,44 @@ export async function updateDepartmentSubjects(orgId: string, departmentId: stri
     method: "PUT",
     body: { subjectIds },
   });
+}
+
+export async function updateDepartmentHod(orgId: string, departmentId: string, teacherId: string | null) {
+  return api<any>(`/organizations/${orgId}/school-admin/people/departments/${departmentId}/hod`, {
+    method: "PUT",
+    body: { teacherId },
+  });
+}
+
+export async function deleteSchoolAdminDepartment(orgId: string, departmentId: string) {
+  return api<any>(`/organizations/${orgId}/school-admin/people/departments/${departmentId}`, {
+    method: "DELETE",
+  });
+}
+
+export async function updateSchoolMemberStatus(
+  orgId: string,
+  userId: string,
+  status: "active" | "inactive" | "withdrawn",
+  reason?: string,
+) {
+  return api<any>(`/organizations/${orgId}/school-admin/people/members/${userId}/status`, {
+    method: "PATCH",
+    body: { status, reason },
+  });
+}
+
+export async function deleteSchoolMember(
+  orgId: string,
+  userId: string,
+  role?: string,
+) {
+  return api<any>(
+    `/organizations/${orgId}/school-admin/people/members/${userId}${role ? `?role=${encodeURIComponent(role)}` : ""}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export interface CreateMemberInvitationPayload {
@@ -748,6 +809,17 @@ export async function getPrincipalAttendance(orgId: string) {
   return api<any>(`/organizations/${orgId}/principal/attendance`);
 }
 
+export async function getPrincipalLeaves(orgId: string) {
+  return api<{ staffLeaves: any[]; studentLeaves: any[] }>(`/organizations/${orgId}/principal/leaves`);
+}
+
+export function updatePrincipalLeaveStatus(orgId: string, id: string, status: 'approved' | 'rejected', reviewNotes?: string) {
+  return api<any>(`/organizations/${orgId}/principal/leaves/${id}/status`, {
+    method: 'PATCH',
+    body: { status, reviewNotes },
+  });
+}
+
 export async function getPrincipalLearningRoster(orgId: string) {
   return api<any[]>(`/organizations/${orgId}/principal/learning-roster`);
 }
@@ -923,6 +995,28 @@ export function markTeacherAttendance(orgId: string, body: any) { return api<any
 
 export async function getTeacherAttendance(orgId: string, query?: any): Promise<any> {
   return api<any>(`/organizations/${orgId}/teacher/attendance${query?.sectionId ? `?sectionId=${query.sectionId}` : ''}`);
+}
+
+export async function getTeacherLeaves(orgId: string) {
+  return api<any[]>(`/organizations/${orgId}/teacher/leaves`);
+}
+
+export function applyTeacherLeave(orgId: string, data: { leaveType: string; startDate: string; endDate: string; reason?: string }) {
+  return api<any>(`/organizations/${orgId}/teacher/leaves`, {
+    method: "POST",
+    body: data,
+  });
+}
+
+export async function getTeacherStudentLeaves(orgId: string) {
+  return api<any[]>(`/organizations/${orgId}/teacher/leaves/student-requests`);
+}
+
+export function updateTeacherStudentLeaveStatus(orgId: string, id: string, status: "approved" | "rejected", reviewNotes?: string) {
+  return api<any>(`/organizations/${orgId}/teacher/leaves/student-requests/${id}/status`, {
+    method: "PATCH",
+    body: { status, reviewNotes },
+  });
 }
 
 export function recordTeacherLessonDelivery(orgId: string, body: any) { return api<any>(`/organizations/${orgId}/teacher/lessons/deliver`, { method: "POST", body }); }
@@ -1137,7 +1231,7 @@ export async function getStudentMessages(orgId: string): Promise<any> {
 export function sendStudentMessage(orgId: string, body: any) { return api<any>(`/organizations/${orgId}/student/messages`, { method: "POST", body }); }
 
 // Shared chat API used by every authenticated dashboard.
-export function getCommunicationNotices(orgId: string) { return api<any[]>(`/organizations/${orgId}/communication/notices`); }
+export function getCommunicationNotices(orgId: string, options?: ApiRequestOptions) { return api<any[]>(`/organizations/${orgId}/communication/notices`, options); }
 export function createCommunicationNotice(orgId: string, body: any) { return api<any>(`/organizations/${orgId}/communication/notices`, { method: "POST", body }); }
 export function getTeacherBroadcastSections(orgId: string) { return api<any[]>(`/organizations/${orgId}/communication/teacher-sections`); }
 export function getCommunicationConversations(orgId: string) { return api<any[]>(`/organizations/${orgId}/communication/conversations`); }

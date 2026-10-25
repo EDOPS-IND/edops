@@ -883,3 +883,14 @@ export class AllocateSectionSubjectDto {
   @MaxLength(32)
   newSubjectCode?: string;
 }
+
+export class PrincipalReviewLeaveDto {
+  @ApiProperty({ enum: ['approved', 'rejected'] })
+  @IsIn(['approved', 'rejected'])
+  status!: 'approved' | 'rejected';
+
+  @ApiPropertyOptional({ example: 'Approved' })
+  @IsOptional()
+  @IsString()
+  reviewNotes?: string;
+}
