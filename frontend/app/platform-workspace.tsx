@@ -34,6 +34,16 @@ export function PlatformWorkspace({
   onSelectPanel?: (panel: string) => void;
 }) {
   const [tab, setTab] = useState(activePanel === "logs" ? "security" : activePanel);
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set([activePanel === "logs" ? "security" : activePanel]));
+
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(tab)) return prev;
+      const next = new Set(prev);
+      next.add(tab);
+      return next;
+    });
+  }, [tab]);
   const [schools, setSchools] = useState<School[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [featureCatalog, setFeatureCatalog] = useState<FeatureCatalogItem[]>([]);
@@ -448,78 +458,94 @@ export function PlatformWorkspace({
       </div>
 
       {/* PANES RENDERING */}
-      {tab === "overview" && (
-        <OverviewPane
-          schools={schools}
-          dashboardData={dashboardData}
-          healthData={healthData}
-          onNavigateTab={(t) => setTab(t)}
-        />
+      {visitedTabs.has("overview") && (
+        <div style={{ display: tab === "overview" ? "contents" : "none" }}>
+          <OverviewPane
+            schools={schools}
+            dashboardData={dashboardData}
+            healthData={healthData}
+            onNavigateTab={(t) => setTab(t)}
+          />
+        </div>
       )}
 
-      {tab === "schools" && (
-        <SchoolsPane
-          schools={schools}
-          selectedSchool={selectedSchool}
-          onSelectSchool={handleSelectSchool}
-          schoolOverrides={schoolOverrides}
-          onRemoveOverride={handleRemoveOverride}
-          onOverridesChanged={() => { if (selectedSchool) getSchoolDetailedOverrides(selectedSchool.id).then(setSchoolOverrides).catch(() => {}); }}
-          onLifecycleChange={handleLifecycleChange}
-          onOpenSupportSessionModal={(s) => setSupportSessionModal(s)}
-          onSchoolUpdated={handleSchoolUpdated}
-        />
+      {visitedTabs.has("schools") && (
+        <div style={{ display: tab === "schools" ? "contents" : "none" }}>
+          <SchoolsPane
+            schools={schools}
+            selectedSchool={selectedSchool}
+            onSelectSchool={handleSelectSchool}
+            schoolOverrides={schoolOverrides}
+            onRemoveOverride={handleRemoveOverride}
+            onOverridesChanged={() => { if (selectedSchool) getSchoolDetailedOverrides(selectedSchool.id).then(setSchoolOverrides).catch(() => {}); }}
+            onLifecycleChange={handleLifecycleChange}
+            onOpenSupportSessionModal={(s) => setSupportSessionModal(s)}
+            onSchoolUpdated={handleSchoolUpdated}
+          />
+        </div>
       )}
 
-      {tab === "onboarding" && (
-        <OnboardingWizard
-          plans={plans}
-          onComplete={handleCompleteOnboarding}
-          onCancel={() => setTab("schools")}
-          busy={busy}
-        />
+      {visitedTabs.has("onboarding") && (
+        <div style={{ display: tab === "onboarding" ? "contents" : "none" }}>
+          <OnboardingWizard
+            plans={plans}
+            onComplete={handleCompleteOnboarding}
+            onCancel={() => setTab("schools")}
+            busy={busy}
+          />
+        </div>
       )}
 
-      {tab === "plans" && (
-        <PlansPane
-          plans={plans}
-          features={featureCatalog}
-          onOpenCreatePlanModal={() => setCreatePlanModal(true)}
-          onRetirePlan={handleRetirePlan}
-          onUpdatePlanFeatures={handleUpdatePlanFeatures}
-        />
+      {visitedTabs.has("plans") && (
+        <div style={{ display: tab === "plans" ? "contents" : "none" }}>
+          <PlansPane
+            plans={plans}
+            features={featureCatalog}
+            onOpenCreatePlanModal={() => setCreatePlanModal(true)}
+            onRetirePlan={handleRetirePlan}
+            onUpdatePlanFeatures={handleUpdatePlanFeatures}
+          />
+        </div>
       )}
 
-      {tab === "subscriptions" && (
-        <SubscriptionsPane
-          schools={schools}
-          onExtendPeriod={(id, st, days) => handleLifecycleChange(id, st, days)}
-        />
+      {visitedTabs.has("subscriptions") && (
+        <div style={{ display: tab === "subscriptions" ? "contents" : "none" }}>
+          <SubscriptionsPane
+            schools={schools}
+            onExtendPeriod={(id, st, days) => handleLifecycleChange(id, st, days)}
+          />
+        </div>
       )}
 
-      {tab === "billing" && (
-        <BillingPane
-          payments={payments}
-          revenue={dashboardData?.revenue}
-          onProcessRefund={handleProcessRefund}
-        />
+      {visitedTabs.has("billing") && (
+        <div style={{ display: tab === "billing" ? "contents" : "none" }}>
+          <BillingPane
+            payments={payments}
+            revenue={dashboardData?.revenue}
+            onProcessRefund={handleProcessRefund}
+          />
+        </div>
       )}
 
-      {tab === "usage" && (
-        <UsagePane
-          dashboardData={dashboardData}
-        />
+      {visitedTabs.has("usage") && (
+        <div style={{ display: tab === "usage" ? "contents" : "none" }}>
+          <UsagePane
+            dashboardData={dashboardData}
+          />
+        </div>
       )}
 
-      {(tab === "security" || tab === "logs") && (
-        <SecurityPane
-          auditLogs={auditLogs}
-          staffData={staffData}
-        />
+      {(visitedTabs.has("security") || visitedTabs.has("logs")) && (
+        <div style={{ display: tab === "security" || tab === "logs" ? "contents" : "none" }}>
+          <SecurityPane
+            auditLogs={auditLogs}
+            staffData={staffData}
+          />
+        </div>
       )}
 
-      {tab === "support" && (
-        <>
+      {visitedTabs.has("support") && (
+        <div style={{ display: tab === "support" ? "contents" : "none" }}>
           <SupportPane
             tickets={tickets}
             announcements={announcements}
@@ -528,13 +554,15 @@ export function PlatformWorkspace({
             onResolveTicket={handleResolveTicket}
           />
           {selectedSchool && <CommunicationChat organizationId={selectedSchool.id} title={`School communication · ${selectedSchool.name}`} />}
-        </>
+        </div>
       )}
 
-      {tab === "health" && (
-        <HealthPane
-          healthData={healthData}
-        />
+      {visitedTabs.has("health") && (
+        <div style={{ display: tab === "health" ? "contents" : "none" }}>
+          <HealthPane
+            healthData={healthData}
+          />
+        </div>
       )}
 
       {/* MODALS */}

@@ -50,7 +50,7 @@ import { GlobalPortalSearch } from "../components/global-portal-search";
 import { TeacherProfileDrawer } from "./panes/teacher-profile-drawer";
 import { Student360Modal } from "./panes/student-360-modal";
 
-import { OrganizationSummary, getStudentAvatarUrl } from "../edops-api";
+import { OrganizationSummary, getStudentAvatarUrl, invalidateApiCache } from "../edops-api";
 import { useDashboardNavigation } from "../dashboard-navigation";
 import { FeatureUnavailableCard, ThreeDotsLoading } from "../components/feature-unavailable-card";
 import { PrincipalTab } from "./types";
@@ -260,7 +260,17 @@ export function PrincipalWorkspace({
   const principalName = userProfile?.name || (userProfile?.email ? userProfile.email.split("@")[0] : "Principal");
   // Navigation State
   const [activePane, setActivePane] = useState<string>(activePaneProp || "dashboard");
+  const [visitedPanes, setVisitedPanes] = useState<Set<string>>(() => new Set([activePaneProp || "dashboard"]));
   const [activeSubTab, setActiveSubTab] = useState<string>(activeSubTabProp || "");
+
+  useEffect(() => {
+    setVisitedPanes((prev) => {
+      if (prev.has(activePane)) return prev;
+      const next = new Set(prev);
+      next.add(activePane);
+      return next;
+    });
+  }, [activePane]);
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -776,155 +786,185 @@ export function PrincipalWorkspace({
               dashboardLabel="Return to Dashboard"
             />
           ) : <>
-          {activePane === "dashboard" && (
-            <DashboardPane
-              key={organization.id}
-              organizationId={organization.id}
-              principalName={principalName}
-              onNavigate={navigateTo}
-              onOpenHealthModal={() => setHealthModalOpen(true)}
-              onOpenTeacherProfile={(id) => setSelectedTeacherId(id)}
-              onOpenStudent360={(id) => setSelectedStudentId(id)}
-            />
-          )}
-
-          {activePane === "planning" && (
-            <PlanningPane
-              key="planning"
-              organizationId={organization.id}
-              initialTab={activeView}
-              onTabChange={(tab) => navigateTo("planning", tab)}
-            />
-          )}
-
-          {activePane === "people" && (
-            <TeachersPane
-              key="people"
-              organizationId={organization.id}
-              view={activeView as "hods" | "coordinators" | "assignments" | "workload" | "development"}
-              onOpenProfile={(id) => setSelectedTeacherId(id)}
-              onTabChange={(tab) => navigateTo("people", tab)}
-            />
-          )}
-
-          {activePane === "academics" && (
-            <AcademicsPane
-              key="academics"
-              organizationId={organization.id}
-              initialTab={activeView}
-              onOpenTeacherProfile={(id) => setSelectedTeacherId(id)}
-              onOpenStudent360={(id) => setSelectedStudentId(id)}
-              onTabChange={(tab) => navigateTo("academics", tab)}
-            />
-          )}
-
-          {activePane === "timetable" && (
-            <TimetablePane
-              key="timetable"
-              organizationId={organization.id}
-              initialTab={activeView}
-              onTabChange={(tab) => navigateTo("timetable", tab)}
-            />
-          )}
-
-          {activePane === "attendance" && (
-            <AttendancePane
-              key="attendance"
-              organizationId={organization.id}
-              initialTab={activeView as "students" | "trends" | "teachers"}
-              onTabChange={(tab) => navigateTo("attendance", tab)}
-            />
-          )}
-
-          {activePane === "learning" && (
-            <LearningPane
-              key="learning"
-              organizationId={organization.id}
-              initialTab={activeView as "assignments" | "submissions" | "materials" | "activities"}
-              onTabChange={(tab) => navigateTo("learning", tab)}
-            />
-          )}
-
-          {activePane === "assessment" && (
-            !isFeatureEnabled("assessments") ? (
-              <div style={{ padding: "40px", textAlign: "center", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "8px", margin: "20px" }}>
-                <h3 style={{ color: "#991B1B", margin: "0 0 8px" }}>Feature Disabled</h3>
-                <p style={{ color: "#7F1D1D", margin: 0, fontSize: "14px" }}>
-                  Assessments are currently disabled for this institution or role by the platform administrator.
-                </p>
-              </div>
-            ) : (
-              <AssessmentsPane
-                key="assessment"
+          {visitedPanes.has("dashboard") && (
+            <div style={{ display: activePane === "dashboard" ? "contents" : "none" }}>
+              <DashboardPane
+                key={organization.id}
                 organizationId={organization.id}
-                initialTab={(activeView as "assessments" | "analysis") || "assessments"}
+                principalName={principalName}
                 onNavigate={navigateTo}
-                onTabChange={(tab) => navigateTo("assessment", tab)}
+                onOpenHealthModal={() => setHealthModalOpen(true)}
+                onOpenTeacherProfile={(id) => setSelectedTeacherId(id)}
+                onOpenStudent360={(id) => setSelectedStudentId(id)}
               />
-            )
+            </div>
           )}
 
-          {activePane === "examinations" && (
-            isFeatureEnabled("exams") ? (
-              <ExaminationsPane
-                key="examinations"
+          {visitedPanes.has("planning") && (
+            <div style={{ display: activePane === "planning" ? "contents" : "none" }}>
+              <PlanningPane
+                key="planning"
                 organizationId={organization.id}
-                initialTab={activeView as "planning" | "schedule" | "marks" | "report_cards"}
-                onTabChange={(tab) => navigateTo("examinations", tab)}
+                initialTab={activeView}
+                onTabChange={(tab) => navigateTo("planning", tab)}
               />
-            ) : (
-              <div className="m-5 rounded-lg border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900">
-                Exams are disabled for this school or role. A platform administrator can enable Exams in Schools &amp; Tenants → Features &amp; Overrides.
-              </div>
-            )
+            </div>
           )}
 
-          {activePane === "students" && (
-            <StudentsPane
-              key="students"
-              organizationId={organization.id}
-              onOpenStudent360={(id) => setSelectedStudentId(id)}
-              initialTab={activeView}
-              onTabChange={(tab) => navigateTo("students", tab)}
-            />
+          {visitedPanes.has("people") && (
+            <div style={{ display: activePane === "people" ? "contents" : "none" }}>
+              <TeachersPane
+                key="people"
+                organizationId={organization.id}
+                view={activeView as "hods" | "coordinators" | "assignments" | "workload" | "development"}
+                onOpenProfile={(id) => setSelectedTeacherId(id)}
+                onTabChange={(tab) => navigateTo("people", tab)}
+              />
+            </div>
           )}
 
-          {activePane === "communication" && (
-            <CommunicationPane
-              key="communication"
-              organizationId={organization.id}
-              initialTab={activeView}
-              onTabChange={(tab) => navigateTo("communication", tab)}
-            />
+          {visitedPanes.has("academics") && (
+            <div style={{ display: activePane === "academics" ? "contents" : "none" }}>
+              <AcademicsPane
+                key="academics"
+                organizationId={organization.id}
+                initialTab={activeView}
+                onOpenTeacherProfile={(id) => setSelectedTeacherId(id)}
+                onOpenStudent360={(id) => setSelectedStudentId(id)}
+                onTabChange={(tab) => navigateTo("academics", tab)}
+              />
+            </div>
           )}
 
-          {activePane === "analytics" && (
-            <AnalyticsAuditPane
-              key="analytics"
-              organizationId={organization.id}
-              initialTab={activeView}
-              onNavigate={navigateTo}
-              onTabChange={(tab) => navigateTo("analytics", tab)}
-            />
+          {visitedPanes.has("timetable") && (
+            <div style={{ display: activePane === "timetable" ? "contents" : "none" }}>
+              <TimetablePane
+                key="timetable"
+                organizationId={organization.id}
+                initialTab={activeView}
+                onTabChange={(tab) => navigateTo("timetable", tab)}
+              />
+            </div>
           )}
 
-          {activePane === "alerts" && (
-            <AlertsPane
-              organizationId={organization.id}
-              onNavigate={navigateTo}
-            />
+          {visitedPanes.has("attendance") && (
+            <div style={{ display: activePane === "attendance" ? "contents" : "none" }}>
+              <AttendancePane
+                key="attendance"
+                organizationId={organization.id}
+                initialTab={activeView as "students" | "trends" | "teachers"}
+                onTabChange={(tab) => navigateTo("attendance", tab)}
+              />
+            </div>
           )}
 
-          {activePane === "reports" && (
-            <ReportsPane
-              organizationId={organization.id}
-            />
+          {visitedPanes.has("learning") && (
+            <div style={{ display: activePane === "learning" ? "contents" : "none" }}>
+              <LearningPane
+                key="learning"
+                organizationId={organization.id}
+                initialTab={activeView as "assignments" | "submissions" | "materials" | "activities"}
+                onTabChange={(tab) => navigateTo("learning", tab)}
+              />
+            </div>
           )}
 
-          {activePane === "activity" && (
-            <ActivityPane
-              organizationId={organization.id}
-            />
+          {visitedPanes.has("assessment") && (
+            <div style={{ display: activePane === "assessment" ? "contents" : "none" }}>
+              {!isFeatureEnabled("assessments") ? (
+                <div style={{ padding: "40px", textAlign: "center", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "8px", margin: "20px" }}>
+                  <h3 style={{ color: "#991B1B", margin: "0 0 8px" }}>Feature Disabled</h3>
+                  <p style={{ color: "#7F1D1D", margin: 0, fontSize: "14px" }}>
+                    Assessments are currently disabled for this institution or role by the platform administrator.
+                  </p>
+                </div>
+              ) : (
+                <AssessmentsPane
+                  key="assessment"
+                  organizationId={organization.id}
+                  initialTab={(activeView as "assessments" | "analysis") || "assessments"}
+                  onNavigate={navigateTo}
+                  onTabChange={(tab) => navigateTo("assessment", tab)}
+                />
+              )}
+            </div>
+          )}
+
+          {visitedPanes.has("examinations") && (
+            <div style={{ display: activePane === "examinations" ? "contents" : "none" }}>
+              {isFeatureEnabled("exams") ? (
+                <ExaminationsPane
+                  key="examinations"
+                  organizationId={organization.id}
+                  initialTab={activeView as "planning" | "schedule" | "marks" | "report_cards"}
+                  onTabChange={(tab) => navigateTo("examinations", tab)}
+                />
+              ) : (
+                <div className="m-5 rounded-lg border border-amber-300 bg-amber-50 p-6 text-sm text-amber-900">
+                  Exams are disabled for this school or role. A platform administrator can enable Exams in Schools &amp; Tenants → Features &amp; Overrides.
+                </div>
+              )}
+            </div>
+          )}
+
+          {visitedPanes.has("students") && (
+            <div style={{ display: activePane === "students" ? "contents" : "none" }}>
+              <StudentsPane
+                key="students"
+                organizationId={organization.id}
+                onOpenStudent360={(id) => setSelectedStudentId(id)}
+                initialTab={activeView}
+                onTabChange={(tab) => navigateTo("students", tab)}
+              />
+            </div>
+          )}
+
+          {visitedPanes.has("communication") && (
+            <div style={{ display: activePane === "communication" ? "contents" : "none" }}>
+              <CommunicationPane
+                key="communication"
+                organizationId={organization.id}
+                initialTab={activeView}
+                onTabChange={(tab) => navigateTo("communication", tab)}
+              />
+            </div>
+          )}
+
+          {visitedPanes.has("analytics") && (
+            <div style={{ display: activePane === "analytics" ? "contents" : "none" }}>
+              <AnalyticsAuditPane
+                key="analytics"
+                organizationId={organization.id}
+                initialTab={activeView}
+                onNavigate={navigateTo}
+                onTabChange={(tab) => navigateTo("analytics", tab)}
+              />
+            </div>
+          )}
+
+          {visitedPanes.has("alerts") && (
+            <div style={{ display: activePane === "alerts" ? "contents" : "none" }}>
+              <AlertsPane
+                organizationId={organization.id}
+                onNavigate={navigateTo}
+              />
+            </div>
+          )}
+
+          {visitedPanes.has("reports") && (
+            <div style={{ display: activePane === "reports" ? "contents" : "none" }}>
+              <ReportsPane
+                organizationId={organization.id}
+              />
+            </div>
+          )}
+
+          {visitedPanes.has("activity") && (
+            <div style={{ display: activePane === "activity" ? "contents" : "none" }}>
+              <ActivityPane
+                organizationId={organization.id}
+              />
+            </div>
           )}
           </>}
         </div>

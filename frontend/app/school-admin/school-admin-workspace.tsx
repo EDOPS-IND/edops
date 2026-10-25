@@ -29,6 +29,7 @@ import {
   getStudentAvatarUrl,
   createPrincipalExamPlan,
   createSchoolSupportTicket,
+  invalidateApiCache,
 } from "../edops-api";
 import { CreateTicketModal } from "../platform/modals";
 import { NotificationBellDropdown } from "../components/notification-bell-dropdown";
@@ -176,7 +177,17 @@ export function SchoolAdminWorkspace({
   onLogout?: () => void;
 }) {
   const [currentTab, setCurrentTab] = useState<SchoolAdminTab>(activeTab);
+  const [visitedTabs, setVisitedTabs] = useState<Set<SchoolAdminTab>>(() => new Set([activeTab]));
   const [currentSubTab, setCurrentSubTab] = useState<string>(activeSubTab);
+
+  React.useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(currentTab)) return prev;
+      const next = new Set(prev);
+      next.add(currentTab);
+      return next;
+    });
+  }, [currentTab]);
 
   React.useEffect(() => {
     if (activeTab && activeTab !== currentTab) {
@@ -899,7 +910,10 @@ export function SchoolAdminWorkspace({
             {currentTab === "dashboard" && (
               <button
                 type="button"
-                onClick={() => setRefreshKey((k) => k + 1)}
+                onClick={() => {
+                  invalidateApiCache();
+                  setRefreshKey((k) => k + 1);
+                }}
                 title="Refresh Dashboard"
                 aria-label="Refresh Dashboard"
                 className="workspace-header-refresh"
@@ -1123,81 +1137,101 @@ export function SchoolAdminWorkspace({
             />
           ) : (
             <>
-              {currentTab === "dashboard" && (
-                <DashboardPane key={`dashboard-${refreshKey}`} organizationId={organizationId} onNavigate={go} onOpenQuickAction={triggerAction} />
+              {visitedTabs.has("dashboard") && (
+                <div style={{ display: currentTab === "dashboard" ? "contents" : "none" }}>
+                  <DashboardPane key={`dashboard-${refreshKey}`} organizationId={organizationId} onNavigate={go} onOpenQuickAction={triggerAction} />
+                </div>
               )}
-              {["students", "teachers", "staff", "parents", "departments"].includes(currentTab) && (
-                <PeoplePane key={`people-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} onOpenQuickAction={triggerAction} onTabChange={go} />
+              {["students", "teachers", "staff", "parents", "departments"].some((k) => visitedTabs.has(k as any)) && (
+                <div style={{ display: ["students", "teachers", "staff", "parents", "departments"].includes(currentTab) ? "contents" : "none" }}>
+                  <PeoplePane key={`people-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} onOpenQuickAction={triggerAction} onTabChange={go} />
+                </div>
               )}
-              {currentTab === "academics" && (
-                <AcademicsPane
-                  key={`academics-${refreshKey}`}
-                  organizationId={organizationId}
-                  activeTab={currentSubTab as any}
-                  onTabChange={(st) => go("academics", st)}
-                  onOpenQuickAction={triggerAction}
-                  onNavigate={go}
-                />
+              {visitedTabs.has("academics") && (
+                <div style={{ display: currentTab === "academics" ? "contents" : "none" }}>
+                  <AcademicsPane
+                    key={`academics-${refreshKey}`}
+                    organizationId={organizationId}
+                    activeTab={currentSubTab as any}
+                    onTabChange={(st) => go("academics", st)}
+                    onOpenQuickAction={triggerAction}
+                    onNavigate={go}
+                  />
+                </div>
               )}
-              {currentTab === "timetable" && (
-                <TimetablePane
-                  key={`timetable-${refreshKey}`}
-                  organizationId={organizationId}
-                  activeViewMode={currentSubTab as any}
-                  onViewModeChange={(vm) => go("timetable", vm)}
-                />
+              {visitedTabs.has("timetable") && (
+                <div style={{ display: currentTab === "timetable" ? "contents" : "none" }}>
+                  <TimetablePane
+                    key={`timetable-${refreshKey}`}
+                    organizationId={organizationId}
+                    activeViewMode={currentSubTab as any}
+                    onViewModeChange={(vm) => go("timetable", vm)}
+                  />
+                </div>
               )}
-              {currentTab === "attendance" && (
-                <AttendanceLeavePane
-                  key={`attendance-${refreshKey}`}
-                  organizationId={organizationId}
-                  activeTab={currentSubTab as any}
-                  onTabChange={(st) => go("attendance", st)}
-                />
+              {visitedTabs.has("attendance") && (
+                <div style={{ display: currentTab === "attendance" ? "contents" : "none" }}>
+                  <AttendanceLeavePane
+                    key={`attendance-${refreshKey}`}
+                    organizationId={organizationId}
+                    activeTab={currentSubTab as any}
+                    onTabChange={(st) => go("attendance", st)}
+                  />
+                </div>
               )}
-              {["learning", "examinations", "assignments", "exams", "results"].includes(currentTab) && (
-                <LearningExamsPane
-                  key={`learning-${refreshKey}`}
-                  organizationId={organizationId}
-                  activeTab={
-                    currentTab === "results" || currentSubTab === "results"
-                      ? "results"
-                      : currentTab === "exams" || currentSubTab === "exams" || currentTab === "examinations"
-                      ? "exams"
-                      : "assignments"
-                  }
-                  onTabChange={(subTab) => {
-                    const parent = subTab === "assignments" ? "learning" : "examinations";
-                    go(parent as SchoolAdminTab, subTab);
-                  }}
-                />
+              {["learning", "examinations", "assignments", "exams", "results"].some((k) => visitedTabs.has(k as any)) && (
+                <div style={{ display: ["learning", "examinations", "assignments", "exams", "results"].includes(currentTab) ? "contents" : "none" }}>
+                  <LearningExamsPane
+                    key={`learning-${refreshKey}`}
+                    organizationId={organizationId}
+                    activeTab={
+                      currentTab === "results" || currentSubTab === "results"
+                        ? "results"
+                        : currentTab === "exams" || currentSubTab === "exams" || currentTab === "examinations"
+                        ? "exams"
+                        : "assignments"
+                    }
+                    onTabChange={(subTab) => {
+                      const parent = subTab === "assignments" ? "learning" : "examinations";
+                      go(parent as SchoolAdminTab, subTab);
+                    }}
+                  />
+                </div>
               )}
-              {currentTab === "finance" && (
-                <FinancePane
-                  key={`finance-${refreshKey}`}
-                  organizationId={organizationId}
-                  activeTab={currentSubTab as any}
-                  onTabChange={(st) => go("finance", st)}
-                />
+              {visitedTabs.has("finance") && (
+                <div style={{ display: currentTab === "finance" ? "contents" : "none" }}>
+                  <FinancePane
+                    key={`finance-${refreshKey}`}
+                    organizationId={organizationId}
+                    activeTab={currentSubTab as any}
+                    onTabChange={(st) => go("finance", st)}
+                  />
+                </div>
               )}
-              {currentTab === "communication" && (
-                <CommunicationPane
-                  key={`communication-${refreshKey}`}
-                  organizationId={organizationId}
-                  activeTab={currentSubTab as any}
-                  onTabChange={(st) => go("communication", st)}
-                />
+              {visitedTabs.has("communication") && (
+                <div style={{ display: currentTab === "communication" ? "contents" : "none" }}>
+                  <CommunicationPane
+                    key={`communication-${refreshKey}`}
+                    organizationId={organizationId}
+                    activeTab={currentSubTab as any}
+                    onTabChange={(st) => go("communication", st)}
+                  />
+                </div>
               )}
-              {currentTab === "operations" && (
-                <OperationsPane
-                  key={`operations-${refreshKey}`}
-                  organizationId={organizationId}
-                  activeTab={currentSubTab as any}
-                  onTabChange={(st) => go("operations", st)}
-                />
+              {visitedTabs.has("operations") && (
+                <div style={{ display: currentTab === "operations" ? "contents" : "none" }}>
+                  <OperationsPane
+                    key={`operations-${refreshKey}`}
+                    organizationId={organizationId}
+                    activeTab={currentSubTab as any}
+                    onTabChange={(st) => go("operations", st)}
+                  />
+                </div>
               )}
-              {["discipline", "documents", "reports", "alerts", "settings", "audit"].includes(currentTab) && (
-                <GovernancePane key={`governance-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} onTabChange={go} />
+              {["discipline", "documents", "reports", "alerts", "settings", "audit"].some((k) => visitedTabs.has(k as any)) && (
+                <div style={{ display: ["discipline", "documents", "reports", "alerts", "settings", "audit"].includes(currentTab) ? "contents" : "none" }}>
+                  <GovernancePane key={`governance-${refreshKey}`} organizationId={organizationId} activeTab={currentTab as any} onTabChange={go} />
+                </div>
               )}
             </>
           )}
