@@ -111,7 +111,7 @@ async function request<T>(path: string, options: { method?: "GET" | "POST" | "PA
     }
   }
 
-  if (response.status === 401 && path !== "/auth/login" && path !== "/auth/refresh") {
+  if (response.status === 401 && path !== "/auth/login" && path !== "/auth/refresh" && path !== "/auth/me") {
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("edops:session-expired"));
     }
