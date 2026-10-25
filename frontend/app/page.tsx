@@ -346,11 +346,13 @@ export default function Home() {
 
   useEffect(() => {
     const handleExpired = () => {
-      setSessionExpired(true);
+      if (profile) {
+        setSessionExpired(true);
+      }
     };
     window.addEventListener("edops:session-expired", handleExpired);
     return () => window.removeEventListener("edops:session-expired", handleExpired);
-  }, []);
+  }, [profile]);
 
   const { route, navigate } = useDashboardRoute();
 
@@ -459,6 +461,7 @@ export default function Home() {
     }
     getProfile()
       .then((current) => {
+        setSessionExpired(false);
         setProfile(current);
         const chosen = selectInitialWorkspace(current);
         setWorkspace(chosen);
@@ -585,6 +588,7 @@ export default function Home() {
       <>
         <LoginScreen
           onLogin={(current) => {
+            setSessionExpired(false);
             setProfile(current);
             const chosen = selectInitialWorkspace(current);
             setWorkspace(chosen);
@@ -635,6 +639,7 @@ export default function Home() {
     setProfile(null);
     setSchool(null);
     setWorkspace("");
+    setSessionExpired(false);
     if (typeof window !== "undefined") {
       window.history.pushState(null, "", "/login");
       window.dispatchEvent(
