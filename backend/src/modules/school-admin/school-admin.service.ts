@@ -525,6 +525,7 @@ export class SchoolAdminService {
           COALESCE(sp.address, '') as "address",
           COALESCE(sp.emergency_contact, '') as "emergencyContact",
           NULL as "house",
+          (SELECT CASE WHEN COUNT(*)=0 THEN NULL WHEN SUM(d.amount_pending)>0 THEN 'Due' ELSE 'Paid' END FROM student_fee_dues d WHERE d.organization_id=m.organization_id AND d.student_user_id=u.id) as "feeStatus",
           (SELECT CASE
             WHEN COUNT(*) = 0 THEN NULL
             WHEN AVG(r.percentage) >= 80 THEN 'Exemplary'
@@ -1105,12 +1106,27 @@ export class SchoolAdminService {
           COUNT(DISTINCT csa.subject_id) as "assignedSubjectsCount",
           NULL::text as "workloadStatus",
           NULL::text as "inviteToken",
-          NULL::timestamptz as "inviteExpiresAt"
+          NULL::timestamptz as "inviteExpiresAt",
+          COALESCE(
+            json_agg(
+              DISTINCT jsonb_build_object(
+                'id', csa.id,
+                'sectionId', sec.id,
+                'className', COALESCE(p.name || ' - ' || sec.name, sec.name),
+                'subjectId', sub.id,
+                'subjectName', sub.name,
+                'subjectCode', sub.code,
+                'isElective', COALESCE(sub.is_elective, false)
+              )
+            ) FILTER (WHERE csa.id IS NOT NULL AND sec.id IS NOT NULL AND sub.id IS NOT NULL),
+            '[]'::json
+          ) as "allocations"
          FROM memberships m
          JOIN users u ON u.id = m.user_id
          LEFT JOIN class_subject_assignments csa ON csa.teacher_user_id = u.id AND csa.organization_id = m.organization_id
          LEFT JOIN subjects sub ON sub.id=csa.subject_id AND sub.organization_id=csa.organization_id
          LEFT JOIN sections sec ON sec.id=csa.section_id AND sec.organization_id=csa.organization_id
+         LEFT JOIN programs p ON p.id = sec.program_id AND p.organization_id = m.organization_id
          WHERE m.organization_id = $1 AND m.role = 'teacher' AND m.status = 'active'
          GROUP BY u.id, u.email, u.name, u.phone, m.specialty, m.employee_id, m.employment_type, m.created_at, m.organization_id
 
@@ -1136,7 +1152,8 @@ export class SchoolAdminService {
           0 as "assignedSubjectsCount",
           'Pending' as "workloadStatus",
           i.raw_token as "inviteToken",
-          i.expires_at as "inviteExpiresAt"
+          i.expires_at as "inviteExpiresAt",
+          '[]'::json as "allocations"
          FROM invitations i
          WHERE i.organization_id = $1 AND i.role = 'teacher' AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
 
@@ -1957,18 +1974,56 @@ export class SchoolAdminService {
       await this.authorize(manager, orgId, actor);
       if (teacherUserId) {
         const [t] = await manager.query(
-        `SELECT u.id, u.name FROM users u JOIN memberships m ON m.user_id = u.id WHERE m.organization_id = $1 AND u.id = $2 AND m.role = 'teacher'`,
+          `SELECT u.id, u.name FROM users u JOIN memberships m ON m.user_id = u.id WHERE m.organization_id = $1 AND u.id = $2 AND m.role = 'teacher'`,
           [orgId, teacherUserId],
         );
         if (!t) throw new NotFoundException("Teacher not found in this school");
       }
-      await manager.query(
-        `INSERT INTO class_subject_assignments (organization_id, section_id, subject_id, teacher_user_id)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (organization_id, section_id, subject_id)
-         DO UPDATE SET teacher_user_id = EXCLUDED.teacher_user_id`,
-        [orgId, sectionId, subjectId, teacherUserId || null],
+
+      // Check current assignment for mid-year reassignment / handover protection
+      const [existing] = await manager.query(
+        `SELECT teacher_user_id as "teacherUserId" FROM class_subject_assignments WHERE organization_id = $1 AND section_id = $2 AND subject_id = $3`,
+        [orgId, sectionId, subjectId],
       );
+
+      if (teacherUserId) {
+        await manager.query(
+          `INSERT INTO class_subject_assignments (organization_id, section_id, subject_id, teacher_user_id)
+           VALUES ($1, $2, $3, $4)
+           ON CONFLICT (organization_id, section_id, subject_id)
+           DO UPDATE SET teacher_user_id = EXCLUDED.teacher_user_id`,
+          [orgId, sectionId, subjectId, teacherUserId],
+        );
+
+        // Edge case 2: If reassigning to a new teacher, update timetable entries so new teacher inherits future periods
+        if (existing?.teacherUserId && existing.teacherUserId !== teacherUserId) {
+          await manager.query(
+            `UPDATE timetable_entries SET teacher_user_id = $4 WHERE organization_id = $1 AND section_id = $2 AND subject_id = $3`,
+            [orgId, sectionId, subjectId, teacherUserId],
+          );
+        }
+      } else {
+        // De-allocate teacher while keeping section subject structure intact
+        await manager.query(
+          `UPDATE class_subject_assignments SET teacher_user_id = NULL
+           WHERE organization_id = $1 AND section_id = $2 AND subject_id = $3`,
+          [orgId, sectionId, subjectId],
+        );
+      }
+
+      const action = teacherUserId
+        ? existing?.teacherUserId
+          ? "faculty.reassigned"
+          : "faculty.allocated"
+        : "faculty.deallocated";
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action,
+        details: { sectionId, subjectId, teacherUserId: teacherUserId || null, previousTeacherUserId: existing?.teacherUserId || null },
+      });
+
       return { success: true, sectionId, subjectId, teacherUserId: teacherUserId || null };
     });
   }

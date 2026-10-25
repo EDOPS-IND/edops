@@ -850,11 +850,11 @@ export function ClassCommandCenterModal({
                   {sec?.code || "Class Section"}
                 </span>
                 <h3 id="class-modal-title" style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#0c1e33" }}>
-                  {sec ? `${sec.programName} — Section ${sec.name}` : "Class Command Center"}
+                  {sec ? `${sec.programName || sec.className || "Class"} — Section ${sec.name || sec.sectionName || ""}` : "Class Command Center"}
                 </h3>
               </div>
               <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b" }}>
-                Academic Oversight • Capacity: {sec?.enrolledCount || 0} / {sec?.capacity || 40} Enrolled • Total Subjects: {subjects.length}
+                Academic Oversight • Capacity: {sec?.enrolledCount ?? sec?.studentCount ?? 0} / {sec?.capacity || 40} Enrolled • Total Subjects: {subjects.length}
               </p>
             </div>
           )}
@@ -1674,7 +1674,7 @@ export function ClassCommandCenterModal({
         <ClassSubjectAllocationModal
           isOpen={showAllocateSubjectModal}
           onClose={() => setShowAllocateSubjectModal(false)}
-          sectionName={sec ? `${sec.programName} — Section ${sec.name}` : "Class Section"}
+          sectionName={sec ? `${sec.programName || sec.className || "Class"} — Section ${sec.name || sec.sectionName || ""}` : "Class Section"}
           availableSubjects={detail?.availableSubjects || []}
           alreadyAllocatedSubjectIds={subjects.map((s: any) => s.subjectId)}
           teachers={teachers}

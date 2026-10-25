@@ -5,6 +5,7 @@ import { ClassPerformanceItem, SubjectPerformanceItem, CurriculumNodeItem, Lesso
 import { Search, Layers, BookOpen, CheckCircle2, AlertTriangle, ArrowRight, MessageSquare, Award, BookMarked, GraduationCap } from "lucide-react";
 import { api, getPrincipalAcademics } from "../../edops-api";
 import { ClassSectionManager } from "../../components/class-command-center";
+import { SubjectPerformanceDrawer } from "./subject-performance-drawer";
 
 export function AcademicsPane({
   classes = [],
@@ -39,6 +40,7 @@ export function AcademicsPane({
   const [feedbackInput, setFeedbackInput] = useState<{ [key: string]: string }>({});
   const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [selectedCurriculumSubject, setSelectedCurriculumSubject] = useState<string | null>(null);
+  const [selectedSubjectForDrawer, setSelectedSubjectForDrawer] = useState<SubjectPerformanceItem | null>(null);
 
   React.useEffect(() => {
     if (initialTab) {
@@ -286,6 +288,7 @@ export function AcademicsPane({
           organizationId={organizationId || ""}
           role="principal"
           sections={classList}
+          programs={liveData?.programs || []}
           onRefresh={() => {
             if (organizationId) {
               getPrincipalAcademics(organizationId).then((data) => setLiveData(data));
@@ -305,56 +308,120 @@ export function AcademicsPane({
               No subjects found for this school.
             </div>
           ) : (
-            subjectList.map((sub: any, idx: number) => (
-              <div
-                key={idx}
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #e4e6e9",
-                  borderRadius: "10px",
-                  padding: "18px",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>{sub.name}</h4>
-                    <span style={{ fontSize: "11px", color: "#64748b" }}>
-                      Faculty Lead: <b>{sub.teacher}</b> · Classes: {sub.classes}
-                    </span>
-                  </div>
-                  <span
-                    style={{
-                      padding: "3px 8px",
-                      borderRadius: "4px",
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      background: sub.status === "Needs Attention" ? "#fef3c7" : "#dcfce7",
-                      color: sub.status === "Needs Attention" ? "#92400e" : "#166534",
-                    }}
-                  >
-                    {sub.status}
-                  </span>
-                </div>
+            subjectList.map((sub: any, idx: number) => {
+              const secCount = sub.sectionCount ?? (sub.sections?.length || 0);
+              const facultyCount = sub.teacherCount ?? (sub.teacher && sub.teacher !== "Unassigned" ? sub.teacher.split(",").length : 0);
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "10px", marginTop: "14px", fontSize: "12px" }}>
-                  <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "6px", border: "1px solid #f1f5f9" }}>
-                    <div style={{ color: "#64748b", fontSize: "11px" }}>Subject Avg</div>
-                    <div style={{ fontSize: "18px", fontWeight: 800, color: "#1e293b", marginTop: "2px" }}>{percent(sub.average)}</div>
-                  </div>
-                  <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "6px", border: "1px solid #f1f5f9" }}>
-                    <div style={{ color: "#64748b", fontSize: "11px" }}>Curriculum</div>
-                    <div style={{ fontSize: "18px", fontWeight: 800, color: "#0c1e33", marginTop: "2px" }}>{percent(sub.curriculum)}</div>
-                  </div>
-                  <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "6px", border: "1px solid #f1f5f9" }}>
-                    <div style={{ color: "#64748b", fontSize: "11px" }}>Syllabus Gap</div>
-                    <div style={{ fontSize: "18px", fontWeight: 800, color: sub.gap < 0 ? "#dc2626" : "#15803d", marginTop: "2px" }}>
-                      {sub.gap == null ? "—" : sub.gap > 0 ? `+${sub.gap}%` : `${sub.gap}%`}
+              return (
+                <div
+                  key={sub.id || idx}
+                  onClick={() => setSelectedSubjectForDrawer(sub)}
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid #e4e6e9",
+                    borderRadius: "10px",
+                    padding: "18px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = "#93c5fd";
+                    e.currentTarget.style.boxShadow = "0 4px 12px rgba(15, 23, 42, 0.06)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = "#e4e6e9";
+                    e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.02)";
+                  }}
+                >
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>{sub.name}</h4>
+                          <span
+                            style={{
+                              padding: "2px 6px",
+                              borderRadius: "4px",
+                              fontSize: "10.5px",
+                              fontWeight: 700,
+                              background: sub.isElective ? "#f3e8ff" : "#eff6ff",
+                              color: sub.isElective ? "#7e22ce" : "#1d4ed8",
+                            }}
+                          >
+                            {sub.isElective ? "Elective" : "Core"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "11.5px", color: "#64748b", marginTop: "3px" }}>
+                          {secCount} Sections · {facultyCount} Faculty Assigned
+                        </div>
+                      </div>
+                      <span
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          background: sub.status === "Needs Attention" ? "#fef3c7" : sub.status === "Unassigned" ? "#f1f5f9" : "#dcfce7",
+                          color: sub.status === "Needs Attention" ? "#92400e" : sub.status === "Unassigned" ? "#64748b" : "#166534",
+                          border: sub.status === "Unassigned" ? "1px solid #e2e8f0" : "none",
+                        }}
+                      >
+                        {sub.status}
+                      </span>
+                    </div>
+
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", marginTop: "14px", fontSize: "12px" }}>
+                      <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "6px", border: "1px solid #f1f5f9" }}>
+                        <div style={{ color: "#64748b", fontSize: "10.5px" }}>Subject Avg</div>
+                        <div style={{ fontSize: "16px", fontWeight: 800, color: "#1e293b", marginTop: "2px" }}>{percent(sub.average)}</div>
+                      </div>
+                      <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "6px", border: "1px solid #f1f5f9" }}>
+                        <div style={{ color: "#64748b", fontSize: "10.5px" }}>Turn-in Rate</div>
+                        <div style={{ fontSize: "16px", fontWeight: 800, color: "#0c1e33", marginTop: "2px" }}>{percent(sub.assignmentRate)}</div>
+                      </div>
+                      <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "6px", border: "1px solid #f1f5f9" }}>
+                        <div style={{ color: "#64748b", fontSize: "10.5px" }}>Curriculum</div>
+                        <div style={{ fontSize: "16px", fontWeight: 800, color: "#0c1e33", marginTop: "2px" }}>{percent(sub.curriculum)}</div>
+                      </div>
+                      <div style={{ background: "#f8fafc", padding: "10px", borderRadius: "6px", border: "1px solid #f1f5f9" }}>
+                        <div style={{ color: "#64748b", fontSize: "10.5px" }}>Syllabus Gap</div>
+                        <div
+                          style={{
+                            fontSize: "16px",
+                            fontWeight: 800,
+                            color: sub.gap == null ? "#64748b" : sub.gap < -5 ? "#dc2626" : sub.gap < 0 ? "#0f172a" : "#15803d",
+                            marginTop: "2px",
+                          }}
+                        >
+                          {sub.gap == null ? "—" : sub.gap > 0 ? `+${sub.gap}%` : `${sub.gap}%`}
+                        </div>
+                      </div>
                     </div>
                   </div>
+
+                  <div
+                    style={{
+                      marginTop: "14px",
+                      paddingTop: "10px",
+                      borderTop: "1px solid #f1f5f9",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      fontSize: "11.5px",
+                      color: "#2563eb",
+                      fontWeight: 600,
+                    }}
+                  >
+                    <span>Inspect class performance &amp; teachers</span>
+                    <ArrowRight size={14} />
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -799,6 +866,16 @@ export function AcademicsPane({
             ))
           )}
         </div>
+      )}
+
+      {/* 5. Subject Performance Right Drawer */}
+      {selectedSubjectForDrawer && (
+        <SubjectPerformanceDrawer
+          subject={selectedSubjectForDrawer}
+          onClose={() => setSelectedSubjectForDrawer(null)}
+          onOpenTeacherProfile={onOpenTeacherProfile}
+          onTabChange={onTabChange}
+        />
       )}
     </div>
   );

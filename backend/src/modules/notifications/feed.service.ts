@@ -15,10 +15,11 @@ export class InboxQuery extends AcademicListDto {
 
 // Parameters 1-3 are always school, role, actor. Payloads contain IDs/types only, never grades or answers.
 const visibleEvent = `e.organization_id=$1 AND
-  ($2='school_admin' OR ($2='teacher' AND EXISTS (SELECT 1 FROM class_subject_assignments c WHERE c.organization_id=e.organization_id
+  ($2 IN ('school_admin', 'principal') OR ($2='teacher' AND EXISTS (SELECT 1 FROM class_subject_assignments c WHERE c.organization_id=e.organization_id
     AND c.section_id=e.section_id AND c.subject_id=e.subject_id AND c.teacher_user_id=$3))
   OR ($2='student' AND EXISTS (SELECT 1 FROM event_recipients r WHERE r.organization_id=e.organization_id AND r.event_id=e.id AND r.user_id=$3)
-    AND EXISTS (SELECT 1 FROM enrollments en WHERE en.organization_id=e.organization_id AND en.section_id=e.section_id AND en.student_user_id=$3 AND en.status='active')))
+    AND EXISTS (SELECT 1 FROM enrollments en WHERE en.organization_id=e.organization_id AND en.section_id=e.section_id AND en.student_user_id=$3 AND en.status='active'))
+  OR ($2='parent' AND EXISTS (SELECT 1 FROM event_recipients r WHERE r.organization_id=e.organization_id AND r.event_id=e.id AND r.user_id=$3)))
   AND (e.event_type<>'recording.published' OR EXISTS (SELECT 1 FROM recorded_sessions r WHERE r.organization_id=e.organization_id AND r.id=e.resource_id AND r.status='published'))`;
 const eventFields = `e.event_type AS "eventType",e.resource_id AS "resourceId",e.section_id AS "sectionId",e.subject_id AS "subjectId",e.occurred_at AS "occurredAt"`;
 

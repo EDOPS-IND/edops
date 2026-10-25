@@ -15,6 +15,7 @@ import {
   Matches,
   MaxLength,
   Min,
+  ValidateIf,
   ValidateNested,
 } from "class-validator";
 
@@ -868,6 +869,7 @@ export class AssignSchoolAdminTeacherDto {
 
   @ApiPropertyOptional({ example: "d3b07384-d113-4944-9c88-c75c87901002", nullable: true })
   @IsOptional()
+  @ValidateIf((_o, v) => v !== null && v !== undefined && v !== "")
   @IsUUID()
   teacherUserId?: string | null;
 }

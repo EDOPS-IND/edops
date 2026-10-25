@@ -13,14 +13,19 @@ export class TeachingAccess {
     work: (manager: Queryable, role: SchoolRole) => Promise<T>, feature?: Feature, lockOrg?: boolean) {
     let role: SchoolRole;
     return this.work.run(org, actor, action, payload, key, (manager) => work(manager, role), {
-      roles: ['school_admin', 'teacher', 'student'],
+      roles: ['school_admin', 'principal', 'teacher', 'student', 'parent'],
       lockOrg,
       authorize: async (manager) => {
         const [member] = await manager.query('SELECT role FROM memberships WHERE organization_id = $1 AND user_id = $2 LIMIT 1', [org, actor.id]);
+        if (!member && actor.isPlatformAdmin) {
+          role = 'school_admin';
+          await authorize(manager, role);
+          return;
+        }
         if (!member) throw new NotFoundException('Membership not found');
         role = member.role;
         await authorize(manager, role);
-        if (feature) await requireFeature(manager, org, feature);
+        if (feature) await requireFeature(manager, org, feature, role);
       },
     });
   }
@@ -38,7 +43,7 @@ export class TeachingAccess {
       const [subj] = await manager.query('SELECT id FROM subjects WHERE organization_id = $1 AND id = $2 LIMIT 1', [org, subjectId]);
       if (!subj) throw new NotFoundException('Class not found');
     }
-    if (role === 'school_admin') return;
+    if (role === 'school_admin' || role === 'principal') return;
     if (role === 'teacher') {
       if (!subjectId) throw new NotFoundException('Assigned class not found');
       const [assigned] = await manager.query(

@@ -1720,7 +1720,7 @@ export function SchoolAdminWorkspace({
 
                       {detectedRole === "teacher" && (
                         <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
-                          <span>Subject Specialty <span style={{ color: "#D92D20" }}>*</span></span>
+                          <span>Department / Primary Faculty Domain <span style={{ color: "#D92D20" }}>*</span></span>
                           <input
                             required
                             type="text"
@@ -1738,6 +1738,9 @@ export function SchoolAdminWorkspace({
                               fontFamily: "inherit",
                             }}
                           />
+                          <span style={{ fontSize: "11px", color: "#667085", marginTop: "2px" }}>
+                            Faculty department. Specific classroom sections (e.g. Class 10-A, 9-B) are allocated from the teacher&apos;s profile or class command center.
+                          </span>
                         </label>
                       )}
 
