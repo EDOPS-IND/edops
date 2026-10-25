@@ -3167,10 +3167,12 @@ export class SchoolAdminService {
        LEFT JOIN sections sec ON sec.id::text = REPLACE(b.target_audience, 'section:', '') AND sec.organization_id = b.organization_id
        LEFT JOIN programs p ON p.id = sec.program_id
        WHERE b.organization_id = $1
+         AND b.sent_by != $3
          AND (
-           $2 IN ('school_admin', 'principal')
-           OR b.target_audience = 'all'
-           OR ($2 = 'teacher' AND (b.target_audience = 'teachers' OR b.sent_by = $3))
+           b.target_audience = 'all'
+           OR ($2 = 'principal' AND b.target_audience = 'principal')
+           OR ($2 = 'school_admin' AND b.target_audience IN ('school_admin', 'admin'))
+           OR ($2 = 'teacher' AND b.target_audience = 'teachers')
            OR ($2 = 'student' AND b.target_audience = 'students')
            OR ($2 = 'parent' AND b.target_audience = 'parents')
            OR ($2 = 'student' AND b.target_audience IN (
@@ -3182,8 +3184,6 @@ export class SchoolAdminService {
                 WHERE psr.school_id = $1 AND psr.parent_id = $3 AND e.status = 'active'
               ))
            OR ($2 = 'teacher' AND b.target_audience IN (
-                SELECT 'section:' || c.section_id FROM class_subject_assignments c WHERE c.organization_id = $1 AND c.teacher_user_id = $3
-                UNION
                 SELECT 'section:' || s.id FROM sections s WHERE s.organization_id = $1 AND s.class_teacher_user_id = $3
               ))
          )
