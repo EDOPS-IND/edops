@@ -95,7 +95,26 @@ export type ApiRequestOptions = {
   body?: unknown;
   idempotent?: boolean;
   silent?: boolean;
+  noCache?: boolean;
+  ttlMs?: number;
 };
+
+// Client-side in-memory cache for GET requests
+const apiGetCache = new Map<string, { data: any; timestamp: number; ttl: number }>();
+const pendingGetRequests = new Map<string, Promise<any>>();
+
+export function invalidateApiCache(pathPrefix?: string): void {
+  if (typeof window === "undefined") return;
+  if (!pathPrefix) {
+    apiGetCache.clear();
+    return;
+  }
+  for (const key of apiGetCache.keys()) {
+    if (key.includes(pathPrefix)) {
+      apiGetCache.delete(key);
+    }
+  }
+}
 
 async function request<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
   const method = options.method ?? "GET";
@@ -165,29 +184,68 @@ async function request<T>(path: string, options: ApiRequestOptions = {}): Promis
 }
 
 export async function api<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  try {
-    return await request<T>(path, options);
-  } catch (error: any) {
-    if (typeof window !== 'undefined' && !options.silent && !path.startsWith('/auth/')) {
-      const isAbort = error?.name === 'AbortError' || error?.name === 'DOMException';
-      const isNetworkAbort = error?.message === 'Failed to fetch' || error?.message === 'Load failed';
-      const isMutation = !!options.method && options.method !== 'GET';
+  const isBrowser = typeof window !== "undefined";
+  const isGet = !options.method || options.method === "GET";
+  const canCache = isBrowser && isGet && !options.noCache && !path.startsWith("/auth/");
+  const cacheKey = path;
 
-      // Suppress noisy global banner on aborted navigation fetches or passive background GETs
-      // Real mutation failures (POST/PUT/PATCH/DELETE) and non-network errors still alert cleanly
-      if (!isAbort && (isMutation || !isNetworkAbort)) {
-        window.dispatchEvent(
-          new CustomEvent('edops:request-error', {
-            detail: {
-              message: error instanceof Error ? error.message : 'Request failed',
-              mutation: isMutation,
-            },
-          })
-        );
+  if (canCache) {
+    const cached = apiGetCache.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < cached.ttl) {
+      return cached.data as T;
+    }
+    const pending = pendingGetRequests.get(cacheKey);
+    if (pending) {
+      return pending as Promise<T>;
+    }
+  }
+
+  const execute = async () => {
+    try {
+      const data = await request<T>(path, options);
+      if (canCache) {
+        apiGetCache.set(cacheKey, {
+          data,
+          timestamp: Date.now(),
+          ttl: options.ttlMs ?? 30_000,
+        });
+      } else if (isBrowser && !isGet) {
+        // Automatically invalidate cached GET requests on mutations so UI always reflects changes
+        invalidateApiCache();
+      }
+      return data;
+    } catch (error: any) {
+      if (isBrowser && !options.silent && !path.startsWith("/auth/")) {
+        const isAbort = error?.name === "AbortError" || error?.name === "DOMException";
+        const isNetworkAbort = error?.message === "Failed to fetch" || error?.message === "Load failed";
+        const isMutation = !!options.method && options.method !== "GET";
+
+        if (!isAbort && (isMutation || !isNetworkAbort)) {
+          window.dispatchEvent(
+            new CustomEvent("edops:request-error", {
+              detail: {
+                message: error instanceof Error ? error.message : "Request failed",
+                mutation: isMutation,
+              },
+            })
+          );
+        }
+      }
+      throw error;
+    } finally {
+      if (canCache) {
+        pendingGetRequests.delete(cacheKey);
       }
     }
-    throw error;
+  };
+
+  if (canCache) {
+    const p = execute();
+    pendingGetRequests.set(cacheKey, p);
+    return p;
   }
+
+  return execute();
 }
 
 export function login(email: string, password: string) { return api<Profile & { accessToken?: string; refreshToken?: string }>("/auth/login", { method: "POST", body: { email: email.trim().toLowerCase(), password } }); }
@@ -195,6 +253,7 @@ export function forgotPassword(email: string) { return api<{ message: string }>(
 export function verifyResetToken(token: string) { return api<{ valid: boolean; email: string }>(`/auth/reset-password/verify?token=${encodeURIComponent(token.trim())}`); }
 export function resetPassword(token: string, password: string) { return api<{ message: string }>("/auth/reset-password", { method: "POST", body: { token: token.trim(), password } }); }
 export function logout(): Promise<null> {
+  invalidateApiCache();
   const currentRefreshToken = jwtRefreshToken;
   jwtAccessToken = undefined;
   jwtRefreshToken = undefined;
@@ -211,7 +270,10 @@ export function getStudentAvatarUrl(name?: string, email?: string): string {
   const seed = (name || email || "Student").trim();
   return `https://api.dicebear.com/10.x/glyphs/svg?seed=${encodeURIComponent(seed)}&backgroundColor=ebedf2`;
 }
-export function switchSchool(schoolId: string) { return api<{ accessToken: string; activeSchoolId: string; role?: string }>("/auth/switch-school", { method: "POST", body: { schoolId } }); }
+export function switchSchool(schoolId: string) {
+  invalidateApiCache();
+  return api<{ accessToken: string; activeSchoolId: string; role?: string }>("/auth/switch-school", { method: "POST", body: { schoolId } });
+}
 export type InvitationInfo = {
   email: string;
   name?: string;

@@ -29,6 +29,7 @@ import {
   createParentQuery,
   OrganizationSummary,
   getStudentAvatarUrl,
+  invalidateApiCache,
 } from "../edops-api";
 import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from "./types";
 import { ThreeDotsLoading } from "../components/feature-unavailable-card";
@@ -70,7 +71,17 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
   initialModal,
 }) => {
   const [activeTab, setActiveTab] = useState<ParentTab>(activeTabProp || "overview");
+  const [visitedTabs, setVisitedTabs] = useState<Set<ParentTab>>(() => new Set([activeTabProp || "overview"]));
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
 
   const [wards, setWards] = useState<WardInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -876,43 +887,64 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
               </div>
             ) : (
               <>
-                {activeTab === "overview" && (
-                  <OverviewPane
-                    selectedWard={selectedWard}
-                    onNavigateTab={setActiveTab}
-                    onOpenLeaveModal={() => setLeaveModalOpen(true)}
-                    onOpenQueryModal={() => setQueryModalOpen(true)}
-                    onOpenReportModal={() => setReportModalOpen(true)}
-                  />
+                {visitedTabs.has("overview") && (
+                  <div style={{ display: activeTab === "overview" ? "contents" : "none" }}>
+                    <OverviewPane
+                      selectedWard={selectedWard}
+                      onNavigateTab={setActiveTab}
+                      onOpenLeaveModal={() => setLeaveModalOpen(true)}
+                      onOpenQueryModal={() => setQueryModalOpen(true)}
+                      onOpenReportModal={() => setReportModalOpen(true)}
+                    />
+                  </div>
                 )}
 
-                {activeTab === "academics" && (
-                  <AcademicsPane
-                    selectedWard={selectedWard}
-                    onOpenReportModal={() => setReportModalOpen(true)}
-                  />
+                {visitedTabs.has("academics") && (
+                  <div style={{ display: activeTab === "academics" ? "contents" : "none" }}>
+                    <AcademicsPane
+                      selectedWard={selectedWard}
+                      onOpenReportModal={() => setReportModalOpen(true)}
+                    />
+                  </div>
                 )}
 
-                {activeTab === "attendance" && (
-                  <AttendancePane
-                    selectedWard={selectedWard}
-                    leavesList={leavesList}
-                    onOpenLeaveModal={() => setLeaveModalOpen(true)}
-                  />
+                {visitedTabs.has("attendance") && (
+                  <div style={{ display: activeTab === "attendance" ? "contents" : "none" }}>
+                    <AttendancePane
+                      selectedWard={selectedWard}
+                      leavesList={leavesList}
+                      onOpenLeaveModal={() => setLeaveModalOpen(true)}
+                    />
+                  </div>
                 )}
 
-                {activeTab === "fees" && <FeesPane selectedWard={selectedWard} />}
-
-                {activeTab === "ptm" && <PtmPane selectedWard={selectedWard} />}
-
-                {activeTab === "notices" && (
-                  <NoticesPane
-                    selectedWard={selectedWard}
-                    queriesList={queriesList}
-                    onOpenQueryModal={() => setQueryModalOpen(true)}
-                  />
+                {visitedTabs.has("fees") && (
+                  <div style={{ display: activeTab === "fees" ? "contents" : "none" }}>
+                    <FeesPane selectedWard={selectedWard} />
+                  </div>
                 )}
-                {activeTab === "communication" && <UnifiedCommunicationHub organizationId={organization.id} role="parent" />}
+
+                {visitedTabs.has("ptm") && (
+                  <div style={{ display: activeTab === "ptm" ? "contents" : "none" }}>
+                    <PtmPane selectedWard={selectedWard} />
+                  </div>
+                )}
+
+                {visitedTabs.has("notices") && (
+                  <div style={{ display: activeTab === "notices" ? "contents" : "none" }}>
+                    <NoticesPane
+                      selectedWard={selectedWard}
+                      queriesList={queriesList}
+                      onOpenQueryModal={() => setQueryModalOpen(true)}
+                    />
+                  </div>
+                )}
+
+                {visitedTabs.has("communication") && (
+                  <div style={{ display: activeTab === "communication" ? "contents" : "none" }}>
+                    <UnifiedCommunicationHub organizationId={organization.id} role="parent" />
+                  </div>
+                )}
               </>
             )}
             </>

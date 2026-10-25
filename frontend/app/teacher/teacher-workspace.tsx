@@ -31,7 +31,7 @@ import {
   X,
 } from 'lucide-react';
 
-import { OrganizationSummary, getTeacherClasses, getStudentAvatarUrl } from '../edops-api';
+import { OrganizationSummary, getTeacherClasses, getStudentAvatarUrl, invalidateApiCache } from '../edops-api';
 import { useDashboardNavigation } from '../dashboard-navigation';
 import { NotificationBellDropdown } from '../components/notification-bell-dropdown';
 import { FeatureUnavailableCard, ThreeDotsLoading } from '../components/feature-unavailable-card';
@@ -110,9 +110,19 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
   activeSubTab: activeSubTabProp,
 }) => {
   const [activeTab, setActiveTab] = useState<TeacherTab>(activeTabProp || 'dashboard');
+  const [visitedTabs, setVisitedTabs] = useState<Set<TeacherTab>>(() => new Set([activeTabProp || 'dashboard']));
   const [activeSubTab, setActiveSubTab] = useState<string>(activeSubTabProp || "");
   const [showMoreModules, setShowMoreModules] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const next = new Set(prev);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
 
   // Global Modals State
   const [attendanceModalOpen, setAttendanceModalOpen] = useState(initialModal === "attendance");
@@ -606,7 +616,10 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
             {activeTab === "dashboard" && (
               <button
                 type="button"
-                onClick={() => setAttendanceRefreshKey(k => k + 1)}
+                onClick={() => {
+                  invalidateApiCache();
+                  setAttendanceRefreshKey(k => k + 1);
+                }}
                 title="Refresh Dashboard"
                 aria-label="Refresh Dashboard"
                 style={{
@@ -917,125 +930,157 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
             />
           ) : (
             <>
-              {activeTab === 'dashboard' && (
-                <DashboardPane
-                  key={`dash-${attendanceRefreshKey}`}
-                  organizationId={organization.id}
-                  onNavigate={(tab) => navigateTo(tab as TeacherTab)}
-                  onCreateAssignment={() => setAssignmentModalOpen(true)}
-                  onTakeAttendance={handleOpenAttendance}
-                  onMarkLessonCompleted={(sectionId, period, classSection) => handleOpenLesson(classSection, sectionId)}
-                />
+              {visitedTabs.has('dashboard') && (
+                <div style={{ display: activeTab === 'dashboard' ? 'contents' : 'none' }}>
+                  <DashboardPane
+                    key={`dash-${attendanceRefreshKey}`}
+                    organizationId={organization.id}
+                    onNavigate={(tab) => navigateTo(tab as TeacherTab)}
+                    onCreateAssignment={() => setAssignmentModalOpen(true)}
+                    onTakeAttendance={handleOpenAttendance}
+                    onMarkLessonCompleted={(sectionId, period, classSection) => handleOpenLesson(classSection, sectionId)}
+                  />
+                </div>
               )}
 
-              {activeTab === 'classes' && (
-                <ClassesPane
-                  key={`classes-${attendanceRefreshKey}`}
-                  organizationId={organization.id}
-                  onOpenStudentDossier={handleViewStudent}
-                  onTakeAttendance={(sectionId, className) => handleOpenAttendance(sectionId, 1, className)}
-                  onCreateAssignment={() => setAssignmentModalOpen(true)}
-                />
+              {visitedTabs.has('classes') && (
+                <div style={{ display: activeTab === 'classes' ? 'contents' : 'none' }}>
+                  <ClassesPane
+                    key={`classes-${attendanceRefreshKey}`}
+                    organizationId={organization.id}
+                    onOpenStudentDossier={handleViewStudent}
+                    onTakeAttendance={(sectionId, className) => handleOpenAttendance(sectionId, 1, className)}
+                    onCreateAssignment={() => setAssignmentModalOpen(true)}
+                  />
+                </div>
               )}
 
-              {activeTab === 'timetable' && (
-                <TimetablePane
-                  organizationId={organization.id}
-                  activeViewMode={(activeSubTab as any) || "weekly"}
-                  onViewModeChange={(mode) => navigateTo('timetable', mode)}
-                  onTakeAttendance={handleOpenAttendance}
-                  onLogLesson={handleOpenLesson}
-                />
+              {visitedTabs.has('timetable') && (
+                <div style={{ display: activeTab === 'timetable' ? 'contents' : 'none' }}>
+                  <TimetablePane
+                    organizationId={organization.id}
+                    activeViewMode={(activeSubTab as any) || "weekly"}
+                    onViewModeChange={(mode) => navigateTo('timetable', mode)}
+                    onTakeAttendance={handleOpenAttendance}
+                    onLogLesson={handleOpenLesson}
+                  />
+                </div>
               )}
 
-              {activeTab === 'attendance' && (
-                <AttendancePane
-                  key={`att-${attendanceRefreshKey}`}
-                  organizationId={organization.id}
-                  initialTab={activeSubTab}
-                  onTabChange={(sub) => navigateTo('attendance', sub)}
-                  onTakeAttendance={handleOpenAttendance}
-                />
+              {visitedTabs.has('attendance') && (
+                <div style={{ display: activeTab === 'attendance' ? 'contents' : 'none' }}>
+                  <AttendancePane
+                    key={`att-${attendanceRefreshKey}`}
+                    organizationId={organization.id}
+                    initialTab={activeSubTab}
+                    onTabChange={(sub) => navigateTo('attendance', sub)}
+                    onTakeAttendance={handleOpenAttendance}
+                  />
+                </div>
               )}
 
-              {activeTab === 'learning' && (
-                <LearningPane
-                  key={`learning-${lessonRefreshKey}`}
-                  organizationId={organization.id}
-                  initialTab={activeSubTab}
-                  onTabChange={(sub) => navigateTo('learning', sub)}
-                  onRecordLesson={() => handleOpenLesson()}
-                  onLogLesson={handleOpenLesson}
-                />
+              {visitedTabs.has('learning') && (
+                <div style={{ display: activeTab === 'learning' ? 'contents' : 'none' }}>
+                  <LearningPane
+                    key={`learning-${lessonRefreshKey}`}
+                    organizationId={organization.id}
+                    initialTab={activeSubTab}
+                    onTabChange={(sub) => navigateTo('learning', sub)}
+                    onRecordLesson={() => handleOpenLesson()}
+                    onLogLesson={handleOpenLesson}
+                  />
+                </div>
               )}
 
-              {activeTab === 'assignments' && (
-                <AssignmentsPane
-                  key={`assign-${assignmentRefreshKey}`}
-                  organizationId={organization.id}
-                  initialTab={activeSubTab}
-                  onTabChange={(sub) => navigateTo('assignments', sub)}
-                  onCreateAssignment={() => setAssignmentModalOpen(true)}
-                />
+              {visitedTabs.has('assignments') && (
+                <div style={{ display: activeTab === 'assignments' ? 'contents' : 'none' }}>
+                  <AssignmentsPane
+                    key={`assign-${assignmentRefreshKey}`}
+                    organizationId={organization.id}
+                    initialTab={activeSubTab}
+                    onTabChange={(sub) => navigateTo('assignments', sub)}
+                    onCreateAssignment={() => setAssignmentModalOpen(true)}
+                  />
+                </div>
               )}
 
-              {activeTab === 'arena' && (
-                <ArenaPane organizationId={organization.id} />
+              {visitedTabs.has('arena') && (
+                <div style={{ display: activeTab === 'arena' ? 'contents' : 'none' }}>
+                  <ArenaPane organizationId={organization.id} />
+                </div>
               )}
 
-              {activeTab === 'assessment' && (
-                <AssessmentsPane organizationId={organization.id} />
+              {visitedTabs.has('assessment') && (
+                <div style={{ display: activeTab === 'assessment' ? 'contents' : 'none' }}>
+                  <AssessmentsPane organizationId={organization.id} />
+                </div>
               )}
 
-              {activeTab === 'exams' && (
-                <ExamsPane organizationId={organization.id} />
+              {visitedTabs.has('exams') && (
+                <div style={{ display: activeTab === 'exams' ? 'contents' : 'none' }}>
+                  <ExamsPane organizationId={organization.id} />
+                </div>
               )}
 
-              {activeTab === 'students' && (
-                <StudentsPane
-                  key={`students-${studentsRefreshKey}`}
-                  organizationId={organization.id}
-                  initialTab={activeSubTab}
-                  onTabChange={(sub) => navigateTo('students', sub)}
-                  onOpenDossier={handleViewStudent}
-                  onOpenIntervention={(studentId?: string) => {
-                    setSelectedStudentId(studentId || null);
-                    setInterventionModalOpen(true);
-                  }}
-                />
+              {visitedTabs.has('students') && (
+                <div style={{ display: activeTab === 'students' ? 'contents' : 'none' }}>
+                  <StudentsPane
+                    key={`students-${studentsRefreshKey}`}
+                    organizationId={organization.id}
+                    initialTab={activeSubTab}
+                    onTabChange={(sub) => navigateTo('students', sub)}
+                    onOpenDossier={handleViewStudent}
+                    onOpenIntervention={(studentId?: string) => {
+                      setSelectedStudentId(studentId || null);
+                      setInterventionModalOpen(true);
+                    }}
+                  />
+                </div>
               )}
 
-              {activeTab === 'curriculum' && (
-                <CurriculumPane organizationId={organization.id} />
+              {visitedTabs.has('curriculum') && (
+                <div style={{ display: activeTab === 'curriculum' ? 'contents' : 'none' }}>
+                  <CurriculumPane organizationId={organization.id} />
+                </div>
               )}
 
-              {activeTab === 'communication' && (
-                <CommunicationPane
-                  key="comm"
-                  organizationId={organization.id}
-                  initialTab={activeSubTab}
-                  onTabChange={(sub) => navigateTo('communication', sub)}
-                />
+              {visitedTabs.has('communication') && (
+                <div style={{ display: activeTab === 'communication' ? 'contents' : 'none' }}>
+                  <CommunicationPane
+                    key="comm"
+                    organizationId={organization.id}
+                    initialTab={activeSubTab}
+                    onTabChange={(sub) => navigateTo('communication', sub)}
+                  />
+                </div>
               )}
 
-              {activeTab === 'workload' && (
-                <WorkloadPane organizationId={organization.id} />
+              {visitedTabs.has('workload') && (
+                <div style={{ display: activeTab === 'workload' ? 'contents' : 'none' }}>
+                  <WorkloadPane organizationId={organization.id} />
+                </div>
               )}
 
-              {activeTab === 'calendar' && (
-                <CalendarPane organizationId={organization.id} />
+              {visitedTabs.has('calendar') && (
+                <div style={{ display: activeTab === 'calendar' ? 'contents' : 'none' }}>
+                  <CalendarPane organizationId={organization.id} />
+                </div>
               )}
 
-              {activeTab === 'reports' && (
-                <ReportsPane
-                  organizationId={organization.id}
-                  initialTab={activeSubTab}
-                  onTabChange={(sub) => navigateTo('reports', sub)}
-                />
+              {visitedTabs.has('reports') && (
+                <div style={{ display: activeTab === 'reports' ? 'contents' : 'none' }}>
+                  <ReportsPane
+                    organizationId={organization.id}
+                    initialTab={activeSubTab}
+                    onTabChange={(sub) => navigateTo('reports', sub)}
+                  />
+                </div>
               )}
 
-              {activeTab === 'activity' && (
-                <ActivityPane organizationId={organization.id} />
+              {visitedTabs.has('activity') && (
+                <div style={{ display: activeTab === 'activity' ? 'contents' : 'none' }}>
+                  <ActivityPane organizationId={organization.id} />
+                </div>
               )}
             </>
           )}
