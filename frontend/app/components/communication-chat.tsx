@@ -33,7 +33,7 @@ const shortTime = (value?: string) => value ? new Date(value).toLocaleTimeString
 export function CommunicationChat({ organizationId, title = "Messages", onComposeBroadcast }: { organizationId: string; title?: string; onComposeBroadcast?: () => void }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedId, setSelectedId] = useState("");
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messagesByConv, setMessagesByConv] = useState<Record<string, Message[]>>({});
   const [conversationSearch, setConversationSearch] = useState("");
   const [filter, setFilter] = useState("all");
   const [people, setPeople] = useState<Recipient[]>([]);
@@ -50,6 +50,8 @@ export function CommunicationChat({ organizationId, title = "Messages", onCompos
   const lastConversation = useRef("");
   const selected = useMemo(() => conversations.find((item) => item.conversationId === selectedId), [conversations, selectedId]);
   const activeRecipient: any = selected || draftRecipient;
+  const messages = useMemo(() => (selectedId ? messagesByConv[selectedId] || [] : []), [messagesByConv, selectedId]);
+  const hasLoadedCurrent = Boolean(selectedId && selectedId in messagesByConv);
   const loadConversations = useCallback(async () => {
     const rows = await getCommunicationConversations(organizationId);
     setConversations(Array.isArray(rows) ? rows : []);
@@ -78,8 +80,10 @@ export function CommunicationChat({ organizationId, title = "Messages", onCompos
     loadConversations().catch(() => setConversations([])).finally(() => setLoading(false));
     const dispose = openCommunicationStream(organizationId, (event) => {
       void loadConversations();
-      if (event.conversationId && event.conversationId === selectedIdRef.current) {
-        void getCommunicationConversation(organizationId, event.conversationId).then(setMessages).catch(() => undefined);
+      if (event.conversationId) {
+        void getCommunicationConversation(organizationId, event.conversationId)
+          .then((data) => setMessagesByConv((prev) => ({ ...prev, [event.conversationId]: data })))
+          .catch(() => undefined);
       }
     });
     return dispose;
@@ -87,7 +91,9 @@ export function CommunicationChat({ organizationId, title = "Messages", onCompos
 
   useEffect(() => {
     if (!selectedId) return;
-    getCommunicationConversation(organizationId, selectedId).then(setMessages).catch(() => setMessages([]));
+    getCommunicationConversation(organizationId, selectedId)
+      .then((data) => setMessagesByConv((prev) => ({ ...prev, [selectedId]: data })))
+      .catch(() => setMessagesByConv((prev) => ({ ...prev, [selectedId]: [] })));
     void markCommunicationRead(organizationId, selectedId);
   }, [organizationId, selectedId]);
 
@@ -115,12 +121,18 @@ export function CommunicationChat({ organizationId, title = "Messages", onCompos
     try {
       await sendCommunicationMessage(organizationId, { recipientId, recipientRole: selected?.participantRole || draftRecipient?.role || "parent", subject: selected?.subject || "Direct message", body: body.trim(), ...(conversationId ? { conversationId } : {}) });
       setBody("");
-      if (conversationId) setMessages(await getCommunicationConversation(organizationId, conversationId));
-      else {
+      if (conversationId) {
+        const updated = await getCommunicationConversation(organizationId, conversationId);
+        setMessagesByConv((prev) => ({ ...prev, [conversationId]: updated }));
+      } else {
         const rows = await loadConversations();
         const created = rows.find((item: Conversation) => item.participantId === recipientId);
         setDraftRecipient(null);
-        if (created) setSelectedId(created.conversationId);
+        if (created) {
+          setSelectedId(created.conversationId);
+          const updated = await getCommunicationConversation(organizationId, created.conversationId);
+          setMessagesByConv((prev) => ({ ...prev, [created.conversationId]: updated }));
+        }
       }
     } catch { /* the shared API error banner handles the failure */ }
     finally { setSending(false); }
@@ -163,7 +175,46 @@ export function CommunicationChat({ organizationId, title = "Messages", onCompos
       </aside>
       <main className="edops-chat-main">
         <header style={{ minHeight: 72, boxSizing: "border-box", padding: "14px 18px", borderBottom: "1px solid #e1e7ee", background: "#fff", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}><div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}><button className="edops-chat-mobile-back" type="button" onClick={() => { setSelectedId(""); setDraftRecipient(null); }} style={{ border: "1px solid #d4dee9", borderRadius: 8, background: "#fff", padding: "7px 10px" }}>Back</button>{activeRecipient && <span style={{ display: "grid", placeItems: "center", flexShrink: 0, width: 38, height: 38, borderRadius: "50%", background: "#dcecff", color: "#0c1e33", fontWeight: 800 }}>{initials(activeRecipient.participantName || activeRecipient.name || activeRecipient.participantEmail || activeRecipient.email)}</span>}<div style={{ minWidth: 0 }}><strong style={{ display: "block", color: "#0c1e33", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeRecipient?.participantName || activeRecipient?.name || "Select a conversation"}</strong>{activeRecipient && <small style={{ color: "#71839a" }}>{activeRecipient.participantRole || activeRecipient.role || "School member"} · {selected ? "Active conversation" : "New conversation"}</small>}</div></div>{onComposeBroadcast && <button type="button" onClick={onComposeBroadcast} style={{ flexShrink: 0, border: 0, borderRadius: 8, background: "#0c1e33", color: "#fff", padding: "10px 14px", fontWeight: 700, cursor: "pointer" }}>Compose Broadcast</button>}</header>
-        <div ref={messageListRef} role="log" aria-live="polite" aria-relevant="additions" onScroll={(event) => { const list = event.currentTarget; followMessages.current = list.scrollHeight - list.scrollTop - list.clientHeight < 100; if (followMessages.current) setHasNewMessages(false); }} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 10, background: "#f4f7fa" }}>{!activeRecipient ? <div style={{ margin: "auto", textAlign: "center", color: "#71839a" }}><div style={{ fontSize: 34, marginBottom: 8 }}>💬</div><strong style={{ color: "#52657b" }}>Select a person from the left</strong><p style={{ margin: "6px 0 0", fontSize: 13 }}>Search people or choose a conversation to start chatting.</p></div> : selected && messages.length ? messages.map((message) => { const outgoing = message.senderId !== selected.participantId; return <div key={message.id} style={{ alignSelf: outgoing ? "flex-end" : "flex-start", maxWidth: "min(72%, 560px)", padding: "10px 13px", borderRadius: outgoing ? "14px 14px 4px 14px" : "14px 14px 14px 4px", background: outgoing ? "#dcecff" : "#fff", color: "#0c1e33", border: "1px solid #e1e7ee" }}><div style={{ whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{message.body}</div><small style={{ display: "block", marginTop: 5, color: "#71839a", fontSize: 10 }}>{message.senderName || ""}{message.createdAt ? ` · ${shortTime(message.createdAt)}` : ""}</small></div>; }) : <p style={{ margin: "auto", color: "#71839a" }}>Start a new conversation with {activeRecipient.participantName || activeRecipient.name || activeRecipient.participantEmail || activeRecipient.email}.</p>}</div>
+        <div ref={messageListRef} role="log" aria-live="polite" aria-relevant="additions" onScroll={(event) => { const list = event.currentTarget; followMessages.current = list.scrollHeight - list.scrollTop - list.clientHeight < 100; if (followMessages.current) setHasNewMessages(false); }} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 10, background: "#f4f7fa" }}>
+          {!activeRecipient ? (
+            <div style={{ margin: "auto", textAlign: "center", color: "#71839a" }}>
+              <div style={{ fontSize: 34, marginBottom: 8 }}>💬</div>
+              <strong style={{ color: "#52657b" }}>Select a person from the left</strong>
+              <p style={{ margin: "6px 0 0", fontSize: 13 }}>Search people or choose a conversation to start chatting.</p>
+            </div>
+          ) : selected && !hasLoadedCurrent ? (
+            <div style={{ margin: "auto", textAlign: "center", color: "#71839a", fontSize: 13 }}>
+              Loading conversation…
+            </div>
+          ) : selected && messages.length ? (
+            messages.map((message) => {
+              const outgoing = message.senderId !== selected.participantId;
+              return (
+                <div
+                  key={message.id}
+                  style={{
+                    alignSelf: outgoing ? "flex-end" : "flex-start",
+                    maxWidth: "min(72%, 560px)",
+                    padding: "10px 13px",
+                    borderRadius: outgoing ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+                    background: outgoing ? "#dcecff" : "#fff",
+                    color: "#0c1e33",
+                    border: "1px solid #e1e7ee",
+                  }}
+                >
+                  <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.45 }}>{message.body}</div>
+                  <small style={{ display: "block", marginTop: 5, color: "#71839a", fontSize: 10 }}>
+                    {message.senderName || ""}{message.createdAt ? ` · ${shortTime(message.createdAt)}` : ""}
+                  </small>
+                </div>
+              );
+            })
+          ) : (
+            <p style={{ margin: "auto", color: "#71839a" }}>
+              Start a new conversation with {activeRecipient.participantName || activeRecipient.name || activeRecipient.participantEmail || activeRecipient.email}.
+            </p>
+          )}
+        </div>
         {hasNewMessages && <button className="edops-chat-new-messages" type="button" onClick={() => { const list = messageListRef.current; followMessages.current = true; if (list) list.scrollTo({ top: list.scrollHeight }); setHasNewMessages(false); }}>New messages ↓</button>}
         <form className="edops-chat-composer" onSubmit={reply} style={{ display: "flex", gap: 8, padding: 12, borderTop: "1px solid #e1e7ee", background: "#fff" }}><input disabled={!activeRecipient || sending} aria-label="Message" value={body} onChange={(event) => setBody(event.target.value)} placeholder={activeRecipient ? "Write a message…" : "Select a person first"} style={{ minWidth: 0, flex: 1, padding: "11px 12px", border: "1px solid #d4dee9", borderRadius: 9 }} /><button disabled={!activeRecipient || !body.trim() || sending} type="submit" style={{ border: 0, borderRadius: 9, background: "#0c1e33", color: "#fff", padding: "0 18px", fontWeight: 700, cursor: activeRecipient && !sending ? "pointer" : "not-allowed", opacity: activeRecipient && body.trim() && !sending ? 1 : .55 }}>{sending ? "Sending…" : "Send"}</button></form>
       </main>
