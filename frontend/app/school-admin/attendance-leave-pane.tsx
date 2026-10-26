@@ -6,6 +6,8 @@ import {
   getSchoolAdminAttendance,
   getSchoolAdminLeaves,
   updateSchoolAdminLeaveStatus,
+  createSchoolAdminBroadcast,
+  createSchoolAdminDiscipline,
 } from "../edops-api";
 import { Empty } from "../components/ui";
 import {
@@ -47,6 +49,44 @@ export function AttendanceLeavePane({
 
   // Leave Requests Queue
   const [leaveRequests, setLeaveRequests] = useState<LeaveRequestRecord[]>(([] as any[]));
+
+  // Attendance Defaulter Warnings State
+  const [warningSentStudent, setWarningSentStudent] = useState<Record<string, boolean>>({});
+  const [dispatchingWarningId, setDispatchingWarningId] = useState<string | null>(null);
+
+  const handleSendDefaulterWarning = async (st: any) => {
+    if (!organizationId) return;
+    setDispatchingWarningId(st.name);
+    try {
+      const subject = `Statutory Attendance Warning: ${st.name} (Class ${st.grade})`;
+      const body = `Official statutory notice: ${st.name} has recorded an attendance rate of ${st.pct}%, with ${st.daysAbsent} days absent this term, falling below the mandatory CBSE 75% threshold. Please contact the administration or class teacher immediately.`;
+
+      await createSchoolAdminBroadcast(organizationId, {
+        title: subject,
+        message: body,
+        channels: ["in_app", "email", "sms"],
+        targetAudience: "parents",
+        priority: "urgent",
+      });
+
+      await createSchoolAdminDiscipline(organizationId, {
+        studentName: st.name,
+        classSection: st.grade,
+        incidentType: "Attendance Defaulter Warning",
+        severity: st.pct < 60 ? "severe" : "moderate",
+        description: `Official attendance breach warning dispatched to parent (${st.parent || "Guardian"}). Rate: ${st.pct}% with ${st.daysAbsent} days absent.`,
+        actionTaken: "Attendance Warning Notice Issued to Parent",
+        reportedByName: "School Administration",
+        parentNotified: true,
+      });
+
+      setWarningSentStudent((prev) => ({ ...prev, [st.name]: true }));
+    } catch (err) {
+      console.error("Failed to send defaulter warning:", err);
+    } finally {
+      setDispatchingWarningId(null);
+    }
+  };
 
   useEffect(() => {
     if (!organizationId) return;
@@ -378,6 +418,40 @@ export function AttendanceLeavePane({
                     <div style={{ fontSize: "18px", fontWeight: 800, color: "#B45309" }}>{st.pct}%</div>
                     <span style={{ fontSize: "11px", color: "var(--muted)" }}>Attendance Rate</span>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => handleSendDefaulterWarning(st)}
+                    disabled={dispatchingWarningId === st.name || warningSentStudent[st.name]}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 14px",
+                      borderRadius: "6px",
+                      background: warningSentStudent[st.name] ? "#ECFDF5" : "#0c1e33",
+                      color: warningSentStudent[st.name] ? "#047857" : "#FFFFFF",
+                      border: warningSentStudent[st.name] ? "1px solid #A7F3D0" : "none",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      cursor: dispatchingWarningId === st.name || warningSentStudent[st.name] ? "default" : "pointer",
+                      fontFamily: "'Poppins', sans-serif",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {warningSentStudent[st.name] ? (
+                      <>
+                        <CheckCircle2 size={13} />
+                        Warning Sent ✓
+                      </>
+                    ) : dispatchingWarningId === st.name ? (
+                      "Sending..."
+                    ) : (
+                      <>
+                        <AlertTriangle size={13} style={{ color: "#FBBF24" }} />
+                        Send Attendance Warning to Parent
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             ))}
