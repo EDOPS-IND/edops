@@ -38,6 +38,8 @@ import {
   removeSchoolAdminSectionSubject,
   getPrincipalStudent360,
   getSchoolAdminStudent360,
+  createSchoolAdminBroadcast,
+  createSchoolAdminDiscipline,
 } from "../edops-api";
 import { ClassSubjectAllocationModal } from "./class-subject-allocation-modal";
 
@@ -647,6 +649,50 @@ export function ClassCommandCenterModal({
     };
   }, [activeStudent, organizationId, role]);
 
+  // Attendance Warning Action
+  const [warningSent, setWarningSent] = useState(false);
+  const [sendingWarning, setSendingWarning] = useState(false);
+
+  const handleSendAttendanceWarning = async () => {
+    if (!organizationId || !activeStudent) return;
+    setSendingWarning(true);
+    try {
+      const sName = activeStudent.name || "Student";
+      const sRoll = (student360Data?.profile?.rollNo || (activeStudent as any).rollNumber) ? `Roll #${student360Data?.profile?.rollNo || (activeStudent as any).rollNumber}` : "";
+      const classSec = detail?.section?.name || detail?.name || "Class Section";
+      const absentCount = student360Data?.attendance?.absentDays ?? 0;
+      const attRate = student360Data?.attendance?.overallPercentage ?? null;
+      const rateText = attRate != null ? `${attRate}%` : "below statutory mark";
+
+      await createSchoolAdminBroadcast(organizationId, {
+        title: `Statutory Attendance Warning: ${sName} (${classSec})`,
+        message: `Official attendance breach warning for ${sName} (${classSec}${sRoll ? ` · ${sRoll}` : ""}). Current attendance is ${rateText} with ${absentCount} recorded absences. Under CBSE regulations, a minimum of 75% attendance is required for term and examination clearance.`,
+        channels: ["in_app", "email", "sms"],
+        targetAudience: "parents",
+        priority: "urgent",
+      });
+
+      await createSchoolAdminDiscipline(organizationId, {
+        studentUserId: activeStudent.id,
+        studentName: sName,
+        classSection: classSec,
+        incidentType: "Attendance Defaulter Warning",
+        severity: attRate != null && attRate < 60 ? "severe" : "moderate",
+        description: `Official attendance breach warning issued to parent. Current rate: ${rateText} with ${absentCount} absence(s).`,
+        actionTaken: "Attendance Warning Notice Issued to Parent",
+        reportedByName: "School Administration",
+        parentNotified: true,
+      });
+
+      setWarningSent(true);
+      setTimeout(() => setWarningSent(false), 4000);
+    } catch (err) {
+      console.error("Failed to send attendance warning:", err);
+    } finally {
+      setSendingWarning(false);
+    }
+  };
+
   // Handle Save Class Teacher
   const handleSaveClassTeacher = async () => {
     try {
@@ -1072,10 +1118,47 @@ export function ClassCommandCenterModal({
 
                     {student360Tab === "attendance" && (
                       <div style={{ border: "1px solid #e2e8f0", borderRadius: "8px", padding: "18px", background: "#ffffff" }}>
-                        <h4 style={{ margin: "0 0 10px", fontSize: "14px", fontWeight: 700, color: "#0c1e33" }}>Attendance Record</h4>
-                        <p style={{ fontSize: "12.5px", color: "#64748b", margin: "0 0 14px" }}>
-                          Consolidated institutional presence for {activeStudent.name}.
-                        </p>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px", flexWrap: "wrap", gap: "10px" }}>
+                          <div>
+                            <h4 style={{ margin: "0 0 4px", fontSize: "14px", fontWeight: 700, color: "#0c1e33" }}>Attendance Record</h4>
+                            <p style={{ fontSize: "12.5px", color: "#64748b", margin: 0 }}>
+                              Consolidated institutional presence for {activeStudent.name}.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleSendAttendanceWarning}
+                            disabled={sendingWarning || warningSent}
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              padding: "7px 14px",
+                              borderRadius: "6px",
+                              background: warningSent ? "#ECFDF5" : "#0c1e33",
+                              color: warningSent ? "#047857" : "#FFFFFF",
+                              border: warningSent ? "1px solid #A7F3D0" : "none",
+                              fontSize: "12px",
+                              fontWeight: 600,
+                              cursor: sendingWarning || warningSent ? "default" : "pointer",
+                              fontFamily: "'Poppins', sans-serif",
+                            }}
+                          >
+                            {warningSent ? (
+                              <>
+                                <CheckCircle2 size={13} />
+                                Warning Sent ✓
+                              </>
+                            ) : sendingWarning ? (
+                              "Dispatching..."
+                            ) : (
+                              <>
+                                <AlertTriangle size={13} style={{ color: "#FBBF24" }} />
+                                Send Attendance Warning to Parent
+                              </>
+                            )}
+                          </button>
+                        </div>
                         <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", fontSize: "13px" }}>
                           <span style={{ padding: "6px 12px", borderRadius: "6px", background: "#f0fdf4", color: "#166534", fontWeight: 700 }}>
                             Present Days: {sAttendance.presentDays ?? "Recorded live"}
