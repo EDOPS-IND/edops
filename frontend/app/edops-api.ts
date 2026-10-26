@@ -187,7 +187,7 @@ export async function api<T>(path: string, options: ApiRequestOptions = {}): Pro
   const isBrowser = typeof window !== "undefined";
   const isGet = !options.method || options.method === "GET";
   const canCache = isBrowser && isGet && !options.noCache && !path.startsWith("/auth/");
-  const cacheKey = path;
+  const cacheKey = `${jwtAccessToken || "anon"}:${path}`;
 
   if (canCache) {
     const cached = apiGetCache.get(cacheKey);

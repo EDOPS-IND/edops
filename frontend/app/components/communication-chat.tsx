@@ -345,7 +345,11 @@ export function CommunicationChat({
         const rows = await loadConversations();
         const created = rows.find((item: Conversation) => item.participantId === recipientId);
         setDraftRecipient(null);
-        if (created) setSelectedId(created.conversationId);
+        if (created) {
+          setSelectedId(created.conversationId);
+          const updated = await getCommunicationConversation(organizationId, created.conversationId);
+          setMessagesByConv((prev) => ({ ...prev, [created.conversationId]: updated }));
+        }
       }
     } catch {
       // The shared API error banner will catch and present any operational failure

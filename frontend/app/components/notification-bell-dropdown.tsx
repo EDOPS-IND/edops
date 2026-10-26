@@ -244,9 +244,21 @@ export function NotificationBellDropdown({
       if (Array.isArray(noticesData)) {
         noticesData.forEach((n: any) => {
           if (!n || !n.id) return;
+          const audience = (n.targetAudience || "").toLowerCase();
           const isUrgent = n.priority === "urgent" || n.priority === "high";
           const titleLower = (n.title || "").toLowerCase();
           const isLeaveNotice = titleLower.includes("leave");
+
+          // Strict audience guard: ensure alerts only show to their intended recipient role
+          const isTargeted =
+            audience === "all" ||
+            (role === "principal" && (audience === "principal" || (isLeaveNotice && audience.startsWith("section:")))) ||
+            (role === "school_admin" && (audience === "school_admin" || audience === "admin")) ||
+            (role === "teacher" && (audience === "teachers" || audience.startsWith("section:"))) ||
+            (role === "student" && (audience === "students" || audience.startsWith("section:"))) ||
+            (role === "parent" && (audience === "parents" || audience.startsWith("section:")));
+
+          if (!isTargeted) return;
 
           let targetTab = role === "parent" ? "notices" : role === "principal" ? "alerts" : "communication";
           let targetSubTab: string | undefined = "broadcast";
