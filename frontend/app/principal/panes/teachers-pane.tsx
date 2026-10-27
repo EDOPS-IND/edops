@@ -1,12 +1,29 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
-import { Eye, Plus, Users, GraduationCap, BookOpen, Award, Search, X, ArrowRight, UserCheck, UserX } from "lucide-react";
+import { useEffect, useState, useMemo, type FormEvent } from "react";
 import {
-  assignPrincipalCoordinator,
+  Eye,
+  Plus,
+  Users,
+  GraduationCap,
+  BookOpen,
+  Award,
+  Search,
+  X,
+  ArrowRight,
+  UserCheck,
+  UserX,
+  AlertCircle,
+  Clock,
+  ChevronDown,
+  FileCheck2,
+  Calendar,
+  ChevronRight,
+} from "lucide-react";
+import { TeacherSkeletonRows } from "../components/skeleton-rows";
+import {
   assignPrincipalDepartmentHead,
   assignPrincipalDevelopment,
-  assignPrincipalTeacher,
   completePrincipalDevelopment,
   createPrincipalDepartment,
   getPrincipalTeachers,
@@ -30,6 +47,8 @@ type Teacher = {
   lessonPlanCompliance: number | null;
   observationsCount: number;
   status?: string;
+  empId?: string;
+  designation?: string;
 };
 type Assignment = { id: string; teacherUserId: string; teacherName: string; className: string; subjectName: string };
 type Department = { id: string; name: string; code: string; headTeacherId: string | null; headName: string | null };
@@ -68,6 +87,9 @@ export function TeachersPane({
   const [data, setData] = useState<PeopleData | null>(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
+  const [deptFilter, setDeptFilter] = useState("all");
+  const [workloadFilter, setWorkloadFilter] = useState<"all" | "balanced" | "heavy" | "overloaded">("all");
+  const [teacherSegment, setTeacherSegment] = useState<"all" | "balanced" | "overloaded" | "active" | "observed">("all");
   const [currentView, setCurrentView] = useState<View>(view);
   const [action, setAction] = useState<Action | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -99,7 +121,7 @@ export function TeachersPane({
         if (active) setData(result);
       })
       .catch((reason) => {
-        if (active) setError(reason instanceof Error ? reason.message : "Could not load people data");
+        if (active) setError(reason instanceof Error ? reason.message : "Could not load faculty data");
       });
     return () => {
       active = false;
@@ -109,28 +131,66 @@ export function TeachersPane({
   const teachers = data?.teachers ?? [];
   const assignments = data?.assignments ?? [];
   const departments = data?.departments ?? [];
-  const coordinators = data?.coordinators ?? [];
   const developments = data?.developments ?? [];
-  const sections = data?.sections ?? [];
-  const subjects = data?.subjects ?? [];
 
-  const filtered = teachers.filter((teacher) =>
-    `${teacher.name} ${teacher.email} ${teacher.department ?? ""}`.toLowerCase().includes(search.toLowerCase())
-  );
+  // Derived Department List for filter dropdown
+  const departmentOptions = useMemo(() => {
+    const set = new Set<string>();
+    teachers.forEach((t) => {
+      if (t.department) set.add(t.department);
+    });
+    departments.forEach((d) => {
+      if (d.name) set.add(d.name);
+    });
+    return Array.from(set).sort();
+  }, [teachers, departments]);
+
+  // Workload KPIs matching School Admin
+  const totalFaculty = teachers.length;
+  const teachersBalancedCount = useMemo(() => {
+    return teachers.filter((t) => (t.weeklyPeriods || 0) <= 24).length;
+  }, [teachers]);
+
+  const teachersOverloadedCount = useMemo(() => {
+    return teachers.filter((t) => (t.weeklyPeriods || 0) > 28).length;
+  }, [teachers]);
+
+  const teachersAvgPeriods = useMemo(() => {
+    if (teachers.length === 0) return 0;
+    return Math.round(teachers.reduce((acc, t) => acc + (t.weeklyPeriods || 0), 0) / teachers.length);
+  }, [teachers]);
+
+  // Filtered Faculty List
+  const filteredTeachers = useMemo(() => {
+    return teachers.filter((t) => {
+      const q = search.trim().toLowerCase();
+      if (q) {
+        const text = `${t.name} ${t.email} ${t.department ?? ""} ${t.empId ?? ""}`.toLowerCase();
+        if (!text.includes(q)) return false;
+      }
+      if (deptFilter !== "all" && t.department !== deptFilter) return false;
+
+      const wp = t.weeklyPeriods || 0;
+      if (workloadFilter === "balanced" && wp > 24) return false;
+      if (workloadFilter === "heavy" && (wp < 25 || wp > 28)) return false;
+      if (workloadFilter === "overloaded" && wp <= 28) return false;
+
+      if (teacherSegment === "balanced" && wp > 24) return false;
+      if (teacherSegment === "overloaded" && wp <= 28) return false;
+      if (teacherSegment === "active" && (t.status || "Active").toLowerCase() === "inactive") return false;
+      if (teacherSegment === "observed" && (t.observationsCount || 0) === 0) return false;
+
+      return true;
+    });
+  }, [teachers, search, deptFilter, workloadFilter, teacherSegment]);
+
   const ownAssignments = assignments.filter((assignment) => assignment.teacherUserId === form.teacherUserId);
   const field = (name: string, value: string) => setForm((current) => ({ ...current, [name]: value }));
-  const open = (next: Action) => {
+  const open = (next: Action, teacherId?: string) => {
     setError("");
-    setForm({});
+    setForm(teacherId ? { teacherUserId: teacherId } : {});
     setAction(next);
   };
-
-  // KPIs
-  const totalFaculty = teachers.length;
-  const totalLoads = assignments.length;
-  const compliantCount = teachers.filter((t) => (t.lessonPlanCompliance ?? 0) >= 80).length;
-  const compliancePct = totalFaculty > 0 ? Math.round((compliantCount / totalFaculty) * 100) : 0;
-  const completedTraining = developments.filter((d) => d.status === "Completed").length;
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -194,124 +254,187 @@ export function TeachersPane({
     }
   }
 
+  const isFiltered = search !== "" || deptFilter !== "all" || workloadFilter !== "all" || teacherSegment !== "all";
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* 4 Pastel Top KPI Metric Cards (Strictly 148px height) */}
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%", fontFamily: "'Poppins', sans-serif" }}>
+      {/* 4 Pastel Top KPI Metric Cards (Strictly 164px height matching School Admin) */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
           gap: "16px",
+          width: "100%",
         }}
       >
-        {/* Card 1: Mint */}
+        {/* Card 1: Total Faculty (Pastel Violet) */}
         <div
           style={{
-            height: "148px",
-            background: "#ccefbf",
-            border: "1px solid #b2e49f",
-            borderRadius: "10px",
-            padding: "20px",
+            boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            boxSizing: "border-box",
+            height: "164px",
+            padding: "20px",
+            gap: "12px",
+            background: "#E0D3FF",
+            borderRadius: "10px",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#1a5c0a", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Total Faculty
+          <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              TOTAL FACULTY
             </span>
-            <Users size={16} color="#1a5c0a" />
+            <GraduationCap size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
           </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#144807", lineHeight: 1 }}>{totalFaculty}</div>
-            <div style={{ fontSize: "11px", color: "#23730e", marginTop: "6px", fontWeight: 600 }}>
-              Active Teaching Educators
+          <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+            {totalFaculty > 0 ? totalFaculty : "-"}
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+            <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+              Active instructional faculty
+            </span>
+            <div
+              onClick={() => {
+                setSearch("");
+                setDeptFilter("all");
+                setWorkloadFilter("all");
+                setTeacherSegment("all");
+                setCurrentView("workload");
+              }}
+              style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+            >
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                Directory
+              </span>
+              <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
             </div>
           </div>
         </div>
 
-        {/* Card 2: Violet */}
+        {/* Card 2: Balanced Workload (Pastel Mint Green) */}
         <div
           style={{
-            height: "148px",
-            background: "#e1d2ff",
-            border: "1px solid #cdb5ff",
-            borderRadius: "10px",
-            padding: "20px",
+            boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            boxSizing: "border-box",
+            height: "164px",
+            padding: "20px",
+            gap: "12px",
+            background: "#D0EDC0",
+            borderRadius: "10px",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#4a0e8f", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Teaching Loads
+          <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              BALANCED WORKLOAD
             </span>
-            <BookOpen size={16} color="#4a0e8f" />
+            <UserCheck size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
           </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#360a69", lineHeight: 1 }}>{totalLoads}</div>
-            <div style={{ fontSize: "11px", color: "#5d1cb3", marginTop: "6px", fontWeight: 600 }}>
-              Class-Subject Assignments
+          <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+            {teachersBalancedCount > 0 ? teachersBalancedCount : "-"}
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+            <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+              Within 24 periods/week
+            </span>
+            <div
+              onClick={() => {
+                setWorkloadFilter("balanced");
+                setTeacherSegment("balanced");
+                setCurrentView("workload");
+              }}
+              style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+            >
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                Balanced
+              </span>
+              <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
             </div>
           </div>
         </div>
 
-        {/* Card 3: Sky */}
+        {/* Card 3: Overloaded Faculty (Pastel Sky Blue) */}
         <div
           style={{
-            height: "148px",
-            background: "#bae5f5",
-            border: "1px solid #9ad7ef",
-            borderRadius: "10px",
-            padding: "20px",
+            boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            boxSizing: "border-box",
+            height: "164px",
+            padding: "20px",
+            gap: "12px",
+            background: "#BCE6F3",
+            borderRadius: "10px",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#0a5a7a", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Lesson Plan Compliance
+          <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              OVERLOADED FACULTY
             </span>
-            <GraduationCap size={16} color="#0a5a7a" />
+            <AlertCircle size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
           </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#074158", lineHeight: 1 }}>{compliancePct}%</div>
-            <div style={{ fontSize: "11px", color: "#0d6e94", marginTop: "6px", fontWeight: 600 }}>
-              {compliantCount} of {totalFaculty} Teachers On Track
+          <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+            {teachersOverloadedCount > 0 ? teachersOverloadedCount : "-"}
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+            <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+              Exceeding 28 statutory periods
+            </span>
+            <div
+              onClick={() => {
+                setWorkloadFilter("overloaded");
+                setTeacherSegment("overloaded");
+                setCurrentView("workload");
+              }}
+              style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+            >
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                Flagged
+              </span>
+              <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
             </div>
           </div>
         </div>
 
-        {/* Card 4: Peach */}
+        {/* Card 4: Avg Weekly Load (Pastel Warm Peach) */}
         <div
           style={{
-            height: "148px",
-            background: "#ffd8c7",
-            border: "1px solid #ffbe9f",
-            borderRadius: "10px",
-            padding: "20px",
+            boxSizing: "border-box",
             display: "flex",
             flexDirection: "column",
             justifyContent: "space-between",
-            boxSizing: "border-box",
+            height: "164px",
+            padding: "20px",
+            gap: "12px",
+            background: "#FADAC9",
+            borderRadius: "10px",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#782a00", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Faculty Development
+          <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              AVG PERIODS / WEEK
             </span>
-            <Award size={16} color="#782a00" />
+            <Clock size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
           </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#561e00", lineHeight: 1 }}>{developments.length}</div>
-            <div style={{ fontSize: "11px", color: "#943502", marginTop: "6px", fontWeight: 600 }}>
-              {completedTraining} Modules Completed
+          <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+            {teachersAvgPeriods > 0 ? `${teachersAvgPeriods} Per/Wk` : "-"}
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+            <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+              Calculated institutional allocation
+            </span>
+            <div
+              onClick={() => {
+                setCurrentView("workload");
+              }}
+              style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+            >
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                Workload
+              </span>
+              <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
             </div>
           </div>
         </div>
@@ -327,13 +450,14 @@ export function TeachersPane({
             border: "1px solid #fee2e2",
             color: "#991b1b",
             fontSize: "13px",
+            fontFamily: "'Poppins', sans-serif",
           }}
         >
           {error}
         </div>
       )}
 
-      {/* Sub Navigation Strip & Actions */}
+      {/* Sub Navigation Strip & Top Actions */}
       <div
         style={{
           display: "flex",
@@ -341,6 +465,7 @@ export function TeachersPane({
           alignItems: "center",
           flexWrap: "wrap",
           gap: "12px",
+          width: "100%",
         }}
       >
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -359,16 +484,34 @@ export function TeachersPane({
                   onTabChange?.(item.id);
                 }}
                 style={{
-                  padding: "8px 16px",
+                  boxSizing: "border-box",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  height: "34px",
+                  padding: "0 16px",
                   borderRadius: "8px",
-                  border: "1px solid",
-                  borderColor: isActive ? "#0c1e33" : "#e4e6e9",
-                  background: isActive ? "#0c1e33" : "#ffffff",
-                  color: isActive ? "#ffffff" : "#475569",
+                  border: isActive ? "1px solid #0C1E33" : "1px solid #E2E8F0",
+                  background: isActive ? "#0C1E33" : "#F4F6F8",
+                  color: isActive ? "#FFFFFF" : "#5A6B7D",
                   fontSize: "12px",
-                  fontWeight: 600,
+                  fontWeight: isActive ? 600 : 500,
                   cursor: "pointer",
+                  fontFamily: "'Poppins', sans-serif",
+                  boxShadow: isActive ? "0 2px 4px rgba(12, 30, 51, 0.14)" : "none",
                   transition: "all 0.15s ease",
+                  whiteSpace: "nowrap",
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = "#E9EEF4";
+                    e.currentTarget.style.color = "#0C1E33";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.background = "#F4F6F8";
+                    e.currentTarget.style.color = "#5A6B7D";
+                  }
                 }}
               >
                 {item.label}
@@ -377,7 +520,7 @@ export function TeachersPane({
           })}
         </div>
 
-        <div style={{ display: "flex", gap: "8px" }}>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
           {currentView === "workload" && (
             <>
               <button
@@ -387,17 +530,19 @@ export function TeachersPane({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
-                  padding: "8px 14px",
+                  padding: "8px 16px",
                   borderRadius: "8px",
-                  background: "#0c1e33",
-                  color: "#ffffff",
-                  fontSize: "12px",
+                  background: "#0C1E33",
+                  color: "#FFFFFF",
+                  fontSize: "12.5px",
                   fontWeight: 600,
                   border: "none",
                   cursor: "pointer",
+                  fontFamily: "'Poppins', sans-serif",
+                  boxShadow: "0 2px 4px rgba(12, 30, 51, 0.15)",
                 }}
               >
-                <Plus size={14} /> Classroom Observation
+                <Plus size={15} /> Classroom Observation
               </button>
               <button
                 type="button"
@@ -406,17 +551,18 @@ export function TeachersPane({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
-                  padding: "8px 14px",
+                  padding: "8px 16px",
                   borderRadius: "8px",
-                  background: "#ffffff",
-                  color: "#0c1e33",
-                  fontSize: "12px",
+                  background: "#FFFFFF",
+                  color: "#0C1E33",
+                  fontSize: "12.5px",
                   fontWeight: 600,
-                  border: "1px solid #e4e6e9",
+                  border: "1px solid #E2E8F0",
                   cursor: "pointer",
+                  fontFamily: "'Poppins', sans-serif",
                 }}
               >
-                <Plus size={14} /> Assign Training
+                <Plus size={15} /> Assign Training
               </button>
             </>
           )}
@@ -430,17 +576,18 @@ export function TeachersPane({
                   display: "inline-flex",
                   alignItems: "center",
                   gap: "6px",
-                  padding: "8px 14px",
+                  padding: "8px 16px",
                   borderRadius: "8px",
-                  background: "#0c1e33",
-                  color: "#ffffff",
-                  fontSize: "12px",
+                  background: "#0C1E33",
+                  color: "#FFFFFF",
+                  fontSize: "12.5px",
                   fontWeight: 600,
                   border: "none",
                   cursor: "pointer",
+                  fontFamily: "'Poppins', sans-serif",
                 }}
               >
-                <Plus size={14} /> Add Department
+                <Plus size={15} /> Add Department
               </button>
               {departments.length > 0 && (
                 <button
@@ -450,17 +597,18 @@ export function TeachersPane({
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "6px",
-                    padding: "8px 14px",
+                    padding: "8px 16px",
                     borderRadius: "8px",
-                    background: "#ffffff",
-                    color: "#0c1e33",
-                    fontSize: "12px",
+                    background: "#FFFFFF",
+                    color: "#0C1E33",
+                    fontSize: "12.5px",
                     fontWeight: 600,
-                    border: "1px solid #e4e6e9",
+                    border: "1px solid #E2E8F0",
                     cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
                   }}
                 >
-                  <Plus size={14} /> Assign Head
+                  <Plus size={15} /> Assign Head
                 </button>
               )}
             </>
@@ -474,14 +622,15 @@ export function TeachersPane({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
-                padding: "8px 14px",
+                padding: "8px 16px",
                 borderRadius: "8px",
-                background: "#f8fafc",
-                color: "#0c1e33",
-                fontSize: "12px",
+                background: "#F8FAFC",
+                color: "#0C1E33",
+                fontSize: "12.5px",
                 fontWeight: 600,
-                border: "1px solid #ced8e5",
+                border: "1px solid #CBD5E1",
                 cursor: "pointer",
+                fontFamily: "'Poppins', sans-serif",
               }}
             >
               Configure in Academics &amp; Classes →
@@ -496,17 +645,18 @@ export function TeachersPane({
                 display: "inline-flex",
                 alignItems: "center",
                 gap: "6px",
-                padding: "8px 14px",
+                padding: "8px 16px",
                 borderRadius: "8px",
-                background: "#0c1e33",
-                color: "#ffffff",
-                fontSize: "12px",
+                background: "#0C1E33",
+                color: "#FFFFFF",
+                fontSize: "12.5px",
                 fontWeight: 600,
                 border: "none",
                 cursor: "pointer",
+                fontFamily: "'Poppins', sans-serif",
               }}
             >
-              <Plus size={14} /> Assign Training
+              <Plus size={15} /> Assign Training
             </button>
           )}
         </div>
@@ -514,189 +664,662 @@ export function TeachersPane({
 
       {/* Main Table Views */}
       {currentView === "workload" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#ffffff", padding: "8px 12px", borderRadius: "8px", border: "1px solid #e4e6e9", maxWidth: "340px" }}>
-            <Search size={15} color="#94a3b8" />
-            <input
-              aria-label="Search teachers"
-              placeholder="Search faculty by name, department, or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              style={{ border: "none", outline: "none", width: "100%", fontSize: "12px", color: "#1e293b" }}
-            />
+        <div
+          style={{
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            background: "#FFFFFF",
+            border: "1px solid #E0E5EB",
+            borderRadius: "10px",
+            boxShadow: "0 1px 3px rgba(12, 30, 51, 0.04)",
+            overflow: "hidden",
+          }}
+        >
+          {/* Heading */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "row",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "20px 24px 16px",
+              width: "100%",
+              flexWrap: "wrap",
+              gap: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", alignItems: "center", gap: "10px" }}>
+              <h2 style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "16px", color: "#0C1E33" }}>
+                Instructional Faculty &amp; Workload
+              </h2>
+              <div style={{ display: "inline-flex", padding: "3px 9px", background: "#F4F6F7", borderRadius: "100px" }}>
+                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 500, fontSize: "10px", color: "#586C82" }}>
+                  {teachers.length > 0 ? teachers.length : "-"} Total
+                </span>
+              </div>
+            </div>
+            <div style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "11px", color: "#586C82" }}>
+              Showing {filteredTeachers.length} of {teachers.length} faculty
+            </div>
           </div>
 
-          <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                  <th style={{ padding: "12px 16px" }}>Faculty Member</th>
-                  <th style={{ padding: "12px 16px" }}>Department</th>
-                  <th style={{ padding: "12px 16px" }}>Assigned Classes</th>
-                  <th style={{ padding: "12px 16px" }}>Weekly Periods</th>
-                  <th style={{ padding: "12px 16px" }}>Lesson Compliance</th>
-                  <th style={{ padding: "12px 16px" }}>Observations</th>
-                  <th style={{ padding: "12px 16px", textAlign: "right" }}>Dossier</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>
-                      No active teachers found matching filter.
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((teacher) => (
-                    <tr
-                      key={teacher.id}
-                      style={{ borderBottom: "1px solid #f1f5f9", transition: "background 0.15s ease" }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "#fbfcfd")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+          {/* Filter Controls */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              padding: "0px 24px 18px",
+              gap: "12px",
+              width: "100%",
+              flexWrap: "wrap",
+            }}
+          >
+            {/* Search */}
+            <div
+              style={{
+                boxSizing: "border-box",
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                padding: "0px 14px",
+                gap: "10px",
+                height: "42px",
+                border: "1px solid #E0E5EB",
+                borderRadius: "6px",
+                flex: 1,
+                minWidth: "240px",
+                background: "#FFFFFF",
+              }}
+            >
+              <Search size={16} strokeWidth={2} style={{ color: "#495D72", flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Search faculty by name, email, department..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  width: "100%",
+                  background: "transparent",
+                  fontFamily: "'Poppins', sans-serif",
+                  fontWeight: 400,
+                  fontSize: "12px",
+                  lineHeight: "150%",
+                  color: "#0C1E33",
+                }}
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  style={{ all: "unset", cursor: "pointer", display: "flex", color: "#7B8999" }}
+                  title="Clear search"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Department Dropdown */}
+            <div
+              style={{
+                boxSizing: "border-box",
+                display: "flex",
+                alignItems: "center",
+                padding: "0px 14px",
+                width: "190px",
+                height: "42px",
+                border: "1px solid #E0E5EB",
+                borderRadius: "6px",
+                background: "#FFFFFF",
+                position: "relative",
+              }}
+            >
+              <select
+                value={deptFilter}
+                onChange={(e) => setDeptFilter(e.target.value)}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  width: "100%",
+                  height: "100%",
+                  background: "transparent",
+                  fontFamily: "'Poppins', sans-serif",
+                  fontWeight: 400,
+                  fontSize: "12px",
+                  lineHeight: "150%",
+                  color: "#0C1E33",
+                  cursor: "pointer",
+                  appearance: "none",
+                  paddingRight: "20px",
+                }}
+              >
+                <option value="all">All Departments</option>
+                {departmentOptions.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: "#586C82", pointerEvents: "none" }} />
+            </div>
+
+            {/* Workload Range Dropdown */}
+            <div
+              style={{
+                boxSizing: "border-box",
+                display: "flex",
+                alignItems: "center",
+                padding: "0px 14px",
+                width: "180px",
+                height: "42px",
+                border: "1px solid #E0E5EB",
+                borderRadius: "6px",
+                background: "#FFFFFF",
+                position: "relative",
+              }}
+            >
+              <select
+                value={workloadFilter}
+                onChange={(e) => setWorkloadFilter(e.target.value as any)}
+                style={{
+                  border: "none",
+                  outline: "none",
+                  width: "100%",
+                  height: "100%",
+                  background: "transparent",
+                  fontFamily: "'Poppins', sans-serif",
+                  fontWeight: 400,
+                  fontSize: "12px",
+                  lineHeight: "150%",
+                  color: "#0C1E33",
+                  cursor: "pointer",
+                  appearance: "none",
+                  paddingRight: "20px",
+                }}
+              >
+                <option value="all">All Workloads</option>
+                <option value="balanced">Balanced (≤24 periods)</option>
+                <option value="heavy">Heavy (25–28 periods)</option>
+                <option value="overloaded">Overloaded (&gt;28 periods)</option>
+              </select>
+              <ChevronDown size={14} strokeWidth={2} style={{ position: "absolute", right: "12px", color: "#586C82", pointerEvents: "none" }} />
+            </div>
+
+            {isFiltered && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setDeptFilter("all");
+                  setWorkloadFilter("all");
+                  setTeacherSegment("all");
+                }}
+                style={{
+                  padding: "0 14px",
+                  height: "42px",
+                  background: "#F4F6F7",
+                  border: "1px solid #E0E5EB",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  color: "#586C82",
+                  cursor: "pointer",
+                  fontFamily: "'Poppins', sans-serif",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+
+          {/* Quick Segment Filter Tabs */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "row",
+              alignItems: "center",
+              padding: "0px 24px 18px",
+              gap: "8px",
+              width: "100%",
+              overflowX: "auto",
+              scrollbarWidth: "none",
+            }}
+          >
+            {[
+              { id: "all", label: "All Faculty" },
+              { id: "balanced", label: "Balanced Workload" },
+              { id: "overloaded", label: "Overloaded Faculty" },
+              { id: "active", label: "Active Status" },
+              { id: "observed", label: "Observations Conducted" },
+            ].map((seg) => {
+              const isSegActive = teacherSegment === seg.id;
+              return (
+                <button
+                  key={seg.id}
+                  type="button"
+                  onClick={() => setTeacherSegment(seg.id as any)}
+                  style={{
+                    boxSizing: "border-box",
+                    display: "inline-flex",
+                    flexDirection: "row",
+                    alignItems: "center",
+                    height: "34px",
+                    padding: "0 16px",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                    fontFamily: "'Poppins', sans-serif",
+                    fontWeight: isSegActive ? 600 : 500,
+                    cursor: "pointer",
+                    background: isSegActive ? "#0C1E33" : "#F4F6F8",
+                    color: isSegActive ? "#FFFFFF" : "#5A6B7D",
+                    border: isSegActive ? "1px solid #0C1E33" : "1px solid #E2E8F0",
+                    boxShadow: isSegActive ? "0 2px 4px rgba(12, 30, 51, 0.14)" : "none",
+                    transition: "all 0.16s ease",
+                    flexShrink: 0,
+                  }}
+                >
+                  <span>{seg.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Table Container */}
+          <div style={{ width: "100%", padding: "0px 24px", boxSizing: "border-box" }}>
+            {/* Table Header */}
+            <div
+              style={{
+                boxSizing: "border-box",
+                display: "flex",
+                flexDirection: "row",
+                alignItems: "center",
+                padding: "0px 16px",
+                width: "100%",
+                height: "44px",
+                background: "#F8FAFC",
+                borderBottom: "1px solid #E0E5EB",
+                userSelect: "none",
+              }}
+            >
+              <div style={{ flex: "2.4 1 200px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "11px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                FACULTY MEMBER
+              </div>
+              <div style={{ flex: "1.2 1 110px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "11px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                EMPLOYEE ID
+              </div>
+              <div style={{ flex: "1.3 1 120px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "11px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                DEPARTMENT
+              </div>
+              <div style={{ flex: "1.1 1 100px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "11px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                WORKLOAD
+              </div>
+              <div style={{ flex: "1.3 1 120px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "11px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                LESSON COMPLIANCE
+              </div>
+              <div style={{ flex: "1.1 1 100px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "11px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                OBSERVATIONS
+              </div>
+              <div style={{ flex: "1.0 1 90px", minWidth: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "11px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                STATUS
+              </div>
+              <div style={{ flex: "0 0 160px", textAlign: "right", fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "11px", color: "#586C82", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                ACTIONS
+              </div>
+            </div>
+
+            {/* Table Rows & Skeleton Loading */}
+            {!data ? (
+              <TeacherSkeletonRows rows={6} />
+            ) : filteredTeachers.length === 0 ? (
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: "48px 20px",
+                  textAlign: "center",
+                }}
+              >
+                <img
+                  src="/noresult.png"
+                  alt="No faculty found"
+                  style={{ width: "120px", height: "auto", marginBottom: "14px", opacity: 0.9 }}
+                />
+                <h3 style={{ margin: "0 0 4px", fontSize: "15px", fontWeight: 600, color: "#0C1E33" }}>
+                  {isFiltered ? "No Matching Faculty Members" : "No Faculty Enrolled"}
+                </h3>
+                <p style={{ margin: "0 0 16px", fontSize: "12px", color: "#64748B", maxWidth: "380px" }}>
+                  {isFiltered
+                    ? "Try adjusting your search terms or filters to find faculty records."
+                    : "No faculty records are registered in this institution roster yet."}
+                </p>
+                {isFiltered && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearch("");
+                      setDeptFilter("all");
+                      setWorkloadFilter("all");
+                      setTeacherSegment("all");
+                    }}
+                    style={{
+                      padding: "8px 18px",
+                      background: "#0C1E33",
+                      color: "#FFFFFF",
+                      borderRadius: "6px",
+                      fontSize: "12px",
+                      fontWeight: 600,
+                      border: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Clear Filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              filteredTeachers.map((t, idx) => {
+                const maxPeriods = 28;
+                const weeklyPeriods = t.weeklyPeriods || 0;
+                const isOverloaded = weeklyPeriods > maxPeriods;
+                const isHeavy = weeklyPeriods >= 25 && !isOverloaded;
+                const isEven = idx % 2 === 0;
+                const st = (t.status || "Active").toLowerCase();
+                const isInactive = st === "inactive";
+
+                return (
+                  <div
+                    key={t.id}
+                    onClick={() => onOpenProfile(t.id)}
+                    style={{
+                      boxSizing: "border-box",
+                      display: "flex",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      padding: "0 16px",
+                      width: "100%",
+                      height: "52px",
+                      minHeight: "52px",
+                      background: isEven ? "#FFFFFF" : "#F8FAFC",
+                      borderBottom: "1px solid #E0E5EB",
+                      cursor: "pointer",
+                      transition: "background 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#F1F5F9")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = isEven ? "#FFFFFF" : "#F8FAFC")}
+                  >
+                    {/* Faculty Identity */}
+                    <div
+                      style={{
+                        flex: "2.4 1 200px",
+                        minWidth: 0,
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: "10px",
+                      }}
                     >
-                      <td style={{ padding: "12px 16px" }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <img
-                            src={getStudentAvatarUrl(teacher.name || teacher.email, teacher.id)}
-                            alt=""
-                            style={{
-                              width: "34px",
-                              height: "34px",
-                              borderRadius: "50%",
-                              background: "#eaedf2",
-                              flexShrink: 0,
-                            }}
-                          />
-                          <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                              <span style={{ fontWeight: 700, color: "#1e293b" }}>{teacher.name || teacher.email}</span>
-                              {(teacher.status || "").toLowerCase() === "inactive" && (
-                                <span
-                                  style={{
-                                    fontSize: "10px",
-                                    fontWeight: 700,
-                                    padding: "2px 6px",
-                                    borderRadius: "4px",
-                                    background: "#FEE2E2",
-                                    color: "#DC2626",
-                                  }}
-                                >
-                                  Inactive
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ fontSize: "11px", color: "#64748b" }}>{teacher.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td style={{ padding: "12px 16px", color: "#334155" }}>
+                      <div
+                        style={{
+                          width: "32px",
+                          height: "32px",
+                          borderRadius: "50%",
+                          overflow: "hidden",
+                          background: "#F5F6F8",
+                          border: "1px solid #E4E6E9",
+                          flexShrink: 0,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <img
+                          src={getStudentAvatarUrl(t.name, t.id)}
+                          alt=""
+                          style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+                        />
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
                         <span
                           style={{
-                            padding: "3px 8px",
-                            borderRadius: "4px",
-                            fontSize: "11px",
+                            fontFamily: "'Poppins', sans-serif",
                             fontWeight: 600,
-                            background: "#f1f5f9",
-                            color: "#334155",
+                            fontSize: "13px",
+                            lineHeight: "130%",
+                            color: "#0C1E33",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
                           }}
+                          title={t.name}
                         >
-                          {teacher.department || "General"}
+                          {t.name || "—"}
                         </span>
-                      </td>
-                      <td style={{ padding: "12px 16px", color: "#475569" }}>
-                        {teacher.classes.length > 0 ? teacher.classes.join(", ") : "—"}
-                      </td>
-                      <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1e293b" }}>
-                        {teacher.weeklyPeriods} periods
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
-                        {teacher.lessonPlanCompliance == null ? (
-                          <span style={{ color: "#94a3b8" }}>—</span>
-                        ) : (
-                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <div style={{ width: "60px", height: "6px", borderRadius: "3px", background: "#f1f5f9", overflow: "hidden" }}>
-                              <div
-                                style={{
-                                  width: `${Math.min(100, teacher.lessonPlanCompliance)}%`,
-                                  height: "100%",
-                                  background: teacher.lessonPlanCompliance >= 80 ? "#10b981" : teacher.lessonPlanCompliance >= 60 ? "#f59e0b" : "#ef4444",
-                                }}
-                              />
-                            </div>
-                            <span style={{ fontWeight: 700, fontSize: "11px", color: "#334155" }}>
-                              {teacher.lessonPlanCompliance}%
-                            </span>
+                        <span
+                          style={{
+                            fontFamily: "'Poppins', sans-serif",
+                            fontWeight: 400,
+                            fontSize: "11px",
+                            lineHeight: "130%",
+                            color: "#64748B",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                          title={t.email}
+                        >
+                          {t.email || "—"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Employee ID */}
+                    <div style={{ flex: "1.2 1 110px", minWidth: 0 }}>
+                      <span
+                        style={{
+                          fontFamily: "monospace",
+                          fontSize: "11px",
+                          background: "#F1F5F9",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          border: "1px solid #E2E8F0",
+                          color: "#334155",
+                        }}
+                      >
+                        {t.empId || "EMP-" + (t.id ? t.id.slice(0, 5).toUpperCase() : "—")}
+                      </span>
+                    </div>
+
+                    {/* Department */}
+                    <div style={{ flex: "1.3 1 120px", minWidth: 0 }}>
+                      <span
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: 500,
+                          background: "#F1F5F9",
+                          color: "#334155",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          display: "inline-block",
+                          maxWidth: "110px",
+                        }}
+                        title={t.department || "General"}
+                      >
+                        {t.department || "General"}
+                      </span>
+                    </div>
+
+                    {/* Workload */}
+                    <div style={{ flex: "1.1 1 100px", minWidth: 0, display: "flex", alignItems: "center" }}>
+                      <span
+                        style={{
+                          fontFamily: "monospace",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          background: isOverloaded ? "#FEE2E2" : isHeavy ? "#FEF3C7" : "#F1F5F9",
+                          color: isOverloaded ? "#991B1B" : isHeavy ? "#92400E" : "#0C1E33",
+                          border: `1px solid ${isOverloaded ? "#FCA5A5" : isHeavy ? "#FDE68A" : "#E2E8F0"}`,
+                          whiteSpace: "nowrap",
+                        }}
+                        title={`${weeklyPeriods} of ${maxPeriods} periods assigned`}
+                      >
+                        {weeklyPeriods}/{maxPeriods}
+                      </span>
+                    </div>
+
+                    {/* Lesson Compliance */}
+                    <div style={{ flex: "1.3 1 120px", minWidth: 0 }}>
+                      {t.lessonPlanCompliance == null ? (
+                        <span style={{ color: "#94a3b8", fontSize: "11px" }}>—</span>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                          <div style={{ width: "50px", height: "6px", borderRadius: "3px", background: "#E2E8F0", overflow: "hidden" }}>
+                            <div
+                              style={{
+                                width: `${Math.min(100, t.lessonPlanCompliance)}%`,
+                                height: "100%",
+                                background: t.lessonPlanCompliance >= 80 ? "#10B981" : t.lessonPlanCompliance >= 60 ? "#F59E0B" : "#EF4444",
+                              }}
+                            />
                           </div>
-                        )}
-                      </td>
-                      <td style={{ padding: "12px 16px", fontWeight: 600, color: "#475569" }}>
-                        {teacher.observationsCount} conducted
-                      </td>
-                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                        <div style={{ display: "inline-flex", gap: "6px", alignItems: "center" }}>
-                          <button
-                            type="button"
-                            onClick={() => onOpenProfile(teacher.id)}
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "5px",
-                              padding: "6px 12px",
-                              borderRadius: "6px",
-                              border: "1px solid #e4e6e9",
-                              background: "#ffffff",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              color: "#0c1e33",
-                              cursor: "pointer",
-                            }}
-                          >
-                            <Eye size={13} /> View Dossier
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setLifecycleTarget({
-                                id: teacher.id,
-                                name: teacher.name,
-                                email: teacher.email,
-                                role: "teacher",
-                                status: teacher.status || "Active",
-                                sublabel: `${teacher.department || "Faculty"} · ${teacher.weeklyPeriods || 0} periods/wk`,
-                              })
-                            }
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "6px 10px",
-                              borderRadius: "6px",
-                              border: (teacher.status || "").toLowerCase() === "inactive" ? "1px solid #86EFAC" : "1px solid #FCA5A5",
-                              background: (teacher.status || "").toLowerCase() === "inactive" ? "#DCFCE7" : "#FEE2E2",
-                              color: (teacher.status || "").toLowerCase() === "inactive" ? "#166534" : "#DC2626",
-                              fontSize: "11px",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                            }}
-                            title={(teacher.status || "").toLowerCase() === "inactive" ? "Reactivate Teacher" : "Deactivate or Remove Teacher"}
-                          >
-                            {(teacher.status || "").toLowerCase() === "inactive" ? (
-                              <>
-                                <UserCheck size={12} /> Reactivate
-                              </>
-                            ) : (
-                              <>
-                                <UserX size={12} /> Deactivate
-                              </>
-                            )}
-                          </button>
+                          <span style={{ fontWeight: 600, fontSize: "11px", color: "#334155" }}>
+                            {t.lessonPlanCompliance}%
+                          </span>
                         </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      )}
+                    </div>
+
+                    {/* Observations */}
+                    <div style={{ flex: "1.1 1 100px", minWidth: 0, display: "flex", alignItems: "center" }}>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 500,
+                          color: "#475569",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                        }}
+                      >
+                        <FileCheck2 size={13} color="#64748B" />
+                        {t.observationsCount || 0} obs
+                      </span>
+                    </div>
+
+                    {/* Status */}
+                    <div style={{ flex: "1.0 1 90px", minWidth: 0, display: "flex", alignItems: "center" }}>
+                      <span
+                        style={{
+                          fontSize: "10.5px",
+                          fontWeight: 600,
+                          padding: "2px 7px",
+                          borderRadius: "10px",
+                          background: isInactive ? "#FEE2E2" : "#ECFDF5",
+                          color: isInactive ? "#DC2626" : "#047857",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {isInactive ? "Inactive" : "Active"}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div
+                      style={{
+                        flex: "0 0 160px",
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        alignItems: "center",
+                        gap: "6px",
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenProfile(t.id);
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: "0 10px",
+                          height: "28px",
+                          borderRadius: "6px",
+                          border: "1px solid #E2E8F0",
+                          background: "#FFFFFF",
+                          color: "#0C1E33",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          fontFamily: "'Poppins', sans-serif",
+                          transition: "all 0.12s ease",
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = "#0C1E33";
+                          e.currentTarget.style.color = "#FFFFFF";
+                          e.currentTarget.style.borderColor = "#0C1E33";
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = "#FFFFFF";
+                          e.currentTarget.style.color = "#0C1E33";
+                          e.currentTarget.style.borderColor = "#E2E8F0";
+                        }}
+                      >
+                        <span>View</span>
+                        <ChevronRight size={13} />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLifecycleTarget({
+                            id: t.id,
+                            name: t.name,
+                            email: t.email,
+                            role: "teacher",
+                            status: t.status || "Active",
+                            sublabel: `${t.department || "Faculty"} · ${weeklyPeriods} periods/wk`,
+                          });
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: "5px 8px",
+                          borderRadius: "6px",
+                          border: isInactive ? "1px solid #86EFAC" : "1px solid #FCA5A5",
+                          background: isInactive ? "#DCFCE7" : "#FEE2E2",
+                          color: isInactive ? "#166534" : "#DC2626",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                        }}
+                        title={isInactive ? "Reactivate Teacher" : "Deactivate Teacher"}
+                      >
+                        {isInactive ? <UserCheck size={12} /> : <UserX size={12} />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}
@@ -718,7 +1341,7 @@ export function TeachersPane({
                   fontSize: "13px",
                 }}
               >
-                No academic departments created yet. Use &ldquo;Add Department&rdquo; to start.
+                No academic departments created yet. Use &ldquo;Add Department&rdquo; above to start.
               </div>
             ) : (
               <div
@@ -741,9 +1364,7 @@ export function TeachersPane({
                   return (
                     <div
                       key={d.id}
-                      onClick={() => {
-                        setSelectedDept(d);
-                      }}
+                      onClick={() => setSelectedDept(d)}
                       style={{
                         boxSizing: "border-box",
                         display: "flex",
@@ -985,11 +1606,39 @@ export function TeachersPane({
       })()}
 
       {currentView === "assignments" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-          <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-            <span style={{ fontSize: "12px", color: "#64748b" }}>
-              Active instructional allocations mapped across classes and subjects.
-            </span>
+        <div
+          style={{
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            background: "#FFFFFF",
+            border: "1px solid #E0E5EB",
+            borderRadius: "10px",
+            boxShadow: "0 1px 3px rgba(12, 30, 51, 0.04)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "16px 20px",
+              background: "#F8FAFC",
+              borderBottom: "1px solid #E0E5EB",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "8px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#0C1E33" }}>
+                Class &amp; Subject Teaching Allocations
+              </span>
+              <span style={{ fontSize: "11px", color: "#64748B" }}>
+                ({assignments.length} total assignments mapped)
+              </span>
+            </div>
             <button
               type="button"
               onClick={() => onTabChange?.("academics")}
@@ -997,140 +1646,278 @@ export function TeachersPane({
                 background: "none",
                 border: "none",
                 padding: 0,
-                color: "#0c1e33",
-                fontSize: "11.5px",
-                fontWeight: 650,
+                color: "#2563EB",
+                fontSize: "12px",
+                fontWeight: 600,
                 cursor: "pointer",
-                textDecoration: "underline",
               }}
             >
               Configure in Academics &amp; Classes →
             </button>
           </div>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                <th style={{ padding: "12px 16px" }}>Class / Section</th>
-                <th style={{ padding: "12px 16px" }}>Subject</th>
-                <th style={{ padding: "12px 16px" }}>Assigned Faculty</th>
-              </tr>
-            </thead>
-            <tbody>
-              {assignments.length === 0 ? (
-                <tr>
-                  <td colSpan={3} style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>
-                    No teacher assignments mapped.
-                  </td>
-                </tr>
-              ) : (
-                assignments.map((item) => (
-                  <tr key={item.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1e293b" }}>{item.className}</td>
-                    <td style={{ padding: "12px 16px", color: "#475569" }}>{item.subjectName}</td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <button
-                        type="button"
-                        onClick={() => onOpenProfile(item.teacherUserId)}
-                        style={{
-                          background: "none",
-                          border: "none",
-                          fontWeight: 600,
-                          color: "#0c1e33",
-                          cursor: "pointer",
-                          textDecoration: "underline",
-                        }}
-                      >
-                        {item.teacherName}
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+
+          <div style={{ width: "100%", padding: "0 20px", boxSizing: "border-box" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "0 8px",
+                height: "44px",
+                borderBottom: "1px solid #E0E5EB",
+                fontWeight: 600,
+                fontSize: "10px",
+                color: "#586C82",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              <div style={{ flex: "1.5 1 140px" }}>CLASS / SECTION</div>
+              <div style={{ flex: "1.5 1 140px" }}>SUBJECT</div>
+              <div style={{ flex: "2.0 1 180px" }}>ASSIGNED INSTRUCTOR</div>
+              <div style={{ flex: "0 0 100px", textAlign: "right" }}>ACTIONS</div>
+            </div>
+
+            {assignments.length === 0 ? (
+              <div style={{ padding: "36px 20px", textAlign: "center", color: "#64748B", fontSize: "13px" }}>
+                No teacher assignments registered yet.
+              </div>
+            ) : (
+              assignments.map((item, idx) => (
+                <div
+                  key={item.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "0 8px",
+                    height: "50px",
+                    background: idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC",
+                    borderBottom: "1px solid #E0E5EB",
+                    fontSize: "12.5px",
+                  }}
+                >
+                  <div style={{ flex: "1.5 1 140px", fontWeight: 600, color: "#0C1E33" }}>
+                    {item.className}
+                  </div>
+                  <div style={{ flex: "1.5 1 140px", color: "#475569" }}>
+                    <span
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: "4px",
+                        background: "#F1F5F9",
+                        color: "#334155",
+                        fontSize: "11px",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {item.subjectName}
+                    </span>
+                  </div>
+                  <div style={{ flex: "2.0 1 180px" }}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenProfile(item.teacherUserId)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        fontWeight: 600,
+                        color: "#0C1E33",
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                        padding: 0,
+                        fontFamily: "'Poppins', sans-serif",
+                        fontSize: "12.5px",
+                      }}
+                    >
+                      {item.teacherName}
+                    </button>
+                  </div>
+                  <div style={{ flex: "0 0 100px", textAlign: "right" }}>
+                    <button
+                      type="button"
+                      onClick={() => open("observation", item.teacherUserId)}
+                      style={{
+                        padding: "4px 8px",
+                        borderRadius: "6px",
+                        border: "1px solid #E2E8F0",
+                        background: "#FFFFFF",
+                        color: "#0C1E33",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        cursor: "pointer",
+                      }}
+                    >
+                      Observe
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
       {currentView === "development" && (
-        <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                <th style={{ padding: "12px 16px" }}>Educator</th>
-                <th style={{ padding: "12px 16px" }}>Training Title</th>
-                <th style={{ padding: "12px 16px" }}>Provider</th>
-                <th style={{ padding: "12px 16px" }}>Hours</th>
-                <th style={{ padding: "12px 16px" }}>Status</th>
-                <th style={{ padding: "12px 16px", textAlign: "right" }}>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {developments.length === 0 ? (
-                <tr>
-                  <td colSpan={6} style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>
-                    No faculty professional development modules registered.
-                  </td>
-                </tr>
-              ) : (
-                developments.map((item) => (
-                  <tr key={item.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "12px 16px" }}>
+        <div
+          style={{
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            background: "#FFFFFF",
+            border: "1px solid #E0E5EB",
+            borderRadius: "10px",
+            boxShadow: "0 1px 3px rgba(12, 30, 51, 0.04)",
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              padding: "16px 20px",
+              background: "#F8FAFC",
+              borderBottom: "1px solid #E0E5EB",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "8px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <span style={{ fontSize: "13px", fontWeight: 600, color: "#0C1E33" }}>
+                Faculty Professional Development &amp; Training
+              </span>
+              <span style={{ fontSize: "11px", color: "#64748B" }}>
+                ({developments.length} modules recorded)
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => open("development")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "6px 14px",
+                borderRadius: "6px",
+                background: "#0C1E33",
+                color: "#FFFFFF",
+                fontSize: "11.5px",
+                fontWeight: 600,
+                border: "none",
+                cursor: "pointer",
+              }}
+            >
+              <Plus size={14} /> Assign Training
+            </button>
+          </div>
+
+          <div style={{ width: "100%", padding: "0 20px", boxSizing: "border-box" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                padding: "0 8px",
+                height: "44px",
+                borderBottom: "1px solid #E0E5EB",
+                fontWeight: 600,
+                fontSize: "10px",
+                color: "#586C82",
+                textTransform: "uppercase",
+                letterSpacing: "0.04em",
+              }}
+            >
+              <div style={{ flex: "2.0 1 180px" }}>EDUCATOR</div>
+              <div style={{ flex: "2.2 1 200px" }}>TRAINING MODULE</div>
+              <div style={{ flex: "1.5 1 140px" }}>PROVIDER</div>
+              <div style={{ flex: "1.0 1 90px" }}>HOURS</div>
+              <div style={{ flex: "1.1 1 100px" }}>STATUS</div>
+              <div style={{ flex: "0 0 130px", textAlign: "right" }}>ACTIONS</div>
+            </div>
+
+            {developments.length === 0 ? (
+              <div style={{ padding: "36px 20px", textAlign: "center", color: "#64748B", fontSize: "13px" }}>
+                No professional development modules recorded yet.
+              </div>
+            ) : (
+              developments.map((item, idx) => (
+                <div
+                  key={item.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "0 8px",
+                    height: "52px",
+                    background: idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC",
+                    borderBottom: "1px solid #E0E5EB",
+                    fontSize: "12.5px",
+                  }}
+                >
+                  <div style={{ flex: "2.0 1 180px" }}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenProfile(item.teacherUserId)}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        fontWeight: 600,
+                        color: "#0C1E33",
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                        padding: 0,
+                        fontFamily: "'Poppins', sans-serif",
+                        fontSize: "12.5px",
+                      }}
+                    >
+                      {item.teacherName}
+                    </button>
+                  </div>
+                  <div style={{ flex: "2.2 1 200px", fontWeight: 500, color: "#1E293B" }}>
+                    {item.title}
+                  </div>
+                  <div style={{ flex: "1.5 1 140px", color: "#64748B" }}>
+                    {item.provider || "—"}
+                  </div>
+                  <div style={{ flex: "1.0 1 90px", color: "#475569", fontWeight: 600 }}>
+                    {item.trainingHours} hrs
+                  </div>
+                  <div style={{ flex: "1.1 1 100px" }}>
+                    <span
+                      style={{
+                        padding: "2px 8px",
+                        borderRadius: "10px",
+                        fontSize: "10.5px",
+                        fontWeight: 600,
+                        background: item.status === "Completed" ? "#DCFCE7" : "#FEF3C7",
+                        color: item.status === "Completed" ? "#166534" : "#92400E",
+                      }}
+                    >
+                      {item.status}
+                    </span>
+                  </div>
+                  <div style={{ flex: "0 0 130px", textAlign: "right" }}>
+                    {item.status !== "Completed" && (
                       <button
                         type="button"
-                        onClick={() => onOpenProfile(item.teacherUserId)}
+                        onClick={() => markCompleted(item.id)}
                         style={{
-                          background: "none",
+                          padding: "5px 10px",
+                          borderRadius: "6px",
+                          background: "#0C1E33",
+                          color: "#FFFFFF",
+                          fontSize: "11px",
+                          fontWeight: 600,
                           border: "none",
-                          fontWeight: 700,
-                          color: "#0c1e33",
                           cursor: "pointer",
                         }}
                       >
-                        {item.teacherName}
+                        Complete
                       </button>
-                    </td>
-                    <td style={{ padding: "12px 16px", fontWeight: 600, color: "#1e293b" }}>{item.title}</td>
-                    <td style={{ padding: "12px 16px", color: "#64748b" }}>{item.provider || "—"}</td>
-                    <td style={{ padding: "12px 16px", color: "#475569" }}>{item.trainingHours} hrs</td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <span
-                        style={{
-                          padding: "3px 8px",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          background: item.status === "Completed" ? "#dcfce7" : "#fef3c7",
-                          color: item.status === "Completed" ? "#166534" : "#92400e",
-                        }}
-                      >
-                        {item.status}
-                      </span>
-                    </td>
-                    <td style={{ padding: "12px 16px", textAlign: "right" }}>
-                      {item.status !== "Completed" && (
-                        <button
-                          type="button"
-                          onClick={() => markCompleted(item.id)}
-                          style={{
-                            padding: "5px 10px",
-                            borderRadius: "6px",
-                            background: "#0c1e33",
-                            color: "#ffffff",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            border: "none",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Mark Completed
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
         </div>
       )}
 
@@ -1151,7 +1938,7 @@ export function TeachersPane({
         >
           <div
             style={{
-              background: "#ffffff",
+              background: "#FFFFFF",
               borderRadius: "12px",
               width: "100%",
               maxWidth: "540px",
@@ -1160,19 +1947,20 @@ export function TeachersPane({
               display: "flex",
               flexDirection: "column",
               boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
+              fontFamily: "'Poppins', sans-serif",
             }}
           >
             {/* Modal Header */}
             <div
               style={{
                 padding: "16px 20px",
-                borderBottom: "1px solid #e4e6e9",
+                borderBottom: "1px solid #E0E5EB",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
               }}
             >
-              <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#0c1e33", margin: 0 }}>
+              <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#0C1E33", margin: 0 }}>
                 {
                   {
                     observation: "Record Classroom Observation",
@@ -1189,7 +1977,7 @@ export function TeachersPane({
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  color: "#64748b",
+                  color: "#64748B",
                   padding: "4px",
                 }}
               >
@@ -1213,9 +2001,9 @@ export function TeachersPane({
                   style={{
                     padding: "10px 12px",
                     borderRadius: "6px",
-                    background: "#fef2f2",
-                    border: "1px solid #fee2e2",
-                    color: "#991b1b",
+                    background: "#FEF2F2",
+                    border: "1px solid #FEE2E2",
+                    color: "#991B1B",
                     fontSize: "12px",
                   }}
                 >
@@ -1236,15 +2024,16 @@ export function TeachersPane({
                       width: "100%",
                       padding: "8px 12px",
                       borderRadius: "6px",
-                      border: "1px solid #cbd5e1",
+                      border: "1px solid #CBD5E1",
                       fontSize: "12px",
-                      background: "#ffffff",
+                      background: "#FFFFFF",
+                      fontFamily: "'Poppins', sans-serif",
                     }}
                   >
                     <option value="">Select teacher</option>
                     {teachers.map((t) => (
                       <option key={t.id} value={t.id}>
-                        {t.name || t.email}
+                        {t.name || t.email} ({t.department || "Faculty"})
                       </option>
                     ))}
                   </select>
@@ -1264,9 +2053,10 @@ export function TeachersPane({
                       width: "100%",
                       padding: "8px 12px",
                       borderRadius: "6px",
-                      border: "1px solid #cbd5e1",
+                      border: "1px solid #CBD5E1",
                       fontSize: "12px",
-                      background: "#ffffff",
+                      background: "#FFFFFF",
+                      fontFamily: "'Poppins', sans-serif",
                     }}
                   >
                     <option value="">Select department</option>
@@ -1295,8 +2085,9 @@ export function TeachersPane({
                         width: "100%",
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid #CBD5E1",
                         fontSize: "12px",
+                        fontFamily: "'Poppins', sans-serif",
                       }}
                     />
                   </div>
@@ -1314,8 +2105,9 @@ export function TeachersPane({
                         width: "100%",
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid #CBD5E1",
                         fontSize: "12px",
+                        fontFamily: "'Poppins', sans-serif",
                       }}
                     />
                   </div>
@@ -1336,8 +2128,10 @@ export function TeachersPane({
                         width: "100%",
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid #CBD5E1",
                         fontSize: "12px",
+                        background: "#FFFFFF",
+                        fontFamily: "'Poppins', sans-serif",
                       }}
                     >
                       <option value="">Select class & subject</option>
@@ -1363,8 +2157,9 @@ export function TeachersPane({
                         width: "100%",
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid #CBD5E1",
                         fontSize: "12px",
+                        fontFamily: "'Poppins', sans-serif",
                       }}
                     />
                   </div>
@@ -1381,8 +2176,10 @@ export function TeachersPane({
                         width: "100%",
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid #CBD5E1",
                         fontSize: "12px",
+                        background: "#FFFFFF",
+                        fontFamily: "'Poppins', sans-serif",
                       }}
                     >
                       <option value="">Select rating</option>
@@ -1411,8 +2208,9 @@ export function TeachersPane({
                             width: "100%",
                             padding: "6px 10px",
                             borderRadius: "6px",
-                            border: "1px solid #cbd5e1",
+                            border: "1px solid #CBD5E1",
                             fontSize: "12px",
+                            fontFamily: "'Poppins', sans-serif",
                           }}
                         />
                       </div>
@@ -1431,8 +2229,9 @@ export function TeachersPane({
                         width: "100%",
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid #CBD5E1",
                         fontSize: "12px",
+                        fontFamily: "'Poppins', sans-serif",
                       }}
                     />
                   </div>
@@ -1449,8 +2248,9 @@ export function TeachersPane({
                         width: "100%",
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid #CBD5E1",
                         fontSize: "12px",
+                        fontFamily: "'Poppins', sans-serif",
                       }}
                     />
                   </div>
@@ -1473,8 +2273,9 @@ export function TeachersPane({
                         width: "100%",
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid #CBD5E1",
                         fontSize: "12px",
+                        fontFamily: "'Poppins', sans-serif",
                       }}
                     />
                   </div>
@@ -1492,8 +2293,9 @@ export function TeachersPane({
                           width: "100%",
                           padding: "8px 12px",
                           borderRadius: "6px",
-                          border: "1px solid #cbd5e1",
+                          border: "1px solid #CBD5E1",
                           fontSize: "12px",
+                          fontFamily: "'Poppins', sans-serif",
                         }}
                       />
                     </div>
@@ -1512,8 +2314,9 @@ export function TeachersPane({
                           width: "100%",
                           padding: "8px 12px",
                           borderRadius: "6px",
-                          border: "1px solid #cbd5e1",
+                          border: "1px solid #CBD5E1",
                           fontSize: "12px",
+                          fontFamily: "'Poppins', sans-serif",
                         }}
                       />
                     </div>
@@ -1531,8 +2334,9 @@ export function TeachersPane({
                         width: "100%",
                         padding: "8px 12px",
                         borderRadius: "6px",
-                        border: "1px solid #cbd5e1",
+                        border: "1px solid #CBD5E1",
                         fontSize: "12px",
+                        fontFamily: "'Poppins', sans-serif",
                       }}
                     />
                   </div>
@@ -1547,7 +2351,7 @@ export function TeachersPane({
                   gap: "10px",
                   marginTop: "10px",
                   paddingTop: "14px",
-                  borderTop: "1px solid #f1f5f9",
+                  borderTop: "1px solid #F1F5F9",
                 }}
               >
                 <button
@@ -1556,12 +2360,13 @@ export function TeachersPane({
                   style={{
                     padding: "8px 16px",
                     borderRadius: "8px",
-                    border: "1px solid #e4e6e9",
-                    background: "#ffffff",
+                    border: "1px solid #E0E5EB",
+                    background: "#FFFFFF",
                     fontSize: "12px",
                     fontWeight: 600,
                     color: "#475569",
                     cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
                   }}
                 >
                   Cancel
@@ -1573,11 +2378,12 @@ export function TeachersPane({
                     padding: "8px 18px",
                     borderRadius: "8px",
                     border: "none",
-                    background: "#0c1e33",
+                    background: "#0C1E33",
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: "#ffffff",
+                    color: "#FFFFFF",
                     cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
                   }}
                 >
                   {saving ? "Saving…" : "Save Record"}
@@ -1587,6 +2393,7 @@ export function TeachersPane({
           </div>
         </div>
       )}
+
       {/* Reusable Department Dossier Drawer */}
       <DepartmentDossierDrawer
         department={selectedDept}

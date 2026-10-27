@@ -348,7 +348,7 @@ export function CommunicationChat({
         if (created) {
           setSelectedId(created.conversationId);
           const updated = await getCommunicationConversation(organizationId, created.conversationId);
-          setMessagesByConv((prev) => ({ ...prev, [created.conversationId]: updated }));
+          setMessages(Array.isArray(updated) ? updated : []);
         }
       }
     } catch {
@@ -965,21 +965,12 @@ export function CommunicationChat({
             })
           ) : (
             /* Empty Conversations State */
-            <div style={{ padding: "48px 20px", textAlign: "center", color: "#64748b" }}>
-              <div
-                style={{
-                  width: "44px",
-                  height: "44px",
-                  borderRadius: "50%",
-                  background: "#f1f5f9",
-                  display: "grid",
-                  placeItems: "center",
-                  margin: "0 auto 12px",
-                  color: "#0c1e33",
-                }}
-              >
-                <MessageSquare size={20} />
-              </div>
+            <div style={{ padding: "40px 20px", textAlign: "center", color: "#64748b" }}>
+              <img
+                src={searchQuery ? "/noresult.png" : "/bee.png"}
+                alt=""
+                style={{ width: searchQuery ? "90px" : "64px", height: "auto", margin: "0 auto 12px", opacity: 0.95, display: "block" }}
+              />
               <p style={{ margin: 0, fontSize: "13px", fontWeight: 600, color: "#1e293b" }}>
                 {searchQuery ? "No matching conversations" : "No conversations yet"}
               </p>
@@ -1182,21 +1173,19 @@ export function CommunicationChat({
           {!activeRecipient ? (
             /* Empty State: No Conversation Selected */
             <div style={{ margin: "auto", textAlign: "center", maxWidth: "380px", padding: "40px 20px" }}>
-              <div
+              <img
+                src="/bee.png"
+                alt=""
                 style={{
-                  width: "60px",
-                  height: "60px",
-                  borderRadius: "16px",
-                  background: "#eef4fa",
-                  color: "#0c1e33",
-                  display: "grid",
-                  placeItems: "center",
+                  width: "90px",
+                  height: "auto",
+                  maxHeight: "90px",
+                  objectFit: "contain",
                   margin: "0 auto 16px",
-                  boxShadow: "0 4px 12px rgba(12, 30, 51, 0.06)",
+                  display: "block",
+                  opacity: 0.95,
                 }}
-              >
-                <MessageSquare size={28} />
-              </div>
+              />
               <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#0c1e33" }}>
                 Direct Messages Desk
               </h3>

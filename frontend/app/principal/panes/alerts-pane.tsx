@@ -16,6 +16,109 @@ import {
 } from "lucide-react";
 import { getPrincipalAlerts, resolvePrincipalAlert } from "../../edops-api";
 
+/* -------------------------------------------------------------------------- */
+/* SKELETON LOADERS & EMPTY STATES                                            */
+/* -------------------------------------------------------------------------- */
+
+function KpiSkeletonGrid() {
+  const cards = [
+    { bg: "#D0EDC0" },
+    { bg: "#BCE6F3" },
+    { bg: "#E0D3FF" },
+    { bg: "#FADAC9" },
+  ];
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+        gap: "16px",
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      {cards.map((c, i) => (
+        <div
+          key={i}
+          style={{
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "164px",
+            padding: "20px",
+            gap: "12px",
+            background: c.bg,
+            borderRadius: "10px",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <div className="edops-skeleton-kpi" style={{ width: "110px", height: "12px", borderRadius: "4px" }} />
+            <div className="edops-skeleton-kpi" style={{ width: "20px", height: "20px", borderRadius: "50%" }} />
+          </div>
+          <div className="edops-skeleton-kpi" style={{ width: "75px", height: "36px", borderRadius: "6px" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
+            <div className="edops-skeleton-kpi" style={{ width: "140px", height: "10px", borderRadius: "4px" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <div className="edops-skeleton-kpi" style={{ width: "55px", height: "10px", borderRadius: "4px" }} />
+              <div className="edops-skeleton-kpi" style={{ width: "14px", height: "14px", borderRadius: "3px" }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({
+  illustration = "/bee.png",
+  title,
+  description,
+}: {
+  illustration?: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "48px 24px",
+        width: "100%",
+        textAlign: "center",
+        boxSizing: "border-box",
+        background: "#FFFFFF",
+        borderRadius: "10px",
+        border: "1px solid #E0E5EB",
+        fontFamily: "'Poppins', sans-serif",
+      }}
+    >
+      <img
+        src={illustration}
+        alt=""
+        style={{
+          width: illustration === "/noresult.png" ? "120px" : "96px",
+          height: "auto",
+          maxHeight: "100px",
+          objectFit: "contain",
+          marginBottom: "16px",
+          opacity: 0.95,
+        }}
+      />
+      <b style={{ fontSize: "15px", fontWeight: 700, color: "#0C1E33", marginBottom: "6px" }}>
+        {title}
+      </b>
+      <p style={{ margin: 0, fontSize: "12.5px", color: "#64748B", maxWidth: "440px", lineHeight: 1.55 }}>
+        {description}
+      </p>
+    </div>
+  );
+}
+
 interface AlertsPaneProps {
   organizationId: string;
   onNavigate?: (pane: string, subTab?: string) => void;
@@ -51,7 +154,6 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
         }
       });
     } finally {
-
       setLoading(false);
     }
   }
@@ -88,7 +190,7 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
   });
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px", fontFamily: "'Poppins', sans-serif" }}>
       {/* Header & Action Strip */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
         <div>
@@ -114,6 +216,7 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
             border: "1px solid #e4e6e9",
             borderRadius: "8px",
             cursor: "pointer",
+            fontFamily: "'Poppins', sans-serif",
             transition: "all 0.15s ease",
           }}
         >
@@ -121,122 +224,139 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
         </button>
       </div>
 
-      {/* 4 Standard Pastel KPI Cards (strictly 148px height) */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "16px",
-        }}
-      >
-        {/* Card 1: Mint - Resolved */}
+      {/* 4 Standard Pastel KPI Cards (strictly 164px height) */}
+      {loading ? (
+        <KpiSkeletonGrid />
+      ) : (
         <div
           style={{
-            height: "148px",
-            background: "#ccefbf",
-            border: "1px solid #b2e49f",
-            borderRadius: "10px",
-            padding: "20px",
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: "16px",
+            width: "100%",
           }}
         >
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "#1a5c0a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Resolved This Week
+          {/* Card 1: Mint - Resolved */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#D0EDC0",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                RESOLVED THIS WEEK
+              </span>
+              <CheckCircle2 size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
             </div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#1a5c0a", marginTop: "4px" }}>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
               {data?.stats?.resolvedThisWeek ?? 0}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                Closed with corrective directives
+              </span>
             </div>
           </div>
-          <div style={{ fontSize: "11px", color: "#23720e", fontWeight: 500 }}>
-            Closed with corrective directives
-          </div>
-        </div>
 
-        {/* Card 2: Sky - Info */}
-        <div
-          style={{
-            height: "148px",
-            background: "#bae5f5",
-            border: "1px solid #9ad7ef",
-            borderRadius: "10px",
-            padding: "20px",
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "#0a5a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Informational Notices
+          {/* Card 2: Sky - Info */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#BCE6F3",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                INFORMATIONAL NOTICES
+              </span>
+              <Clock size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
             </div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#0a5a7a", marginTop: "4px" }}>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
               {data?.stats?.infoCount ?? 0}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                Milestones and audit logs
+              </span>
             </div>
           </div>
-          <div style={{ fontSize: "11px", color: "#0d6f96", fontWeight: 500 }}>
-            Milestones and audit logs
-          </div>
-        </div>
 
-        {/* Card 3: Violet - Warning */}
-        <div
-          style={{
-            height: "148px",
-            background: "#e1d2ff",
-            border: "1px solid #cdb5ff",
-            borderRadius: "10px",
-            padding: "20px",
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "#4a0e8f", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Warning Signals
+          {/* Card 3: Violet - Warning */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#E0D3FF",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                WARNING SIGNALS
+              </span>
+              <AlertTriangle size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
             </div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#4a0e8f", marginTop: "4px" }}>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
               {data?.stats?.warningCount ?? 0}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                Monitor next assessment cycle
+              </span>
             </div>
           </div>
-          <div style={{ fontSize: "11px", color: "#5b14ae", fontWeight: 500 }}>
-            Monitor next assessment cycle
-          </div>
-        </div>
 
-        {/* Card 4: Peach - Critical */}
-        <div
-          style={{
-            height: "148px",
-            background: "#ffd8c7",
-            border: "1px solid #ffbe9f",
-            borderRadius: "10px",
-            padding: "20px",
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <div style={{ fontSize: "11px", fontWeight: 700, color: "#782a00", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-              Critical Action Req.
+          {/* Card 4: Peach - Critical */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#FADAC9",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                CRITICAL ACTION REQ.
+              </span>
+              <ShieldAlert size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
             </div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#782a00", marginTop: "4px" }}>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
               {data?.stats?.criticalCount ?? 0}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                Immediate leadership intervention
+              </span>
             </div>
-          </div>
-          <div style={{ fontSize: "11px", color: "#923402", fontWeight: 500 }}>
-            Immediate leadership intervention
           </div>
         </div>
-      </div>
+      )}
 
       {/* Filter Controls */}
       <div
@@ -253,30 +373,39 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
         }}
       >
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "4px" }}>
-            <Filter size={13} /> Severity:
-          </span>
-          {["all", "critical", "warning", "info"].map((sev) => (
-            <button
-              key={sev}
-              onClick={() => setSeverityFilter(sev)}
-              style={{
-                padding: "5px 12px",
-                fontSize: "11.5px",
-                borderRadius: "20px",
-                fontWeight: 600,
-                textTransform: "capitalize",
-                border: "1px solid",
-                borderColor: severityFilter === sev ? "#0c1e33" : "#e4e6e9",
-                background: severityFilter === sev ? "#0c1e33" : "#f8fafc",
-                color: severityFilter === sev ? "#ffffff" : "#475569",
-                cursor: "pointer",
-                transition: "all 0.15s ease",
-              }}
-            >
-              {sev}
-            </button>
-          ))}
+          {[
+            { id: "all", label: "All Alerts" },
+            { id: "critical", label: "Critical" },
+            { id: "warning", label: "Warnings" },
+            { id: "info", label: "Informational" },
+          ].map((s) => {
+            const isActive = severityFilter === s.id;
+            return (
+              <button
+                key={s.id}
+                onClick={() => setSeverityFilter(s.id)}
+                style={{
+                  boxSizing: "border-box",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  height: "34px",
+                  padding: "0 16px",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  fontFamily: "'Poppins', sans-serif",
+                  fontWeight: isActive ? 600 : 500,
+                  background: isActive ? "#0C1E33" : "#F4F6F8",
+                  color: isActive ? "#FFFFFF" : "#5A6B7D",
+                  border: isActive ? "1px solid #0C1E33" : "1px solid #E2E8F0",
+                  boxShadow: isActive ? "0 2px 4px rgba(12, 30, 51, 0.14)" : "none",
+                  cursor: "pointer",
+                  transition: "all 0.15s ease",
+                }}
+              >
+                {s.label}
+              </button>
+            );
+          })}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -307,13 +436,42 @@ export function AlertsPane({ organizationId, onNavigate }: AlertsPaneProps) {
       {/* Alerts Feed */}
       <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
         {loading ? (
-          <div style={{ padding: "40px 0", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>Loading academic alert radar...</div>
-        ) : filteredAlerts.length === 0 ? (
-          <div style={{ padding: "40px 20px", textAlign: "center", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9" }}>
-            <CheckCircle2 size={36} color="#10b981" style={{ margin: "0 auto 8px" }} />
-            <p style={{ fontSize: "14px", fontWeight: 700, color: "#1e293b", margin: 0 }}>No active alerts matching filter</p>
-            <p style={{ fontSize: "12px", color: "#64748b", margin: "4px 0 0" }}>All academic streams are operating within acceptable thresholds.</p>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                style={{
+                  padding: "16px 20px",
+                  borderRadius: "10px",
+                  border: "1px solid #E0E5EB",
+                  background: "#FFFFFF",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "10px",
+                }}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <div className="edops-skeleton" style={{ width: "70px", height: "20px", borderRadius: "100px" }} />
+                    <div className="edops-skeleton" style={{ width: "90px", height: "20px", borderRadius: "100px" }} />
+                  </div>
+                  <div className="edops-skeleton" style={{ width: "80px", height: "14px", borderRadius: "4px" }} />
+                </div>
+                <div className="edops-skeleton" style={{ width: "50%", height: "16px", borderRadius: "4px" }} />
+                <div className="edops-skeleton" style={{ width: "80%", height: "12px", borderRadius: "4px" }} />
+              </div>
+            ))}
           </div>
+        ) : filteredAlerts.length === 0 ? (
+          <EmptyState
+            illustration={severityFilter !== "all" || categoryFilter !== "all" ? "/noresult.png" : "/bee.png"}
+            title={severityFilter !== "all" || categoryFilter !== "all" ? "No Alerts Matching Filter" : "All Academic Streams Healthy"}
+            description={
+              severityFilter !== "all" || categoryFilter !== "all"
+                ? "No alerts found matching your selected severity or category criteria."
+                : "All syllabus deadlines, attendance thresholds, and assessment benchmarks are operating within normal limits."
+            }
+          />
         ) : (
           filteredAlerts.map((item: any) => (
             <div

@@ -479,20 +479,36 @@ export function NoticeBoard({
         <div
           style={{
             background: "#ffffff",
-            padding: "48px 20px",
+            padding: "48px 24px",
             borderRadius: "10px",
             textAlign: "center",
-            border: "1px dashed #cbd5e1",
+            border: "1px solid #E0E5EB",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "'Poppins', sans-serif",
           }}
         >
-          <Bell size={32} color="#94a3b8" style={{ margin: "0 auto 12px" }} />
-          <h4 style={{ margin: 0, fontSize: "15px", color: "#0c1e33" }}>
-            No Notices Found
-          </h4>
-          <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "#64748b" }}>
+          <img
+            src={search || priorityFilter !== "all" ? "/noresult.png" : "/bee.png"}
+            alt=""
+            style={{
+              width: search || priorityFilter !== "all" ? "120px" : "96px",
+              height: "auto",
+              maxHeight: "100px",
+              objectFit: "contain",
+              marginBottom: "16px",
+              opacity: 0.95,
+            }}
+          />
+          <b style={{ fontSize: "15px", fontWeight: 700, color: "#0C1E33", marginBottom: "6px" }}>
+            {search || priorityFilter !== "all" ? "No Matching Notices Found" : "No Circulars or Notices Yet"}
+          </b>
+          <p style={{ margin: 0, fontSize: "12.5px", color: "#64748B", maxWidth: "440px", lineHeight: 1.55 }}>
             {search || priorityFilter !== "all"
-              ? "No notices matching your search or filters."
-              : "No official circulars have been published yet."}
+              ? "We couldn't find any circulars matching your search query or priority filters."
+              : "Official institution circulars, broadcasts, and announcements will appear here once published."}
           </p>
         </div>
       ) : (

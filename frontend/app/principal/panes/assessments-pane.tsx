@@ -15,6 +15,7 @@ import {
   Send,
   Layers,
   Award,
+  ArrowRight,
 } from "lucide-react";
 import {
   getPrincipalAssessments,
@@ -30,6 +31,137 @@ interface AssessmentsPaneProps {
   initialTab?: "assessments" | "analysis";
   onNavigate?: (pane: string, sub?: string) => void;
   onTabChange?: (tab: string) => void;
+}
+
+/* -------------------------------------------------------------------------- */
+/* SKELETON LOADERS & EMPTY STATES                                            */
+/* -------------------------------------------------------------------------- */
+
+function KpiSkeletonGrid() {
+  const cards = [
+    { bg: "#E0D3FF" },
+    { bg: "#D0EDC0" },
+    { bg: "#BCE6F3" },
+    { bg: "#FADAC9" },
+  ];
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+        gap: "16px",
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      {cards.map((c, i) => (
+        <div
+          key={i}
+          style={{
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "164px",
+            padding: "20px",
+            gap: "12px",
+            background: c.bg,
+            borderRadius: "10px",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <div className="edops-skeleton-kpi" style={{ width: "110px", height: "12px", borderRadius: "4px" }} />
+            <div className="edops-skeleton-kpi" style={{ width: "20px", height: "20px", borderRadius: "50%" }} />
+          </div>
+          <div className="edops-skeleton-kpi" style={{ width: "75px", height: "36px", borderRadius: "6px" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
+            <div className="edops-skeleton-kpi" style={{ width: "140px", height: "10px", borderRadius: "4px" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <div className="edops-skeleton-kpi" style={{ width: "55px", height: "10px", borderRadius: "4px" }} />
+              <div className="edops-skeleton-kpi" style={{ width: "14px", height: "14px", borderRadius: "3px" }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({
+  illustration = "/bee.png",
+  title,
+  description,
+  actionLabel,
+  onAction,
+}: {
+  illustration?: string;
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "48px 24px",
+        width: "100%",
+        textAlign: "center",
+        boxSizing: "border-box",
+        background: "#FFFFFF",
+        borderRadius: "10px",
+        border: "1px solid #E0E5EB",
+        fontFamily: "'Poppins', sans-serif",
+      }}
+    >
+      <img
+        src={illustration}
+        alt=""
+        style={{
+          width: illustration === "/noresult.png" ? "120px" : "96px",
+          height: "auto",
+          maxHeight: "100px",
+          objectFit: "contain",
+          marginBottom: "16px",
+          opacity: 0.95,
+        }}
+      />
+      <b style={{ fontSize: "15px", fontWeight: 700, color: "#0C1E33", marginBottom: "6px" }}>
+        {title}
+      </b>
+      <p style={{ margin: 0, fontSize: "12.5px", color: "#64748B", maxWidth: "440px", lineHeight: 1.55 }}>
+        {description}
+      </p>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          style={{
+            marginTop: "16px",
+            padding: "8px 18px",
+            borderRadius: "6px",
+            background: "#0C1E33",
+            color: "#FFFFFF",
+            border: "none",
+            fontSize: "12px",
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "'Poppins', sans-serif",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <Plus size={14} />
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
 }
 
 export function AssessmentsPane({
@@ -171,7 +303,7 @@ export function AssessmentsPane({
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%", fontFamily: "'Poppins', sans-serif" }}>
       {/* Tab Navigation Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #E2E8F0", paddingBottom: "12px", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", gap: "8px" }}>
@@ -181,19 +313,36 @@ export function AssessmentsPane({
               onTabChange?.("assessments");
             }}
             style={{
-              padding: "8px 16px",
+              boxSizing: "border-box",
+              display: "inline-flex",
+              alignItems: "center",
+              height: "34px",
+              padding: "0 16px",
               borderRadius: "8px",
               fontSize: "12px",
-              fontWeight: 600,
-              background: tab === "assessments" ? "#0c1e33" : "#ffffff",
-              color: tab === "assessments" ? "#ffffff" : "#475569",
-              border: "1px solid",
-              borderColor: tab === "assessments" ? "#0c1e33" : "#e4e6e9",
+              fontWeight: tab === "assessments" ? 600 : 500,
+              background: tab === "assessments" ? "#0C1E33" : "#F4F6F8",
+              color: tab === "assessments" ? "#FFFFFF" : "#5A6B7D",
+              border: tab === "assessments" ? "1px solid #0C1E33" : "1px solid #E2E8F0",
               cursor: "pointer",
+              fontFamily: "'Poppins', sans-serif",
+              boxShadow: tab === "assessments" ? "0 2px 4px rgba(12, 30, 51, 0.14)" : "none",
               transition: "all 0.15s ease",
             }}
+            onMouseEnter={(e) => {
+              if (tab !== "assessments") {
+                e.currentTarget.style.background = "#E9EEF4";
+                e.currentTarget.style.color = "#0C1E33";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (tab !== "assessments") {
+                e.currentTarget.style.background = "#F4F6F8";
+                e.currentTarget.style.color = "#5A6B7D";
+              }
+            }}
           >
-            Assessments & Question Papers
+            Assessments &amp; Question Papers
           </button>
           <button
             onClick={() => {
@@ -201,16 +350,33 @@ export function AssessmentsPane({
               onTabChange?.("analysis");
             }}
             style={{
-              padding: "8px 16px",
+              boxSizing: "border-box",
+              display: "inline-flex",
+              alignItems: "center",
+              height: "34px",
+              padding: "0 16px",
               borderRadius: "8px",
               fontSize: "12px",
-              fontWeight: 600,
-              background: tab === "analysis" ? "#0c1e33" : "#ffffff",
-              color: tab === "analysis" ? "#ffffff" : "#475569",
-              border: "1px solid",
-              borderColor: tab === "analysis" ? "#0c1e33" : "#e4e6e9",
+              fontWeight: tab === "analysis" ? 600 : 500,
+              background: tab === "analysis" ? "#0C1E33" : "#F4F6F8",
+              color: tab === "analysis" ? "#FFFFFF" : "#5A6B7D",
+              border: tab === "analysis" ? "1px solid #0C1E33" : "1px solid #E2E8F0",
               cursor: "pointer",
+              fontFamily: "'Poppins', sans-serif",
+              boxShadow: tab === "analysis" ? "0 2px 4px rgba(12, 30, 51, 0.14)" : "none",
               transition: "all 0.15s ease",
+            }}
+            onMouseEnter={(e) => {
+              if (tab !== "analysis") {
+                e.currentTarget.style.background = "#E9EEF4";
+                e.currentTarget.style.color = "#0C1E33";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (tab !== "analysis") {
+                e.currentTarget.style.background = "#F4F6F8";
+                e.currentTarget.style.color = "#5A6B7D";
+              }
             }}
           >
             Assessment Analysis
@@ -221,17 +387,19 @@ export function AssessmentsPane({
           <button
             onClick={() => setCreateModalOpen(true)}
             style={{
-              background: "#0c1e33",
-              color: "#ffffff",
+              background: "#0C1E33",
+              color: "#FFFFFF",
               border: "none",
               borderRadius: "8px",
               padding: "8px 16px",
               fontSize: "12.5px",
-              fontWeight: 700,
+              fontWeight: 600,
               cursor: "pointer",
               display: "inline-flex",
               alignItems: "center",
               gap: "6px",
+              fontFamily: "'Poppins', sans-serif",
+              boxShadow: "0 2px 4px rgba(12, 30, 51, 0.12)",
             }}
           >
             <Plus size={15} /> Register Question Paper
@@ -241,151 +409,165 @@ export function AssessmentsPane({
 
       {tab === "assessments" && (
         <>
-          {/* 4 Standard Pastel KPI Cards (strictly 148px height) */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-              gap: "16px",
-            }}
-          >
-            {/* Card 1: Mint - Approved Papers */}
+          {/* 4 Standard Pastel KPI Cards (strictly 164px height) */}
+          {loading ? (
+            <KpiSkeletonGrid />
+          ) : (
             <div
               style={{
-                height: "148px",
-                background: "#ccefbf",
-                border: "1px solid #b2e49f",
-                borderRadius: "10px",
-                padding: "20px",
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                gap: "16px",
+                width: "100%",
               }}
             >
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#1a5c0a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Approved Question Papers
+              {/* Card 1: Approved Papers (Pastel Violet) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#E0D3FF",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    APPROVED BLUEPRINTS
+                  </span>
+                  <CheckCircle2 size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
                 </div>
-                <div style={{ fontSize: "28px", fontWeight: 800, color: "#1a5c0a", marginTop: "4px" }}>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
                   {papers.filter((p: any) => p.status === "Approved").length} / {papers.length || 0}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                    Certified papers ready for exam dispatch
+                  </span>
                 </div>
               </div>
-              <div style={{ fontSize: "11px", color: "#23720e", fontWeight: 500 }}>
-                Certified blueprints ready for printing
-              </div>
-            </div>
 
-            {/* Card 2: Sky - Total Question Papers */}
-            <div
-              style={{
-                height: "148px",
-                background: "#bae5f5",
-                border: "1px solid #9ad7ef",
-                borderRadius: "10px",
-                padding: "20px",
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#0a5a7a", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Question Papers Logged
+              {/* Card 2: Question Papers Logged (Pastel Mint Green) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#D0EDC0",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    QUESTION PAPERS LOGGED
+                  </span>
+                  <BookOpen size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
                 </div>
-                <div style={{ fontSize: "28px", fontWeight: 800, color: "#0a5a7a", marginTop: "4px" }}>
-                  {papers.length || 0} Papers
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+                  {papers.length || 0}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                    Across Midterm, Periodic, and Finals
+                  </span>
                 </div>
               </div>
-              <div style={{ fontSize: "11px", color: "#0d6f96", fontWeight: 500 }}>
-                Across Midterm, Periodic, and Final terms
-              </div>
-            </div>
 
-            {/* Card 3: Violet - Under Review */}
-            <div
-              style={{
-                height: "148px",
-                background: "#e1d2ff",
-                border: "1px solid #cdb5ff",
-                borderRadius: "10px",
-                padding: "20px",
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#4a0e8f", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Pending Principal Review
+              {/* Card 3: Pending Review (Pastel Sky Blue) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#BCE6F3",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    PENDING REVIEW
+                  </span>
+                  <Clock size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
                 </div>
-                <div style={{ fontSize: "28px", fontWeight: 800, color: "#4a0e8f", marginTop: "4px" }}>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
                   {papers.filter((p: any) => p.status !== "Approved").length || 0}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                    Awaiting difficulty &amp; competency sign-off
+                  </span>
                 </div>
               </div>
-              <div style={{ fontSize: "11px", color: "#5b14ae", fontWeight: 500 }}>
-                Awaiting difficulty & competency sign-off
-              </div>
-            </div>
 
-            {/* Card 4: Peach - Competency Mapped */}
-            <div
-              style={{
-                height: "148px",
-                background: "#ffd8c7",
-                border: "1px solid #ffbe9f",
-                borderRadius: "10px",
-                padding: "20px",
-                boxSizing: "border-box",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              <div>
-                <div style={{ fontSize: "11px", fontWeight: 700, color: "#782a00", textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                  Competency Mapping
+              {/* Card 4: Competency Mapping (Pastel Warm Peach) */}
+              <div
+                style={{
+                  boxSizing: "border-box",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
+                  height: "164px",
+                  padding: "20px",
+                  gap: "12px",
+                  background: "#FADAC9",
+                  borderRadius: "10px",
+                }}
+              >
+                <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    COMPETENCY MAPPING
+                  </span>
+                  <Award size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
                 </div>
-                <div style={{ fontSize: "28px", fontWeight: 800, color: "#782a00", marginTop: "4px" }}>
+                <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
                   {papers.length > 0 ? `${Math.round((papers.filter((p: any) => p.competencyMapped).length / papers.length) * 100)}%` : "100%"}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+                  <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                    Curriculum learning outcomes compliance
+                  </span>
                 </div>
-              </div>
-              <div style={{ fontSize: "11px", color: "#923402", fontWeight: 500 }}>
-                CBSE Learning Outcomes compliance
               </div>
             </div>
-          </div>
+          )}
 
           {/* 2. Question Paper Approval Pipeline */}
-          <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "20px" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+          <div style={{ background: "#FFFFFF", border: "1px solid #E0E5EB", borderRadius: "10px", padding: "20px", boxShadow: "0 1px 3px rgba(12, 30, 51, 0.04)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", flexWrap: "wrap", gap: "8px" }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1E293B" }}>
-                  Question Paper Review & Blueprint Approval Workflow
+                <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0C1E33" }}>
+                  Question Paper Review &amp; Blueprint Approval Workflow
                 </h3>
                 <span style={{ fontSize: "12px", color: "#64748B" }}>
-                  Principal quality check: difficulty distribution, competency mapping & mark allocations
+                  Principal quality check: difficulty distribution, competency mapping &amp; mark allocations
                 </span>
               </div>
-              <span style={{ background: "#DCFCE7", color: "#166534", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 700 }}>
+              <span style={{ background: "#DCFCE7", color: "#166534", padding: "4px 10px", borderRadius: "100px", fontSize: "11px", fontWeight: 600 }}>
                 Board Quality Protocol Active
               </span>
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
               {papers.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "36px 0", color: "#64748B", fontSize: "13px", background: "#F8FAFC", borderRadius: "8px", border: "1px dashed #CBD5E1" }}>
-                  <p style={{ margin: "0 0 8px", fontWeight: 600 }}>No question papers currently logged in this organization.</p>
-                  <p style={{ margin: "0 0 14px", fontSize: "12px", color: "#94A3B8" }}>Teachers can submit question papers for review, or you can register a question paper blueprint directly.</p>
-                  <button
-                    onClick={() => setCreateModalOpen(true)}
-                    style={{ background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", padding: "7px 14px", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
-                  >
-                    + Register Question Paper Blueprint
-                  </button>
-                </div>
+                <EmptyState
+                  illustration="/bee.png"
+                  title="No Question Papers Logged"
+                  description="Teachers can submit question papers for review, or you can register a question paper blueprint directly."
+                  actionLabel="Register Question Paper Blueprint"
+                  onAction={() => setCreateModalOpen(true)}
+                />
               ) : (
                 papers.map((paper: any, idx: number) => {
                   const isApproved = paper.status === "Approved";
@@ -397,23 +579,24 @@ export function AssessmentsPane({
                     <div
                       key={paper.id || idx}
                       style={{
-                        border: "1px solid #E2E8F0",
+                        border: "1px solid #E0E5EB",
                         borderRadius: "10px",
                         padding: "18px 20px",
                         background: isPublished ? "#F0FDF4" : isApproved ? "#F0FDF4" : isDraft ? "#FFFBEB" : "#FFFFFF",
+                        boxShadow: "0 1px 3px rgba(12, 30, 51, 0.03)",
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "10px" }}>
                         <div>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                            <span style={{ background: "#EFF6FF", color: "#1E40AF", fontSize: "11px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px" }}>
+                            <span style={{ background: "#EFF6FF", color: "#1E40AF", fontSize: "11px", fontWeight: 600, padding: "2px 7px", borderRadius: "4px" }}>
                               {paper.grade} · {paper.subjectName}
                             </span>
                             <span style={{ fontSize: "12px", color: "#64748B" }}>
                               Term: <b>{paper.term}</b>
                             </span>
                           </div>
-                          <h4 style={{ margin: "6px 0 2px", fontSize: "16px", fontWeight: 700, color: "#1E293B" }}>{paper.title}</h4>
+                          <h4 style={{ margin: "6px 0 2px", fontSize: "16px", fontWeight: 700, color: "#0C1E33" }}>{paper.title}</h4>
                           <div style={{ fontSize: "12px", color: "#64748B" }}>
                             Setter: <b>{paper.submittedByName}</b> · {paper.totalMarks} Marks · {paper.durationMinutes} Mins
                           </div>
@@ -421,10 +604,10 @@ export function AssessmentsPane({
 
                         <span
                           style={{
-                            padding: "4px 10px",
-                            borderRadius: "6px",
-                            fontSize: "12px",
-                            fontWeight: 700,
+                            padding: "3px 9px",
+                            borderRadius: "100px",
+                            fontSize: "11.5px",
+                            fontWeight: 600,
                             background: isPublished ? "#DCFCE7" : isApproved ? "#E0F2FE" : isDraft ? "#FEF3C7" : "#FEF3C7",
                             color: isPublished ? "#166534" : isApproved ? "#075985" : isDraft ? "#92400E" : "#92400E",
                           }}
@@ -434,7 +617,7 @@ export function AssessmentsPane({
                       </div>
 
                       {/* Blueprint difficulty distribution */}
-                      <div style={{ background: "#F8FAFC", borderRadius: "8px", padding: "12px", margin: "10px 0", fontSize: "12px" }}>
+                      <div style={{ background: "#F8FAFC", borderRadius: "8px", padding: "12px", margin: "10px 0", fontSize: "12px", border: "1px solid #F1F5F9" }}>
                         <div style={{ fontWeight: 600, color: "#334155", marginBottom: "6px" }}>Blueprint Difficulty Balance:</div>
                         <div style={{ display: "flex", gap: "20px", flexWrap: "wrap" }}>
                           <div>Easy: <b>{paper.difficultyEasyPct}%</b> (Target 30%)</div>
@@ -450,44 +633,38 @@ export function AssessmentsPane({
                         </div>
                       )}
 
-                      {/* Action buttons */}
                       {!isPublished && (
-                        <div style={{ display: "flex", gap: "10px", alignItems: "center", marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #E2E8F0", flexWrap: "wrap" }}>
+                        <div style={{ marginTop: "12px", display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
                           <input
                             type="text"
-                            placeholder="Enter review notes or revision directives for the paper setter..."
-                            value={commentsInput[paper.id] ?? ""}
+                            placeholder="Add evaluation comment or revision instructions..."
+                            value={commentsInput[paper.id] || ""}
                             onChange={(e) => setCommentsInput({ ...commentsInput, [paper.id]: e.target.value })}
-                            style={{ flex: 1, minWidth: "220px", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                            style={{ flex: 1, minWidth: "220px", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                           />
-
                           {!isApproved && (
                             <button
                               disabled={isBusy}
                               onClick={() => handleAction(paper.id, "Approved")}
-                              style={{ background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", padding: "8px 16px", fontSize: "12px", fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer" }}
+                              style={{ background: "#0C1E33", color: "#FFFFFF", border: "none", borderRadius: "6px", padding: "8px 14px", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}
                             >
-                              {isBusy ? "Updating…" : "Approve Blueprint"}
+                              Approve Blueprint
                             </button>
                           )}
-
                           <button
                             disabled={isBusy}
-                            onClick={() => handleAction(paper.id, "Draft")}
-                            style={{ background: "#FFFBEB", color: "#B45309", border: "1px solid #FCD34D", borderRadius: "6px", padding: "8px 14px", fontSize: "12px", fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer" }}
+                            onClick={() => handleAction(paper.id, "Needs Revision")}
+                            style={{ background: "#FFFBEB", color: "#B45309", border: "1px solid #FCD34D", borderRadius: "6px", padding: "8px 14px", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}
                           >
                             Request Revision
                           </button>
-
-                          {isApproved && (
-                            <button
-                              disabled={isBusy}
-                              onClick={() => handleAction(paper.id, "Published")}
-                              style={{ background: "#0284C7", color: "#FFFFFF", border: "none", borderRadius: "6px", padding: "8px 16px", fontSize: "12px", fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer" }}
-                            >
-                              Publish Question Paper
-                            </button>
-                          )}
+                          <button
+                            disabled={isBusy}
+                            onClick={() => handleAction(paper.id, "Published")}
+                            style={{ background: "#16A34A", color: "#FFFFFF", border: "none", borderRadius: "6px", padding: "8px 14px", fontSize: "12px", fontWeight: 600, cursor: "pointer", fontFamily: "'Poppins', sans-serif" }}
+                          >
+                            Publish for Printing
+                          </button>
                         </div>
                       )}
                     </div>
@@ -499,266 +676,214 @@ export function AssessmentsPane({
         </>
       )}
 
-      {/* 3. Assessment Analysis Tab (powered by stored exam evaluations) */}
       {tab === "analysis" && (
-        <div style={{ background: "#FFFFFF", border: "1px solid #E2E8F0", borderRadius: "10px", padding: "20px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <div>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1E293B" }}>
-                Assessment Performance Analysis
-              </h3>
-              <span style={{ fontSize: "12px", color: "#64748B" }}>
-                Score distributions, class averages, and mastery from stored teacher evaluations
-              </span>
-            </div>
-            <span style={{ background: "#F1F5F9", color: "#475569", padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 700 }}>
-              {evaluations.length} Evaluations Logged
-            </span>
-          </div>
-
+        <div style={{ background: "#FFFFFF", border: "1px solid #E0E5EB", borderRadius: "10px", padding: "24px", boxShadow: "0 1px 3px rgba(12, 30, 51, 0.04)" }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 700, color: "#0C1E33" }}>
+            Formative &amp; Summative Assessment Telemetry
+          </h3>
           {evaluations.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "36px 0", color: "#64748B", fontSize: "13px", background: "#F8FAFC", borderRadius: "8px", border: "1px dashed #CBD5E1" }}>
-              <BarChart2 size={32} style={{ margin: "0 auto 8px", color: "#94A3B8" }} />
-              <p style={{ margin: "0 0 4px", fontWeight: 600 }}>No assessment evaluations found in the database.</p>
-              <p style={{ margin: 0, fontSize: "12px", color: "#94A3B8" }}>When teachers record and submit assessment scores, detailed performance analysis will surface here.</p>
-            </div>
+            <EmptyState
+              illustration="/bee.png"
+              title="No Assessment Evaluated"
+              description="Evaluations and score breakdowns will populate here once teachers record marks."
+            />
           ) : (
-            <div style={{ display: "grid", gap: "12px" }}>
-              {evaluations.map((ev: any, idx: number) => {
-                const scoresMap = typeof ev.studentScores === "string" ? JSON.parse(ev.studentScores) : (ev.studentScores || {});
-                const scores = Object.values(scoresMap).map(Number).filter((v) => !isNaN(v));
-                const count = scores.length;
-                const avg = count > 0 ? (scores.reduce((a, b) => a + b, 0) / count).toFixed(1) : "N/A";
-                const highest = count > 0 ? Math.max(...scores) : "N/A";
-                const lowest = count > 0 ? Math.min(...scores) : "N/A";
-                const passRate = count > 0 ? Math.round((scores.filter((s) => s >= (Number(ev.maxMarks) || 50) * 0.4).length / count) * 100) : 100;
-
-                return (
-                  <div key={ev.id || idx} style={{ border: "1px solid #E2E8F0", borderRadius: "8px", padding: "16px", background: "#FAFAFA" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                      <div>
-                        <span style={{ background: "#EEF2FF", color: "#4338CA", fontSize: "11px", fontWeight: 700, padding: "2px 6px", borderRadius: "4px" }}>
-                          {ev.sectionName} · {ev.subjectName}
-                        </span>
-                        <h4 style={{ margin: "4px 0", fontSize: "15px", fontWeight: 700, color: "#1E293B" }}>{ev.title}</h4>
-                        <div style={{ fontSize: "11.5px", color: "#64748B" }}>Conducted on: {ev.date || "Recent"} · Max Marks: {ev.maxMarks}</div>
-                      </div>
-                      <span style={{ fontSize: "12px", fontWeight: 700, color: "#15803D", background: "#DCFCE7", padding: "3px 8px", borderRadius: "4px" }}>
-                        Pass Rate: {passRate}%
-                      </span>
-                    </div>
-
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px", marginTop: "10px", background: "#FFFFFF", padding: "10px", borderRadius: "6px", border: "1px solid #E2E8F0", textAlign: "center" }}>
-                      <div>
-                        <span style={{ fontSize: "10px", color: "#64748B", display: "block" }}>Students Evaluated</span>
-                        <b style={{ fontSize: "14px", color: "#1E293B" }}>{count}</b>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: "10px", color: "#64748B", display: "block" }}>Class Average</span>
-                        <b style={{ fontSize: "14px", color: "#4F46E5" }}>{avg} / {ev.maxMarks}</b>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: "10px", color: "#64748B", display: "block" }}>Highest Mark</span>
-                        <b style={{ fontSize: "14px", color: "#166534" }}>{highest}</b>
-                      </div>
-                      <div>
-                        <span style={{ fontSize: "10px", color: "#64748B", display: "block" }}>Lowest Mark</span>
-                        <b style={{ fontSize: "14px", color: "#991B1B" }}>{lowest}</b>
-                      </div>
-                    </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "16px" }}>
+              {evaluations.map((ev: any) => (
+                <div
+                  key={ev.id}
+                  style={{
+                    background: "#F8FAFC",
+                    border: "1px solid #E0E5EB",
+                    borderRadius: "8px",
+                    padding: "16px",
+                  }}
+                >
+                  <h4 style={{ margin: "0 0 6px", fontSize: "14.5px", fontWeight: 700, color: "#0C1E33" }}>{ev.title}</h4>
+                  <div style={{ fontSize: "12px", color: "#64748B" }}>
+                    Class: <b>{ev.className}</b> · Max Marks: <b>{ev.maxMarks}</b>
                   </div>
-                );
-              })}
+                  <div style={{ fontSize: "12px", color: "#166534", marginTop: "8px", fontWeight: 600 }}>
+                    {ev.enteredStudents} student scores finalized
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
       )}
 
-      {/* QUESTION PAPER REGISTRATION MODAL */}
+      {/* Question Paper Registration Modal */}
       {createModalOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)", padding: "16px" }}>
-          <div style={{ background: "#FFFFFF", borderRadius: "12px", width: "100%", maxWidth: "540px", maxHeight: "90vh", overflowY: "auto", padding: "24px", boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.1)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px", borderBottom: "1px solid #E2E8F0", paddingBottom: "12px" }}>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1E293B" }}>Register Question Paper Blueprint</h3>
-              <button onClick={() => setCreateModalOpen(false)} style={{ border: "none", background: "none", cursor: "pointer", color: "#64748B" }}>
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100,
+            background: "rgba(11, 15, 25, 0.7)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: "20px",
+          }}
+        >
+          <div
+            style={{
+              background: "#FFFFFF",
+              borderRadius: "12px",
+              width: "100%",
+              maxWidth: "540px",
+              maxHeight: "85vh",
+              overflow: "hidden",
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
+              fontFamily: "'Poppins', sans-serif",
+            }}
+          >
+            <div style={{ padding: "16px 20px", borderBottom: "1px solid #E0E5EB", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#0C1E33", margin: 0 }}>Register Question Paper Blueprint</h2>
+              <button
+                type="button"
+                onClick={() => setCreateModalOpen(false)}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748B", padding: "4px" }}
+              >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleCreateQuestionPaper} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <form
+              onSubmit={handleCreateQuestionPaper}
+              style={{ padding: "20px", overflowY: "auto", display: "flex", flexDirection: "column", gap: "12px" }}
+            >
               <div>
-                <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: "4px" }}>Paper Title *</label>
+                <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                  Question Paper Title *
+                </label>
                 <input
-                  type="text"
                   required
-                  placeholder="e.g. Class 10 Mathematics Term 1 Summative Examination"
+                  placeholder="e.g. Class 10 Mathematics Term 1 Periodic Test"
                   value={paperForm.title}
                   onChange={(e) => setPaperForm({ ...paperForm, title: e.target.value })}
-                  style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "13px", boxSizing: "border-box" }}
+                  style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                 />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: "4px" }}>Subject *</label>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                    Subject *
+                  </label>
                   <select
                     value={paperForm.subjectName}
                     onChange={(e) => setPaperForm({ ...paperForm, subjectName: e.target.value })}
-                    style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "13px", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                   >
                     {subjects.length > 0 ? (
                       subjects.map((s: any) => (
-                        <option key={s.id} value={s.name}>{s.name}</option>
+                        <option key={s.id} value={s.name}>
+                          {s.name}
+                        </option>
                       ))
                     ) : (
                       <>
                         <option value="Mathematics">Mathematics</option>
                         <option value="Science">Science</option>
                         <option value="English">English</option>
-                        <option value="Social Science">Social Science</option>
+                        <option value="Social Studies">Social Studies</option>
                       </>
                     )}
                   </select>
                 </div>
-
                 <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: "4px" }}>Grade / Class *</label>
-                  <select
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                    Grade / Class *
+                  </label>
+                  <input
                     value={paperForm.grade}
                     onChange={(e) => setPaperForm({ ...paperForm, grade: e.target.value })}
-                    style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "13px", boxSizing: "border-box" }}
-                  >
-                    <option value="Grade 10">Grade 10</option>
-                    <option value="Grade 9">Grade 9</option>
-                    <option value="Grade 8">Grade 8</option>
-                    <option value="Grade 11">Grade 11</option>
-                    <option value="Grade 12">Grade 12</option>
-                  </select>
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
+                  />
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: "4px" }}>Paper Setter (Teacher) *</label>
-                  <select
-                    value={paperForm.submittedByUserId}
-                    onChange={(e) => {
-                      const sel = teachers.find((t: any) => t.id === e.target.value);
-                      setPaperForm({
-                        ...paperForm,
-                        submittedByUserId: e.target.value,
-                        submittedByName: sel?.name || "Academic Teacher",
-                      });
-                    }}
-                    style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "13px", boxSizing: "border-box" }}
-                  >
-                    {teachers.length > 0 ? (
-                      teachers.map((t: any) => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))
-                    ) : (
-                      <option value="">No teachers available</option>
-                    )}
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: "4px" }}>Examination Term</label>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                    Term *
+                  </label>
                   <input
-                    type="text"
-                    placeholder="e.g. Term 1 Midterm"
                     value={paperForm.term}
                     onChange={(e) => setPaperForm({ ...paperForm, term: e.target.value })}
-                    style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "13px", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                   />
                 </div>
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: "4px" }}>Total Marks</label>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                    Max Total Marks *
+                  </label>
                   <input
                     type="number"
-                    min="10"
-                    max="200"
+                    min={10}
+                    max={200}
                     value={paperForm.totalMarks}
                     onChange={(e) => setPaperForm({ ...paperForm, totalMarks: Number(e.target.value) })}
-                    style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "13px", boxSizing: "border-box" }}
+                    style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                   />
                 </div>
+              </div>
 
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
                 <div>
-                  <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: "4px" }}>Duration (Minutes)</label>
+                  <label style={{ display: "block", fontSize: "10px", fontWeight: 700, color: "#475569", marginBottom: "2px" }}>
+                    Easy % (Target 30)
+                  </label>
                   <input
                     type="number"
-                    min="30"
-                    max="360"
-                    value={paperForm.durationMinutes}
-                    onChange={(e) => setPaperForm({ ...paperForm, durationMinutes: Number(e.target.value) })}
-                    style={{ width: "100%", padding: "8px 10px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "13px", boxSizing: "border-box" }}
+                    value={paperForm.difficultyEasyPct}
+                    onChange={(e) => setPaperForm({ ...paperForm, difficultyEasyPct: Number(e.target.value) })}
+                    style={{ width: "100%", padding: "6px 8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "10px", fontWeight: 700, color: "#475569", marginBottom: "2px" }}>
+                    Medium % (Target 50)
+                  </label>
+                  <input
+                    type="number"
+                    value={paperForm.difficultyMediumPct}
+                    onChange={(e) => setPaperForm({ ...paperForm, difficultyMediumPct: Number(e.target.value) })}
+                    style={{ width: "100%", padding: "6px 8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "10px", fontWeight: 700, color: "#475569", marginBottom: "2px" }}>
+                    Hard % (Target 20)
+                  </label>
+                  <input
+                    type="number"
+                    value={paperForm.difficultyHardPct}
+                    onChange={(e) => setPaperForm({ ...paperForm, difficultyHardPct: Number(e.target.value) })}
+                    style={{ width: "100%", padding: "6px 8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
                   />
                 </div>
               </div>
 
-              <div>
-                <label style={{ fontSize: "12px", fontWeight: 600, color: "#475569", display: "block", marginBottom: "4px" }}>Blueprint Difficulty Balance (% Target: 30 / 50 / 20)</label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "8px" }}>
-                  <div>
-                    <span style={{ fontSize: "11px", color: "#64748B" }}>Easy %</span>
-                    <input
-                      type="number"
-                      value={paperForm.difficultyEasyPct}
-                      onChange={(e) => setPaperForm({ ...paperForm, difficultyEasyPct: Number(e.target.value) })}
-                      style={{ width: "100%", padding: "6px 8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", boxSizing: "border-box" }}
-                    />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "11px", color: "#64748B" }}>Medium %</span>
-                    <input
-                      type="number"
-                      value={paperForm.difficultyMediumPct}
-                      onChange={(e) => setPaperForm({ ...paperForm, difficultyMediumPct: Number(e.target.value) })}
-                      style={{ width: "100%", padding: "6px 8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", boxSizing: "border-box" }}
-                    />
-                  </div>
-                  <div>
-                    <span style={{ fontSize: "11px", color: "#64748B" }}>Hard / HOTS %</span>
-                    <input
-                      type="number"
-                      value={paperForm.difficultyHardPct}
-                      onChange={(e) => setPaperForm({ ...paperForm, difficultyHardPct: Number(e.target.value) })}
-                      style={{ width: "100%", padding: "6px 8px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", boxSizing: "border-box" }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginTop: "4px" }}>
-                <input
-                  type="checkbox"
-                  id="competencyMappedCheck"
-                  checked={paperForm.competencyMapped}
-                  onChange={(e) => setPaperForm({ ...paperForm, competencyMapped: e.target.checked })}
-                />
-                <label htmlFor="competencyMappedCheck" style={{ fontSize: "12px", color: "#334155", cursor: "pointer" }}>
-                  CBSE / Board Competency Mapped (min 50% case-based / application items)
-                </label>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "12px", borderTop: "1px solid #E2E8F0", paddingTop: "12px" }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "10px" }}>
                 <button
                   type="button"
                   onClick={() => setCreateModalOpen(false)}
-                  style={{ padding: "8px 14px", borderRadius: "6px", border: "1px solid #CBD5E1", background: "#FFFFFF", color: "#475569", fontSize: "12px", fontWeight: 600, cursor: "pointer" }}
+                  style={{ padding: "8px 16px", borderRadius: "8px", border: "1px solid #E0E5EB", background: "#FFFFFF", fontSize: "12px", fontWeight: 600, color: "#475569", cursor: "pointer" }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingPaper}
-                  style={{ padding: "8px 18px", borderRadius: "6px", border: "none", background: "#0c1e33", color: "#ffffff", fontSize: "12px", fontWeight: 700, cursor: submittingPaper ? "not-allowed" : "pointer" }}
+                  style={{ padding: "8px 18px", borderRadius: "8px", border: "none", background: "#0C1E33", fontSize: "12px", fontWeight: 600, color: "#FFFFFF", cursor: "pointer" }}
                 >
-                  {submittingPaper ? "Registering…" : "Register Blueprint"}
+                  {submittingPaper ? "Registering…" : "Save Blueprint"}
                 </button>
               </div>
             </form>
@@ -768,4 +893,3 @@ export function AssessmentsPane({
     </div>
   );
 }
-

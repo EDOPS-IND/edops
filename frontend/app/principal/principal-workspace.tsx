@@ -174,16 +174,10 @@ function NavItem({
 // ─── Categorized Flat Navigation Specification ─────────────────────────────────
 const principalNavSections = [
   {
-    key: "overview",
-    label: "Overview",
+    key: "academic_planning",
+    label: "Academic Planning",
     items: [
       { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    ],
-  },
-  {
-    key: "operations",
-    label: "Academic Operations",
-    items: [
       { id: "planning", label: "Academic Planning", icon: CalendarCheck },
       { id: "academics", label: "Academics & Classes", icon: BookOpen },
       { id: "timetable", label: "Timetable", icon: Clock },

@@ -212,34 +212,42 @@ export function CommunicationPane({
       </div>
 
       {/* Sub navigation Switcher */}
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
         {[
           { id: "inbox", label: "Principal Inbox" },
           { id: "parent_queries", label: "Parent Academic Queries & Complaints" },
           { id: "ptm", label: "PTM Management & Academic Notes" },
-        ].map((t) => (
-          <button
-            key={t.id}
-            onClick={() => {
-              setSubTab(t.id as any);
-              onTabChange?.(t.id);
-            }}
-            style={{
-              padding: "8px 16px",
-              borderRadius: "8px",
-              border: "1px solid",
-              borderColor: subTab === t.id ? "#0c1e33" : "#e4e6e9",
-              background: subTab === t.id ? "#0c1e33" : "#ffffff",
-              color: subTab === t.id ? "#ffffff" : "#475569",
-              fontSize: "12px",
-              fontWeight: 600,
-              cursor: "pointer",
-              transition: "all 0.15s ease",
-            }}
-          >
-            {t.label}
-          </button>
-        ))}
+        ].map((t) => {
+          const isActive = subTab === t.id;
+          return (
+            <button
+              key={t.id}
+              onClick={() => {
+                setSubTab(t.id as any);
+                onTabChange?.(t.id);
+              }}
+              style={{
+                boxSizing: "border-box",
+                display: "inline-flex",
+                alignItems: "center",
+                height: "34px",
+                padding: "0 16px",
+                borderRadius: "8px",
+                fontSize: "12px",
+                fontFamily: "'Poppins', sans-serif",
+                fontWeight: isActive ? 600 : 500,
+                background: isActive ? "#0C1E33" : "#F4F6F8",
+                color: isActive ? "#FFFFFF" : "#5A6B7D",
+                border: isActive ? "1px solid #0C1E33" : "1px solid #E2E8F0",
+                boxShadow: isActive ? "0 2px 4px rgba(12, 30, 51, 0.14)" : "none",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+              }}
+            >
+              {t.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* 1. Principal Inbox Tab (Section 47) */}

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { getPrincipalAttendance, getPrincipalLeaves, getStudentAvatarUrl, updatePrincipalLeaveStatus } from "../../edops-api";
-import { Users, AlertTriangle, CalendarCheck, Clock, CheckCircle2, TrendingUp } from "lucide-react";
+import { Users, AlertTriangle, CalendarCheck, Clock, CheckCircle2, TrendingUp, ArrowRight } from "lucide-react";
 import { LeaveItem, LeaveTable } from "../../components/leave-desk";
+import { TableSkeletonRows } from "../components/skeleton-rows";
 
 type Student = {
   id: string;
@@ -29,6 +30,109 @@ type Attendance = {
 };
 type View = "students" | "trends" | "teachers" | "leaves";
 
+/* -------------------------------------------------------------------------- */
+/* SKELETON LOADERS & EMPTY STATES                                            */
+/* -------------------------------------------------------------------------- */
+
+function KpiSkeletonGrid() {
+  const cards = [
+    { bg: "#E0D3FF" },
+    { bg: "#D0EDC0" },
+    { bg: "#BCE6F3" },
+    { bg: "#FADAC9" },
+  ];
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+        gap: "16px",
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      {cards.map((c, i) => (
+        <div
+          key={i}
+          style={{
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "164px",
+            padding: "20px",
+            gap: "12px",
+            background: c.bg,
+            borderRadius: "10px",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <div className="edops-skeleton-kpi" style={{ width: "110px", height: "12px", borderRadius: "4px" }} />
+            <div className="edops-skeleton-kpi" style={{ width: "20px", height: "20px", borderRadius: "50%" }} />
+          </div>
+          <div className="edops-skeleton-kpi" style={{ width: "75px", height: "36px", borderRadius: "6px" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
+            <div className="edops-skeleton-kpi" style={{ width: "140px", height: "10px", borderRadius: "4px" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <div className="edops-skeleton-kpi" style={{ width: "55px", height: "10px", borderRadius: "4px" }} />
+              <div className="edops-skeleton-kpi" style={{ width: "14px", height: "14px", borderRadius: "3px" }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({
+  illustration = "/bee.png",
+  title,
+  description,
+}: {
+  illustration?: string;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "48px 24px",
+        width: "100%",
+        textAlign: "center",
+        boxSizing: "border-box",
+        background: "#FFFFFF",
+        borderRadius: "10px",
+        border: "1px solid #E0E5EB",
+        fontFamily: "'Poppins', sans-serif",
+      }}
+    >
+      <img
+        src={illustration}
+        alt=""
+        style={{
+          width: illustration === "/noresult.png" ? "120px" : "96px",
+          height: "auto",
+          maxHeight: "100px",
+          objectFit: "contain",
+          marginBottom: "16px",
+          opacity: 0.95,
+        }}
+      />
+      <b style={{ fontSize: "15px", fontWeight: 700, color: "#0C1E33", marginBottom: "6px" }}>
+        {title}
+      </b>
+      <p style={{ margin: 0, fontSize: "12.5px", color: "#64748B", maxWidth: "440px", lineHeight: 1.55 }}>
+        {description}
+      </p>
+    </div>
+  );
+}
+
 export function AttendancePane({
   organizationId,
   initialTab = "students",
@@ -39,6 +143,7 @@ export function AttendancePane({
   onTabChange?: (tab: string) => void;
 }) {
   const [data, setData] = useState<Attendance | null>(null);
+  const [loading, setLoading] = useState(true);
   const [leavesData, setLeavesData] = useState<{ staffLeaves: any[]; studentLeaves: any[] } | null>(null);
   const [leavesLoading, setLeavesLoading] = useState(false);
   const [error, setError] = useState("");
@@ -59,12 +164,16 @@ export function AttendancePane({
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     getPrincipalAttendance(organizationId)
       .then((result) => {
         if (active) setData(result);
       })
       .catch((reason) => {
         if (active) setError(reason instanceof Error ? reason.message : "Could not load attendance");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     loadLeaves();
     return () => {
@@ -75,11 +184,9 @@ export function AttendancePane({
   const handlePrincipalLeaveAction = async (id: string, status: "approved" | "rejected", reviewNotes?: string) => {
     await updatePrincipalLeaveStatus(organizationId, id, status, reviewNotes);
     loadLeaves();
-    // Also reload attendance overview so approvedLeave updates
     getPrincipalAttendance(organizationId).then(setData).catch(() => null);
   };
 
-  const date = (value: string) => value?.slice(0, 10) || "—";
   const rate = (value: number | null | undefined) => (value == null ? "—" : `${value}%`);
 
   const studentRate = data?.studentAttendanceRate ?? null;
@@ -88,127 +195,182 @@ export function AttendancePane({
   const pendingCount = data?.pendingRegisters ?? 0;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* 4 Pastel Top KPI Metric Cards (Strictly 148px height) */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "16px",
-        }}
-      >
-        {/* Card 1: Mint */}
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%", fontFamily: "'Poppins', sans-serif" }}>
+      {/* 4 Pastel Top KPI Metric Cards (Strictly 164px height matching School Admin) */}
+      {loading ? (
+        <KpiSkeletonGrid />
+      ) : (
         <div
           style={{
-            height: "148px",
-            background: "#ccefbf",
-            border: "1px solid #b2e49f",
-            borderRadius: "10px",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            boxSizing: "border-box",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: "16px",
+            width: "100%",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#1a5c0a", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Campus Attendance
-            </span>
-            <CalendarCheck size={16} color="#1a5c0a" />
-          </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#144807", lineHeight: 1 }}>{rate(studentRate)}</div>
-            <div style={{ fontSize: "11px", color: "#23730e", marginTop: "6px", fontWeight: 600 }}>
-              {data?.markedRecords ?? 0} Recorded Student Periods
+          {/* Card 1: Campus Attendance (Pastel Violet) */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#E0D3FF",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                CAMPUS ATTENDANCE
+              </span>
+              <CalendarCheck size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
+            </div>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+              {rate(studentRate)}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                {data?.markedRecords ?? 0} Recorded Student Periods
+              </span>
+              <div
+                onClick={() => setCurrentView("trends")}
+                style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+              >
+                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                  Trends
+                </span>
+                <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 2: Violet */}
-        <div
-          style={{
-            height: "148px",
-            background: "#e1d2ff",
-            border: "1px solid #cdb5ff",
-            borderRadius: "10px",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            boxSizing: "border-box",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#4a0e8f", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Enrolled Students
-            </span>
-            <Users size={16} color="#4a0e8f" />
-          </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#360a69", lineHeight: 1 }}>{enrolledCount}</div>
-            <div style={{ fontSize: "11px", color: "#5d1cb3", marginTop: "6px", fontWeight: 600 }}>
-              Active Academic Roster
+          {/* Card 2: Enrolled Students (Pastel Mint Green) */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#D0EDC0",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                ENROLLED STUDENTS
+              </span>
+              <Users size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
+            </div>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+              {enrolledCount > 0 ? enrolledCount : "-"}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                Active Academic Roster
+              </span>
+              <div
+                onClick={() => {
+                  setStudentFilter("all");
+                  setCurrentView("students");
+                }}
+                style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+              >
+                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                  Roster
+                </span>
+                <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 3: Sky */}
-        <div
-          style={{
-            height: "148px",
-            background: "#bae5f5",
-            border: "1px solid #9ad7ef",
-            borderRadius: "10px",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            boxSizing: "border-box",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#0a5a7a", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              At-Risk Attendance
-            </span>
-            <AlertTriangle size={16} color="#0a5a7a" />
-          </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#074158", lineHeight: 1 }}>{atRiskCount}</div>
-            <div style={{ fontSize: "11px", color: "#0d6e94", marginTop: "6px", fontWeight: 600 }}>
-              Students Below 75% Threshold
+          {/* Card 3: At-Risk Attendance (Pastel Sky Blue) */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#BCE6F3",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                AT-RISK ATTENDANCE
+              </span>
+              <AlertTriangle size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
+            </div>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+              {atRiskCount > 0 ? atRiskCount : "-"}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                Students Below 75% Threshold
+              </span>
+              <div
+                onClick={() => {
+                  setStudentFilter("atRisk");
+                  setCurrentView("students");
+                }}
+                style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+              >
+                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                  Breach List
+                </span>
+                <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 4: Peach */}
-        <div
-          style={{
-            height: "148px",
-            background: "#ffd8c7",
-            border: "1px solid #ffbe9f",
-            borderRadius: "10px",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            boxSizing: "border-box",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#782a00", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Pending Registers
-            </span>
-            <Clock size={16} color="#782a00" />
-          </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#561e00", lineHeight: 1 }}>{pendingCount}</div>
-            <div style={{ fontSize: "11px", color: "#943502", marginTop: "6px", fontWeight: 600 }}>
-              Class Periods Needing Finalization
+          {/* Card 4: Pending Registers (Pastel Warm Peach) */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#FADAC9",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                PENDING REGISTERS
+              </span>
+              <Clock size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
+            </div>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+              {pendingCount > 0 ? pendingCount : "-"}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                Class Periods Needing Finalization
+              </span>
+              <div
+                onClick={() => setCurrentView("teachers")}
+                style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+              >
+                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                  Faculty Status
+                </span>
+                <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {error && (
         <div
@@ -227,7 +389,7 @@ export function AttendancePane({
       )}
 
       {/* Sub Navigation Strip */}
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: "100%" }}>
         {[
           { id: "students", label: "Student Attendance & At-Risk Roster" },
           { id: "trends", label: "14-Day Attendance Trends" },
@@ -254,16 +416,34 @@ export function AttendancePane({
                 onTabChange?.(t.id);
               }}
               style={{
-                padding: "8px 16px",
+                boxSizing: "border-box",
+                display: "inline-flex",
+                alignItems: "center",
+                height: "34px",
+                padding: "0 16px",
                 borderRadius: "8px",
-                border: "1px solid",
-                borderColor: isActive ? "#0c1e33" : "#e4e6e9",
-                background: isActive ? "#0c1e33" : "#ffffff",
-                color: isActive ? "#ffffff" : "#475569",
+                border: isActive ? "1px solid #0C1E33" : "1px solid #E2E8F0",
+                background: isActive ? "#0C1E33" : "#F4F6F8",
+                color: isActive ? "#FFFFFF" : "#5A6B7D",
                 fontSize: "12px",
-                fontWeight: 600,
+                fontWeight: isActive ? 600 : 500,
                 cursor: "pointer",
+                fontFamily: "'Poppins', sans-serif",
+                boxShadow: isActive ? "0 2px 4px rgba(12, 30, 51, 0.14)" : "none",
                 transition: "all 0.15s ease",
+                whiteSpace: "nowrap",
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = "#E9EEF4";
+                  e.currentTarget.style.color = "#0C1E33";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) {
+                  e.currentTarget.style.background = "#F4F6F8";
+                  e.currentTarget.style.color = "#5A6B7D";
+                }
               }}
             >
               {t.label}
@@ -273,56 +453,77 @@ export function AttendancePane({
       </div>
 
       {/* 1. Students View */}
-      {currentView === "students" && data && (() => {
-        const displayedStudents = studentFilter === "atRisk" ? data.atRisk : (data.students || data.atRisk);
+      {currentView === "students" && (() => {
+        const displayedStudents = data ? (studentFilter === "atRisk" ? data.atRisk : (data.students || data.atRisk)) : [];
         return (
-          <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-            <div style={{ padding: "16px 20px", borderBottom: "1px solid #e4e6e9", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+          <div
+            style={{
+              background: "#FFFFFF",
+              border: "1px solid #E0E5EB",
+              borderRadius: "10px",
+              boxShadow: "0 1px 3px rgba(12, 30, 51, 0.04)",
+              overflow: "hidden",
+              width: "100%",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 24px 16px",
+                borderBottom: "1px solid #E0E5EB",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "12px",
+              }}
+            >
               <div>
-                <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>
+                <h3 style={{ margin: 0, fontSize: "15.5px", fontWeight: 700, color: "#0C1E33" }}>
                   {studentFilter === "atRisk" ? "Students Requiring Attendance Follow-up (< 75%)" : "All Enrolled Students Roster"}
                 </h3>
-                <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#64748b" }}>
+                <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748B" }}>
                   {studentFilter === "atRisk"
-                    ? "Mandatory CBSE compliance threshold. At-risk students require parent counseling."
+                    ? "Mandatory statutory compliance threshold. At-risk students require parent notification."
                     : "Complete roster of active enrolled students across all classes and sections."}
                 </p>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                <div style={{ display: "flex", gap: "4px", background: "#f1f5f9", padding: "3px", borderRadius: "8px" }}>
+                <div style={{ display: "flex", gap: "4px", background: "#F1F5F9", padding: "3px", borderRadius: "8px" }}>
                   <button
                     type="button"
                     onClick={() => setStudentFilter("atRisk")}
                     style={{
                       all: "unset",
-                      padding: "5px 10px",
+                      padding: "6px 12px",
                       borderRadius: "6px",
-                      fontSize: "11px",
-                      fontWeight: 700,
+                      fontSize: "11.5px",
+                      fontWeight: 600,
                       cursor: "pointer",
-                      background: studentFilter === "atRisk" ? "#ffffff" : "transparent",
-                      color: studentFilter === "atRisk" ? "#dc2626" : "#64748b",
+                      fontFamily: "'Poppins', sans-serif",
+                      background: studentFilter === "atRisk" ? "#FFFFFF" : "transparent",
+                      color: studentFilter === "atRisk" ? "#DC2626" : "#64748B",
                       boxShadow: studentFilter === "atRisk" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
                     }}
                   >
-                    At-Risk (&lt; 75%) ({data.atRisk.length})
+                    At-Risk (&lt; 75%) ({data?.atRisk?.length ?? 0})
                   </button>
                   <button
                     type="button"
                     onClick={() => setStudentFilter("all")}
                     style={{
                       all: "unset",
-                      padding: "5px 10px",
+                      padding: "6px 12px",
                       borderRadius: "6px",
-                      fontSize: "11px",
-                      fontWeight: 700,
+                      fontSize: "11.5px",
+                      fontWeight: 600,
                       cursor: "pointer",
-                      background: studentFilter === "all" ? "#0c1e33" : "transparent",
-                      color: studentFilter === "all" ? "#ffffff" : "#64748b",
+                      fontFamily: "'Poppins', sans-serif",
+                      background: studentFilter === "all" ? "#0C1E33" : "transparent",
+                      color: studentFilter === "all" ? "#FFFFFF" : "#64748B",
                       boxShadow: studentFilter === "all" ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
                     }}
                   >
-                    All Enrolled ({data.students?.length ?? enrolledCount})
+                    All Enrolled ({data?.students?.length ?? enrolledCount})
                   </button>
                 </div>
               </div>
@@ -330,77 +531,109 @@ export function AttendancePane({
 
             <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
               <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                  <th style={{ padding: "12px 16px" }}>Student</th>
-                  <th style={{ padding: "12px 16px" }}>Class / Roll</th>
-                  <th style={{ padding: "12px 16px" }}>Current Attendance</th>
-                  <th style={{ padding: "12px 16px" }}>Days Absent</th>
-                  <th style={{ padding: "12px 16px" }}>Unexcused Periods</th>
-                  <th style={{ padding: "12px 16px", textAlign: "right" }}>Status</th>
+                <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #E0E5EB", color: "#586C82", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.04em", height: "44px" }}>
+                  <th style={{ padding: "0 24px" }}>STUDENT</th>
+                  <th style={{ padding: "0 16px" }}>CLASS / ROLL</th>
+                  <th style={{ padding: "0 16px" }}>CURRENT ATTENDANCE</th>
+                  <th style={{ padding: "0 16px" }}>DAYS ABSENT</th>
+                  <th style={{ padding: "0 16px" }}>UNEXCUSED PERIODS</th>
+                  <th style={{ padding: "0 24px", textAlign: "right" }}>STATUS</th>
                 </tr>
               </thead>
               <tbody>
-                {displayedStudents.length === 0 ? (
+                {loading || !data ? (
+                  <TableSkeletonRows rows={6} columns={6} />
+                ) : displayedStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ padding: "32px", textAlign: "center", color: "#64748b", fontWeight: 600 }}>
+                    <td colSpan={6} style={{ padding: "36px", textAlign: "center", color: "#64748B" }}>
                       {studentFilter === "atRisk" ? (
-                        data.markedRecords === 0 ? (
-                          <>No attendance has been finalized today. Live at-risk alerts (&lt; 75%) will populate once sessions are submitted.</>
+                        (data?.markedRecords ?? 0) === 0 ? (
+                          <EmptyState
+                            illustration="/bee.png"
+                            title="No Finalized Attendance Records"
+                            description="No attendance has been finalized today. Live at-risk alerts (< 75%) will populate once sessions are submitted."
+                          />
                         ) : (
-                          <>
-                            <CheckCircle2 size={24} style={{ display: "inline-block", verticalAlign: "middle", marginRight: "8px", color: "#10b981" }} />
-                            <span style={{ color: "#10b981" }}>Excellent! All enrolled students are currently maintaining attendance above the 75% threshold.</span>
-                          </>
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px" }}>
+                            <CheckCircle2 size={32} color="#10B981" />
+                            <b style={{ color: "#10B981", fontSize: "14px" }}>
+                              All enrolled students are currently maintaining attendance above the 75% threshold.
+                            </b>
+                          </div>
                         )
                       ) : (
-                        <>No enrolled students found.</>
+                        <EmptyState
+                          illustration="/noresult.png"
+                          title="No Enrolled Students"
+                          description="No students are enrolled in this school roster yet."
+                        />
                       )}
                     </td>
                   </tr>
                 ) : (
-                  displayedStudents.map((student) => {
+                  displayedStudents.map((student, idx) => {
                     const isAtRisk = student.attendanceRate != null && student.attendanceRate < 75;
                     const hasData = student.attendanceRate != null;
                     return (
                       <tr
                         key={student.id}
-                        style={{ borderBottom: "1px solid #f1f5f9", transition: "background 0.15s ease" }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "#fbfcfd")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
+                        style={{
+                          height: "52px",
+                          background: idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC",
+                          borderBottom: "1px solid #E0E5EB",
+                          transition: "background 0.15s ease",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#F1F5F9")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC")}
                       >
-                        <td style={{ padding: "12px 16px" }}>
+                        <td style={{ padding: "0 24px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                             <img
                               src={getStudentAvatarUrl(student.name, student.id)}
                               alt=""
-                              style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#eaedf2" }}
+                              style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#EAEDF2" }}
                             />
-                            <span style={{ fontWeight: 700, color: "#1e293b" }}>{student.name}</span>
+                            <span style={{ fontWeight: 600, color: "#0C1E33" }}>{student.name}</span>
                           </div>
                         </td>
-                        <td style={{ padding: "12px 16px", color: "#475569" }}>
-                          {student.className} · Roll #{student.roll || "—"}
-                        </td>
-                        <td style={{ padding: "12px 16px" }}>
-                          <span style={{ fontWeight: 800, color: !hasData ? "#64748b" : isAtRisk ? "#dc2626" : "#15803d" }}>
-                            {rate(student.attendanceRate)}
+                        <td style={{ padding: "0 16px", color: "#475569" }}>
+                          <span style={{ background: "#F1F5F9", padding: "2px 6px", borderRadius: "4px", fontSize: "11px", fontWeight: 500 }}>
+                            {student.className} · Roll #{student.roll || "—"}
                           </span>
-                          <span style={{ fontSize: "11px", color: "#64748b", marginLeft: "6px" }}>({student.markedRecords} records)</span>
                         </td>
-                        <td style={{ padding: "12px 16px", fontWeight: 600, color: "#1e293b" }}>{student.daysAbsent} days</td>
-                        <td style={{ padding: "12px 16px", color: isAtRisk ? "#991b1b" : "#64748b", fontWeight: 600 }}>{student.unexcusedAbsences} records</td>
-                        <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                        <td style={{ padding: "0 16px" }}>
+                          {hasData ? (
+                            <span
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: "100px",
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                background: isAtRisk ? "#FEE2E2" : "#DCFCE7",
+                                color: isAtRisk ? "#991B1B" : "#166534",
+                              }}
+                            >
+                              {student.attendanceRate}%
+                            </span>
+                          ) : (
+                            <span style={{ color: "#94A3B8" }}>—</span>
+                          )}
+                        </td>
+                        <td style={{ padding: "0 16px", fontWeight: 600, color: "#0C1E33" }}>
+                          {student.daysAbsent ?? 0} days
+                        </td>
+                        <td style={{ padding: "0 16px", color: "#64748B" }}>
+                          {student.unexcusedAbsences ?? 0} periods
+                        </td>
+                        <td style={{ padding: "0 24px", textAlign: "right" }}>
                           <span
                             style={{
-                              padding: "3px 8px",
-                              borderRadius: "4px",
                               fontSize: "11px",
-                              fontWeight: 700,
-                              background: !hasData ? "#f1f5f9" : isAtRisk ? "#fee2e2" : "#dcfce7",
-                              color: !hasData ? "#64748b" : isAtRisk ? "#991b1b" : "#166534",
+                              fontWeight: 600,
+                              color: isAtRisk ? "#DC2626" : "#16A34A",
                             }}
                           >
-                            {!hasData ? "Unrecorded" : isAtRisk ? "Action Required" : "Regular"}
+                            {isAtRisk ? "Intervention Needed" : "Compliant"}
                           </span>
                         </td>
                       </tr>
@@ -415,167 +648,106 @@ export function AttendancePane({
 
       {/* 2. Trends View */}
       {currentView === "trends" && data && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", padding: "20px" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>14-Day Campus Attendance Velocity</h3>
-            <p style={{ margin: "0 0 16px", fontSize: "11px", color: "#64748b" }}>Calculated daily percentage across all finalized periods.</p>
-
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(42px, 1fr))", gap: "8px", alignItems: "flex-end", minHeight: "160px", paddingBottom: "8px" }}>
+        <div style={{ background: "#FFFFFF", border: "1px solid #E0E5EB", borderRadius: "10px", padding: "24px", boxShadow: "0 1px 3px rgba(12, 30, 51, 0.04)" }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 700, color: "#0C1E33" }}>
+            Institutional 14-Day Attendance Telemetry
+          </h3>
+          {data.trend.length === 0 ? (
+            <EmptyState
+              illustration="/bee.png"
+              title="No Trend Data"
+              description="Historical attendance trends will populate as daily sessions are recorded."
+            />
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: "10px" }}>
               {data.trend.map((day) => (
-                <div key={date(day.date)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-                  <span style={{ fontSize: "10px", fontWeight: 700, color: "#475569" }}>{rate(day.attendanceRate)}</span>
-                  <div style={{ height: "110px", width: "100%", background: "#f1f5f9", borderRadius: "4px", display: "flex", alignItems: "flex-end", overflow: "hidden" }}>
-                    <div
-                      style={{
-                        width: "100%",
-                        height: day.attendanceRate == null ? "0%" : `${day.attendanceRate}%`,
-                        background: (day.attendanceRate ?? 0) >= 90 ? "#10b981" : (day.attendanceRate ?? 0) >= 75 ? "#f59e0b" : "#ef4444",
-                        borderRadius: "2px",
-                      }}
-                    />
+                <div
+                  key={day.date}
+                  style={{
+                    background: "#F8FAFC",
+                    border: "1px solid #E0E5EB",
+                    borderRadius: "8px",
+                    padding: "12px",
+                    textAlign: "center",
+                  }}
+                >
+                  <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 600 }}>{day.date.slice(5)}</div>
+                  <div style={{ fontSize: "18px", fontWeight: 700, color: "#0C1E33", margin: "6px 0 2px" }}>
+                    {day.attendanceRate != null ? `${day.attendanceRate}%` : "—"}
                   </div>
-                  <span style={{ fontSize: "10px", color: "#64748b" }}>{date(day.date).slice(5)}</span>
+                  <div style={{ fontSize: "10px", color: "#586C82" }}>
+                    {day.presentRecords} of {day.markedRecords}
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-
-          <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                  <th style={{ padding: "12px 16px" }}>Date</th>
-                  <th style={{ padding: "12px 16px" }}>Present / Late Count</th>
-                  <th style={{ padding: "12px 16px" }}>Total Recorded Marks</th>
-                  <th style={{ padding: "12px 16px" }}>Campus Daily Rate</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.trend.map((day) => (
-                  <tr key={date(day.date)} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "12px 16px", fontWeight: 600, color: "#1e293b" }}>{date(day.date)}</td>
-                    <td style={{ padding: "12px 16px", color: "#15803d", fontWeight: 600 }}>{day.presentRecords} present</td>
-                    <td style={{ padding: "12px 16px", color: "#64748b" }}>{day.markedRecords} student-periods</td>
-                    <td style={{ padding: "12px 16px", fontWeight: 800, color: "#1e293b" }}>{rate(day.attendanceRate)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          )}
         </div>
       )}
 
-      {/* 3. Teachers View */}
+      {/* 3. Teachers Registers View */}
       {currentView === "teachers" && data && (
-        <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-            <thead>
-              <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                <th style={{ padding: "12px 16px" }}>Faculty Member</th>
-                <th style={{ padding: "12px 16px" }}>Recorded Classes Today</th>
-                <th style={{ padding: "12px 16px" }}>Approved Leave Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.teachers.length === 0 ? (
-                <tr>
-                  <td colSpan={3} style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>
-                    No faculty members found.
-                  </td>
-                </tr>
-              ) : (
-                data.teachers.map((teacher) => (
-                  <tr key={teacher.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                    <td style={{ padding: "12px 16px" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <img
-                          src={getStudentAvatarUrl(teacher.name, teacher.id)}
-                          alt=""
-                          style={{ width: "32px", height: "32px", borderRadius: "50%", background: "#eaedf2" }}
-                        />
-                        <span style={{ fontWeight: 700, color: "#1e293b" }}>{teacher.name}</span>
-                      </div>
-                    </td>
-                    <td style={{ padding: "12px 16px", fontWeight: 600, color: teacher.recordedClasses > 0 ? "#15803d" : "#64748b" }}>
-                      {teacher.recordedClasses} classes finalized
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      <span
-                        style={{
-                          padding: "3px 8px",
-                          borderRadius: "4px",
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          background: teacher.approvedLeave ? "#fee2e2" : "#dcfce7",
-                          color: teacher.approvedLeave ? "#991b1b" : "#166534",
-                        }}
-                      >
-                        {teacher.approvedLeave ? "On Approved Leave" : "Active On Duty"}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+        <div style={{ background: "#FFFFFF", border: "1px solid #E0E5EB", borderRadius: "10px", padding: "24px", boxShadow: "0 1px 3px rgba(12, 30, 51, 0.04)" }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: "16px", fontWeight: 700, color: "#0C1E33" }}>
+            Faculty Teaching Registers &amp; Coverage
+          </h3>
+          {data.teachers.length === 0 ? (
+            <EmptyState
+              illustration="/bee.png"
+              title="No Faculty Teaching Records"
+              description="No faculty members are assigned to periods today."
+            />
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "12px" }}>
+              {data.teachers.map((t) => (
+                <div
+                  key={t.id}
+                  style={{
+                    background: "#F8FAFC",
+                    border: "1px solid #E0E5EB",
+                    borderRadius: "8px",
+                    padding: "14px 16px",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: "13.5px", fontWeight: 600, color: "#0C1E33" }}>{t.name}</h4>
+                    <span style={{ fontSize: "11px", color: "#64748B" }}>
+                      {t.recordedClasses} class sessions recorded
+                    </span>
+                  </div>
+                  <span
+                    style={{
+                      padding: "2px 7px",
+                      borderRadius: "100px",
+                      fontSize: "10.5px",
+                      fontWeight: 600,
+                      background: t.approvedLeave ? "#FEE2E2" : "#DCFCE7",
+                      color: t.approvedLeave ? "#991B1B" : "#166534",
+                    }}
+                  >
+                    {t.approvedLeave ? "On Leave" : "Active"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* 4. Leaves View */}
+      {/* 4. Leave Approval Desk */}
       {currentView === "leaves" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-          <LeaveTable
-            title="Faculty Leave Applications"
-            subtitle="Teacher casual and medical leaves requiring Principal statutory approval"
-            leaves={(leavesData?.staffLeaves || []).map((l: any) => ({
-              id: l.id,
-              applicantName: l.teacherName,
-              applicantRole: "teacher",
-              detail: l.teacherEmail,
-              leaveType: l.leaveType,
-              startDate: l.startDate,
-              endDate: l.endDate,
-              daysCount: l.daysCount,
-              reason: l.reason,
-              status: l.status,
-              submittedAt: l.submittedAt,
-              reviewedAt: l.reviewedAt,
-              reviewNotes: l.reviewNotes,
-              reviewerName: l.reviewerName,
-            }))}
-            canApprove={true}
-            onAction={handlePrincipalLeaveAction}
-            emptyTitle="No teacher leave applications"
-            emptySubtitle="Teacher leaves submitted will appear here for Principal approval."
-          />
-
-          <LeaveTable
-            title="Escalated Student Leave Requests (> 2 Days)"
-            subtitle="Parent-submitted leaves exceeding 2 days requiring Principal authorization"
-            leaves={(leavesData?.studentLeaves || [])
-              .filter((l: any) => l.daysCount > 2 || !l.classTeacherName)
-              .map((l: any) => ({
-                id: l.id,
-                applicantName: l.studentName,
-                applicantRole: "student",
-                detail: `${l.className || "Class"} ${l.sectionName || ""}${l.rollNo ? ` · Roll ${l.rollNo}` : ""}${l.classTeacherName ? ` (CT: ${l.classTeacherName})` : " (No CT)"}`,
-                leaveType: l.leaveType,
-                startDate: l.startDate,
-                endDate: l.endDate,
-                daysCount: l.daysCount,
-                reason: l.reason,
-                status: l.status,
-                submittedAt: l.submittedAt,
-                reviewedAt: l.reviewedAt,
-                reviewNotes: l.reviewNotes,
-                reviewerName: l.reviewerName,
-              }))}
-            canApprove={true}
-            onAction={handlePrincipalLeaveAction}
-            emptyTitle="No escalated student leave requests"
-            emptySubtitle="Student leaves longer than 2 days applied by parents will appear here."
-          />
-        </div>
+        <LeaveTable
+          leaves={[...(leavesData?.staffLeaves || []), ...(leavesData?.studentLeaves || [])]}
+          canApprove={true}
+          title="Institutional Leave Applications"
+          subtitle="Staff and student absence requests awaiting principal authorization"
+          onAction={async (id: string, status: "approved" | "rejected", reviewNotes?: string) => {
+            await handlePrincipalLeaveAction(id, status, reviewNotes);
+          }}
+        />
       )}
     </div>
   );

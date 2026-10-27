@@ -8,6 +8,7 @@ import {
   getPrincipalSubstituteSuggestions,
   assignPrincipalSubstitute,
 } from "../../edops-api";
+import { TableSkeletonRows } from "../components/skeleton-rows";
 
 interface TimetablePaneProps {
   organizationId: string;
@@ -183,39 +184,59 @@ export function TimetablePane({
         )}
 
         {/* Confirmed Substitutions Log */}
-        <div style={{ borderRadius: "8px", border: "1px solid #E2E8F0", overflowX: "auto" }}>
-          <div style={{ padding: "12px 16px", borderBottom: "1px solid #E2E8F0", background: "#F8FAFC" }}>
-            <b style={{ fontSize: "13px", color: "#0C1E33" }}>Confirmed Substitute Assignments Log</b>
+        <div style={{ borderRadius: "10px", border: "1px solid #E0E5EB", overflowX: "auto", background: "#FFFFFF" }}>
+          <div style={{ padding: "12px 16px", borderBottom: "1px solid #E0E5EB", background: "#F8FAFC" }}>
+            <b style={{ fontSize: "13px", color: "#0C1E33", fontFamily: "'Poppins', sans-serif" }}>Confirmed Substitute Assignments Log</b>
           </div>
-          <table style={{ width: "100%", minWidth: "650px", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+          <table style={{ width: "100%", minWidth: "650px", borderCollapse: "collapse", textAlign: "left", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}>
             <thead>
-              <tr style={{ background: "#F8FAFC", color: "#64748B", fontWeight: 700, borderBottom: "1px solid #E2E8F0" }}>
-                <th style={{ padding: "10px 14px" }}>Date</th>
-                <th style={{ padding: "10px 14px" }}>Period</th>
-                <th style={{ padding: "10px 14px" }}>Class / Subject</th>
-                <th style={{ padding: "10px 14px" }}>Absent Teacher</th>
-                <th style={{ padding: "10px 14px" }}>Substitute Faculty</th>
-                <th style={{ padding: "10px 14px" }}>Note</th>
+              <tr style={{ height: "44px", background: "#F8FAFC", color: "#586C82", fontWeight: 600, fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.04em", borderBottom: "1px solid #E0E5EB" }}>
+                <th style={{ padding: "0 16px" }}>Date</th>
+                <th style={{ padding: "0 16px" }}>Period</th>
+                <th style={{ padding: "0 16px" }}>Class / Subject</th>
+                <th style={{ padding: "0 16px" }}>Absent Teacher</th>
+                <th style={{ padding: "0 16px" }}>Substitute Faculty</th>
+                <th style={{ padding: "0 16px" }}>Note</th>
               </tr>
             </thead>
             <tbody>
-              {substitutions.length === 0 ? (
+              {loadingSubs ? (
+                <TableSkeletonRows columns={6} />
+              ) : substitutions.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ padding: "20px", textAlign: "center", color: "#64748B" }}>
-                    No recent substitute assignments recorded.
+                  <td colSpan={6} style={{ padding: "32px 16px" }}>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+                      <img src="/bee.png" alt="" style={{ width: "80px", height: "auto", marginBottom: "12px", opacity: 0.95 }} />
+                      <b style={{ fontSize: "14px", fontWeight: 700, color: "#0C1E33", marginBottom: "4px" }}>
+                        No Recent Substitute Assignments
+                      </b>
+                      <p style={{ margin: 0, fontSize: "12px", color: "#64748B", maxWidth: "400px" }}>
+                        All classes are running with regular faculty schedules. Leave coverage assignments will log here.
+                      </p>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                substitutions.map((item: any) => (
-                  <tr key={item.id} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                    <td style={{ padding: "10px 14px", fontWeight: 700, color: "#1E293B" }}>{item.eventDate}</td>
-                    <td style={{ padding: "10px 14px", color: "#475569" }}>Period {item.periodNumber}</td>
-                    <td style={{ padding: "10px 14px", color: "#0C1E33" }}>
+                substitutions.map((item: any, idx: number) => (
+                  <tr
+                    key={item.id}
+                    style={{
+                      height: "52px",
+                      background: idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC",
+                      borderBottom: "1px solid #E0E5EB",
+                      transition: "background 0.15s ease",
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = "#F1F5F9")}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = idx % 2 === 0 ? "#FFFFFF" : "#F8FAFC")}
+                  >
+                    <td style={{ padding: "0 16px", fontWeight: 700, color: "#1E293B" }}>{item.eventDate}</td>
+                    <td style={{ padding: "0 16px", color: "#475569" }}>Period {item.periodNumber}</td>
+                    <td style={{ padding: "0 16px", color: "#0C1E33", fontWeight: 600 }}>
                       {item.programName} - {item.sectionName} · {item.subjectName}
                     </td>
-                    <td style={{ padding: "10px 14px", color: "#64748B" }}>{item.originalTeacher}</td>
-                    <td style={{ padding: "10px 14px", fontWeight: 700, color: "#166534" }}>{item.substituteTeacher}</td>
-                    <td style={{ padding: "10px 14px", color: "#64748B" }}>{item.impactNote || "—"}</td>
+                    <td style={{ padding: "0 16px", color: "#64748B" }}>{item.originalTeacher}</td>
+                    <td style={{ padding: "0 16px", fontWeight: 700, color: "#166534" }}>{item.substituteTeacher}</td>
+                    <td style={{ padding: "0 16px", color: "#64748B" }}>{item.impactNote || "—"}</td>
                   </tr>
                 ))
               )}

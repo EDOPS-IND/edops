@@ -1,7 +1,19 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Plus, Calendar, Target as TargetIcon, ClipboardCheck, Users, CalendarDays, X, CheckCircle2 } from "lucide-react";
+import {
+  Plus,
+  Calendar,
+  Target as TargetIcon,
+  ClipboardCheck,
+  Users,
+  CalendarDays,
+  X,
+  CheckCircle2,
+  ArrowRight,
+  Clock,
+  Sparkles,
+} from "lucide-react";
 import {
   createPrincipalAcademicPlan,
   createPrincipalAcademicTarget,
@@ -59,6 +71,137 @@ type PlanningData = { plans: Plan[]; targets: Target[]; actionPlans: ActionPlan[
 type FormKind = "plan" | "target" | "action" | "meeting" | "progress";
 const date = (value: string) => value?.slice(0, 10) || "—";
 
+/* -------------------------------------------------------------------------- */
+/* SKELETON LOADERS & EMPTY STATES                                            */
+/* -------------------------------------------------------------------------- */
+
+function KpiSkeletonGrid() {
+  const cards = [
+    { bg: "#E0D3FF" },
+    { bg: "#D0EDC0" },
+    { bg: "#BCE6F3" },
+    { bg: "#FADAC9" },
+  ];
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+        gap: "16px",
+        width: "100%",
+        boxSizing: "border-box",
+      }}
+    >
+      {cards.map((c, i) => (
+        <div
+          key={i}
+          style={{
+            boxSizing: "border-box",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            height: "164px",
+            padding: "20px",
+            gap: "12px",
+            background: c.bg,
+            borderRadius: "10px",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+            <div className="edops-skeleton-kpi" style={{ width: "110px", height: "12px", borderRadius: "4px" }} />
+            <div className="edops-skeleton-kpi" style={{ width: "20px", height: "20px", borderRadius: "50%" }} />
+          </div>
+          <div className="edops-skeleton-kpi" style={{ width: "75px", height: "36px", borderRadius: "6px" }} />
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
+            <div className="edops-skeleton-kpi" style={{ width: "140px", height: "10px", borderRadius: "4px" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <div className="edops-skeleton-kpi" style={{ width: "55px", height: "10px", borderRadius: "4px" }} />
+              <div className="edops-skeleton-kpi" style={{ width: "14px", height: "14px", borderRadius: "3px" }} />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({
+  illustration = "/bee.png",
+  title,
+  description,
+  actionLabel,
+  onAction,
+}: {
+  illustration?: string;
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "48px 24px",
+        width: "100%",
+        textAlign: "center",
+        boxSizing: "border-box",
+        background: "#FFFFFF",
+        borderRadius: "10px",
+        border: "1px solid #E0E5EB",
+        fontFamily: "'Poppins', sans-serif",
+      }}
+    >
+      <img
+        src={illustration}
+        alt=""
+        style={{
+          width: illustration === "/noresult.png" ? "120px" : "96px",
+          height: "auto",
+          maxHeight: "100px",
+          objectFit: "contain",
+          marginBottom: "16px",
+          opacity: 0.95,
+        }}
+      />
+      <b style={{ fontSize: "15px", fontWeight: 700, color: "#0C1E33", marginBottom: "6px" }}>
+        {title}
+      </b>
+      <p style={{ margin: 0, fontSize: "12.5px", color: "#64748B", maxWidth: "440px", lineHeight: 1.55 }}>
+        {description}
+      </p>
+      {actionLabel && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          style={{
+            marginTop: "16px",
+            padding: "8px 18px",
+            borderRadius: "6px",
+            background: "#0C1E33",
+            color: "#FFFFFF",
+            border: "none",
+            fontSize: "12px",
+            fontWeight: 600,
+            cursor: "pointer",
+            fontFamily: "'Poppins', sans-serif",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <Plus size={14} />
+          {actionLabel}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function PlanningPane({
   organizationId,
   initialTab = "annual_plan",
@@ -69,6 +212,7 @@ export function PlanningPane({
   onTabChange?: (tab: string) => void;
 }) {
   const [data, setData] = useState<PlanningData | null>(null);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [formKind, setFormKind] = useState<FormKind | null>(null);
   const [form, setForm] = useState<Record<string, string>>({});
@@ -87,12 +231,16 @@ export function PlanningPane({
 
   useEffect(() => {
     let active = true;
+    setLoading(true);
     getPrincipalPlanning(organizationId)
       .then((result) => {
         if (active) setData(result);
       })
       .catch((reason) => {
         if (active) setError(reason instanceof Error ? reason.message : "Could not load academic planning");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
     return () => {
       active = false;
@@ -180,127 +328,176 @@ export function PlanningPane({
       : "School Academic Targets";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
-      {/* 4 Pastel Top KPI Metric Cards (Strictly 148px height) */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "16px",
-        }}
-      >
-        {/* Card 1: Mint */}
+    <div style={{ display: "flex", flexDirection: "column", gap: "20px", width: "100%", fontFamily: "'Poppins', sans-serif" }}>
+      {/* 4 Pastel Top KPI Metric Cards (Strictly 164px height matching School Admin) */}
+      {loading ? (
+        <KpiSkeletonGrid />
+      ) : (
         <div
           style={{
-            height: "148px",
-            background: "#ccefbf",
-            border: "1px solid #b2e49f",
-            borderRadius: "10px",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            boxSizing: "border-box",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+            gap: "16px",
+            width: "100%",
           }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#1a5c0a", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Annual Plans
-            </span>
-            <Calendar size={16} color="#1a5c0a" />
-          </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#144807", lineHeight: 1 }}>{plans.length}</div>
-            <div style={{ fontSize: "11px", color: "#23730e", marginTop: "6px", fontWeight: 600 }}>
-              Curricular Blueprints Active
+          {/* Card 1: Annual Plans (Pastel Violet) */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#E0D3FF",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#51249A", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                ANNUAL PLANS
+              </span>
+              <Calendar size={19} strokeWidth={1.8} style={{ color: "#51249A" }} />
+            </div>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+              {plans.length > 0 ? plans.length : "-"}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                Curricular blueprints active
+              </span>
+              <div
+                onClick={() => setCurrentTab("annual_plan")}
+                style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+              >
+                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#51249A" }}>
+                  Annual Plans
+                </span>
+                <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#51249A" }} />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 2: Violet */}
-        <div
-          style={{
-            height: "148px",
-            background: "#e1d2ff",
-            border: "1px solid #cdb5ff",
-            borderRadius: "10px",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            boxSizing: "border-box",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#4a0e8f", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Academic Targets
-            </span>
-            <TargetIcon size={16} color="#4a0e8f" />
-          </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#360a69", lineHeight: 1 }}>{(data?.targets ?? []).length}</div>
-            <div style={{ fontSize: "11px", color: "#5d1cb3", marginTop: "6px", fontWeight: 600 }}>
-              Measurable Academic Milestones
+          {/* Card 2: Academic Targets (Pastel Mint Green) */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#D0EDC0",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#305E26", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                ACADEMIC TARGETS
+              </span>
+              <TargetIcon size={19} strokeWidth={1.8} style={{ color: "#305E26" }} />
+            </div>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+              {(data?.targets ?? []).length > 0 ? (data?.targets ?? []).length : "-"}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                Measurable academic milestones
+              </span>
+              <div
+                onClick={() => setCurrentTab("school_targets")}
+                style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+              >
+                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#305E26" }}>
+                  Targets
+                </span>
+                <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#305E26" }} />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 3: Sky */}
-        <div
-          style={{
-            height: "148px",
-            background: "#bae5f5",
-            border: "1px solid #9ad7ef",
-            borderRadius: "10px",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            boxSizing: "border-box",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#0a5a7a", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Action Plans
-            </span>
-            <ClipboardCheck size={16} color="#0a5a7a" />
-          </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#074158", lineHeight: 1 }}>{actions.length}</div>
-            <div style={{ fontSize: "11px", color: "#0d6e94", marginTop: "6px", fontWeight: 600 }}>
-              Targeted Remedial Interventions
+          {/* Card 3: Action Plans (Pastel Sky Blue) */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#BCE6F3",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#265F79", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                ACTION PLANS
+              </span>
+              <ClipboardCheck size={19} strokeWidth={1.8} style={{ color: "#265F79" }} />
+            </div>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+              {actions.length > 0 ? actions.length : "-"}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                Targeted remedial interventions
+              </span>
+              <div
+                onClick={() => setCurrentTab("action_plans")}
+                style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+              >
+                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#265F79" }}>
+                  Action Plans
+                </span>
+                <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#265F79" }} />
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Card 4: Peach */}
-        <div
-          style={{
-            height: "148px",
-            background: "#ffd8c7",
-            border: "1px solid #ffbe9f",
-            borderRadius: "10px",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            boxSizing: "border-box",
-          }}
-        >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ fontSize: "12px", fontWeight: 700, color: "#782a00", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Review Audits
-            </span>
-            <Users size={16} color="#782a00" />
-          </div>
-          <div>
-            <div style={{ fontSize: "28px", fontWeight: 800, color: "#561e00", lineHeight: 1 }}>{meetings.length}</div>
-            <div style={{ fontSize: "11px", color: "#943502", marginTop: "6px", fontWeight: 600 }}>
-              Department Review Meetings
+          {/* Card 4: Review Audits (Pastel Warm Peach) */}
+          <div
+            style={{
+              boxSizing: "border-box",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "space-between",
+              height: "164px",
+              padding: "20px",
+              gap: "12px",
+              background: "#FADAC9",
+              borderRadius: "10px",
+            }}
+          >
+            <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "15px", color: "#82401E", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                REVIEW AUDITS
+              </span>
+              <Users size={19} strokeWidth={1.8} style={{ color: "#82401E" }} />
+            </div>
+            <p style={{ margin: 0, fontFamily: "'Poppins', sans-serif", fontWeight: 700, fontSize: "34px", lineHeight: "115%", color: "#0C1E33" }}>
+              {meetings.length > 0 ? meetings.length : "-"}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "100%" }}>
+              <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 400, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                Department review meetings
+              </span>
+              <div
+                onClick={() => setCurrentTab("calendar")}
+                style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%", cursor: "pointer" }}
+              >
+                <span style={{ fontFamily: "'Poppins', sans-serif", fontWeight: 600, fontSize: "10px", lineHeight: "150%", color: "#82401E" }}>
+                  Calendar
+                </span>
+                <ArrowRight size={14} strokeWidth={1.8} style={{ color: "#82401E" }} />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {error && (
         <div
@@ -319,10 +516,10 @@ export function PlanningPane({
       )}
 
       {/* Header Strip & Action Button */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", width: "100%" }}>
         <div>
-          <h2 style={{ fontSize: "18px", fontWeight: 700, color: "#0c1e33", margin: 0 }}>{heading}</h2>
-          <p style={{ margin: "2px 0 0", fontSize: "11px", color: "#64748b" }}>
+          <h2 style={{ fontSize: "17px", fontWeight: 700, color: "#0C1E33", margin: 0 }}>{heading}</h2>
+          <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#64748B" }}>
             Administrative roadmaps, objectives, and statutory compliance timelines.
           </p>
         </div>
@@ -335,12 +532,13 @@ export function PlanningPane({
               style={{
                 padding: "8px 14px",
                 borderRadius: "8px",
-                border: "1px solid #e4e6e9",
-                background: "#ffffff",
-                color: "#0c1e33",
-                fontSize: "12px",
+                border: "1px solid #E2E8F0",
+                background: "#FFFFFF",
+                color: "#0C1E33",
+                fontSize: "12.5px",
                 fontWeight: 600,
                 cursor: "pointer",
+                fontFamily: "'Poppins', sans-serif",
               }}
             >
               {showActions ? "View Targets" : "View Action Plans"}
@@ -366,15 +564,17 @@ export function PlanningPane({
               gap: "6px",
               padding: "8px 16px",
               borderRadius: "8px",
-              background: "#0c1e33",
-              color: "#ffffff",
-              fontSize: "12px",
+              background: "#0C1E33",
+              color: "#FFFFFF",
+              fontSize: "12.5px",
               fontWeight: 600,
               border: "none",
               cursor: "pointer",
+              fontFamily: "'Poppins', sans-serif",
+              boxShadow: "0 2px 4px rgba(12, 30, 51, 0.12)",
             }}
           >
-            <Plus size={14} />{" "}
+            <Plus size={15} />{" "}
             {view === "annual_plan"
               ? "New Academic Plan"
               : view === "calendar"
@@ -387,7 +587,7 @@ export function PlanningPane({
       </div>
 
       {/* Subtab Navigation Strip */}
-      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", borderBottom: "1px solid #e4e6e9", paddingBottom: "12px" }}>
+      <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: "100%", alignItems: "center" }}>
         {[
           { id: "annual_plan", label: "Annual Academic Plan" },
           { id: "calendar", label: "Academic Calendar" },
@@ -405,16 +605,21 @@ export function PlanningPane({
                 onTabChange?.(t.id);
               }}
               style={{
-                all: "unset",
                 boxSizing: "border-box",
-                padding: "8px 16px",
+                display: "inline-flex",
+                alignItems: "center",
+                height: "34px",
+                padding: "0 16px",
                 borderRadius: "8px",
+                border: "1px solid",
+                borderColor: active ? "#0C1E33" : "#E2E8F0",
+                background: active ? "#0C1E33" : "#F4F6F8",
+                color: active ? "#FFFFFF" : "#5A6B7D",
                 fontSize: "12px",
-                fontWeight: active ? 700 : 500,
+                fontWeight: active ? 600 : 500,
                 cursor: "pointer",
-                border: active ? "1px solid #0c1e33" : "1px solid #e4e6e9",
-                background: active ? "#0c1e33" : "#ffffff",
-                color: active ? "#ffffff" : "#475569",
+                fontFamily: "'Poppins', sans-serif",
+                boxShadow: active ? "0 2px 4px rgba(12, 30, 51, 0.14)" : "none",
                 transition: "all 0.15s ease",
               }}
             >
@@ -428,42 +633,48 @@ export function PlanningPane({
       {view === "annual_plan" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {plans.length === 0 ? (
-            <div style={{ padding: "32px", textAlign: "center", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9" }}>
-              No annual academic plan has been recorded. Click "New Academic Plan" to establish one.
-            </div>
+            <EmptyState
+              illustration="/bee.png"
+              title="No Annual Academic Plan"
+              description="No annual academic blueprint has been created for this academic year yet. Click 'New Academic Plan' to establish objectives and curriculum frameworks."
+              actionLabel="New Academic Plan"
+              onAction={() => open("plan")}
+            />
           ) : (
             plans.map((item) => (
               <div
                 key={item.id}
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid #e4e6e9",
+                  background: "#FFFFFF",
+                  border: "1px solid #E0E5EB",
                   borderRadius: "10px",
                   padding: "20px",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                  boxShadow: "0 1px 3px rgba(12, 30, 51, 0.03)",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                  <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>{item.title}</h3>
+                  <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 700, color: "#0C1E33" }}>{item.title}</h3>
                   <span
                     style={{
-                      padding: "3px 8px",
-                      borderRadius: "4px",
+                      padding: "2px 8px",
+                      borderRadius: "100px",
                       fontSize: "11px",
-                      fontWeight: 700,
-                      background: item.status === "Approved" ? "#dcfce7" : "#f1f5f9",
+                      fontWeight: 600,
+                      background: item.status === "Approved" ? "#DCFCE7" : "#F1F5F9",
                       color: item.status === "Approved" ? "#166534" : "#475569",
                     }}
                   >
                     {item.status}
                   </span>
                 </div>
-                <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "12px" }}>Affiliation Board: <b>{item.board}</b></div>
+                <div style={{ fontSize: "12px", color: "#64748B", marginBottom: "12px" }}>
+                  Affiliation Board: <b>{item.board}</b>
+                </div>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px", fontSize: "12px", color: "#475569" }}>
-                  {item.academicObjectives && <div><b style={{ color: "#1e293b" }}>Objectives:</b> {item.academicObjectives}</div>}
-                  {item.teachingPedagogyStrategy && <div><b style={{ color: "#1e293b" }}>Teaching Strategy:</b> {item.teachingPedagogyStrategy}</div>}
-                  {item.assessmentStrategy && <div><b style={{ color: "#1e293b" }}>Assessment Scheme:</b> {item.assessmentStrategy}</div>}
-                  {item.remedialPlan && <div><b style={{ color: "#1e293b" }}>Remedial Support:</b> {item.remedialPlan}</div>}
+                  {item.academicObjectives && <div><b style={{ color: "#0C1E33" }}>Objectives:</b> {item.academicObjectives}</div>}
+                  {item.teachingPedagogyStrategy && <div><b style={{ color: "#0C1E33" }}>Teaching Strategy:</b> {item.teachingPedagogyStrategy}</div>}
+                  {item.assessmentStrategy && <div><b style={{ color: "#0C1E33" }}>Assessment Scheme:</b> {item.assessmentStrategy}</div>}
+                  {item.remedialPlan && <div><b style={{ color: "#0C1E33" }}>Remedial Support:</b> {item.remedialPlan}</div>}
                 </div>
               </div>
             ))
@@ -474,43 +685,48 @@ export function PlanningPane({
       {view === "calendar" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
           {calendar.length === 0 ? (
-            <div style={{ padding: "32px", textAlign: "center", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9" }}>
-              No academic milestones or meeting dates recorded.
-            </div>
+            <EmptyState
+              illustration="/bee.png"
+              title="No Calendar Milestones"
+              description="No academic milestones, target deadlines, or review meeting dates are recorded in the institutional calendar."
+              actionLabel="Record Review Meeting"
+              onAction={() => open("meeting")}
+            />
           ) : (
             calendar.map((item) => (
               <div
                 key={item.id}
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid #e4e6e9",
+                  background: "#FFFFFF",
+                  border: "1px solid #E0E5EB",
                   borderRadius: "10px",
                   padding: "16px 20px",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
+                  boxShadow: "0 1px 3px rgba(12, 30, 51, 0.03)",
                 }}
               >
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span
                       style={{
-                        padding: "2px 8px",
+                        padding: "2px 7px",
                         borderRadius: "4px",
                         fontSize: "10px",
-                        fontWeight: 700,
-                        background: "#f1f5f9",
-                        color: "#0c1e33",
+                        fontWeight: 600,
+                        background: "#F1F5F9",
+                        color: "#0C1E33",
                         textTransform: "uppercase",
                       }}
                     >
                       {item.kind}
                     </span>
-                    <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>{item.title}</h3>
+                    <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#0C1E33" }}>{item.title}</h3>
                   </div>
-                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>{item.detail}</p>
+                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748B" }}>{item.detail}</p>
                 </div>
-                <div style={{ fontSize: "12px", fontWeight: 700, color: "#0c1e33" }}>{date(item.when)}</div>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33" }}>{date(item.when)}</div>
               </div>
             ))
           )}
@@ -520,42 +736,49 @@ export function PlanningPane({
       {(view === "learning_goals" || view === "school_targets") && !showActions && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px" }}>
           {targets.length === 0 ? (
-            <div style={{ padding: "32px", textAlign: "center", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9", gridColumn: "1 / -1" }}>
-              No academic targets logged yet.
+            <div style={{ gridColumn: "1 / -1" }}>
+              <EmptyState
+                illustration="/bee.png"
+                title="No Academic Targets Logged"
+                description="Establish institutional benchmarks and student learning outcomes to monitor performance targets."
+                actionLabel="Create Target"
+                onAction={() => open("target")}
+              />
             </div>
           ) : (
             targets.map((item) => (
               <div
                 key={item.id}
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid #e4e6e9",
+                  background: "#FFFFFF",
+                  border: "1px solid #E0E5EB",
                   borderRadius: "10px",
                   padding: "20px",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                  boxShadow: "0 1px 3px rgba(12, 30, 51, 0.03)",
                   display: "flex",
                   flexDirection: "column",
                   justifyContent: "space-between",
+                  gap: "12px",
                 }}
               >
                 <div>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
-                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>{item.title}</h3>
+                    <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#0C1E33" }}>{item.title}</h3>
                     <span
                       style={{
-                        padding: "3px 8px",
-                        borderRadius: "4px",
-                        fontSize: "10px",
-                        fontWeight: 700,
-                        background: item.progressPercentage >= 80 ? "#dcfce7" : "#fef3c7",
-                        color: item.progressPercentage >= 80 ? "#166534" : "#92400e",
+                        padding: "2px 7px",
+                        borderRadius: "100px",
+                        fontSize: "10.5px",
+                        fontWeight: 600,
+                        background: item.progressPercentage >= 80 ? "#DCFCE7" : "#FEF3C7",
+                        color: item.progressPercentage >= 80 ? "#166534" : "#92400E",
                       }}
                     >
                       {item.status}
                     </span>
                   </div>
 
-                  <div style={{ fontSize: "11px", color: "#64748b", marginBottom: "12px" }}>
+                  <div style={{ fontSize: "11px", color: "#64748B", marginBottom: "12px" }}>
                     Owner: <b>{item.ownerName || "Unassigned"}</b> • Deadline: {date(item.deadline)}
                   </div>
 
@@ -564,20 +787,22 @@ export function PlanningPane({
                       <span>Baseline: <b>{item.baselineValue}</b></span>
                       <span>Target: <b>{item.targetValue}</b></span>
                     </div>
-                    <div style={{ height: "6px", width: "100%", background: "#f1f5f9", borderRadius: "3px", overflow: "hidden" }}>
+                    <div style={{ height: "6px", width: "100%", background: "#F1F5F9", borderRadius: "3px", overflow: "hidden" }}>
                       <div
                         style={{
                           height: "100%",
                           width: `${Math.min(100, item.progressPercentage)}%`,
-                          background: item.progressPercentage >= 80 ? "#10b981" : "#0c1e33",
+                          background: item.progressPercentage >= 80 ? "#10B981" : "#0C1E33",
                         }}
                       />
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: "14px", paddingTop: "10px", borderTop: "1px solid #f1f5f9" }}>
-                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#0c1e33" }}>{item.currentValue} ({item.progressPercentage}%)</span>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: "10px", borderTop: "1px solid #F1F5F9" }}>
+                  <span style={{ fontSize: "12px", fontWeight: 700, color: "#0C1E33" }}>
+                    {item.currentValue} ({item.progressPercentage}%)
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
@@ -588,12 +813,13 @@ export function PlanningPane({
                     style={{
                       padding: "4px 10px",
                       borderRadius: "6px",
-                      background: "#ffffff",
-                      border: "1px solid #e4e6e9",
+                      background: "#FFFFFF",
+                      border: "1px solid #E0E5EB",
                       fontSize: "11px",
                       fontWeight: 600,
-                      color: "#0c1e33",
+                      color: "#0C1E33",
                       cursor: "pointer",
+                      fontFamily: "'Poppins', sans-serif",
                     }}
                   >
                     Update Progress
@@ -608,32 +834,38 @@ export function PlanningPane({
       {(view === "action_plans" || (view === "school_targets" && showActions)) && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {actions.length === 0 ? (
-            <div style={{ padding: "32px", textAlign: "center", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9" }}>
-              No academic action plans recorded.
-            </div>
+            <EmptyState
+              illustration="/bee.png"
+              title="No Action Plans Recorded"
+              description="No targeted action plans or remedial interventions are currently logged."
+              actionLabel="Create Action Plan"
+              onAction={() => open("action")}
+            />
           ) : (
             actions.map((item) => (
               <div
                 key={item.id}
                 style={{
-                  background: "#ffffff",
-                  border: "1px solid #e4e6e9",
+                  background: "#FFFFFF",
+                  border: "1px solid #E0E5EB",
                   borderRadius: "10px",
                   padding: "20px",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
+                  boxShadow: "0 1px 3px rgba(12, 30, 51, 0.03)",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>{item.issue}</h3>
-                  <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, background: "#dcfce7", color: "#166534" }}>
+                  <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#0C1E33" }}>{item.issue}</h3>
+                  <span style={{ padding: "2px 7px", borderRadius: "100px", fontSize: "11px", fontWeight: 600, background: "#DCFCE7", color: "#166534" }}>
                     {item.status}
                   </span>
                 </div>
-                <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "8px" }}>Owner: <b>{item.ownerName}</b> • Deadline: {date(item.deadline)}</div>
+                <div style={{ fontSize: "12px", color: "#64748B", marginBottom: "8px" }}>
+                  Owner: <b>{item.ownerName}</b> • Deadline: {date(item.deadline)}
+                </div>
                 <div style={{ fontSize: "12px", color: "#475569", display: "flex", flexDirection: "column", gap: "4px" }}>
-                  <div><b style={{ color: "#1e293b" }}>Action:</b> {item.action}</div>
-                  {item.evidence && <div><b style={{ color: "#1e293b" }}>Evidence:</b> {item.evidence}</div>}
-                  {item.expectedResult && <div><b style={{ color: "#1e293b" }}>Expected Outcome:</b> {item.expectedResult}</div>}
+                  <div><b style={{ color: "#0C1E33" }}>Action:</b> {item.action}</div>
+                  {item.evidence && <div><b style={{ color: "#0C1E33" }}>Evidence:</b> {item.evidence}</div>}
+                  {item.expectedResult && <div><b style={{ color: "#0C1E33" }}>Expected Outcome:</b> {item.expectedResult}</div>}
                 </div>
               </div>
             ))
@@ -658,7 +890,7 @@ export function PlanningPane({
         >
           <div
             style={{
-              background: "#ffffff",
+              background: "#FFFFFF",
               borderRadius: "12px",
               width: "100%",
               maxWidth: "520px",
@@ -667,18 +899,19 @@ export function PlanningPane({
               display: "flex",
               flexDirection: "column",
               boxShadow: "0 20px 40px rgba(0,0,0,0.15)",
+              fontFamily: "'Poppins', sans-serif",
             }}
           >
             <div
               style={{
                 padding: "16px 20px",
-                borderBottom: "1px solid #e4e6e9",
+                borderBottom: "1px solid #E0E5EB",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
               }}
             >
-              <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#0c1e33", margin: 0 }}>
+              <h2 style={{ fontSize: "16px", fontWeight: 700, color: "#0C1E33", margin: 0 }}>
                 {
                   {
                     plan: "New Academic Plan",
@@ -692,7 +925,7 @@ export function PlanningPane({
               <button
                 type="button"
                 onClick={() => setFormKind(null)}
-                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", padding: "4px" }}
+                style={{ background: "none", border: "none", cursor: "pointer", color: "#64748B", padding: "4px" }}
               >
                 <X size={18} />
               </button>
@@ -712,7 +945,7 @@ export function PlanningPane({
                       required
                       value={form.title ?? ""}
                       onChange={(e) => field("title", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                     />
                   </div>
                   <div>
@@ -723,7 +956,7 @@ export function PlanningPane({
                       required
                       value={form.board ?? ""}
                       onChange={(e) => field("board", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                     />
                   </div>
                   <div>
@@ -734,7 +967,7 @@ export function PlanningPane({
                       rows={2}
                       value={form.academicObjectives ?? ""}
                       onChange={(e) => field("academicObjectives", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                     />
                   </div>
                 </>
@@ -750,18 +983,7 @@ export function PlanningPane({
                       required
                       value={form.title ?? ""}
                       onChange={(e) => field("title", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Owner Name *
-                    </label>
-                    <input
-                      required
-                      value={form.ownerName ?? ""}
-                      onChange={(e) => field("ownerName", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                     />
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
@@ -771,10 +993,9 @@ export function PlanningPane({
                       </label>
                       <input
                         required
-                        placeholder="e.g. 70%"
                         value={form.baselineValue ?? ""}
                         onChange={(e) => field("baselineValue", e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                       />
                     </div>
                     <div>
@@ -783,24 +1004,11 @@ export function PlanningPane({
                       </label>
                       <input
                         required
-                        placeholder="e.g. 85%"
                         value={form.targetValue ?? ""}
                         onChange={(e) => field("targetValue", e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                       />
                     </div>
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Target Deadline *
-                    </label>
-                    <input
-                      type="date"
-                      required
-                      value={form.deadline ?? ""}
-                      onChange={(e) => field("deadline", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
-                    />
                   </div>
                 </>
               )}
@@ -809,144 +1017,25 @@ export function PlanningPane({
                 <>
                   <div>
                     <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Issue / Academic Gap *
+                      Identified Academic Issue *
                     </label>
                     <input
                       required
-                      placeholder="e.g. Class 10 Math PT2 fell by 11%"
                       value={form.issue ?? ""}
                       onChange={(e) => field("issue", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                     />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Corrective Action / Strategy *
+                      Action Description *
                     </label>
                     <textarea
                       required
                       rows={2}
-                      placeholder="e.g. Conduct remedial sessions on Quadratic Equations"
                       value={form.action ?? ""}
                       onChange={(e) => field("action", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Owner Name *
-                    </label>
-                    <input
-                      required
-                      placeholder="e.g. HOD Mathematics"
-                      value={form.ownerName ?? ""}
-                      onChange={(e) => field("ownerName", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
-                    />
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                    <div>
-                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                        Implementation Deadline *
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={form.deadline ?? ""}
-                        onChange={(e) => field("deadline", e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                        Review Date *
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={form.reviewDate ?? ""}
-                        onChange={(e) => field("reviewDate", e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Target Outcome / Expected Result
-                    </label>
-                    <input
-                      placeholder="e.g. Re-test score >= 75%"
-                      value={form.expectedResult ?? ""}
-                      onChange={(e) => field("expectedResult", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
-                    />
-                  </div>
-                </>
-              )}
-
-              {formKind === "meeting" && (
-                <>
-                  <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Meeting Type *
-                    </label>
-                    <input
-                      required
-                      placeholder="e.g. Monthly Academic Review"
-                      value={form.meetingType ?? ""}
-                      onChange={(e) => field("meetingType", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
-                    />
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-                    <div>
-                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                        Meeting Date *
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={form.meetingDate ?? ""}
-                        onChange={(e) => field("meetingDate", e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                        Participants (comma-separated) *
-                      </label>
-                      <input
-                        required
-                        placeholder="Principal, HOD Math, Science Lead"
-                        value={form.participants ?? ""}
-                        onChange={(e) => field("participants", e.target.value)}
-                        style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Agenda & Focus *
-                    </label>
-                    <textarea
-                      required
-                      rows={2}
-                      placeholder="e.g. Syllabus completion pace and Term 1 pre-board readiness"
-                      value={form.agenda ?? ""}
-                      onChange={(e) => field("agenda", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Decisions & Next Steps
-                    </label>
-                    <textarea
-                      rows={2}
-                      placeholder="e.g. Conduct remedial tests every Saturday"
-                      value={form.decisions ?? ""}
-                      onChange={(e) => field("decisions", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                     />
                   </div>
                 </>
@@ -956,26 +1045,27 @@ export function PlanningPane({
                 <>
                   <div>
                     <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Current Measured Value
+                      Current Metric Value *
                     </label>
                     <input
+                      required
                       value={form.currentValue ?? ""}
                       onChange={(e) => field("currentValue", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                     />
                   </div>
                   <div>
                     <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Progress Percentage (0–100%) *
+                      Progress Percentage (0 - 100) *
                     </label>
                     <input
                       type="number"
-                      min="0"
-                      max="100"
+                      min={0}
+                      max={100}
                       required
                       value={form.progressPercentage ?? ""}
                       onChange={(e) => field("progressPercentage", e.target.value)}
-                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px", fontFamily: "'Poppins', sans-serif" }}
                     />
                   </div>
                 </>
@@ -987,13 +1077,14 @@ export function PlanningPane({
                   onClick={() => setFormKind(null)}
                   style={{
                     padding: "8px 16px",
-                    borderRadius: "6px",
-                    border: "1px solid #e4e6e9",
-                    background: "#ffffff",
+                    borderRadius: "8px",
+                    border: "1px solid #E0E5EB",
+                    background: "#FFFFFF",
                     fontSize: "12px",
                     fontWeight: 600,
                     color: "#475569",
                     cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
                   }}
                 >
                   Cancel
@@ -1003,13 +1094,14 @@ export function PlanningPane({
                   disabled={saving}
                   style={{
                     padding: "8px 18px",
-                    borderRadius: "6px",
+                    borderRadius: "8px",
                     border: "none",
-                    background: "#0c1e33",
+                    background: "#0C1E33",
                     fontSize: "12px",
                     fontWeight: 600,
-                    color: "#ffffff",
+                    color: "#FFFFFF",
                     cursor: "pointer",
+                    fontFamily: "'Poppins', sans-serif",
                   }}
                 >
                   {saving ? "Saving…" : "Save Record"}
