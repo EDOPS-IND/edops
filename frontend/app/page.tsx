@@ -459,6 +459,10 @@ export default function Home() {
       setLoading(false);
       return;
     }
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, 4000);
+
     getProfile()
       .then((current) => {
         setSessionExpired(false);
@@ -493,7 +497,10 @@ export default function Home() {
         }
       })
       .catch(() => undefined)
-      .finally(() => setLoading(false));
+      .finally(() => {
+        clearTimeout(safetyTimer);
+        setLoading(false);
+      });
   }, []);
 
   useEffect(() => {

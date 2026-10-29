@@ -315,6 +315,21 @@ export class AcademicsService {
     return this.work.run(org, actor, 'section.created', dto, key, async (manager) => {
       await this.record(manager, AcademicYear, org, dto.academicYearId);
       await this.record(manager, Program, org, dto.programId);
+      if (dto.classTeacherUserId) {
+        const [existing] = await manager.query(
+          `SELECT s.name as "sectionName", p.name as "programName"
+           FROM sections s
+           JOIN programs p ON p.id = s.program_id
+           WHERE s.organization_id = $1 AND s.class_teacher_user_id = $2
+           LIMIT 1`,
+          [org, dto.classTeacherUserId],
+        );
+        if (existing) {
+          throw new ConflictException(
+            `Teacher is already assigned as Class Teacher for ${existing.programName || ""} ${existing.sectionName || ""}`.trim(),
+          );
+        }
+      }
       return this.saveRecord(manager, Section, { ...dto, organizationId: org }, actor, 'section.created');
     });
   }
@@ -323,6 +338,21 @@ export class AcademicsService {
     return this.work.run(org, actor, 'section.updated', dto, null, async (manager) => {
       const before = await this.record(manager, Section, org, id);
       const row = { ...before, ...this.fields(dto) };
+      if (row.classTeacherUserId && row.classTeacherUserId !== before.classTeacherUserId) {
+        const [existing] = await manager.query(
+          `SELECT s.name as "sectionName", p.name as "programName"
+           FROM sections s
+           JOIN programs p ON p.id = s.program_id
+           WHERE s.organization_id = $1 AND s.class_teacher_user_id = $2 AND s.id != $3
+           LIMIT 1`,
+          [org, row.classTeacherUserId, id],
+        );
+        if (existing) {
+          throw new ConflictException(
+            `Teacher is already assigned as Class Teacher for ${existing.programName || ""} ${existing.sectionName || ""}`.trim(),
+          );
+        }
+      }
       const [countRes] = await manager.query(
         "SELECT count(*)::int AS total FROM enrollments WHERE organization_id = $1 AND section_id = $2 AND status = 'active'",
         [org, id]

@@ -112,7 +112,7 @@ export function Student360Modal({
                 )}
               </div>
               <span style={{ fontSize: "12px", color: "#64748B" }}>
-                Admission No: {overview.admissionNumber || "—"} · Guardian: {overview.guardianName || "Not assigned"} ({overview.guardianPhone || "—"})
+                Admission No: {overview.admissionNumber || "—"} · Class Teacher: <b>{overview.classTeacher || "Not Assigned"}</b> · Guardian: {overview.guardianName || "Not assigned"} ({overview.guardianPhone || "—"})
               </span>
             </div>
           </div>
@@ -256,15 +256,23 @@ export function Student360Modal({
                   <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: "11px", color: "#64748B" }}>Previous Term</div>
-                      <div style={{ fontSize: "14px", fontWeight: 600, color: "#475569" }}>{sub.previousScore}%</div>
+                      <div style={{ fontSize: "14px", fontWeight: 600, color: "#475569" }}>{sub.previousScore != null ? `${sub.previousScore}%` : "—"}</div>
                     </div>
                     <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: "11px", color: "#64748B" }}>Current Score</div>
-                      <div style={{ fontSize: "18px", fontWeight: 800, color: sub.currentScore < 60 ? "#DC2626" : "#15803D" }}>{sub.currentScore}%</div>
+                      <div style={{ fontSize: "18px", fontWeight: 800, color: sub.currentScore == null ? "#64748B" : sub.currentScore < 60 ? "#DC2626" : "#15803D" }}>
+                        {sub.currentScore != null ? `${sub.currentScore}%` : "—"}
+                      </div>
                     </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px", width: "90px", justifyContent: "flex-end", fontSize: "12px", fontWeight: 700, color: sub.change < 0 ? "#DC2626" : "#15803D" }}>
-                      {sub.change < 0 ? <TrendingDown size={16} /> : <TrendingUp size={16} />}
-                      {sub.change > 0 ? `+${sub.change}%` : `${sub.change}%`}
+                    <div style={{ display: "flex", alignItems: "center", gap: "4px", width: "90px", justifyContent: "flex-end", fontSize: "12px", fontWeight: 700, color: sub.change == null ? "#64748B" : sub.change < 0 ? "#DC2626" : "#15803D" }}>
+                      {sub.change == null ? (
+                        <span style={{ fontSize: "11px", color: "#94A3B8" }}>No trend</span>
+                      ) : (
+                        <>
+                          {sub.change < 0 ? <TrendingDown size={16} /> : <TrendingUp size={16} />}
+                          {sub.change > 0 ? `+${sub.change}%` : `${sub.change}%`}
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>

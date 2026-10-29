@@ -582,7 +582,10 @@ export function PlanningPane({
                     type="button"
                     onClick={() => {
                       setSelectedTargetId(item.id);
-                      setForm({});
+                      setForm({
+                        currentValue: item.currentValue || "",
+                        progressPercentage: String(item.progressPercentage ?? 0),
+                      });
                       setFormKind("progress");
                     }}
                     style={{
@@ -734,6 +737,28 @@ export function PlanningPane({
                       rows={2}
                       value={form.academicObjectives ?? ""}
                       onChange={(e) => field("academicObjectives", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Teaching & Pedagogy Strategy
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={form.teachingPedagogyStrategy ?? ""}
+                      onChange={(e) => field("teachingPedagogyStrategy", e.target.value)}
+                      style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
+                      Assessment Strategy
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={form.assessmentStrategy ?? ""}
+                      onChange={(e) => field("assessmentStrategy", e.target.value)}
                       style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}
                     />
                   </div>
@@ -956,9 +981,11 @@ export function PlanningPane({
                 <>
                   <div>
                     <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#475569", marginBottom: "4px" }}>
-                      Current Measured Value
+                      Current Measured Value *
                     </label>
                     <input
+                      required
+                      placeholder="e.g. 78%"
                       value={form.currentValue ?? ""}
                       onChange={(e) => field("currentValue", e.target.value)}
                       style={{ width: "100%", padding: "8px 12px", borderRadius: "6px", border: "1px solid #cbd5e1", fontSize: "12px" }}

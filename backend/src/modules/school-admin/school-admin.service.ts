@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomBytes, randomUUID } from "crypto";
+import { parse } from "csv-parse/sync";
 import { AuditService } from "../audit/audit.service";
 import { tokenHash } from "../auth/password";
 import { User } from "../auth/user.entity";
@@ -501,7 +502,12 @@ export class SchoolAdminService {
           (SELECT count(*)::int FROM invitations i
            WHERE i.organization_id = $1 AND i.role = 'student' AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
              AND ($2::text IS NULL OR i.name ILIKE $2 OR i.email ILIKE $2)
-             AND ($3::uuid IS NULL OR i.section_id = $3))
+             AND ($3::uuid IS NULL OR i.section_id = $3)
+             AND NOT EXISTS (
+               SELECT 1 FROM memberships m2
+               JOIN users u2 ON u2.id = m2.user_id
+               WHERE m2.organization_id = $1 AND m2.role = 'student' AND LOWER(u2.email) = LOWER(i.email)
+             ))
         ) as total`,
         [orgId, search, sectionId],
       );
@@ -580,6 +586,11 @@ export class SchoolAdminService {
          WHERE i.organization_id = $1 AND i.role = 'student' AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
            AND ($2::text IS NULL OR i.name ILIKE $2 OR i.email ILIKE $2)
            AND ($3::uuid IS NULL OR i.section_id = $3)
+           AND NOT EXISTS (
+             SELECT 1 FROM memberships m2
+             JOIN users u2 ON u2.id = m2.user_id
+             WHERE m2.organization_id = $1 AND m2.role = 'student' AND LOWER(u2.email) = LOWER(i.email)
+           )
 
          ORDER BY "name"
          LIMIT $4 OFFSET $5`,
@@ -661,6 +672,17 @@ export class SchoolAdminService {
       }
 
       // 4. Student Profile with invitation_status = 'not_sent'
+      if (dto.admissionNo?.trim()) {
+        const [existingAdm] = await manager.query(
+          `SELECT u.email, u.name FROM student_profiles sp JOIN users u ON u.id = sp.student_user_id WHERE sp.organization_id = $1 AND LOWER(sp.admission_number) = LOWER($2) AND sp.student_user_id <> $3 LIMIT 1`,
+          [orgId, dto.admissionNo.trim(), user.id],
+        );
+        if (existingAdm) {
+          throw new BadRequestException(
+            `Admission number "${dto.admissionNo.trim()}" is already assigned to student ${existingAdm.name || existingAdm.email}.`,
+          );
+        }
+      }
       const [admCount] = await manager.query(
         "SELECT COUNT(*)::int as count FROM student_profiles WHERE organization_id = $1",
         [orgId],
@@ -800,6 +822,759 @@ export class SchoolAdminService {
         token,
         expiresAt,
         inviteStatus: "pending",
+      };
+    });
+  }
+
+  async bulkImportStudentsCsv(orgId: string, actor: User, csvText: string, directAdmit: boolean = false) {
+    let rows: Record<string, string>[];
+    try {
+      rows = parse(csvText, {
+        bom: true,
+        trim: true,
+        skip_empty_lines: true,
+        columns: (header: string[]) => header.map((h) => h.trim().toLowerCase()),
+      });
+    } catch {
+      throw new BadRequestException("Invalid CSV format. Please upload a standard comma-separated CSV file.");
+    }
+
+    if (!rows.length) {
+      throw new BadRequestException("CSV contains no data rows.");
+    }
+    if (rows.length > 100) {
+      throw new BadRequestException("Maximum 100 records per upload batch.");
+    }
+
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+
+      const [currentYear] = await manager.query(
+        `SELECT id FROM academic_years WHERE organization_id = $1 AND is_current = true LIMIT 1`,
+        [orgId],
+      );
+      const yearId =
+        currentYear?.id ||
+        (
+          await manager.query(
+            `SELECT id FROM academic_years WHERE organization_id = $1 ORDER BY start_date DESC LIMIT 1`,
+            [orgId],
+          )
+        )[0]?.id;
+
+      const sectionRows = await manager.query(
+        `SELECT s.id, LOWER(TRIM(s.name)) as s_name, LOWER(TRIM(p.name)) as p_name
+         FROM sections s
+         JOIN programs p ON p.id = s.program_id
+         WHERE s.organization_id = $1`,
+        [orgId],
+      );
+
+      const resolveSectionId = (classStr?: string, secStr?: string): string | null => {
+        if (!classStr && !secStr) return null;
+        const normClass = (classStr || "")
+          .toLowerCase()
+          .replace(/^(class|grade)\s*/i, "")
+          .trim();
+        const normSec = (secStr || "")
+          .toLowerCase()
+          .replace(/^section\s*/i, "")
+          .trim();
+
+        const found = sectionRows.find((r: any) => {
+          const progNorm = r.p_name.replace(/^(class|grade)\s*/i, "").trim();
+          const secNorm = r.s_name.replace(/^section\s*/i, "").trim();
+          if (normClass && normSec) {
+            return (progNorm === normClass || r.p_name === normClass) && (secNorm === normSec || r.s_name === normSec);
+          }
+          if (normClass && !normSec) {
+            return progNorm === normClass || r.p_name === normClass;
+          }
+          return false;
+        });
+
+        return found?.id || null;
+      };
+
+      // ── Comprehensive Student Pre-Validation (All-or-Nothing) ──────
+      const validationErrors: Array<{
+        row: number;
+        name: string;
+        email: string;
+        admissionNo?: string;
+        reason: string;
+      }> = [];
+
+      const seenEmails = new Map<string, number>();
+      const seenAdmissions = new Map<string, number>();
+      const seenPhones = new Map<string, number>();
+      const seenRollNos = new Map<string, number>();
+
+      for (let i = 0; i < rows.length; i++) {
+        const rowNum = i + 1;
+        const row = rows[i];
+        const email = (row.email || row["email address"] || "").trim().toLowerCase();
+        const name = (row.name || row.fullname || row["full name"] || "").trim();
+        const admissionNo = (row.admissionno || row.admission_no || row["admission number"] || "").trim();
+        const phone = (row.phone || row.mobile || row["phone number"] || "").trim();
+        const classVal = (row.class || row.grade || "").trim();
+        const secVal = (row.section || "").trim();
+        const rollNoIn = (row.rollno || row.roll_no || row["roll number"] || "").trim();
+        const sectionId = resolveSectionId(classVal, secVal);
+
+        if (!email) {
+          validationErrors.push({
+            row: rowNum,
+            name: name || "Unknown",
+            email: "—",
+            admissionNo: admissionNo || undefined,
+            reason: "Email address is missing",
+          });
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          validationErrors.push({
+            row: rowNum,
+            name: name || "Unknown",
+            email,
+            admissionNo: admissionNo || undefined,
+            reason: "Invalid email address format",
+          });
+        } else if (seenEmails.has(email)) {
+          validationErrors.push({
+            row: rowNum,
+            name: name || "Unknown",
+            email,
+            admissionNo: admissionNo || undefined,
+            reason: `Duplicate email in CSV (conflicts with Row #${seenEmails.get(email)})`,
+          });
+        } else {
+          seenEmails.set(email, rowNum);
+
+          const [existingMember] = await manager.query(
+            `SELECT u.name, u.email, m.role FROM memberships m
+             JOIN users u ON u.id = m.user_id
+             WHERE m.organization_id = $1 AND m.role = 'student' AND LOWER(u.email) = LOWER($2) LIMIT 1`,
+            [orgId, email],
+          );
+          if (existingMember) {
+            validationErrors.push({
+              row: rowNum,
+              name: name || "Unknown",
+              email,
+              admissionNo: admissionNo || undefined,
+              reason: `Email "${email}" is already registered to active student (${existingMember.name || existingMember.email}) in this school`,
+            });
+          } else {
+            const [existingInvite] = await manager.query(
+              `SELECT id, email, name FROM invitations
+               WHERE organization_id = $1 AND role = 'student' AND LOWER(email) = LOWER($2) AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > NOW() LIMIT 1`,
+              [orgId, email],
+            );
+            if (existingInvite) {
+              validationErrors.push({
+                row: rowNum,
+                name: name || "Unknown",
+                email,
+                admissionNo: admissionNo || undefined,
+                reason: `Email "${email}" already has an active pending invitation in this school`,
+              });
+            }
+          }
+        }
+
+        if (!name) {
+          validationErrors.push({
+            row: rowNum,
+            name: "—",
+            email: email || "—",
+            admissionNo: admissionNo || undefined,
+            reason: "Student full name is missing",
+          });
+        }
+
+        if ((classVal || secVal) && !sectionId) {
+          validationErrors.push({
+            row: rowNum,
+            name: name || "Unknown",
+            email: email || "—",
+            admissionNo: admissionNo || undefined,
+            reason: `Class/Section "${[classVal, secVal].filter(Boolean).join(" ")}" not found. Please create this program & section in the school first.`,
+          });
+        }
+
+        if (phone) {
+          const normPhone = phone.replace(/[\s\-\(\)]/g, "");
+          if (seenPhones.has(normPhone)) {
+            validationErrors.push({
+              row: rowNum,
+              name: name || "Unknown",
+              email: email || "—",
+              admissionNo: admissionNo || undefined,
+              reason: `Duplicate phone number "${phone}" in CSV (conflicts with Row #${seenPhones.get(normPhone)})`,
+            });
+          } else {
+            seenPhones.set(normPhone, rowNum);
+
+            const [existingPhone] = await manager.query(
+              `SELECT u.name, u.email FROM memberships m
+               JOIN users u ON u.id = m.user_id
+               WHERE m.organization_id = $1 AND (u.phone = $2 OR REPLACE(REPLACE(REPLACE(u.phone, ' ', ''), '-', ''), '+', '') = $3)
+               LIMIT 1`,
+              [orgId, phone, normPhone.replace(/^\+/, "")],
+            );
+            if (existingPhone) {
+              validationErrors.push({
+                row: rowNum,
+                name: name || "Unknown",
+                email: email || "—",
+                admissionNo: admissionNo || undefined,
+                reason: `Phone number "${phone}" is already assigned to student ${existingPhone.name || existingPhone.email}`,
+              });
+            }
+          }
+        }
+
+        if (rollNoIn && sectionId) {
+          const rollKey = `${sectionId}:${rollNoIn.toLowerCase()}`;
+          if (seenRollNos.has(rollKey)) {
+            validationErrors.push({
+              row: rowNum,
+              name: name || "Unknown",
+              email: email || "—",
+              admissionNo: admissionNo || undefined,
+              reason: `Duplicate roll number "${rollNoIn}" in Section ${classVal || ""}-${secVal || ""} in CSV (conflicts with Row #${seenRollNos.get(rollKey)})`,
+            });
+          } else {
+            seenRollNos.set(rollKey, rowNum);
+
+            const [existingRoll] = await manager.query(
+              `SELECT u.name, u.email FROM enrollments e
+               JOIN users u ON u.id = e.student_user_id
+               WHERE e.organization_id = $1 AND e.section_id = $2 AND LOWER(e.roll_number) = LOWER($3) AND e.status = 'active'
+               LIMIT 1`,
+              [orgId, sectionId, rollNoIn],
+            );
+            if (existingRoll) {
+              validationErrors.push({
+                row: rowNum,
+                name: name || "Unknown",
+                email: email || "—",
+                admissionNo: admissionNo || undefined,
+                reason: `Roll number "${rollNoIn}" in Section ${classVal || ""}-${secVal || ""} is already assigned to student ${existingRoll.name || existingRoll.email}`,
+              });
+            }
+          }
+        }
+
+        if (admissionNo) {
+          const admKey = admissionNo.toLowerCase();
+          if (seenAdmissions.has(admKey)) {
+            validationErrors.push({
+              row: rowNum,
+              name: name || "Unknown",
+              email: email || "—",
+              admissionNo,
+              reason: `Duplicate admission number in CSV (conflicts with Row #${seenAdmissions.get(admKey)})`,
+            });
+          } else {
+            seenAdmissions.set(admKey, rowNum);
+
+            // Check against existing students in the organization
+            const [existingAdm] = await manager.query(
+              `SELECT u.email, u.name, u.id FROM student_profiles sp
+               JOIN users u ON u.id = sp.student_user_id
+               WHERE sp.organization_id = $1 AND LOWER(sp.admission_number) = LOWER($2) LIMIT 1`,
+              [orgId, admissionNo],
+            );
+            if (existingAdm) {
+              validationErrors.push({
+                row: rowNum,
+                name: name || "Unknown",
+                email: email || "—",
+                admissionNo,
+                reason: `Admission number "${admissionNo}" is already assigned to ${existingAdm.name || existingAdm.email}`,
+              });
+            }
+          }
+        }
+      }
+
+      if (validationErrors.length > 0) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: `CSV import aborted: ${validationErrors.length} row(s) contain invalid or conflicting data.`,
+          errors: validationErrors,
+        });
+      }
+
+      const [batch] = await manager.query(
+        `INSERT INTO invitation_batches (organization_id, created_by, count) VALUES ($1, $2, $3) RETURNING id`,
+        [orgId, actor.id, rows.length],
+      );
+
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      const imported: any[] = [];
+      const inviteStatus = directAdmit ? "not_sent" : "sent";
+
+      for (const row of rows) {
+        const email = (row.email || row["email address"] || "").trim().toLowerCase();
+        const name = (row.name || row.fullname || row["full name"] || "").trim();
+        if (!email || !name) continue;
+
+        const phone = (row.phone || row.mobile || row["phone number"] || "").trim() || null;
+        const classVal = (row.class || row.grade || "").trim();
+        const secVal = (row.section || "").trim();
+        const sectionId = resolveSectionId(classVal, secVal);
+
+        const admissionNo = (row.admissionno || row.admission_no || row["admission number"] || "").trim();
+        const rollNoIn = (row.rollno || row.roll_no || row["roll number"] || "").trim();
+        const gender = (row.gender || "").trim() || "Not Specified";
+        const dob = (row.dob || row["date of birth"] || "").trim() || null;
+
+        // 1. User
+        let [user] = await manager.query(
+          `SELECT id, name, email FROM users WHERE email = $1 LIMIT 1`,
+          [email],
+        );
+        if (!user) {
+          [user] = await manager.query(
+            `INSERT INTO users (email, name, phone, password_hash)
+             VALUES ($1, $2, $3, '')
+             RETURNING id, name, email`,
+            [email, name, phone],
+          );
+        } else {
+          await manager.query(
+            `UPDATE users SET name = COALESCE(NULLIF(name, ''), $1), phone = COALESCE(phone, $2) WHERE id = $3`,
+            [name, phone, user.id],
+          );
+        }
+
+        // 2. Membership
+        await manager.query(
+          `INSERT INTO memberships (organization_id, user_id, role)
+           VALUES ($1, $2, 'student')
+           ON CONFLICT (organization_id, user_id) DO UPDATE SET role = 'student'`,
+          [orgId, user.id],
+        );
+
+        // 3. Section Enrollment
+        let assignedRoll = rollNoIn;
+        if (sectionId && yearId) {
+          const [cnt] = await manager.query(
+            `SELECT COUNT(*)::int as count FROM enrollments WHERE organization_id = $1 AND section_id = $2`,
+            [orgId, sectionId],
+          );
+          if (!assignedRoll) {
+            assignedRoll = String((cnt?.count || 0) + 1).padStart(3, "0");
+          }
+          await manager.query(
+            `INSERT INTO enrollments (organization_id, student_user_id, section_id, academic_year_id, roll_number, status)
+             VALUES ($1, $2, $3, $4, $5, 'active')
+             ON CONFLICT DO NOTHING`,
+            [orgId, user.id, sectionId, yearId, assignedRoll],
+          );
+        }
+
+        // 4. Student Profile
+        if (admissionNo) {
+          const [existingAdm] = await manager.query(
+            `SELECT u.email, u.name FROM student_profiles sp JOIN users u ON u.id = sp.student_user_id WHERE sp.organization_id = $1 AND LOWER(sp.admission_number) = LOWER($2) AND sp.student_user_id <> $3 LIMIT 1`,
+            [orgId, admissionNo, user.id],
+          );
+          if (existingAdm) {
+            throw new BadRequestException(
+              `Admission number "${admissionNo}" is already assigned to student ${existingAdm.name || existingAdm.email}.`,
+            );
+          }
+        }
+        const [admCnt] = await manager.query(
+          `SELECT COUNT(*)::int as count FROM student_profiles WHERE organization_id = $1`,
+          [orgId],
+        );
+        const finalAdmNo =
+          admissionNo ||
+          `ADM-${String((admCnt?.count || 0) + 1).padStart(4, "0")}`;
+
+        await manager.query(
+          `INSERT INTO student_profiles (organization_id, student_user_id, admission_number, gender, dob, emergency_contact, status, invitation_status)
+           VALUES ($1, $2, $3, $4, $5, '', 'active', $6)
+           ON CONFLICT (organization_id, student_user_id) DO UPDATE SET
+             admission_number = COALESCE(NULLIF(student_profiles.admission_number, ''), EXCLUDED.admission_number),
+             gender = CASE WHEN EXCLUDED.gender <> 'Not Specified' THEN EXCLUDED.gender ELSE student_profiles.gender END,
+             dob = COALESCE(EXCLUDED.dob, student_profiles.dob),
+             invitation_status = $6`,
+          [orgId, user.id, finalAdmNo, gender, dob, inviteStatus],
+        );
+
+        // 5. If invitation mode, create invitation record with raw token
+        let token: string | undefined;
+        if (!directAdmit) {
+          token = randomBytes(24).toString("hex");
+          await manager.query(
+            `INSERT INTO invitations (organization_id, batch_id, email, role, name, phone, section_id, invited_by, expires_at, token_hash, raw_token)
+             VALUES ($1, $2, $3, 'student', $4, $5, $6, $7, $8, $9, $10)
+             ON CONFLICT (organization_id, email) WHERE accepted_at IS NULL AND revoked_at IS NULL
+             DO UPDATE SET token_hash = EXCLUDED.token_hash, raw_token = EXCLUDED.raw_token, expires_at = EXCLUDED.expires_at, section_id = COALESCE(EXCLUDED.section_id, invitations.section_id)`,
+            [
+              orgId,
+              batch.id,
+              email,
+              name,
+              phone,
+              sectionId,
+              actor.id,
+              expiresAt,
+              tokenHash(token),
+              token,
+            ],
+          );
+        }
+
+        imported.push({
+          id: user.id,
+          email,
+          name,
+          role: "student",
+          class: classVal || null,
+          section: secVal || null,
+          sectionId,
+          rollNo: assignedRoll,
+          admissionNo: finalAdmNo,
+          status: directAdmit ? "admitted" : "invited",
+          token: token || null,
+          expiresAt: directAdmit ? null : expiresAt.toISOString(),
+        });
+      }
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: directAdmit ? "students.bulk_direct_admitted" : "students.bulk_imported",
+        details: { count: imported.length, batchId: batch.id, mode: directAdmit ? "direct" : "invite" },
+      });
+
+      return {
+        success: true,
+        batchId: batch.id,
+        mode: directAdmit ? "direct" : "invite",
+        count: imported.length,
+        imported,
+      };
+    });
+  }
+
+  async bulkImportTeachersCsv(orgId: string, actor: User, csvText: string) {
+    let rows: Record<string, string>[];
+    try {
+      rows = parse(csvText, {
+        bom: true,
+        trim: true,
+        skip_empty_lines: true,
+        columns: (header: string[]) => header.map((h) => h.trim().toLowerCase()),
+      });
+    } catch {
+      throw new BadRequestException("Invalid CSV format. Please upload a standard comma-separated CSV file.");
+    }
+
+    if (!rows.length) {
+      throw new BadRequestException("CSV contains no data rows.");
+    }
+    if (rows.length > 100) {
+      throw new BadRequestException("Maximum 100 records per upload batch.");
+    }
+
+    return this.drizzle.transaction(async (manager) => {
+      await this.authorize(manager, orgId, actor);
+
+      // ── Comprehensive Teacher Pre-Validation (All-or-Nothing) ──────
+      const validationErrors: Array<{
+        row: number;
+        name: string;
+        email: string;
+        employeeId?: string;
+        reason: string;
+      }> = [];
+
+      const seenEmails = new Map<string, number>();
+      const seenEmployeeIds = new Map<string, number>();
+      const seenPhones = new Map<string, number>();
+
+      for (let i = 0; i < rows.length; i++) {
+        const rowNum = i + 1;
+        const row = rows[i];
+        const email = (row.email || row["email address"] || "").trim().toLowerCase();
+        const name = (row.name || row.fullname || row["full name"] || "").trim();
+        const employeeId = (row.employeeid || row.employee_id || row.code || row["employee code"] || "").trim();
+        const phone = (row.phone || row.mobile || row["phone number"] || "").trim();
+
+        if (!email) {
+          validationErrors.push({
+            row: rowNum,
+            name: name || "Unknown",
+            email: "—",
+            employeeId: employeeId || undefined,
+            reason: "Email address is missing",
+          });
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          validationErrors.push({
+            row: rowNum,
+            name: name || "Unknown",
+            email,
+            employeeId: employeeId || undefined,
+            reason: "Invalid email address format",
+          });
+        } else if (seenEmails.has(email)) {
+          validationErrors.push({
+            row: rowNum,
+            name: name || "Unknown",
+            email,
+            employeeId: employeeId || undefined,
+            reason: `Duplicate email in CSV (conflicts with Row #${seenEmails.get(email)})`,
+          });
+        } else {
+          seenEmails.set(email, rowNum);
+
+          const [existingMember] = await manager.query(
+            `SELECT u.name, u.email, m.role FROM memberships m
+             JOIN users u ON u.id = m.user_id
+             WHERE m.organization_id = $1 AND m.role = 'teacher' AND LOWER(u.email) = LOWER($2) LIMIT 1`,
+            [orgId, email],
+          );
+          if (existingMember) {
+            validationErrors.push({
+              row: rowNum,
+              name: name || "Unknown",
+              email,
+              employeeId: employeeId || undefined,
+              reason: `Email "${email}" is already registered to active faculty member (${existingMember.name || existingMember.email}) in this school`,
+            });
+          } else {
+            const [existingInvite] = await manager.query(
+              `SELECT id, email, name FROM invitations
+               WHERE organization_id = $1 AND role = 'teacher' AND LOWER(email) = LOWER($2) AND accepted_at IS NULL AND revoked_at IS NULL AND expires_at > NOW() LIMIT 1`,
+              [orgId, email],
+            );
+            if (existingInvite) {
+              validationErrors.push({
+                row: rowNum,
+                name: name || "Unknown",
+                email,
+                employeeId: employeeId || undefined,
+                reason: `Email "${email}" already has an active pending invitation in this school`,
+              });
+            }
+          }
+        }
+
+        if (!name) {
+          validationErrors.push({
+            row: rowNum,
+            name: "—",
+            email: email || "—",
+            employeeId: employeeId || undefined,
+            reason: "Teacher full name is missing",
+          });
+        }
+
+        if (phone) {
+          const normPhone = phone.replace(/[\s\-\(\)]/g, "");
+          if (seenPhones.has(normPhone)) {
+            validationErrors.push({
+              row: rowNum,
+              name: name || "Unknown",
+              email: email || "—",
+              employeeId: employeeId || undefined,
+              reason: `Duplicate phone number "${phone}" in CSV (conflicts with Row #${seenPhones.get(normPhone)})`,
+            });
+          } else {
+            seenPhones.set(normPhone, rowNum);
+
+            const [existingPhone] = await manager.query(
+              `SELECT u.name, u.email FROM memberships m
+               JOIN users u ON u.id = m.user_id
+               WHERE m.organization_id = $1 AND (u.phone = $2 OR REPLACE(REPLACE(REPLACE(u.phone, ' ', ''), '-', ''), '+', '') = $3)
+               LIMIT 1`,
+              [orgId, phone, normPhone.replace(/^\+/, "")],
+            );
+            if (existingPhone) {
+              validationErrors.push({
+                row: rowNum,
+                name: name || "Unknown",
+                email: email || "—",
+                employeeId: employeeId || undefined,
+                reason: `Phone number "${phone}" is already assigned to faculty member ${existingPhone.name || existingPhone.email}`,
+              });
+            }
+          }
+        }
+
+        if (employeeId) {
+          const empKey = employeeId.toLowerCase();
+          if (seenEmployeeIds.has(empKey)) {
+            validationErrors.push({
+              row: rowNum,
+              name: name || "Unknown",
+              email: email || "—",
+              employeeId,
+              reason: `Duplicate employee ID in CSV (conflicts with Row #${seenEmployeeIds.get(empKey)})`,
+            });
+          } else {
+            seenEmployeeIds.set(empKey, rowNum);
+
+            const [existingEmp] = await manager.query(
+              `SELECT u.email, u.name FROM memberships m
+               JOIN users u ON u.id = m.user_id
+               WHERE m.organization_id = $1 AND LOWER(m.employee_id) = LOWER($2) LIMIT 1`,
+              [orgId, employeeId],
+            );
+            if (existingEmp) {
+              validationErrors.push({
+                row: rowNum,
+                name: name || "Unknown",
+                email: email || "—",
+                employeeId,
+                reason: `Employee ID "${employeeId}" is already assigned to ${existingEmp.name || existingEmp.email}`,
+              });
+            }
+          }
+        }
+      }
+
+      if (validationErrors.length > 0) {
+        throw new BadRequestException({
+          statusCode: 400,
+          message: `CSV import aborted: ${validationErrors.length} row(s) contain invalid or conflicting data.`,
+          errors: validationErrors,
+        });
+      }
+
+      const [batch] = await manager.query(
+        `INSERT INTO invitation_batches (organization_id, created_by, count) VALUES ($1, $2, $3) RETURNING id`,
+        [orgId, actor.id, rows.length],
+      );
+
+      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      const imported: any[] = [];
+
+      for (const row of rows) {
+        const email = (row.email || row["email address"] || "").trim().toLowerCase();
+        const name = (row.name || row.fullname || row["full name"] || "").trim();
+        if (!email || !name) continue;
+
+        const phone = (row.phone || row.mobile || row["phone number"] || "").trim() || null;
+        const specialty = (row.department || row.specialty || row.subject || row["faculty domain"] || "").trim() || null;
+        const employeeId = (row.employeeid || row.employee_id || row.code || row["employee code"] || "").trim() || null;
+        const employmentType = (row.employmenttype || row.employment_type || row.contract || row["contract type"] || "").trim() || "Regular Faculty";
+        const gender = (row.gender || row.sex || "").trim() || null;
+        const rawDob = (row.dob || row["date of birth"] || row.dateofbirth || row["date_of_birth"] || row["birth date"] || "").trim() || null;
+        let dob: string | null = null;
+        if (rawDob) {
+          const d = new Date(rawDob);
+          if (!isNaN(d.getTime())) {
+            dob = d.toISOString().split("T")[0];
+          }
+        }
+
+        // 1. User
+        let [user] = await manager.query(
+          `SELECT id, name, email FROM users WHERE email = $1 LIMIT 1`,
+          [email],
+        );
+        if (!user) {
+          [user] = await manager.query(
+            `INSERT INTO users (email, name, phone, gender, dob, password_hash)
+             VALUES ($1, $2, $3, $4, $5, '')
+             RETURNING id, name, email`,
+            [email, name, phone, gender, dob],
+          );
+        } else {
+          await manager.query(
+            `UPDATE users SET name = COALESCE(NULLIF(name, ''), $1), phone = COALESCE(phone, $2), gender = COALESCE(gender, $3), dob = COALESCE(dob, $4) WHERE id = $5`,
+            [name, phone, gender, dob, user.id],
+          );
+        }
+
+        // 2. Membership
+        if (employeeId) {
+          const [existingEmp] = await manager.query(
+            `SELECT u.email, u.name FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.organization_id = $1 AND LOWER(m.employee_id) = LOWER($2) AND m.user_id <> $3 LIMIT 1`,
+            [orgId, employeeId, user.id],
+          );
+          if (existingEmp) {
+            throw new BadRequestException(
+              `Employee ID "${employeeId}" is already assigned to ${existingEmp.name || existingEmp.email}.`,
+            );
+          }
+        }
+        await manager.query(
+          `INSERT INTO memberships (organization_id, user_id, role, specialty, employee_id, employment_type, gender, dob)
+           VALUES ($1, $2, 'teacher', $3, $4, $5, $6, $7)
+           ON CONFLICT (organization_id, user_id) DO UPDATE
+           SET role = 'teacher',
+               specialty = COALESCE(EXCLUDED.specialty, memberships.specialty),
+               employee_id = COALESCE(EXCLUDED.employee_id, memberships.employee_id),
+               employment_type = COALESCE(EXCLUDED.employment_type, memberships.employment_type),
+               gender = COALESCE(EXCLUDED.gender, memberships.gender),
+               dob = COALESCE(EXCLUDED.dob, memberships.dob)`,
+          [orgId, user.id, specialty, employeeId, employmentType, gender, dob],
+        );
+
+        // 3. Invitation Token
+        const token = randomBytes(24).toString("hex");
+        await manager.query(
+          `INSERT INTO invitations (organization_id, batch_id, email, role, name, phone, specialty, employee_id, employment_type, gender, dob, invited_by, expires_at, token_hash, raw_token)
+           VALUES ($1, $2, $3, 'teacher', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           ON CONFLICT (organization_id, email) WHERE accepted_at IS NULL AND revoked_at IS NULL
+           DO UPDATE SET token_hash = EXCLUDED.token_hash, raw_token = EXCLUDED.raw_token, expires_at = EXCLUDED.expires_at,
+             specialty = COALESCE(EXCLUDED.specialty, invitations.specialty),
+             employee_id = COALESCE(EXCLUDED.employee_id, invitations.employee_id),
+             gender = COALESCE(EXCLUDED.gender, invitations.gender),
+             dob = COALESCE(EXCLUDED.dob, invitations.dob)`,
+          [
+            orgId,
+            batch.id,
+            email,
+            name,
+            phone,
+            specialty,
+            employeeId,
+            employmentType,
+            gender,
+            dob,
+            actor.id,
+            expiresAt,
+            tokenHash(token),
+            token,
+          ],
+        );
+
+        imported.push({
+          id: user.id,
+          email,
+          name,
+          role: "teacher",
+          specialty,
+          employeeId,
+          employmentType,
+          gender: gender || "Not Specified",
+          dob: dob || null,
+          token,
+          expiresAt: expiresAt.toISOString(),
+        });
+      }
+
+      await this.audit.record(manager, {
+        organizationId: orgId,
+        actorId: actor.id,
+        action: "teachers.bulk_imported",
+        details: { count: imported.length, batchId: batch.id },
+      });
+
+      return {
+        success: true,
+        batchId: batch.id,
+        count: imported.length,
+        imported,
       };
     });
   }
@@ -954,6 +1729,26 @@ export class SchoolAdminService {
         [orgId, studentUserId],
       );
 
+      const subjects = await manager.query(
+        `SELECT
+           sub.id as "id",
+           sub.id as "subjectId",
+           sub.name as "name",
+           sub.name as "subjectName",
+           sub.code as "code",
+           sub.code as "subjectCode",
+           COALESCE(u.name, 'Unassigned') as "teacher",
+           COALESCE(u.name, 'Unassigned') as "teacherName",
+           COALESCE(u.email, '') as "teacherEmail"
+         FROM enrollments e
+         JOIN class_subject_assignments csa ON csa.section_id = e.section_id AND csa.organization_id = e.organization_id
+         JOIN subjects sub ON sub.id = csa.subject_id AND sub.organization_id = e.organization_id
+         LEFT JOIN users u ON u.id = csa.teacher_user_id
+         WHERE e.organization_id = $1 AND e.student_user_id = $2 AND e.status = 'active'
+         ORDER BY sub.name`,
+        [orgId, studentUserId],
+      );
+
       const parents = await manager.query(
         `SELECT
            u.id, u.name, u.email, COALESCE(u.phone, '') as "mobile",
@@ -1057,11 +1852,15 @@ export class SchoolAdminService {
 
       return {
         profile: student,
-        academic: academic || {
-          academicYear: "Current Academic Session",
-          category: "General",
-          classTeacher: "Class Faculty Lead",
+        academic: {
+          ...(academic || {
+            academicYear: "Current Academic Session",
+            category: "General",
+            classTeacher: "Class Faculty Lead",
+          }),
+          subjects: subjects || [],
         },
+        subjects: subjects || [],
         parents: parents || [],
         attendance: attendance || {
           totalSchoolDays: 0,
@@ -1094,6 +1893,8 @@ export class SchoolAdminService {
           COALESCE(NULLIF(u.name, ''), split_part(u.email, '@', 1)) as "name",
           u.email,
           COALESCE(u.phone, '-') as "phone",
+          COALESCE(m.gender, u.gender, 'Not Specified') as "gender",
+          to_char(COALESCE(m.dob, u.dob), 'YYYY-MM-DD') as "dob",
           m.specialty as "department",
           'Faculty Teacher' as "designation",
           COALESCE(array_agg(DISTINCT sub.name) FILTER (WHERE sub.id IS NOT NULL),'{}') as "subjects",
@@ -1129,7 +1930,7 @@ export class SchoolAdminService {
          LEFT JOIN sections sec ON sec.id=csa.section_id AND sec.organization_id=csa.organization_id
          LEFT JOIN programs p ON p.id = sec.program_id AND p.organization_id = m.organization_id
          WHERE m.organization_id = $1 AND m.role = 'teacher'
-         GROUP BY u.id, u.email, u.name, u.phone, m.specialty, m.employee_id, m.employment_type, m.created_at, m.organization_id, m.status
+         GROUP BY u.id, u.email, u.name, u.phone, u.gender, u.dob, m.specialty, m.employee_id, m.employment_type, m.gender, m.dob, m.created_at, m.organization_id, m.status
 
          UNION ALL
 
@@ -1140,6 +1941,8 @@ export class SchoolAdminService {
           COALESCE(NULLIF(i.name, ''), split_part(i.email, '@', 1)) as "name",
           i.email,
           COALESCE(i.phone, '-') as "phone",
+          COALESCE(i.gender, 'Not Specified') as "gender",
+          to_char(i.dob, 'YYYY-MM-DD') as "dob",
           i.specialty as "department",
           'Teacher (Invited)' as "designation",
           '{}'::text[] as "subjects",
@@ -1157,6 +1960,11 @@ export class SchoolAdminService {
           '[]'::json as "allocations"
          FROM invitations i
          WHERE i.organization_id = $1 AND i.role = 'teacher' AND i.accepted_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > NOW()
+           AND NOT EXISTS (
+             SELECT 1 FROM memberships m2
+             JOIN users u2 ON u2.id = m2.user_id
+             WHERE m2.organization_id = $1 AND m2.role = 'teacher' AND LOWER(u2.email) = LOWER(i.email)
+           )
 
          ORDER BY "name"`,
         [orgId],
@@ -1177,7 +1985,9 @@ export class SchoolAdminService {
       const [m] = await manager.query(
         `UPDATE memberships
          SET employee_id = COALESCE($3, employee_id),
-             employment_type = COALESCE($4, employment_type)
+             employment_type = COALESCE($4, employment_type),
+             gender = COALESCE($5, gender),
+             dob = COALESCE($6, dob)
          WHERE organization_id = $1 AND user_id = $2
          RETURNING employee_id as "empId", employment_type as "employmentType"`,
         [
@@ -1185,19 +1995,31 @@ export class SchoolAdminService {
           teacherId,
           dto.employeeId?.trim() ?? null,
           dto.employmentType?.trim() ?? null,
+          dto.gender?.trim() ?? null,
+          dto.dob?.trim() ? dto.dob.trim() : null,
         ],
       );
+      if (m && (dto.gender || dto.dob)) {
+        await manager.query(
+          `UPDATE users SET gender = COALESCE($2, gender), dob = COALESCE($3, dob) WHERE id = $1`,
+          [teacherId, dto.gender?.trim() ?? null, dto.dob?.trim() ? dto.dob.trim() : null],
+        );
+      }
       if (!m) {
         await manager.query(
           `UPDATE invitations
            SET employee_id = COALESCE($3, employee_id),
-               employment_type = COALESCE($4, employment_type)
+               employment_type = COALESCE($4, employment_type),
+               gender = COALESCE($5, gender),
+               dob = COALESCE($6, dob)
            WHERE organization_id = $1 AND id = $2`,
           [
             orgId,
             teacherId,
             dto.employeeId?.trim() ?? null,
             dto.employmentType?.trim() ?? null,
+            dto.gender?.trim() ?? null,
+            dto.dob?.trim() ? dto.dob.trim() : null,
           ],
         );
       }
@@ -2160,8 +2982,14 @@ export class SchoolAdminService {
         `SELECT u.id, u.name, u.email, COALESCE(u.phone, '') as "phone"
          FROM users u
          JOIN memberships m ON m.user_id = u.id AND m.organization_id = $1 AND m.role = 'teacher' AND m.status = 'active'
+         WHERE NOT EXISTS (
+           SELECT 1 FROM sections s 
+           WHERE s.organization_id = $1 
+             AND s.class_teacher_user_id = u.id 
+             AND s.id != $2
+         )
          ORDER BY u.name ASC`,
-        [orgId],
+        [orgId, sectionId],
       );
 
       return {
@@ -2225,6 +3053,20 @@ export class SchoolAdminService {
           [orgId, teacherUserId],
         );
         if (!t) throw new NotFoundException("Teacher not found in this school");
+
+        const [existing] = await manager.query(
+          `SELECT s.name as "sectionName", p.name as "programName"
+           FROM sections s
+           JOIN programs p ON p.id = s.program_id
+           WHERE s.organization_id = $1 AND s.class_teacher_user_id = $2 AND s.id != $3
+           LIMIT 1`,
+          [orgId, teacherUserId, sectionId],
+        );
+        if (existing) {
+          throw new ConflictException(
+            `Teacher ${t.name} is already assigned as Class Teacher for ${existing.programName || ""} ${existing.sectionName || ""}`.trim(),
+          );
+        }
       }
       const [row] = await manager.query(
         `UPDATE sections SET class_teacher_user_id = $1 WHERE organization_id = $2 AND id = $3 RETURNING id, class_teacher_user_id as "classTeacherUserId"`,

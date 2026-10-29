@@ -66,6 +66,8 @@ export interface TeacherRecord {
   allocations?: any[];
   joiningDate: string;
   employmentType?: "Full Time" | "Part Time" | "Contract" | "Visiting" | string;
+  gender?: string;
+  dob?: string;
   weeklyPeriods: number;
   maxPeriods: number;
   status: "Active" | "On Leave" | "Inactive" | "Pending Invite" | string;

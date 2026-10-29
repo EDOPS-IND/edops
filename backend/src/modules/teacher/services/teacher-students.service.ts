@@ -30,7 +30,7 @@ export class TeacherStudentsService {
        JOIN sections sec ON sec.id=e.section_id AND sec.organization_id=e.organization_id
        LEFT JOIN student_profiles sp ON sp.student_user_id=u.id AND sp.organization_id=e.organization_id
        WHERE e.organization_id=$1 AND e.status='active' AND ($3::uuid IS NULL OR e.section_id=$3)
-       AND EXISTS (SELECT 1 FROM class_subject_assignments c WHERE c.organization_id=e.organization_id AND c.section_id=e.section_id AND c.teacher_user_id=$2)
+       AND (EXISTS (SELECT 1 FROM class_subject_assignments c WHERE c.organization_id=e.organization_id AND c.section_id=e.section_id AND c.teacher_user_id=$2) OR sec.class_teacher_user_id=$2)
        ORDER BY e.roll_number`, [organizationId, user.id, sectionId || null]);
 
     const mapped = students.map((s: any) => ({

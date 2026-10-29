@@ -66,6 +66,7 @@ import {
   ChevronRight,
   X,
   RefreshCw,
+  Upload,
 } from "lucide-react";
 
 /* -------------------------------------------------------------------------- */
@@ -727,6 +728,8 @@ export function PeoplePane({
   const [editingTeacherEmp, setEditingTeacherEmp] = useState(false);
   const [empIdInput, setEmpIdInput] = useState("");
   const [empTypeInput, setEmpTypeInput] = useState("Regular Faculty");
+  const [empGenderInput, setEmpGenderInput] = useState("Male");
+  const [empDobInput, setEmpDobInput] = useState("");
   const [savingTeacherEmp, setSavingTeacherEmp] = useState(false);
   const [empSaveSuccess, setEmpSaveSuccess] = useState(false);
 
@@ -736,6 +739,8 @@ export function PeoplePane({
     setEditingTeacherEmp(false);
     setEmpIdInput(t.empId || "");
     setEmpTypeInput(t.employmentType || "Regular Faculty");
+    setEmpGenderInput(t.gender || "Male");
+    setEmpDobInput(t.dob || "");
     setEmpSaveSuccess(false);
   };
 
@@ -747,11 +752,15 @@ export function PeoplePane({
       await updateTeacherEmployment(organizationId, teacherId, {
         employeeId: empIdInput.trim() || undefined,
         employmentType: empTypeInput.trim() || undefined,
+        gender: empGenderInput || undefined,
+        dob: empDobInput || undefined,
       });
       const updatedTeacher: TeacherRecord = {
         ...selectedTeacher,
         empId: empIdInput.trim() || undefined,
         employmentType: empTypeInput.trim() || undefined,
+        gender: empGenderInput || undefined,
+        dob: empDobInput || undefined,
       };
       setSelectedTeacher(updatedTeacher);
       setTeachers((prev) => prev.map((tc) => (tc.id === selectedTeacher.id ? updatedTeacher : tc)));
@@ -1776,6 +1785,78 @@ export function PeoplePane({
               >
                 <Plus size={15} strokeWidth={2} />
                 <span>Add Principal</span>
+              </button>
+            )}
+
+            {subtab === "students" && (
+              <button
+                onClick={() => onOpenQuickAction("bulkImportStudents")}
+                style={{
+                  boxSizing: "border-box",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  height: "36px",
+                  padding: "0 14px",
+                  background: "#FFFFFF",
+                  color: "#0C1E33",
+                  border: "1px solid #CBD5E1",
+                  borderRadius: "6px",
+                  fontSize: "12.5px",
+                  fontFamily: "'Poppins', sans-serif",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#F8FAFC";
+                  e.currentTarget.style.borderColor = "#94A3B8";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#FFFFFF";
+                  e.currentTarget.style.borderColor = "#CBD5E1";
+                }}
+              >
+                <Upload size={14} strokeWidth={2} />
+                <span>Import Students CSV</span>
+              </button>
+            )}
+
+            {subtab === "teachers" && (
+              <button
+                onClick={() => onOpenQuickAction("bulkImportTeachers")}
+                style={{
+                  boxSizing: "border-box",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "6px",
+                  height: "36px",
+                  padding: "0 14px",
+                  background: "#FFFFFF",
+                  color: "#0C1E33",
+                  border: "1px solid #CBD5E1",
+                  borderRadius: "6px",
+                  fontSize: "12.5px",
+                  fontFamily: "'Poppins', sans-serif",
+                  fontWeight: 500,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "#F8FAFC";
+                  e.currentTarget.style.borderColor = "#94A3B8";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "#FFFFFF";
+                  e.currentTarget.style.borderColor = "#CBD5E1";
+                }}
+              >
+                <Upload size={14} strokeWidth={2} />
+                <span>Import Teachers CSV</span>
               </button>
             )}
 
@@ -9471,6 +9552,31 @@ export function PeoplePane({
                           </select>
                         </label>
 
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                          <label style={{ display: "grid", gap: "4px" }}>
+                            <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#374151" }}>Gender</span>
+                            <select
+                              value={empGenderInput}
+                              onChange={(e) => setEmpGenderInput(e.target.value)}
+                              style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "12.5px", outline: "none", background: "#FFFFFF", fontFamily: "'Poppins', sans-serif" }}
+                            >
+                              <option value="Male">Male</option>
+                              <option value="Female">Female</option>
+                              <option value="Other">Other</option>
+                            </select>
+                          </label>
+
+                          <label style={{ display: "grid", gap: "4px" }}>
+                            <span style={{ fontSize: "11.5px", fontWeight: 600, color: "#374151" }}>Date of Birth</span>
+                            <input
+                              type="date"
+                              value={empDobInput}
+                              onChange={(e) => setEmpDobInput(e.target.value)}
+                              style={{ padding: "8px 10px", borderRadius: "6px", border: "1px solid #D1D5DB", fontSize: "12.5px", outline: "none", background: "#FFFFFF", fontFamily: "'Poppins', sans-serif" }}
+                            />
+                          </label>
+                        </div>
+
                         <div style={{ display: "flex", gap: "8px", justifyContent: "flex-end", marginTop: "4px" }}>
                           <button
                             onClick={() => setEditingTeacherEmp(false)}
@@ -9514,6 +9620,20 @@ export function PeoplePane({
                           <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Contract Status</div>
                           <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px" }}>
                             {selectedTeacher.employmentType || "Regular Faculty"}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Gender</div>
+                          <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px" }}>
+                            {selectedTeacher.gender || "Not Specified"}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div style={{ fontSize: "11px", color: "#64748B", fontWeight: 500 }}>Date of Birth</div>
+                          <div style={{ fontSize: "13px", color: "#0C1E33", fontWeight: 500, marginTop: "2px" }}>
+                            {selectedTeacher.dob || "—"}
                           </div>
                         </div>
 

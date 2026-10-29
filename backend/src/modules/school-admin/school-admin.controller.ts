@@ -35,6 +35,7 @@ import {
   CreateTimetableEntryDto,
   CreateTransportVehicleDto,
   DirectAdmitStudentDto,
+  BulkImportCsvDto,
   GrantFeeConcessionDto,
   RecordOfflinePaymentDto,
   ReplyCommunicationTicketDto,
@@ -101,6 +102,19 @@ export class SchoolAdminController {
     return this.service.directAdmitStudent(orgId, req.user, dto);
   }
 
+  @Post("people/students/import-csv")
+  @ApiOperation({
+    summary:
+      "Bulk import students from CSV with human-readable Class and Section resolution",
+  })
+  importStudentsCsv(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: BulkImportCsvDto,
+  ) {
+    return this.service.bulkImportStudentsCsv(orgId, req.user, dto.csv, dto.directAdmit);
+  }
+
   @Post("people/students/:studentId/send-invite")
   @ApiParam({ name: "studentId", format: "uuid" })
   @ApiOperation({
@@ -152,6 +166,19 @@ export class SchoolAdminController {
       teacherId,
       dto,
     );
+  }
+
+  @Post("people/teachers/import-csv")
+  @ApiOperation({
+    summary:
+      "Bulk import teachers from CSV with department, employeeId, and employment contract type",
+  })
+  importTeachersCsv(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: BulkImportCsvDto,
+  ) {
+    return this.service.bulkImportTeachersCsv(orgId, req.user, dto.csv);
   }
 
   @Get("people/staff")

@@ -14,6 +14,8 @@ export class MemberInvitationDto {
   @ApiPropertyOptional({ type: [String] }) @ValidateIf((_object, value) => value !== undefined) @IsArray() childStudentIds?: string[];
   @ApiPropertyOptional({ example: 'EMP-1042', maxLength: 50 }) @ValidateIf((_object, value) => value !== undefined) @IsString() @MaxLength(50) employeeId?: string;
   @ApiPropertyOptional({ example: 'Regular Faculty', maxLength: 50 }) @ValidateIf((_object, value) => value !== undefined) @IsString() @MaxLength(50) employmentType?: string;
+  @ApiPropertyOptional({ example: 'Male', maxLength: 32 }) @ValidateIf((_object, value) => value !== undefined) @IsString() @MaxLength(32) gender?: string;
+  @ApiPropertyOptional({ example: '1988-06-14' }) @ValidateIf((_object, value) => value !== undefined) @IsString() dob?: string;
 }
 
 export class BulkInvitationsDto {

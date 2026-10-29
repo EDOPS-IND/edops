@@ -19,6 +19,7 @@ export function AcademicsPane({
   onOpenTeacherProfile,
   onOpenStudent360,
   onTabChange,
+  onNavigate,
 }: {
   classes?: ClassPerformanceItem[];
   subjects?: SubjectPerformanceItem[];
@@ -31,6 +32,7 @@ export function AcademicsPane({
   onOpenTeacherProfile?: (id: string) => void;
   onOpenStudent360?: (studentId: string) => void;
   onTabChange?: (tab: string) => void;
+  onNavigate?: (pane: string, subTab?: string) => void;
 }) {
   const [liveData, setLiveData] = useState<any>(null);
   const [loadError, setLoadError] = useState(false);
@@ -875,6 +877,7 @@ export function AcademicsPane({
           onClose={() => setSelectedSubjectForDrawer(null)}
           onOpenTeacherProfile={onOpenTeacherProfile}
           onTabChange={onTabChange}
+          onNavigate={onNavigate}
         />
       )}
     </div>

@@ -245,14 +245,32 @@ export class TenantsService {
       }
 
       await manager.query(
-        `INSERT INTO memberships (organization_id, user_id, role, specialty, employee_id, employment_type)
-         VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO memberships (organization_id, user_id, role, specialty, employee_id, employment_type, gender, dob)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
          ON CONFLICT (organization_id, user_id) DO UPDATE
          SET specialty = COALESCE(EXCLUDED.specialty, memberships.specialty),
              employee_id = COALESCE(EXCLUDED.employee_id, memberships.employee_id),
-             employment_type = COALESCE(EXCLUDED.employment_type, memberships.employment_type)`,
-        [organization.id, userId, invitation.role, dto.specialty || invitation.specialty || null, invitation.employee_id || null, invitation.employment_type || null]
+             employment_type = COALESCE(EXCLUDED.employment_type, memberships.employment_type),
+             gender = COALESCE(EXCLUDED.gender, memberships.gender),
+             dob = COALESCE(EXCLUDED.dob, memberships.dob)`,
+        [
+          organization.id,
+          userId,
+          invitation.role,
+          dto.specialty || invitation.specialty || null,
+          invitation.employee_id || null,
+          invitation.employment_type || null,
+          invitation.gender || null,
+          invitation.dob || null,
+        ]
       );
+
+      if (invitation.gender || invitation.dob) {
+        await manager.query(
+          `UPDATE users SET gender = COALESCE(gender, $1), dob = COALESCE(dob, $2) WHERE id = $3`,
+          [invitation.gender || null, invitation.dob || null, userId]
+        );
+      }
 
       // Auto-enroll student into assigned section
       if (invitation.role === 'student' && invitation.section_id) {

@@ -39,7 +39,7 @@ export function TeacherProfileDrawer({
   const percentage = (value: number | null | undefined) => value == null ? "—" : `${value}%`;
 
   return (
-    <div className="modal-backdrop" role="dialog" aria-modal="true" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "flex-end", zIndex: 1000 }}>
+    <div className="modal-backdrop" role="dialog" aria-modal="true" style={{ position: "fixed", inset: 0, backgroundColor: "rgba(0,0,0,0.6)", display: "flex", justifyContent: "flex-end", padding: 0, zIndex: 1000 }}>
       <div
         className="edops-right-drawer"
         style={{

@@ -832,6 +832,7 @@ export function PrincipalWorkspace({
                 onOpenTeacherProfile={(id) => setSelectedTeacherId(id)}
                 onOpenStudent360={(id) => setSelectedStudentId(id)}
                 onTabChange={(tab) => navigateTo("academics", tab)}
+                onNavigate={navigateTo}
               />
             </div>
           )}

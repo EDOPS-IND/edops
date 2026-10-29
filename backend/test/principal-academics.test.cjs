@@ -5,6 +5,7 @@ const { PrincipalAcademicsService } = require('../dist/modules/principal/service
 test('principal academics uses stored records without sample performance scores', async () => {
   const service = new PrincipalAcademicsService({
     query: async (sql) => {
+      if (sql.includes('s.id != $3') || sql.includes('s.id != $2')) return [];
       if (sql.includes('UPDATE sections')) return [{ id: 'section-1', classTeacherUserId: 'teacher-1' }];
       if (sql.includes('FROM sections s')) return [{ id: 'section-1', name: 'A', programName: 'Grade 10', capacity: 40, enrolledCount: '2', classTeacherUserId: 'teacher-1', classTeacherName: 'Teacher One' }];
       if (sql.includes('FROM subjects sub') || sql.includes('FROM subjects s')) return [{ id: 'subject-1', name: 'Mathematics', subjectId: 'subject-1', subjectName: 'Mathematics', sectionCount: 1, teachers: 'Teacher One', teacherName: 'Teacher One', completionPct: 40 }];
@@ -75,3 +76,26 @@ test('principal academics allocates and removes subjects for a specific class se
   assert.equal(removed.sectionId, 'section-1');
   assert.equal(removed.subjectId, 'subject-1');
 });
+
+test('principal academics updateClassTeacher rejects teacher already assigned to another section', async () => {
+  const service = new PrincipalAcademicsService({
+    query: async (sql) => {
+      if (sql.includes('SELECT u.id, u.name FROM users u')) {
+        return [{ id: 'teacher-1', name: 'Teacher One' }];
+      }
+      if (sql.includes('WHERE s.organization_id = $1 AND s.class_teacher_user_id = $2 AND s.id != $3')) {
+        return [{ sectionName: 'B', programName: 'Grade 9' }];
+      }
+      return [];
+    },
+  });
+
+  await assert.rejects(
+    () => service.updateClassTeacher('org-1', 'section-1', 'teacher-1'),
+    {
+      name: 'ConflictException',
+      message: 'Teacher Teacher One is already assigned as Class Teacher for Grade 9 B',
+    },
+  );
+});
+

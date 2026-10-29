@@ -74,22 +74,15 @@ export class StudentDashboardService {
         sp.category,
         sp.previous_school AS "previousSchool",
         m.status,
-        t.teacher_name AS "classTeacher"
+        COALESCE(ctu.name, 'Not Assigned') AS "classTeacher"
       FROM memberships m 
       JOIN users u ON u.id = m.user_id 
       LEFT JOIN student_profiles sp ON sp.organization_id = m.organization_id AND sp.student_user_id = m.user_id 
       LEFT JOIN enrollments e ON e.organization_id = m.organization_id AND e.student_user_id = m.user_id AND e.status = 'active' 
       LEFT JOIN sections sec ON sec.id = e.section_id AND sec.organization_id = e.organization_id 
+      LEFT JOIN users ctu ON ctu.id = sec.class_teacher_user_id
       LEFT JOIN programs prog ON prog.id = sec.program_id AND prog.organization_id = sec.organization_id
       LEFT JOIN academic_years y ON y.id = e.academic_year_id AND y.organization_id = e.organization_id 
-      LEFT JOIN LATERAL (
-        SELECT tu.name AS teacher_name 
-        FROM class_subject_assignments csa 
-        JOIN users tu ON tu.id = csa.teacher_user_id 
-        WHERE csa.organization_id = m.organization_id AND csa.section_id = e.section_id 
-        ORDER BY csa.created_at ASC
-        LIMIT 1
-      ) t ON true
       WHERE m.organization_id = $1 AND m.user_id = $2 AND m.role = 'student'`,
       [organizationId, studentUserId],
     );

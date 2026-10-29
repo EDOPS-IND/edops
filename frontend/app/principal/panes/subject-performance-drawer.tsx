@@ -9,11 +9,13 @@ export function SubjectPerformanceDrawer({
   onClose,
   onOpenTeacherProfile,
   onTabChange,
+  onNavigate,
 }: {
   subject: SubjectPerformanceItem;
   onClose: () => void;
   onOpenTeacherProfile?: (teacherId: string) => void;
   onTabChange?: (tab: string) => void;
+  onNavigate?: (pane: string, subTab?: string) => void;
 }) {
   const sections = subject.sections || [];
   const percent = (v: number | null | undefined) => (v == null ? "—" : `${v}%`);
@@ -55,6 +57,7 @@ export function SubjectPerformanceDrawer({
         backdropFilter: "blur(2px)",
         display: "flex",
         justifyContent: "flex-end",
+        padding: 0,
         zIndex: 1100,
       }}
     >
@@ -401,12 +404,16 @@ export function SubjectPerformanceDrawer({
             alignItems: "center",
           }}
         >
-          {onTabChange ? (
+          {onNavigate || onTabChange ? (
             <button
               type="button"
               onClick={() => {
                 onClose();
-                onTabChange("planning");
+                if (onNavigate) {
+                  onNavigate("planning", "action_plans");
+                } else {
+                  onTabChange?.("planning");
+                }
               }}
               style={{
                 display: "inline-flex",

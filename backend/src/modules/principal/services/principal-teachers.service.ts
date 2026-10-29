@@ -41,6 +41,8 @@ export class PrincipalTeachersService {
     ] = await Promise.all([
       this.drizzle.query(
         `SELECT u.id, u.name, u.email, m.specialty AS department, m.created_at AS "memberSince",
+                COALESCE(m.gender, u.gender, 'Not Specified') AS gender,
+                to_char(COALESCE(m.dob, u.dob), 'YYYY-MM-DD') AS dob,
                 CASE WHEN m.status = 'inactive' OR u.is_active = false THEN 'Inactive' ELSE 'Active' END AS status
          FROM memberships m JOIN users u ON u.id = m.user_id
          WHERE m.organization_id = $1 AND m.role = 'teacher'

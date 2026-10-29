@@ -1,6 +1,7 @@
 import { DrizzleService } from "../../../database/drizzle.service";
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
@@ -429,6 +430,20 @@ export class PrincipalAcademicsService {
         [orgId, teacherUserId],
       );
       if (!t) throw new NotFoundException("Teacher not found in this school");
+
+      const [existing] = await this.drizzle.query(
+        `SELECT s.name as "sectionName", p.name as "programName"
+         FROM sections s
+         JOIN programs p ON p.id = s.program_id
+         WHERE s.organization_id = $1 AND s.class_teacher_user_id = $2 AND s.id != $3
+         LIMIT 1`,
+        [orgId, teacherUserId, sectionId],
+      );
+      if (existing) {
+        throw new ConflictException(
+          `Teacher ${t.name} is already assigned as Class Teacher for ${existing.programName || ""} ${existing.sectionName || ""}`.trim(),
+        );
+      }
     }
     const [row] = await this.drizzle.query(
       `UPDATE sections SET class_teacher_user_id = $1 WHERE organization_id = $2 AND id = $3 RETURNING id, class_teacher_user_id as "classTeacherUserId"`,
@@ -502,8 +517,14 @@ export class PrincipalAcademicsService {
       `SELECT u.id, u.name, u.email, COALESCE(u.phone, '') as "phone"
        FROM users u
        JOIN memberships m ON m.user_id = u.id AND m.organization_id = $1 AND m.role = 'teacher' AND m.status = 'active'
+       WHERE NOT EXISTS (
+         SELECT 1 FROM sections s 
+         WHERE s.organization_id = $1 
+           AND s.class_teacher_user_id = u.id 
+           AND s.id != $2
+       )
        ORDER BY u.name ASC`,
-      [orgId],
+      [orgId, sectionId],
     );
 
     return {

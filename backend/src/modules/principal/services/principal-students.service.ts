@@ -14,6 +14,7 @@ export class PrincipalStudentsService {
   async getStudentsOverview(orgId: string, _actor: User) {
     const students = await this.drizzle.query(
       `SELECT u.id,u.name,u.email,e.roll_number AS "rollNumber",s.name AS "sectionName",p.name AS "className",
+        COALESCE(ctu.name, 'Unassigned') AS "classTeacher",
         (SELECT AVG(r.percentage) FROM principal_exam_results r WHERE r.organization_id=e.organization_id AND r.student_user_id=u.id AND r.status='Published') AS "overallAverage",
         (SELECT 100.0*COUNT(*) FILTER (WHERE ar.status IN ('present','late'))/NULLIF(COUNT(*),0) FROM attendance_records ar
          JOIN attendance_sessions ats ON ats.id=ar.attendance_session_id AND ats.organization_id=ar.organization_id
@@ -21,6 +22,7 @@ export class PrincipalStudentsService {
         (SELECT 100.0*COUNT(*) FILTER (WHERE ss.status IN ('submitted','late','graded'))/NULLIF(COUNT(*),0) FROM submissions ss WHERE ss.organization_id=e.organization_id AND ss.student_id=u.id) AS "assignmentCompletion"
        FROM enrollments e JOIN users u ON u.id=e.student_user_id
        JOIN sections s ON s.id=e.section_id AND s.organization_id=e.organization_id
+       LEFT JOIN users ctu ON ctu.id=s.class_teacher_user_id
        JOIN programs p ON p.id=s.program_id AND p.organization_id=s.organization_id
        WHERE e.organization_id=$1 AND e.status='active' ORDER BY s.name,e.roll_number`,
       [orgId],
@@ -72,8 +74,25 @@ export class PrincipalStudentsService {
       [orgId, studentId],
     );
     const academics = await this.drizzle.query(
-      `SELECT subject_name AS subject,AVG(percentage) AS "currentScore" FROM principal_exam_results
-       WHERE organization_id=$1 AND student_user_id=$2 AND status='Published' GROUP BY subject_name`,
+      `SELECT 
+        sub.id AS "subjectId",
+        sub.name AS subject,
+        sub.code AS "subjectCode",
+        COALESCE(u.name, 'Unassigned') AS teacher,
+        COALESCE(u.email, '') AS "teacherEmail",
+        ROUND(AVG(r.percentage)::numeric, 1) AS "currentScore"
+       FROM enrollments e
+       JOIN sections s ON s.id = e.section_id AND s.organization_id = e.organization_id
+       JOIN class_subject_assignments csa ON csa.section_id = s.id AND csa.organization_id = e.organization_id
+       JOIN subjects sub ON sub.id = csa.subject_id AND sub.organization_id = e.organization_id
+       LEFT JOIN users u ON u.id = csa.teacher_user_id
+       LEFT JOIN principal_exam_results r ON r.organization_id = e.organization_id 
+         AND r.student_user_id = e.student_user_id 
+         AND r.subject_name = sub.name 
+         AND r.status = 'Published'
+       WHERE e.organization_id = $1 AND e.student_user_id = $2 AND e.status = 'active'
+       GROUP BY sub.id, sub.name, sub.code, u.name, u.email
+       ORDER BY sub.name`,
       [orgId, studentId],
     );
     const assessments = await this.drizzle.query(
@@ -112,14 +131,15 @@ export class PrincipalStudentsService {
       overview: {
         ...student,
         section: student.sectionName,
+        classTeacher: student.classTeacher || "Unassigned",
         admissionNumber: profile?.admission_number || "",
         guardianName: profile?.guardian_name || "",
         guardianPhone: profile?.guardian_phone || "",
         attentionCategory: student.riskStatus,
       },
-      academics: academics.map((a) => ({
+      academics: academics.map((a: any) => ({
         ...a,
-        currentScore: Number(a.currentScore),
+        currentScore: a.currentScore == null ? null : Number(a.currentScore),
         previousScore: null,
         change: null,
         trend: null,

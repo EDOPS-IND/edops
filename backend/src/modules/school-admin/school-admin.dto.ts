@@ -62,6 +62,18 @@ export class DirectAdmitStudentDto {
   dob?: string;
 }
 
+export class BulkImportCsvDto {
+  @ApiProperty({ description: "CSV text content with headers" })
+  @IsNotEmpty()
+  @IsString()
+  csv!: string;
+
+  @ApiPropertyOptional({ description: "Directly onboard to roster without issuing invitation tokens" })
+  @IsOptional()
+  @IsBoolean()
+  directAdmit?: boolean;
+}
+
 export class CreateSchoolDocumentDto {
   @ApiProperty({ example: "Fire Safety Certificate" })
   @IsNotEmpty()
@@ -565,6 +577,17 @@ export class UpdateTeacherEmploymentDto {
   @IsString()
   @MaxLength(50)
   employmentType?: string;
+
+  @ApiPropertyOptional({ example: "Male" })
+  @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  gender?: string;
+
+  @ApiPropertyOptional({ example: "1988-06-14" })
+  @IsOptional()
+  @IsString()
+  dob?: string;
 }
 
 export class CreateCurriculumNodeDto {

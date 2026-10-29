@@ -19,17 +19,18 @@ import {
   LayoutDashboard, Users, GraduationCap, Briefcase, HeartHandshake,
   Building2, BookOpen, CalendarDays, CalendarCheck2, Award, CreditCard,
   MessageSquare, Bus, ShieldAlert, FileText, BarChart3, Sliders, History,
-  Search, Bell, LogOut, RefreshCw, ChevronDown, Menu, X, HelpCircle,
+  Search, Bell, LogOut, RefreshCw, ChevronDown, Menu, X, HelpCircle, Upload, Table,
 } from "lucide-react";
 import {
   createSchoolAdminBroadcast, createSchoolAdminLeave,
   createSchoolAdminDiscipline, createSchoolAdminDepartment,
-  createSchoolInvitation, directAdmitStudent, getSchoolAdminAcademics, getSchoolAdminStudents,
+  createSchoolInvitation, createBulkSchoolInvitations, bulkImportStudentsCsv, bulkImportTeachersCsv, directAdmitStudent, getSchoolAdminAcademics, getSchoolAdminStudents,
   getSchoolAdminTeachers, createAcademicSection, createAcademicProgram,
   getStudentAvatarUrl,
   createPrincipalExamPlan,
   createSchoolSupportTicket,
   invalidateApiCache,
+  toHumanErrorMessage,
 } from "../edops-api";
 import { CreateTicketModal } from "../platform/modals";
 import { NotificationBellDropdown } from "../components/notification-bell-dropdown";
@@ -238,6 +239,8 @@ export function SchoolAdminWorkspace({
   const [personSpecialty, setPersonSpecialty] = useState("");
   const [personEmployeeId, setPersonEmployeeId] = useState("");
   const [personEmploymentType, setPersonEmploymentType] = useState("Regular Faculty");
+  const [personGender, setPersonGender] = useState("Male");
+  const [personDob, setPersonDob] = useState("");
   const [studentGender, setStudentGender] = useState("Male");
   const [studentDob, setStudentDob] = useState("");
   const [studentAdmissionNo, setStudentAdmissionNo] = useState("");
@@ -427,6 +430,49 @@ export function SchoolAdminWorkspace({
   const [examMaxMarks, setExamMaxMarks] = useState(100);
   const [directAddWithoutInvite, setDirectAddWithoutInvite] = useState(false);
 
+  // Quick action state for Bulk CSV Import
+  const [csvContent, setCsvContent] = useState("");
+  const [csvFileName, setCsvFileName] = useState("");
+  const [bulkInputMode, setBulkInputMode] = useState<"table" | "raw">("table");
+  const [createdBatch, setCreatedBatch] = useState<{ batchId: string; invitations: { id: string; email: string; role: string; token: string; expiresAt: string }[] } | null>(null);
+  const [importValidationErrors, setImportValidationErrors] = useState<Array<{
+    row: number;
+    name: string;
+    email: string;
+    admissionNo?: string;
+    employeeId?: string;
+    reason: string;
+  }> | null>(null);
+
+  const parsedPreview = useMemo(() => {
+    if (!csvContent.trim()) return null;
+    try {
+      const lines = csvContent.trim().split(/\r?\n/).filter((l) => l.trim().length > 0);
+      if (lines.length < 1) return null;
+      const parseRow = (line: string) => {
+        const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g;
+        const vals: string[] = [];
+        let match;
+        while ((match = regex.exec(line)) !== null) {
+          if (match.index === regex.lastIndex) regex.lastIndex++;
+          let val = match[1] || "";
+          if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1).replace(/""/g, '"');
+          vals.push(val.trim());
+          if (regex.lastIndex >= line.length) break;
+        }
+        return vals;
+      };
+      const headers = parseRow(lines[0]);
+      const rows = lines.slice(1).map((l) => parseRow(l));
+      return { headers, rows };
+    } catch {
+      return null;
+    }
+  }, [csvContent]);
+
+  const isBulkImportStudents = quickActionModal === "bulkImportStudents";
+  const isBulkImportTeachers = quickActionModal === "bulkImportTeachers";
+  const isBulkImportAction = isBulkImportStudents || isBulkImportTeachers;
   const isPersonAction = ["addPrincipal", "addTeacher", "addStudent", "addStaff", "mapParent", "addParent"].includes(quickActionModal || "");
   const isDepartmentAction = quickActionModal === "addDepartment";
   const isSectionAction = ["addSection", "section"].includes(quickActionModal || "");
@@ -447,6 +493,7 @@ export function SchoolAdminWorkspace({
       setActionTitle(""); setActionScope(""); setActionNotes("");
       setPersonName(""); setPersonEmail(""); setPersonPhone(""); setPersonSpecialty("");
       setPersonEmployeeId(""); setPersonEmploymentType(act === "addStaff" ? "Permanent Staff" : act === "addPrincipal" ? "Tenured Principal" : "Regular Faculty");
+      setPersonGender("Male"); setPersonDob("");
       setSelectedClass(""); setSelectedSectionId(""); setSelectedChildIds([]); setChildSearch("");
       setMapParentClassFilter("all"); setMapParentSectionFilter("all");
       setStudentGender("Male"); setStudentDob(""); setStudentAdmissionNo(""); setStudentRollNo("");
@@ -455,6 +502,8 @@ export function SchoolAdminWorkspace({
       setIsCreatingNewClass(false); setNewClassName(""); setNewClassOrder(10);
       setCreatedInvite(null); setCopiedLink(false); setActionError("");
       setDirectAddWithoutInvite(false);
+      setCsvContent(""); setCsvFileName(""); setCreatedBatch(null); setBulkInputMode("table");
+      setImportValidationErrors(null);
       setQuickActionModal(act);
 
       if (act === "sendBroadcast") {
@@ -522,6 +571,116 @@ export function SchoolAdminWorkspace({
     }
   };
 
+  const handleCsvFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setCsvFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = (event.target?.result as string) || "";
+      setCsvContent(text);
+      setBulkInputMode("table");
+    };
+    reader.readAsText(file);
+  };
+
+  const parseCsvRoster = (raw: string) => {
+    const lines = raw.trim().split(/\r?\n/).filter((l) => l.trim().length > 0);
+    if (lines.length < 2) throw new Error("CSV must contain a header row and at least 1 record row.");
+
+    const headerRow = lines[0].split(",").map((h) => h.trim().replace(/^["']|["']$/g, "").toLowerCase());
+    const emailIdx = headerRow.findIndex((h) => h === "email" || h === "email address");
+    const roleIdx = headerRow.findIndex((h) => h === "role");
+    if (emailIdx === -1 || roleIdx === -1) {
+      throw new Error("CSV must include at least 'email' and 'role' column headers.");
+    }
+
+    const nameIdx = headerRow.findIndex((h) => ["name", "fullname", "full_name", "full name"].includes(h));
+    const phoneIdx = headerRow.findIndex((h) => ["phone", "mobile", "phone_number"].includes(h));
+    const sectionIdx = headerRow.findIndex((h) => ["sectionid", "section_id", "section", "class_section"].includes(h));
+    const specialtyIdx = headerRow.findIndex((h) => ["specialty", "department", "subject", "faculty_domain"].includes(h));
+    const empIdIdx = headerRow.findIndex((h) => ["employeeid", "employee_id", "code", "empid"].includes(h));
+    const empTypeIdx = headerRow.findIndex((h) => ["employmenttype", "employment_type", "contract", "contract_type"].includes(h));
+    const genderIdx = headerRow.findIndex((h) => ["gender", "sex"].includes(h));
+    const dobIdx = headerRow.findIndex((h) => ["dob", "dateofbirth", "date_of_birth", "date of birth", "birth date"].includes(h));
+
+    const records: any[] = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i];
+      const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g;
+      const values: string[] = [];
+      let match;
+      while ((match = regex.exec(row)) !== null) {
+        if (match.index === regex.lastIndex) regex.lastIndex++;
+        let val = match[1] || "";
+        if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1).replace(/""/g, '"');
+        values.push(val.trim());
+        if (regex.lastIndex >= row.length) break;
+      }
+
+      const email = (values[emailIdx] || "").toLowerCase().trim();
+      const roleRaw = (values[roleIdx] || "").toLowerCase().trim();
+      if (!email || !roleRaw) continue;
+
+      const role = (roleRaw === "teacher" || roleRaw === "faculty" ? "teacher" : "student");
+      const record: any = { email, role };
+      if (nameIdx !== -1 && values[nameIdx]) record.name = values[nameIdx];
+      if (phoneIdx !== -1 && values[phoneIdx]) record.phone = values[phoneIdx];
+      if (sectionIdx !== -1 && values[sectionIdx]) record.sectionId = values[sectionIdx];
+      if (specialtyIdx !== -1 && values[specialtyIdx]) record.specialty = values[specialtyIdx];
+      if (empIdIdx !== -1 && values[empIdIdx]) record.employeeId = values[empIdIdx];
+      if (empTypeIdx !== -1 && values[empTypeIdx]) record.employmentType = values[empTypeIdx];
+      if (genderIdx !== -1 && values[genderIdx]) record.gender = values[genderIdx];
+      if (dobIdx !== -1 && values[dobIdx]) record.dob = values[dobIdx];
+      records.push(record);
+    }
+    if (records.length === 0) throw new Error("No valid data rows found in CSV.");
+    if (records.length > 100) throw new Error("Maximum 100 records per upload allowed.");
+    return records;
+  };
+
+  const handleDownloadSampleCsv = () => {
+    let sample = "";
+    let filename = "";
+    if (isBulkImportStudents) {
+      sample = "email,name,phone,class,section,gender,dob,admissionNo\n" +
+        "aarav.sharma@school.example,Aarav Sharma,+91 98765 43210,10,A,Male,2009-04-12,ADM-1001\n" +
+        "priya.patel@school.example,Priya Patel,+91 98765 43211,10,B,Female,2009-08-25,ADM-1002\n" +
+        "rohit.verma@school.example,Rohit Verma,+91 98765 43212,11,A,Male,2008-01-15,ADM-1003\n";
+      filename = "edops_students_template.csv";
+    } else {
+      sample = "email,name,phone,department,employeeId,employmentType,gender,dob\n" +
+        "sunita.verma@school.example,Sunita Verma,+91 98765 43220,Mathematics,EMP-101,Regular Faculty,Female,1988-06-14\n" +
+        "ananya.singh@school.example,Ananya Singh,+91 98765 43221,Science,EMP-102,Regular Faculty,Female,1990-11-20\n" +
+        "vikram.malhotra@school.example,Vikram Malhotra,+91 98765 43222,English,EMP-103,Contract Faculty,Male,1985-03-08\n";
+      filename = "edops_teachers_template.csv";
+    }
+    const blob = new Blob([sample], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadBatchTokens = () => {
+    if (!createdBatch) return;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    let csv = "email,role,invite_link,token,expires_at\n";
+    createdBatch.invitations.forEach((inv) => {
+      const link = `${origin}/?invite=${inv.token}`;
+      csv += `"${inv.email}","${inv.role}","${link}","${inv.token}","${inv.expiresAt}"\n`;
+    });
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `invitation_batch_${createdBatch.batchId.slice(0, 8)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const handleActionSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!quickActionModal) return;
@@ -529,6 +688,28 @@ export function SchoolAdminWorkspace({
     setActionError("");
     try {
       if (organizationId) {
+        if (isBulkImportAction) {
+          if (!csvContent.trim()) {
+            throw new Error("Please upload a CSV file or paste valid CSV content");
+          }
+          let res: any;
+          if (isBulkImportStudents) {
+            res = await bulkImportStudentsCsv(organizationId, csvContent.trim(), directAddWithoutInvite);
+          } else {
+            res = await bulkImportTeachersCsv(organizationId, csvContent.trim());
+          }
+          setRefreshKey((k) => k + 1);
+          if (res && (res.imported || res.invitations)) {
+            setCreatedBatch({
+              batchId: res.batchId,
+              invitations: res.imported || res.invitations || [],
+            });
+            return;
+          }
+          setQuickActionModal(null);
+          return;
+        }
+
         if (isPersonAction) {
           if (detectedRole === "student" && directAddWithoutInvite) {
             await directAdmitStudent(organizationId, {
@@ -550,6 +731,8 @@ export function SchoolAdminWorkspace({
             name: personName.trim() || undefined,
             email: personEmail.trim().toLowerCase(),
             phone: personPhone.trim() || undefined,
+            gender: (detectedRole === "teacher" || detectedRole === "staff" || detectedRole === "principal") ? personGender : (detectedRole === "student" ? studentGender : undefined),
+            dob: (detectedRole === "teacher" || detectedRole === "staff" || detectedRole === "principal") ? (personDob || undefined) : (detectedRole === "student" ? (studentDob || undefined) : undefined),
             specialty: detectedRole === "teacher" ? personSpecialty.trim() || undefined : undefined,
             employeeId: (detectedRole === "teacher" || detectedRole === "staff" || detectedRole === "principal") && personEmployeeId.trim() ? personEmployeeId.trim() : undefined,
             employmentType: (detectedRole === "teacher" || detectedRole === "staff" || detectedRole === "principal") && personEmploymentType ? personEmploymentType : undefined,
@@ -699,7 +882,12 @@ export function SchoolAdminWorkspace({
       }
       setQuickActionModal(null);
     } catch (err: any) {
-      setActionError(err?.message || `Failed to complete ${quickActionModal}`);
+      if (err?.errors && Array.isArray(err.errors)) {
+        setImportValidationErrors(err.errors);
+      } else {
+        setImportValidationErrors(null);
+      }
+      setActionError(toHumanErrorMessage(err));
     } finally {
       setActionBusy(false);
     }
@@ -1371,12 +1559,16 @@ export function SchoolAdminWorkspace({
       `}</style>
       {quickActionModal && (
         <div
+          role="dialog"
+          aria-modal="true"
+          className="modal-backdrop"
           style={{
             position: "fixed",
             inset: 0,
             zIndex: 1000,
             display: "flex",
             justifyContent: "flex-end",
+            padding: 0,
             background: "rgba(12, 30, 51, 0.45)",
             backdropFilter: "blur(4px)",
             animation: "edopsFadeIn 0.15s ease",
@@ -1385,6 +1577,7 @@ export function SchoolAdminWorkspace({
             if (e.target === e.currentTarget) {
               setQuickActionModal(null);
               setCreatedInvite(null);
+              setCreatedBatch(null);
             }
           }}
         >
@@ -1432,7 +1625,9 @@ export function SchoolAdminWorkspace({
                     letterSpacing: "0.06em",
                   }}
                 >
-                  {isPersonAction
+                  {isBulkImportAction
+                    ? "Bulk Onboarding Dossier · CSV Import"
+                    : isPersonAction
                     ? `Member Onboarding Dossier · ${
                         detectedRole === "staff"
                           ? "Staff Member"
@@ -1462,6 +1657,7 @@ export function SchoolAdminWorkspace({
                   onClick={() => {
                     setQuickActionModal(null);
                     setCreatedInvite(null);
+                    setCreatedBatch(null);
                   }}
                   title="Close (Esc)"
                   style={{
@@ -1501,7 +1697,11 @@ export function SchoolAdminWorkspace({
                     letterSpacing: "-0.01em",
                   }}
                 >
-                  {isSectionAction
+                  {isBulkImportStudents
+                    ? "Bulk Import Students (CSV)"
+                    : isBulkImportTeachers
+                    ? "Bulk Import Teachers & Faculty (CSV)"
+                    : isSectionAction
                     ? "Add Academic Section"
                     : isClassAction
                     ? "Add Class Program"
@@ -1524,7 +1724,11 @@ export function SchoolAdminWorkspace({
                     : quickActionModal.replace(/([A-Z])/g, " $1").trim()}
                 </h3>
                 <div style={{ fontSize: "12px", color: "#64748B", marginTop: "3px" }}>
-                  {quickActionModal === "addStaff"
+                  {isBulkImportStudents
+                    ? "Upload or paste a CSV spreadsheet with Class (e.g. 10) and Section (e.g. A). The system auto-resolves section IDs and enrollments."
+                    : isBulkImportTeachers
+                    ? "Upload or paste a CSV spreadsheet with teacher emails, departments, employee IDs, and contract types."
+                    : quickActionModal === "addStaff"
                     ? "Enter staff member details, assign an employee ID, and generate an official onboarding invitation link."
                     : quickActionModal === "addTeacher"
                     ? "Enter faculty member details, subject specialty, and generate an official onboarding invitation link."
@@ -1629,6 +1833,7 @@ export function SchoolAdminWorkspace({
                     onClick={() => {
                       setQuickActionModal(null);
                       setCreatedInvite(null);
+                      setCreatedBatch(null);
                     }}
                     style={{
                       padding: "8px 24px",
@@ -1649,11 +1854,188 @@ export function SchoolAdminWorkspace({
                   </button>
                 </div>
               </div>
+            ) : createdBatch ? (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                <div style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "grid", gap: "16px", alignContent: "start" }}>
+                  <div style={{
+                    width: "44px", height: "44px", borderRadius: "10px",
+                    background: "#ECFDF5", border: "1px solid #A7F3D0",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "20px", color: "#065F46"
+                  }}>
+                    ✓
+                  </div>
+                  <div>
+                    <p style={{ margin: "0 0 2px", fontSize: "11px", fontWeight: 600, color: "#027A48", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                      {directAddWithoutInvite ? "Direct Onboarding Completed" : "Batch Import Successful"}
+                    </p>
+                    <h2 style={{ margin: "0 0 6px", fontSize: "18px", fontWeight: 650, color: "#0C1E33", letterSpacing: "-0.02em" }}>
+                      {directAddWithoutInvite
+                        ? `${createdBatch.invitations.length} Students Admitted to Roster`
+                        : `${createdBatch.invitations.length} Invitations Generated`}
+                    </h2>
+                    <p style={{ margin: 0, fontSize: "12px", color: "#475467", lineHeight: 1.5 }}>
+                      {directAddWithoutInvite
+                        ? "All students have been directly admitted with active section enrollments and invitation_status set to 'not_sent'."
+                        : "Tokens expire in 48 hours. You can export the invitation links and tokens below."}
+                    </p>
+                  </div>
+
+                  {!directAddWithoutInvite && (
+                    <button
+                      type="button"
+                      onClick={handleDownloadBatchTokens}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        padding: "10px 16px",
+                        borderRadius: "6px",
+                        fontSize: "12.5px",
+                        fontWeight: 600,
+                        background: "#0C1E33",
+                        color: "#FFFFFF",
+                        border: "none",
+                        cursor: "pointer",
+                        fontFamily: "'Poppins', sans-serif",
+                      }}
+                    >
+                      <Upload size={14} style={{ transform: "rotate(180deg)" }} />
+                      <span>Download CSV with Invitation Links</span>
+                    </button>
+                  )}
+
+                  <div style={{ display: "grid", gap: "8px", border: "1px solid #E2E8F0", borderRadius: "6px", overflow: "hidden" }}>
+                    <div style={{ background: "#F8FAFC", padding: "8px 12px", borderBottom: "1px solid #E2E8F0", fontSize: "12px", fontWeight: 600, color: "#334155" }}>
+                      Generated Invitations ({createdBatch.invitations.length})
+                    </div>
+                    <div style={{ maxHeight: "240px", overflowY: "auto", fontSize: "12px" }}>
+                      {createdBatch.invitations.map((inv) => (
+                        <div key={inv.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", borderBottom: "1px solid #F1F5F9" }}>
+                          <div>
+                            <span style={{ fontWeight: 500, color: "#0F172A" }}>{inv.email}</span>
+                            <span style={{ marginLeft: "8px", fontSize: "10.5px", background: "#E2E8F0", padding: "2px 6px", borderRadius: "4px", textTransform: "capitalize" }}>{inv.role}</span>
+                          </div>
+                          <span style={{ fontSize: "11px", color: "#16A34A", fontWeight: 600 }}>Active</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: "14px 24px",
+                  background: "#FFFFFF",
+                  borderTop: "1px solid #E2E8F0",
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  flexShrink: 0
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuickActionModal(null);
+                      setCreatedBatch(null);
+                    }}
+                    style={{
+                      padding: "8px 24px",
+                      borderRadius: "6px",
+                      border: "none",
+                      fontSize: "12.5px",
+                      fontWeight: 600,
+                      background: "#0C1E33",
+                      color: "#FFFFFF",
+                      cursor: "pointer",
+                      fontFamily: "'Poppins', sans-serif",
+                    }}
+                  >
+                    Done
+                  </button>
+                </div>
+              </div>
             ) : (
               <form onSubmit={handleActionSubmit} style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-                {actionError && (
+                {actionError && (!importValidationErrors || importValidationErrors.length === 0) && (
                   <div style={{ margin: "16px 24px 0", padding: "10px 14px", background: "#FEF2F2", border: "1px solid #FCA5A5", borderRadius: "6px", color: "#DC2626", fontSize: "12px" }}>
                     {actionError}
+                  </div>
+                )}
+
+                {importValidationErrors && importValidationErrors.length > 0 && (
+                  <div
+                    style={{
+                      margin: "16px 24px 0",
+                      padding: "14px 16px",
+                      background: "#FEF2F2",
+                      border: "1.5px solid #F87171",
+                      borderRadius: "8px",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "10px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "22px", height: "22px", borderRadius: "50%", background: "#DC2626", color: "#FFFFFF", fontSize: "12px", fontWeight: 700, flexShrink: 0 }}>✕</span>
+                        <div>
+                          <strong style={{ fontSize: "13px", color: "#991B1B" }}>
+                            Import Aborted (All-or-Nothing) — {importValidationErrors.length} Issue{importValidationErrors.length > 1 ? "s" : ""} Found
+                          </strong>
+                          <div style={{ fontSize: "11px", color: "#7F1D1D", marginTop: "2px" }}>
+                            No data was written to the database. Fix these rows in your CSV and re-upload:
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setImportValidationErrors(null);
+                          setActionError("");
+                        }}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          color: "#991B1B",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          padding: "2px 6px",
+                        }}
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+
+                    <div style={{ maxHeight: "210px", overflowY: "auto", border: "1px solid #FCA5A5", borderRadius: "6px", background: "#FFFFFF" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px", textAlign: "left" }}>
+                        <thead style={{ position: "sticky", top: 0, background: "#FEE2E2", zIndex: 1 }}>
+                          <tr>
+                            <th style={{ padding: "7px 10px", color: "#991B1B", fontWeight: 700, borderBottom: "1px solid #FCA5A5", width: "50px" }}>Row</th>
+                            <th style={{ padding: "7px 10px", color: "#991B1B", fontWeight: 700, borderBottom: "1px solid #FCA5A5", minWidth: "140px" }}>{isBulkImportStudents ? "Student" : "Teacher"}</th>
+                            <th style={{ padding: "7px 10px", color: "#991B1B", fontWeight: 700, borderBottom: "1px solid #FCA5A5", minWidth: "100px" }}>{isBulkImportStudents ? "Admission No" : "Employee ID"}</th>
+                            <th style={{ padding: "7px 10px", color: "#991B1B", fontWeight: 700, borderBottom: "1px solid #FCA5A5" }}>Reason for Failure</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importValidationErrors.map((err, idx) => (
+                            <tr key={idx} style={{ borderBottom: "1px solid #FEE2E2", background: idx % 2 === 0 ? "#FFFFFF" : "#FFF5F5" }}>
+                              <td style={{ padding: "7px 10px", fontWeight: 700, color: "#DC2626", whiteSpace: "nowrap" }}>#{err.row}</td>
+                              <td style={{ padding: "7px 10px" }}>
+                                <div style={{ fontWeight: 600, color: "#1F2937" }}>{err.name}</div>
+                                <div style={{ fontSize: "10px", color: "#6B7280" }}>{err.email}</div>
+                              </td>
+                              <td style={{ padding: "7px 10px", fontFamily: "monospace", fontWeight: 600, color: "#374151" }}>
+                                {err.admissionNo || err.employeeId || "—"}
+                              </td>
+                              <td style={{ padding: "7px 10px", color: "#991B1B", fontWeight: 500 }}>
+                                {err.reason}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
 
@@ -1667,7 +2049,272 @@ export function SchoolAdminWorkspace({
                     alignContent: "start",
                   }}
                 >
-                  {isPersonAction ? (
+                  {isBulkImportAction ? (
+                    <>
+                      <div style={{ background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "6px", padding: "14px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                          <span style={{ fontSize: "12.5px", fontWeight: 600, color: "#0C1E33" }}>Supported Columns & Template</span>
+                          <button
+                            type="button"
+                            onClick={handleDownloadSampleCsv}
+                            style={{
+                              background: "#FFFFFF",
+                              border: "1px solid #CBD5E1",
+                              borderRadius: "4px",
+                              padding: "4px 8px",
+                              fontSize: "11.5px",
+                              fontWeight: 500,
+                              color: "#0F172A",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <span>{isBulkImportStudents ? "Download Students Template" : "Download Teachers Template"}</span>
+                          </button>
+                        </div>
+                        {isBulkImportStudents ? (
+                          <>
+                            <p style={{ margin: "0 0 4px", fontSize: "12px", color: "#475569", lineHeight: 1.4 }}>
+                              <strong>Required:</strong> <code>email</code>, <code>name</code> (Full Name).
+                            </p>
+                            <p style={{ margin: "0 0 4px", fontSize: "11.5px", color: "#475569", lineHeight: 1.4 }}>
+                              <strong>Class & Section:</strong> <code>class</code> (e.g. <code>10</code> or <code>Class 10</code>) and <code>section</code> (e.g. <code>A</code>) — <em>no system UUIDs needed!</em>
+                            </p>
+                            <p style={{ margin: 0, fontSize: "11.5px", color: "#64748B" }}>
+                              <strong>Optional profile:</strong> <code>phone</code>, <code>gender</code>, <code>dob</code> (YYYY-MM-DD), <code>admissionNo</code>.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p style={{ margin: "0 0 4px", fontSize: "12px", color: "#475569", lineHeight: 1.4 }}>
+                              <strong>Required:</strong> <code>email</code>, <code>name</code> (Full Name).
+                            </p>
+                            <p style={{ margin: "0 0 4px", fontSize: "11.5px", color: "#475569", lineHeight: 1.4 }}>
+                              <strong>Faculty details:</strong> <code>department</code> (Subject Domain), <code>employeeId</code> (Staff Code), <code>employmentType</code>.
+                            </p>
+                            <p style={{ margin: 0, fontSize: "11.5px", color: "#64748B" }}>
+                              <strong>Optional:</strong> <code>phone</code>.
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      {isBulkImportStudents && (
+                        <div style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          padding: "10px 14px",
+                          background: directAddWithoutInvite ? "#F0FDF4" : "#F8FAFC",
+                          border: `1px solid ${directAddWithoutInvite ? "#BBF7D0" : "#E2E8F0"}`,
+                          borderRadius: "6px"
+                        }}>
+                          <div>
+                            <div style={{ fontSize: "12.5px", fontWeight: 600, color: "#0C1E33" }}>
+                              Direct Onboard (No Invitation Emails)
+                            </div>
+                            <div style={{ fontSize: "11px", color: "#64748B" }}>
+                              {directAddWithoutInvite
+                                ? "Admit students directly into roster without issuing invitation tokens; status set to 'not_sent'."
+                                : "Generate 48-hour onboarding claim tokens and invitation links for each student."}
+                            </div>
+                          </div>
+                          <label style={{ position: "relative", display: "inline-block", width: "36px", height: "20px", cursor: "pointer", margin: 0 }}>
+                            <input
+                              type="checkbox"
+                              checked={directAddWithoutInvite}
+                              onChange={(e) => setDirectAddWithoutInvite(e.target.checked)}
+                              style={{ opacity: 0, width: 0, height: 0 }}
+                            />
+                            <span style={{
+                              position: "absolute", inset: 0,
+                              backgroundColor: directAddWithoutInvite ? "#16A34A" : "#CBD5E1",
+                              borderRadius: "20px", transition: "0.2s",
+                            }}>
+                              <span style={{
+                                position: "absolute", content: '""', height: "14px", width: "14px",
+                                left: directAddWithoutInvite ? "19px" : "3px", bottom: "3px",
+                                backgroundColor: "white", borderRadius: "50%", transition: "0.2s",
+                              }} />
+                            </span>
+                          </label>
+                        </div>
+                      )}
+
+                      <div style={{ display: "grid", gap: "6px" }}>
+                        <span style={{ fontSize: "12px", fontWeight: 600, color: "#344054" }}>Upload CSV File</span>
+                        <label style={{
+                          border: "2px dashed #CBD5E1",
+                          borderRadius: "8px",
+                          padding: "20px",
+                          textAlign: "center",
+                          cursor: "pointer",
+                          background: "#FAFAFA",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}>
+                          <Upload size={22} style={{ color: "#64748B" }} />
+                          <span style={{ fontSize: "12.5px", color: "#0C1E33", fontWeight: 500 }}>
+                            {csvFileName ? `Selected: ${csvFileName}` : "Click to select .csv file from device"}
+                          </span>
+                          <span style={{ fontSize: "11px", color: "#94A3B8" }}>Max 100 records per upload</span>
+                          <input
+                            type="file"
+                            accept=".csv,text/csv"
+                            onChange={handleCsvFileUpload}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                      </div>
+
+                      <div style={{ display: "grid", gap: "8px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "12px", fontWeight: 600, color: "#344054" }}>Data Records Preview</span>
+                            {parsedPreview && parsedPreview.rows.length > 0 && (
+                              <span style={{ fontSize: "11px", color: "#0284C7", background: "#E0F2FE", padding: "1px 6px", borderRadius: "4px", fontWeight: 600 }}>
+                                {parsedPreview.rows.length} rows detected
+                              </span>
+                            )}
+                          </div>
+
+                          <div style={{ display: "inline-flex", background: "#F1F5F9", padding: "2px", borderRadius: "6px", border: "1px solid #E2E8F0" }}>
+                            <button
+                              type="button"
+                              onClick={() => setBulkInputMode("table")}
+                              style={{
+                                padding: "3px 10px",
+                                borderRadius: "4px",
+                                border: "none",
+                                fontSize: "11.5px",
+                                fontWeight: bulkInputMode === "table" ? 600 : 500,
+                                background: bulkInputMode === "table" ? "#FFFFFF" : "transparent",
+                                color: bulkInputMode === "table" ? "#0C1E33" : "#64748B",
+                                boxShadow: bulkInputMode === "table" ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                            >
+                              <Table size={13} />
+                              <span>Table Grid</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setBulkInputMode("raw")}
+                              style={{
+                                padding: "3px 10px",
+                                borderRadius: "4px",
+                                border: "none",
+                                fontSize: "11.5px",
+                                fontWeight: bulkInputMode === "raw" ? 600 : 500,
+                                background: bulkInputMode === "raw" ? "#FFFFFF" : "transparent",
+                                color: bulkInputMode === "raw" ? "#0C1E33" : "#64748B",
+                                boxShadow: bulkInputMode === "raw" ? "0 1px 2px rgba(0,0,0,0.06)" : "none",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                            >
+                              <FileText size={13} />
+                              <span>Raw CSV</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {bulkInputMode === "table" && parsedPreview && parsedPreview.rows.length > 0 ? (
+                          <div style={{
+                            border: "1px solid #E2E8F0",
+                            borderRadius: "8px",
+                            overflow: "hidden",
+                            background: "#FFFFFF",
+                            boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+                          }}>
+                            <div style={{ overflowX: "auto", maxHeight: "280px" }}>
+                              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12px", textAlign: "left" }}>
+                                <thead>
+                                  <tr style={{ background: "#F8FAFC", borderBottom: "1px solid #CBD5E1", position: "sticky", top: 0, zIndex: 1 }}>
+                                    <th style={{ padding: "8px 10px", fontSize: "11px", fontWeight: 600, color: "#475569", width: "36px", textAlign: "center" }}>#</th>
+                                    {parsedPreview.headers.map((h, i) => (
+                                      <th key={i} style={{ padding: "8px 12px", fontSize: "11px", fontWeight: 600, color: "#1E293B", textTransform: "capitalize", whiteSpace: "nowrap" }}>
+                                        {h.replace(/([A-Z])/g, " $1").replace(/_/g, " ").trim()}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {parsedPreview.rows.map((row, rIdx) => (
+                                    <tr key={rIdx} style={{ borderBottom: "1px solid #F1F5F9", background: rIdx % 2 === 1 ? "#FAFBFD" : "#FFFFFF" }}>
+                                      <td style={{ padding: "8px 10px", color: "#94A3B8", textAlign: "center", fontSize: "11px", fontWeight: 500 }}>
+                                        {rIdx + 1}
+                                      </td>
+                                      {parsedPreview.headers.map((_, cIdx) => (
+                                        <td key={cIdx} style={{ padding: "8px 12px", color: "#0F172A", whiteSpace: "nowrap", fontFamily: cIdx === 0 ? "monospace" : "inherit" }}>
+                                          {row[cIdx] ? (
+                                            row[cIdx]
+                                          ) : (
+                                            <span style={{ color: "#CBD5E1", fontStyle: "italic" }}>—</span>
+                                          )}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            <div style={{ padding: "8px 12px", background: "#F8FAFC", borderTop: "1px solid #E2E8F0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <span style={{ fontSize: "11px", color: "#64748B" }}>
+                                Showing {parsedPreview.rows.length} records ready for onboarding
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCsvContent("");
+                                  setCsvFileName("");
+                                }}
+                                style={{ background: "transparent", border: "none", color: "#EF4444", fontSize: "11.5px", fontWeight: 500, cursor: "pointer", padding: "2px 6px" }}
+                              >
+                                Clear Data
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <textarea
+                            rows={7}
+                            value={csvContent}
+                            onChange={(e) => {
+                              setCsvContent(e.target.value);
+                              setCsvFileName("");
+                            }}
+                            placeholder={
+                              isBulkImportStudents
+                                ? "email,name,phone,class,section,gender,dob,admissionNo\naarav.sharma@school.example,Aarav Sharma,+91 98765 43210,10,A,Male,2009-04-12,ADM-1001\npriya.patel@school.example,Priya Patel,+91 98765 43211,10,B,Female,2009-08-25,ADM-1002"
+                                : "email,name,phone,department,employeeId,employmentType\nsunita.verma@school.example,Sunita Verma,+91 98765 43220,Mathematics,EMP-101,Regular Faculty\nrohit.sharma@school.example,Rohit Sharma,+91 98765 43221,Science,EMP-102,Regular Faculty"
+                            }
+                            style={{
+                              boxSizing: "border-box",
+                              width: "100%",
+                              padding: "10px 12px",
+                              borderRadius: "6px",
+                              border: "1px solid #CBD5E1",
+                              fontSize: "12px",
+                              fontFamily: "monospace",
+                              lineHeight: 1.5,
+                              whiteSpace: "pre",
+                              overflowX: "auto",
+                              resize: "vertical",
+                            }}
+                          />
+                        )}
+                      </div>
+                    </>
+                  ) : isPersonAction ? (
                     <>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 12px", background: "#F8FAFC", border: "1px solid #E2E8F0", borderRadius: "6px" }}>
                         <span style={{ fontSize: "12px", color: "#475569", fontWeight: 500 }}>Assigned Role:</span>
@@ -1844,6 +2491,49 @@ export function SchoolAdminWorkspace({
                               )}
                             </select>
                           </label>
+
+                          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                            <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                              <span>Gender</span>
+                              <select
+                                value={personGender}
+                                onChange={(e) => setPersonGender(e.target.value)}
+                                style={{
+                                  padding: "9px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #D0D5DD",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  color: "#101828",
+                                  background: "#FFFFFF",
+                                  fontFamily: "inherit",
+                                }}
+                              >
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            </label>
+
+                            <label style={{ display: "grid", gap: "5px", fontSize: "12px", fontWeight: 500, color: "#344054" }}>
+                              <span>Date of Birth</span>
+                              <input
+                                type="date"
+                                value={personDob}
+                                onChange={(e) => setPersonDob(e.target.value)}
+                                style={{
+                                  padding: "8px 12px",
+                                  borderRadius: "8px",
+                                  border: "1px solid #D0D5DD",
+                                  fontSize: "13px",
+                                  outline: "none",
+                                  color: "#101828",
+                                  background: "#FFFFFF",
+                                  fontFamily: "inherit",
+                                }}
+                              />
+                            </label>
+                          </div>
                         </>
                       )}
 
@@ -3313,7 +4003,7 @@ export function SchoolAdminWorkspace({
                     </button>
                     <button
                       type="submit"
-                      disabled={actionBusy}
+                      disabled={actionBusy || (isBulkImportAction && !csvContent.trim())}
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
@@ -3325,16 +4015,20 @@ export function SchoolAdminWorkspace({
                         fontWeight: 600,
                         background: "#0C1E33",
                         color: "#FFFFFF",
-                        cursor: actionBusy ? "wait" : "pointer",
-                        opacity: actionBusy ? 0.7 : 1,
+                        cursor: actionBusy || (isBulkImportAction && !csvContent.trim()) ? "not-allowed" : "pointer",
+                        opacity: actionBusy || (isBulkImportAction && !csvContent.trim()) ? 0.6 : 1,
                         fontFamily: "'Poppins', sans-serif",
                         transition: "background 0.15s ease",
                       }}
-                      onMouseEnter={(e) => { if (!actionBusy) e.currentTarget.style.background = "#1B3554"; }}
-                      onMouseLeave={(e) => { if (!actionBusy) e.currentTarget.style.background = "#0C1E33"; }}
+                      onMouseEnter={(e) => { if (!actionBusy && (!isBulkImportAction || csvContent.trim())) e.currentTarget.style.background = "#1B3554"; }}
+                      onMouseLeave={(e) => { if (!actionBusy && (!isBulkImportAction || csvContent.trim())) e.currentTarget.style.background = "#0C1E33"; }}
                     >
                       {actionBusy
                         ? "Processing…"
+                        : isBulkImportStudents
+                        ? (directAddWithoutInvite ? "Directly Onboard Students" : "Import & Invite Students")
+                        : isBulkImportTeachers
+                        ? "Import & Onboard Teachers"
                         : detectedRole === "student" && directAddWithoutInvite
                         ? "Directly Admit Student"
                         : quickActionModal === "addStaff"
