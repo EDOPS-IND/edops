@@ -69,9 +69,9 @@ Before launching the platform, ensure your local development machine satisfies t
 Ensure the following ports are free before starting:
 - **Port 3000**: Next.js / Vinext Frontend client
 - **Port 3001**: NestJS Backend API service
-- **Port 15432**: PostgreSQL 16 database (Docker host binding)
+- **Port 15432** or **5432**: PostgreSQL 16 database (Docker host binding on `15432` or native Postgres.app on `5432`)
 
-*(Note: The provided [start.sh](start.sh) script automatically detects and frees stale processes listening on ports 3000 and 3001).*
+*(Note: The provided [start.sh](start.sh) script automatically detects and frees stale processes listening on ports 3000 and 3001, and auto-detects active Postgres on port 5432 or 15432).*
 
 ---
 
@@ -92,7 +92,7 @@ bash start.sh
 ### 3.2 What `start.sh` Executes Automatically:
 1. **Prerequisite Verification**: Checks for Node.js, Docker, and Docker daemon availability.
 2. **Port Conflict Resolution**: Automatically clears any stale processes occupying port `3000` or `3001`.
-3. **Database Container Initialization**: Starts PostgreSQL 16 via Docker Compose (`backend/compose.yaml`) and polls until healthy on port `15432`.
+3. **Database Detection & Initialization**: Checks for running PostgreSQL (Postgres.app on port `5432` or Docker Compose `backend/compose.yaml` on port `15432`). Starts and polls container until healthy if needed.
 4. **Environment Initialization**: Generates a secure `backend/.env` with random cryptographic secrets if not already present.
 5. **Schema Migration Execution**: Executes TypeORM schema migrations to prepare the database structure.
 6. **Backend API Startup**: Launches the NestJS API with live TypeScript file watching (`http://127.0.0.1:3001`) and polls `/api/health` until ready.
@@ -100,12 +100,19 @@ bash start.sh
 8. **Browser Launch**: Automatically opens the web application at `http://localhost:3000`.
 9. **Clean Teardown**: Intercepts `Ctrl+C` (SIGINT/SIGTERM) to gracefully stop all child processes and free ports.
 
-### 3.3 Bootstrapping the Platform Administrator
+### 3.3 Bootstrapping & Managing Platform Administrators
 The root platform super administrator is initialized securely through the backend CLI without hardcoded credentials:
 
 ```bash
 cd backend
 npm run bootstrap:admin -- admin@your-school.org
+```
+
+To reset an existing administrator's credentials securely via CLI:
+
+```bash
+cd backend
+npm run reset:admin -- admin@your-school.org
 ```
 
 You will be prompted to enter a hidden password (12-128 characters). See [ACCOUNTS.md](ACCOUNTS.md) for institutional account onboarding details.
@@ -241,6 +248,7 @@ backend/
 │   ├── config.ts         # Type-safe configuration loader with validation for ports, URLs, and secrets
 │   ├── worker.ts         # Asynchronous worker draining transactional outbox events (FOR UPDATE SKIP LOCKED)
 │   ├── bootstrap-admin.ts# Secure CLI tool to bootstrap the first platform super admin via hidden stdin
+│   ├── reset-admin.ts    # Secure CLI tool to reset platform admin credentials via hidden stdin
 │   ├── common/           # Shared cross-cutting authorization, filtering, and OpenAPI utilities
 │   │   ├── auth.guard.ts              # Protects routes via Session or JWT; handles @Public & @PlatformAdmin
 │   │   ├── tenant.guard.ts            # Validates active school membership and enforces organization scoping
@@ -255,7 +263,7 @@ backend/
 │   │   ├── schema.ts                  # Drizzle ORM TypeScript schema mapping all database tables
 │   │   ├── migrate.ts                 # Script to execute pending TypeORM migrations programmatically
 │   │   ├── init-dev.sql               # Initial database bootstrap SQL (creates edops_test database)
-│   │   └── migrations/                # Version-controlled schema migrations (20 migration files)
+│   │   └── migrations/                # Version-controlled schema migrations (25 migration files)
 │   │       ├── 1788825600000-InitialSchema.ts          # M1: Users, Organizations, Memberships, Sessions
 │   │       ├── 1788912000000-Academics.ts              # M2: Academic Years, Programs, Sections, Subjects
 │   │       ├── 1788998400000-Teaching.ts               # M3: Assignments, Submissions, Attendance, Scorecards
@@ -275,7 +283,12 @@ backend/
 │   │       ├── 1790208000000-PrincipalExamTermScope.ts # Term-based evaluation scoping
 │   │       ├── 1790294400000-DashboardNavigation.ts    # Customizable dynamic dashboard navigation items
 │   │       ├── 1790380800000-DatabaseBackedPortals.ts  # Parent-student relationships, PTM bookings, HPC reflections
-│   │       └── 1790467200000-SchoolPolicySettings.ts   # School-level governance and policy settings
+│   │       ├── 1790467200000-SchoolPolicySettings.ts   # School-level governance and policy settings
+│   │       ├── 1790553600000-PasswordResetTokens.ts    # Secure single-use password reset tokens
+│   │       ├── 1790553600001-SubjectPassingMarks.ts    # Subject-level passing marks and grading thresholds
+│   │       ├── 1790553600002-NullableSubjectFaculty.ts # Flexible faculty assignment constraints
+│   │       ├── 1790553600003-SchoolDocuments.ts        # Institutional documents and policy repository
+│   │       └── 1790553600004-RemoveSchoolAdminReportsNavigation.ts # Clean navigation item deduplication
 │   └── modules/          # 17 Business domain modules (detailed in Section 6.4)
 ├── test/                 # Integration test suites verifying database rules and security harnesses
 └── docs/                 # Detailed milestone documentation (MILESTONE-1.md through MILESTONE-6.md, API.md)
@@ -295,8 +308,10 @@ frontend/
 ├── app/                  # Next.js App Router root directory
 │   ├── layout.tsx        # Top-level root layout injecting typography and global styles
 │   ├── page.tsx          # Central client controller: session management, role routing, and view switching
+│   ├── [...slug]/page.tsx# Dynamic deep-link router preserving sub-route context across roles
 │   ├── edops-api.ts      # Strongly typed API client: CSRF handling, JWT/cookie management, and endpoint bindings
 │   ├── dashboard-navigation.ts # Dynamic RBAC navigation structure and sidebar item generator
+│   ├── dashboard-routing.ts    # URL query parameter parsing, slug mapping, and deep-linking state
 │   ├── dashboard-home.tsx# Default welcome landing page for logged-in personas
 │   ├── platform-workspace.tsx  # Platform Super Admin top-level workspace container
 │   ├── learning-workspace.tsx  # Shared learning workspace container
@@ -306,7 +321,17 @@ frontend/
 │   ├── campus.css        # Academic campus design tokens and styling rules
 │   ├── globals.css       # Core design system CSS, color variables, and reset rules
 │   ├── redesign.css      # Midnight Obsidian & Ivory Canvas design system extensions
-│   ├── components/       # Shared UI components
+│   ├── components/       # Shared enterprise portal components
+│   │   ├── communication-chat.tsx    # Real-time direct messages with deduplication & race-condition safety
+│   │   ├── universal-timetable.tsx   # Universal responsive Timetable Radar component
+│   │   ├── leave-desk.tsx            # Digital leave application desk & status workflows
+│   │   ├── global-portal-search.tsx  # Quick search & command palette across entities
+│   │   ├── teacher-allocation-manager.tsx # Section-wise multi-teacher assignment manager
+│   │   ├── notice-board.tsx          # Role-targeted announcement feed & pinboard
+│   │   ├── notification-bell-dropdown.tsx # Notification alerts with universal audio chime
+│   │   ├── member-lifecycle-modal.tsx# Student/staff lifecycle state updates
+│   │   ├── exam-plan-drawer.tsx      # Examination schedule drawer & score locking
+│   │   ├── class-command-center.tsx  # Section roster, subjects, and attendance hub
 │   │   └── ui/           # Standard reusable atomic components
 │   │       ├── Banner.tsx      # Notification and alert banner component
 │   │       ├── Empty.tsx       # Standardized empty-state placeholder view
@@ -727,12 +752,14 @@ EDOPS is designed to meet stringent global and regional compliance mandates for 
 # === Root Commands ===
 npm start               # Start PostgreSQL, Backend, and Frontend in one command
 npm run dev             # Alias for npm start
+npm run seed            # Seed demo data via backend seeder
 
 # === Backend Commands (from backend/) ===
 npm run build           # Compile TypeScript to dist/
 npm run start:dev       # Launch NestJS in watch mode
 npm run db:migrate      # Apply all pending database migrations
 npm run bootstrap:admin -- email@school.org # Create a platform super admin via CLI
+npm run reset:admin -- email@school.org     # Reset an existing administrator password via CLI
 npm run worker          # Start the background outbox event worker
 npm test                # Run backend automated integration tests
 

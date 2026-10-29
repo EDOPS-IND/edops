@@ -810,6 +810,7 @@ export function ClassCommandCenterModal({
         backdropFilter: "blur(4px)",
         display: "flex",
         justifyContent: "flex-end",
+        padding: 0,
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {

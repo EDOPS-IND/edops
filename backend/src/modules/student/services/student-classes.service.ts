@@ -7,9 +7,11 @@ export class StudentClassesService {
 
   async getClassDetails(organizationId: string, studentUserId: string) {
     const [enrollment] = await this.drizzle.query(
-      `SELECT e.section_id, sec.name AS "className", y.name AS "academicYear", e.roll_number AS "rollNumber"
+      `SELECT e.section_id, sec.name AS "className", y.name AS "academicYear", e.roll_number AS "rollNumber",
+        COALESCE(ctu.name, 'Unassigned') AS "classTeacher"
        FROM enrollments e JOIN sections sec ON sec.id=e.section_id AND sec.organization_id=e.organization_id
-       JOIN academic_years y ON y.id=e.academic_year_id AND y.organization_id=e.organization_id AND y.is_current
+       LEFT JOIN users ctu ON ctu.id=sec.class_teacher_user_id
+       LEFT JOIN academic_years y ON y.id=e.academic_year_id AND y.organization_id=e.organization_id
        WHERE e.organization_id=$1 AND e.student_user_id=$2 AND e.status='active' LIMIT 1`, [organizationId, studentUserId]);
     if (!enrollment) return { classInfo: null, classmates: [], announcements: [] };
     const classmates = await this.drizzle.query(
@@ -21,6 +23,6 @@ export class StudentClassesService {
     const announcements = await this.drizzle.query(
       `SELECT id,title,sender_name AS author,created_at AS date,message AS content FROM school_broadcasts
        WHERE organization_id=$1 AND target_audience IN ('all','students') ORDER BY created_at DESC LIMIT 20`, [organizationId]);
-    return { classInfo: { ...enrollment, classTeacher: null, roomNumber: null, studentCount: classmates.length, subjectsCount: count.total }, classmates, announcements };
+    return { classInfo: { ...enrollment, classTeacher: enrollment.classTeacher, roomNumber: null, studentCount: classmates.length, subjectsCount: count.total }, classmates, announcements };
   }
 }

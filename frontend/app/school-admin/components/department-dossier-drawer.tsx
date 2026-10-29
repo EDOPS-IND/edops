@@ -268,12 +268,16 @@ export const DepartmentDossierDrawer: React.FC<DepartmentDossierDrawerProps> = (
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      className="modal-backdrop"
       style={{
         position: "fixed",
         inset: 0,
         zIndex: 2000,
         display: "flex",
         justifyContent: "flex-end",
+        padding: 0,
         backgroundColor: "rgba(12, 30, 51, 0.45)",
         backdropFilter: "blur(3px)",
         animation: "fadeIn 0.2s ease-out",
@@ -283,6 +287,7 @@ export const DepartmentDossierDrawer: React.FC<DepartmentDossierDrawerProps> = (
     >
       {/* Drawer Container */}
       <div
+        className="edops-right-drawer"
         style={{
           boxSizing: "border-box",
           width: "100%",

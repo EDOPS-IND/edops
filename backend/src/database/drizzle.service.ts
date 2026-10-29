@@ -43,14 +43,32 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
       await this.pool.query(`ALTER TABLE invitations ADD COLUMN IF NOT EXISTS child_student_ids jsonb;`);
       await this.pool.query(`ALTER TABLE invitations ADD COLUMN IF NOT EXISTS employee_id varchar(50);`);
       await this.pool.query(`ALTER TABLE invitations ADD COLUMN IF NOT EXISTS employment_type varchar(50);`);
+      await this.pool.query(`ALTER TABLE invitations ADD COLUMN IF NOT EXISTS gender varchar(32);`);
+      await this.pool.query(`ALTER TABLE invitations ADD COLUMN IF NOT EXISTS dob date;`);
       await this.pool.query(`ALTER TABLE invitations ADD COLUMN IF NOT EXISTS raw_token varchar(128);`);
       await this.pool.query(`ALTER TABLE memberships ADD COLUMN IF NOT EXISTS employee_id varchar(50);`);
       await this.pool.query(`ALTER TABLE memberships ADD COLUMN IF NOT EXISTS employment_type varchar(50);`);
+      await this.pool.query(`ALTER TABLE memberships ADD COLUMN IF NOT EXISTS gender varchar(32);`);
+      await this.pool.query(`ALTER TABLE memberships ADD COLUMN IF NOT EXISTS dob date;`);
+      await this.pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS gender varchar(32);`);
+      await this.pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS dob date;`);
       await this.pool.query(`ALTER TABLE student_profiles ADD COLUMN IF NOT EXISTS invitation_status varchar(32) DEFAULT 'accepted';`);
       await this.pool.query(`ALTER TABLE subjects ADD COLUMN IF NOT EXISTS department_id uuid REFERENCES school_departments(id) ON DELETE SET NULL;`);
       await this.pool.query(`ALTER TABLE subjects ADD COLUMN IF NOT EXISTS is_elective boolean NOT NULL DEFAULT false;`);
       await this.pool.query(`ALTER TABLE school_departments ADD COLUMN IF NOT EXISTS location varchar(120);`);
       await this.pool.query(`ALTER TABLE sections ADD COLUMN IF NOT EXISTS class_teacher_user_id uuid REFERENCES users(id) ON DELETE SET NULL;`);
+      await this.pool.query(`
+        DO $$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_indexes WHERE indexname = 'uq_sections_org_class_teacher'
+          ) THEN
+            CREATE UNIQUE INDEX uq_sections_org_class_teacher ON sections (organization_id, class_teacher_user_id) WHERE class_teacher_user_id IS NOT NULL;
+          END IF;
+        EXCEPTION WHEN duplicate_table OR unique_violation THEN
+          NULL;
+        END $$;
+      `);
       await this.pool.query(`
         CREATE TABLE IF NOT EXISTS parent_student_relationships (
           id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -89,6 +107,17 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
           created_at timestamptz DEFAULT NOW()
         );
         CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_lookup ON password_reset_tokens(token_hash);
+      `);
+      // Auto-resolve pending invitations for members who are already active in memberships
+      await this.pool.query(`
+        UPDATE invitations i
+        SET accepted_at = COALESCE(i.accepted_at, m.created_at, NOW())
+        FROM memberships m
+        JOIN users u ON u.id = m.user_id
+        WHERE i.organization_id = m.organization_id
+          AND i.role = m.role
+          AND LOWER(i.email) = LOWER(u.email)
+          AND i.accepted_at IS NULL;
       `);
       await this.pool.query(`
         CREATE TABLE IF NOT EXISTS broadcast_reads (
