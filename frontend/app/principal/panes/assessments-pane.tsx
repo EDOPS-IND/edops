@@ -52,6 +52,7 @@ export function AssessmentsPane({
   const [loading, setLoading] = useState(false);
   const [commentsInput, setCommentsInput] = useState<{ [key: string]: string }>({});
   const [actionBusy, setActionBusy] = useState<{ [key: string]: boolean }>({});
+  const [viewingPaper, setViewingPaper] = useState<any>(null);
 
   // Question Paper Registration Modal State
   const [createModalOpen, setCreateModalOpen] = useState(false);
@@ -451,45 +452,64 @@ export function AssessmentsPane({
                       )}
 
                       {/* Action buttons */}
-                      {!isPublished && (
-                        <div style={{ display: "flex", gap: "10px", alignItems: "center", marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #E2E8F0", flexWrap: "wrap" }}>
-                          <input
-                            type="text"
-                            placeholder="Enter review notes or revision directives for the paper setter..."
-                            value={commentsInput[paper.id] ?? ""}
-                            onChange={(e) => setCommentsInput({ ...commentsInput, [paper.id]: e.target.value })}
-                            style={{ flex: 1, minWidth: "220px", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
-                          />
+                      <div style={{ display: "flex", gap: "10px", alignItems: "center", marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #E2E8F0", flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => setViewingPaper(paper)}
+                          style={{
+                            background: "#F1F5F9",
+                            color: "#0F172A",
+                            border: "1px solid #CBD5E1",
+                            borderRadius: "6px",
+                            padding: "8px 14px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          View Question Paper Content
+                        </button>
 
-                          {!isApproved && (
+                        {!isPublished && (
+                          <>
+                            <input
+                              type="text"
+                              placeholder="Enter review notes or revision directives for the paper setter..."
+                              value={commentsInput[paper.id] ?? ""}
+                              onChange={(e) => setCommentsInput({ ...commentsInput, [paper.id]: e.target.value })}
+                              style={{ flex: 1, minWidth: "220px", padding: "8px 12px", borderRadius: "6px", border: "1px solid #CBD5E1", fontSize: "12px" }}
+                            />
+
+                            {!isApproved && (
+                              <button
+                                disabled={isBusy}
+                                onClick={() => handleAction(paper.id, "Approved")}
+                                style={{ background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", padding: "8px 16px", fontSize: "12px", fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer" }}
+                              >
+                                {isBusy ? "Updating…" : "Approve Blueprint"}
+                              </button>
+                            )}
+
                             <button
                               disabled={isBusy}
-                              onClick={() => handleAction(paper.id, "Approved")}
-                              style={{ background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "6px", padding: "8px 16px", fontSize: "12px", fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer" }}
+                              onClick={() => handleAction(paper.id, "Draft")}
+                              style={{ background: "#FFFBEB", color: "#B45309", border: "1px solid #FCD34D", borderRadius: "6px", padding: "8px 14px", fontSize: "12px", fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer" }}
                             >
-                              {isBusy ? "Updating…" : "Approve Blueprint"}
+                              Request Revision
                             </button>
-                          )}
 
-                          <button
-                            disabled={isBusy}
-                            onClick={() => handleAction(paper.id, "Draft")}
-                            style={{ background: "#FFFBEB", color: "#B45309", border: "1px solid #FCD34D", borderRadius: "6px", padding: "8px 14px", fontSize: "12px", fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer" }}
-                          >
-                            Request Revision
-                          </button>
-
-                          {isApproved && (
-                            <button
-                              disabled={isBusy}
-                              onClick={() => handleAction(paper.id, "Published")}
-                              style={{ background: "#0284C7", color: "#FFFFFF", border: "none", borderRadius: "6px", padding: "8px 16px", fontSize: "12px", fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer" }}
-                            >
-                              Publish Question Paper
-                            </button>
-                          )}
-                        </div>
-                      )}
+                            {isApproved && (
+                              <button
+                                disabled={isBusy}
+                                onClick={() => handleAction(paper.id, "Published")}
+                                style={{ background: "#0284C7", color: "#FFFFFF", border: "none", borderRadius: "6px", padding: "8px 16px", fontSize: "12px", fontWeight: 600, cursor: isBusy ? "not-allowed" : "pointer" }}
+                              >
+                                Publish Question Paper
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   );
                 })
@@ -763,6 +783,127 @@ export function AssessmentsPane({
               </div>
             </form>
           </div>
+        </div>
+      )}
+      {/* View Question Paper Content Drawer */}
+      {viewingPaper && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(15, 23, 42, 0.55)",
+            backdropFilter: "blur(2px)",
+            zIndex: 1000,
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setViewingPaper(null);
+          }}
+        >
+          <aside
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              height: "100%",
+              width: "min(840px, 100vw)",
+              background: "#ffffff",
+              boxShadow: "-12px 0 30px rgba(0,0,0,0.18)",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "18px 24px",
+                borderBottom: "1px solid #E2E8F0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "#F8FAFC",
+                flexShrink: 0,
+              }}
+            >
+              <div>
+                <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 700, color: "#0F172A" }}>
+                  {viewingPaper.title}
+                </h3>
+                <p style={{ margin: "3px 0 0", fontSize: "12px", color: "#64748B" }}>
+                  {viewingPaper.grade} • {viewingPaper.subjectName} • {viewingPaper.totalMarks} Marks • {viewingPaper.durationMinutes} Mins
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingPaper(null)}
+                style={{
+                  background: "transparent",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#64748B",
+                  fontSize: "18px",
+                  padding: "6px 10px",
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ padding: "24px", overflowY: "auto", flex: 1, background: "#ffffff" }}>
+              {viewingPaper.blueprintJson?.formattedContent ? (
+                <div
+                  style={{
+                    fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+                    fontSize: "13px",
+                    lineHeight: 1.6,
+                    color: "#1E293B",
+                    whiteSpace: "pre-wrap",
+                    background: "#F8FAFC",
+                    padding: "20px",
+                    borderRadius: "8px",
+                    border: "1px solid #E2E8F0",
+                  }}
+                >
+                  {viewingPaper.blueprintJson.formattedContent}
+                </div>
+              ) : (
+                <div style={{ padding: "40px", textAlign: "center", color: "#64748B", fontSize: "13px" }}>
+                  <p style={{ margin: 0 }}>No digitized question text attached to this blueprint.</p>
+                  <p style={{ fontSize: "12px", color: "#94A3B8", marginTop: "4px" }}>
+                    Standard difficulty ratios: Easy {viewingPaper.difficultyEasyPct}%, Med {viewingPaper.difficultyMediumPct}%, Hard {viewingPaper.difficultyHardPct}%
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div
+              style={{
+                padding: "16px 24px",
+                borderTop: "1px solid #E2E8F0",
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: "10px",
+                background: "#F8FAFC",
+                flexShrink: 0,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setViewingPaper(null)}
+                style={{
+                  padding: "8px 18px",
+                  borderRadius: "6px",
+                  border: "1px solid #CBD5E1",
+                  background: "#ffffff",
+                  color: "#475569",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Close Drawer
+              </button>
+            </div>
+          </aside>
         </div>
       )}
     </div>

@@ -1,17 +1,18 @@
 "use client";
 
-import { useEffect, useState, type ComponentProps, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type ComponentProps, type FormEvent } from "react";
 import {
   createPrincipalExamPlan,
   createPrincipalExamPlans,
   getPrincipalExaminations,
   importPrincipalTeacherMarks,
+  publishPrincipalExamPlans,
   publishPrincipalExamResults,
   reviewPrincipalExamResult,
   updatePrincipalExamPlan,
   getStudentAvatarUrl,
 } from "../../edops-api";
-import { Award, CheckCircle2, Clock, FileCheck, Layers, Plus, X } from "lucide-react";
+import { Award, CheckCircle2, Clock, FileCheck, Layers, Plus, X, ChevronDown, ChevronUp, Send, Calendar, GraduationCap, FileText, RotateCcw } from "lucide-react";
 import { ExamPlanDrawer } from "../../components/exam-plan-drawer";
 
 type View = "planning" | "schedule" | "marks" | "report_cards";
@@ -71,6 +72,11 @@ type Card = {
     percentage: number;
     grade: string | null;
   }[];
+  totalMarks?: number;
+  maxTotal?: number;
+  overallPercentage?: number;
+  overallGrade?: string;
+  academicStanding?: string;
 };
 type Data = {
   plans: Plan[];
@@ -97,6 +103,10 @@ export function ExaminationsPane({
   const [currentTab, setCurrentTab] = useState<View>(initialTab);
   const [editing, setEditing] = useState<Plan | null>(null);
   const [showCreateDrawer, setShowCreateDrawer] = useState(false);
+  const [collapsedExams, setCollapsedExams] = useState<Record<string, boolean>>({});
+  const toggleExam = (key: string) => {
+    setCollapsedExams((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
   const [form, setForm] = useState<Record<string, string>>({});
   const [markEdits, setMarkEdits] = useState<Record<string, string>>({});
   const [gradeEdits, setGradeEdits] = useState<Record<string, string>>({});
@@ -207,6 +217,53 @@ export function ExaminationsPane({
   }
 
   const workflow = data?.workflow ?? { entered: 0, verified: 0, approved: 0, published: 0 };
+
+  const examGroups = useMemo(() => {
+    if (!data?.plans?.length) return [];
+    const map = new Map<
+      string,
+      {
+        key: string;
+        examName: string;
+        term: string;
+        plans: Plan[];
+        classes: string[];
+        minDate: string;
+        maxDate: string;
+        allPublished: boolean;
+        hasDraft: boolean;
+      }
+    >();
+
+    for (const plan of data.plans) {
+      const key = `${plan.term}__${plan.examName}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          examName: plan.examName,
+          term: plan.term,
+          plans: [],
+          classes: [],
+          minDate: plan.examDate || "",
+          maxDate: plan.examDate || "",
+          allPublished: true,
+          hasDraft: false,
+        });
+      }
+      const grp = map.get(key)!;
+      grp.plans.push(plan);
+      const classLabel = `${plan.className}${plan.sectionName ? ` - ${plan.sectionName}` : ""}`;
+      if (!grp.classes.includes(classLabel)) grp.classes.push(classLabel);
+      if (plan.examDate) {
+        if (!grp.minDate || plan.examDate < grp.minDate) grp.minDate = plan.examDate;
+        if (!grp.maxDate || plan.examDate > grp.maxDate) grp.maxDate = plan.examDate;
+      }
+      if (plan.status?.toLowerCase() !== "scheduled") grp.allPublished = false;
+      if (plan.status?.toLowerCase() === "draft") grp.hasDraft = true;
+    }
+
+    return Array.from(map.values());
+  }, [data?.plans]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -544,81 +601,345 @@ export function ExaminationsPane({
       {/* 2. Planning View */}
       {currentTab === "planning" && data && (
         <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
-          <div style={{ background: "#ffffff", border: "1px solid #e4e6e9", borderRadius: "10px", overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
-              <thead>
-                <tr style={{ background: "#f8fafc", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
-                  <th style={{ padding: "12px 16px" }}>Exam / Term</th>
-                  <th style={{ padding: "12px 16px" }}>Class & Subject</th>
-                  <th style={{ padding: "12px 16px" }}>Date & Time</th>
-                  <th style={{ padding: "12px 16px" }}>Max Marks</th>
-                  <th style={{ padding: "12px 16px" }}>Status</th>
-                  <th style={{ padding: "12px 16px", textAlign: "right" }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.plans.length === 0 ? (
-                  <tr>
-                    <td colSpan={6} style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>
-                      No exam plans saved yet.
-                    </td>
-                  </tr>
-                ) : (
-                  data.plans.map((plan) => (
-                    <tr key={plan.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
-                      <td style={{ padding: "12px 16px" }}>
-                        <div style={{ fontWeight: 700, color: "#1e293b" }}>{plan.examName}</div>
-                        <div style={{ fontSize: "11px", color: "#64748b" }}>{plan.term}</div>
-                      </td>
-                      <td style={{ padding: "12px 16px", color: "#475569" }}>
-                        {plan.className} - {plan.sectionName} · {plan.subjectName}
-                      </td>
-                      <td style={{ padding: "12px 16px", color: "#1e293b" }}>
-                        {plan.examDate} · {plan.startTime}–{plan.endTime}
-                      </td>
-                      <td style={{ padding: "12px 16px", fontWeight: 700, color: "#0c1e33" }}>{plan.maxMarks}</td>
-                      <td style={{ padding: "12px 16px" }}>
-                        <span
+          {examGroups.length === 0 ? (
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e4e6e9",
+                borderRadius: "10px",
+                padding: "40px 24px",
+                textAlign: "center",
+                color: "#64748b",
+              }}
+            >
+              <div style={{ fontSize: "14px", fontWeight: 600, color: "#1e293b", marginBottom: "4px" }}>
+                No examination timetables found
+              </div>
+              <p style={{ margin: 0, fontSize: "12px" }}>
+                Click "Plan New Exam" to schedule your first examination timetable.
+              </p>
+            </div>
+          ) : (
+            examGroups.map((group) => {
+              const isCollapsed = collapsedExams[group.key] === true;
+              return (
+                <div
+                  key={group.key}
+                  style={{
+                    background: "#ffffff",
+                    border: "1px solid #e4e6e9",
+                    borderRadius: "10px",
+                    overflow: "hidden",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+                  }}
+                >
+                  {/* Master Exam Header Bar */}
+                  <div
+                    style={{
+                      padding: "16px 20px",
+                      background: "#f8fafc",
+                      borderBottom: isCollapsed ? "none" : "1px solid #e4e6e9",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: "12px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px", minWidth: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => toggleExam(group.key)}
+                        style={{
+                          background: "transparent",
+                          border: "none",
+                          padding: "4px",
+                          cursor: "pointer",
+                          color: "#64748b",
+                          display: "inline-flex",
+                          alignItems: "center",
+                        }}
+                        title={isCollapsed ? "Expand Date-Sheet" : "Collapse Date-Sheet"}
+                      >
+                        {isCollapsed ? <ChevronDown size={20} /> : <ChevronUp size={20} />}
+                      </button>
+                      <div>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                          <span style={{ fontSize: "15px", fontWeight: 700, color: "#0c1e33" }}>
+                            {group.examName}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: "10px",
+                              background: "#e2e8f0",
+                              color: "#334155",
+                            }}
+                          >
+                            {group.term}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              borderRadius: "4px",
+                              background: group.allPublished ? "#dcfce7" : "#f1f5f9",
+                              color: group.allPublished ? "#166534" : "#475569",
+                            }}
+                          >
+                            {group.allPublished ? "Published" : "Draft"}
+                          </span>
+                        </div>
+                        <div
                           style={{
-                            padding: "3px 8px",
-                            borderRadius: "4px",
-                            fontSize: "11px",
-                            fontWeight: 700,
-                            background: plan.status === "scheduled" ? "#dcfce7" : "#f1f5f9",
-                            color: plan.status === "scheduled" ? "#166534" : "#475569",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "10px",
+                            marginTop: "6px",
+                            fontSize: "12px",
+                            color: "#64748b",
+                            flexWrap: "wrap",
                           }}
                         >
-                          {plan.status}
-                        </span>
-                      </td>
-                      <td style={{ padding: "12px 16px", textAlign: "right" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <Calendar size={13} style={{ flexShrink: 0 }} />
+                            {group.minDate && group.maxDate
+                              ? group.minDate === group.maxDate
+                                ? group.minDate
+                                : `${group.minDate} to ${group.maxDate}`
+                              : "Dates pending"}
+                          </span>
+                          <span>•</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                            <GraduationCap size={13} style={{ flexShrink: 0 }} />
+                            {group.classes.join(", ")}
+                          </span>
+                          <span>•</span>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "4px", fontWeight: 600, color: "#334155" }}>
+                            <FileText size={13} style={{ flexShrink: 0 }} />
+                            {group.plans.length} {group.plans.length === 1 ? "paper" : "papers"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      {!group.allPublished && (
                         <button
                           type="button"
-                          onClick={() => openPlan(plan)}
-                          style={{
-                            padding: "5px 12px",
-                            borderRadius: "6px",
-                            border: "1px solid #e4e6e9",
-                            background: "#ffffff",
-                            fontSize: "11px",
-                            fontWeight: 600,
-                            color: "#0c1e33",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Edit Plan
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                          disabled={busy}
+                          onClick={async () => {
+                            if (busy) return;
+                            setBusy(true);
+                            setError("");
+                            setData((prev) => {
+                              if (!prev) return prev;
+                              return {
+                                ...prev,
+                                plans: prev.plans.map((p) =>
+                                  (p.examName === group.examName && p.term === group.term) ||
+                                  group.plans.some((gp) => gp.id === p.id)
+                                    ? { ...p, status: "scheduled" }
+                                    : p,
+                              ),
+                            };
+                          });
+                          try {
+                            const planIds = group.plans.map((p) => p.id);
+                            await publishPrincipalExamPlans(organizationId, {
+                              examName: group.examName,
+                              term: group.term,
+                              planIds,
+                              status: "scheduled",
+                            });
+                            await load();
+                          } catch (err: any) {
+                            setError(err instanceof Error ? err.message : "Failed to publish timetable");
+                            await load();
+                          } finally {
+                            setBusy(false);
+                          }
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "6px 14px",
+                          borderRadius: "6px",
+                          border: "none",
+                          background: "#0c1e33",
+                          fontSize: "12px",
+                          fontWeight: 700,
+                          color: "#ffffff",
+                          cursor: busy ? "not-allowed" : "pointer",
+                          boxShadow: "0 2px 4px rgba(12,30,51,0.18)",
+                          opacity: busy ? 0.7 : 1,
+                        }}
+                      >
+                        <Send size={13} /> Publish Entire Timetable
+                      </button>
+                    )}
+
+                    {group.allPublished && (
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={async () => {
+                          if (busy) return;
+                          setBusy(true);
+                          setError("");
+                          setData((prev) => {
+                            if (!prev) return prev;
+                            return {
+                              ...prev,
+                              plans: prev.plans.map((p) =>
+                                (p.examName === group.examName && p.term === group.term) ||
+                                group.plans.some((gp) => gp.id === p.id)
+                                  ? { ...p, status: "draft" }
+                                  : p,
+                            ),
+                          };
+                        });
+                        try {
+                          const planIds = group.plans.map((p) => p.id);
+                          await publishPrincipalExamPlans(organizationId, {
+                            examName: group.examName,
+                            term: group.term,
+                            planIds,
+                            status: "draft",
+                          });
+                          await load();
+                        } catch (err: any) {
+                          setError(err instanceof Error ? err.message : "Failed to change timetable status");
+                          await load();
+                        } finally {
+                          setBusy(false);
+                        }
+                      }}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        padding: "6px 13px",
+                        borderRadius: "6px",
+                        border: "1px solid #d0d5dd",
+                        background: "#ffffff",
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "#344054",
+                        cursor: busy ? "not-allowed" : "pointer",
+                        opacity: busy ? 0.7 : 1,
+                      }}
+                      title="Revert published timetable back to draft mode"
+                    >
+                      <RotateCcw size={13} /> Change Status (Revert to Draft)
+                    </button>
+                  )}
+
+                      <button
+                        type="button"
+                        onClick={() => toggleExam(group.key)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "4px",
+                          padding: "6px 12px",
+                          borderRadius: "6px",
+                          border: "1px solid #d0d5dd",
+                          background: "#ffffff",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          color: "#344054",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {isCollapsed ? "View Timetable" : "Hide Timetable"}
+                        {isCollapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Expandable Timetable / Date-Sheet Table */}
+                  {!isCollapsed && (
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", textAlign: "left", fontSize: "12px" }}>
+                        <thead>
+                          <tr style={{ background: "#ffffff", borderBottom: "1px solid #e4e6e9", color: "#64748b", fontWeight: 700 }}>
+                            <th style={{ padding: "10px 16px" }}>Date</th>
+                            <th style={{ padding: "10px 16px" }}>Class / Section</th>
+                            <th style={{ padding: "10px 16px" }}>Subject</th>
+                            <th style={{ padding: "10px 16px" }}>Time Window</th>
+                            <th style={{ padding: "10px 16px" }}>Duration</th>
+                            <th style={{ padding: "10px 16px" }}>Max / Pass</th>
+                            <th style={{ padding: "10px 16px" }}>Status</th>
+                            <th style={{ padding: "10px 16px", textAlign: "right" }}>Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {group.plans.map((plan) => {
+                            const [sh, sm] = (plan.startTime || "").split(":").map(Number);
+                            const [eh, em] = (plan.endTime || "").split(":").map(Number);
+                            const diff = (eh * 60 + em) - (sh * 60 + sm);
+                            const durationLabel = diff > 0 ? (diff % 60 === 0 ? `${diff/60}h` : `${Math.floor(diff/60)}h ${diff%60}m`) : "--";
+                            return (
+                              <tr key={plan.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                                <td style={{ padding: "10px 16px", fontWeight: 600, color: "#1e293b" }}>{plan.examDate}</td>
+                                <td style={{ padding: "10px 16px", color: "#475569" }}>{plan.className} - {plan.sectionName}</td>
+                                <td style={{ padding: "10px 16px", fontWeight: 600, color: "#0c1e33" }}>{plan.subjectName}</td>
+                                <td style={{ padding: "10px 16px", color: "#64748b" }}>{plan.startTime} – {plan.endTime}</td>
+                                <td style={{ padding: "10px 16px", color: "#64748b" }}>{durationLabel}</td>
+                                <td style={{ padding: "10px 16px", color: "#1e293b" }}>{plan.maxMarks} / {plan.passingMarks}</td>
+                                <td style={{ padding: "10px 16px" }}>
+                                  <span
+                                    style={{
+                                      padding: "2px 7px",
+                                      borderRadius: "4px",
+                                      fontSize: "11px",
+                                      fontWeight: 700,
+                                      background: plan.status === "scheduled" ? "#dcfce7" : "#f1f5f9",
+                                      color: plan.status === "scheduled" ? "#166534" : "#475569",
+                                    }}
+                                  >
+                                    {plan.status === "scheduled" ? "Published" : "Draft"}
+                                  </span>
+                                </td>
+                                <td style={{ padding: "10px 16px", textAlign: "right" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => openPlan(plan)}
+                                    style={{
+                                      padding: "4px 10px",
+                                      borderRadius: "5px",
+                                      border: "1px solid #e4e6e9",
+                                      background: "#ffffff",
+                                      fontSize: "11px",
+                                      fontWeight: 600,
+                                      color: "#0c1e33",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
 
           <ExamPlanDrawer
             open={showCreateDrawer}
             sections={data.sections}
+            allSubjects={data.subjects}
             busy={busy}
             onClose={() => setShowCreateDrawer(false)}
             onSubmit={createPlans}
@@ -1139,9 +1460,27 @@ export function ExaminationsPane({
                       </p>
                     </div>
                   </div>
-                  <span style={{ padding: "3px 8px", borderRadius: "4px", fontSize: "11px", fontWeight: 700, background: "#dcfce7", color: "#166534" }}>
-                    Official Certified Report
-                  </span>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ padding: "4px 10px", borderRadius: "6px", fontSize: "11px", fontWeight: 700, background: "#dcfce7", color: "#166534" }}>
+                      Official Certified Report
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => window.print()}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: "6px",
+                        border: "1px solid #e4e6e9",
+                        background: "#ffffff",
+                        fontSize: "11px",
+                        fontWeight: 600,
+                        color: "#0c1e33",
+                        cursor: "pointer",
+                      }}
+                    >
+                      Print
+                    </button>
+                  </div>
                 </div>
 
                 <div style={{ overflowX: "auto" }}>
@@ -1170,6 +1509,24 @@ export function ExaminationsPane({
                         </tr>
                       ))}
                     </tbody>
+                    <tfoot>
+                      <tr style={{ background: "#f8fafc", borderTop: "2px solid #cbd5e1", fontWeight: 800 }}>
+                        <td style={{ padding: "12px 14px", color: "#0c1e33" }}>
+                          TOTAL / OVERALL RESULT
+                        </td>
+                        <td style={{ padding: "12px 14px", color: "#0c1e33" }}>
+                          {card.totalMarks ?? card.subjects.reduce((a, b) => a + Number(b.marksObtained), 0)} / {card.maxTotal ?? card.subjects.reduce((a, b) => a + Number(b.maxMarks), 0)}
+                        </td>
+                        <td style={{ padding: "12px 14px", color: "#15803d" }}>
+                          {card.overallPercentage ?? (card.maxTotal ? Math.round(((card.totalMarks || 0) / card.maxTotal) * 100) : 0)}%
+                        </td>
+                        <td style={{ padding: "12px 14px" }}>
+                          <span style={{ padding: "3px 10px", borderRadius: "4px", fontSize: "11px", fontWeight: 800, background: "#0c1e33", color: "#ffffff" }}>
+                            {card.overallGrade || "A1"}
+                          </span>
+                        </td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
               </article>

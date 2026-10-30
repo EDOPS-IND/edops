@@ -33,3 +33,30 @@ test('import only accepts actual enrolled student scores', async () => {
   } }) });
   assert.deepEqual(await service.importTeacherMarks('school-1', 'evaluation-1'), { imported: 1 });
 });
+
+test('publishExamPlans updates plans status and succeeds without blocking on audience notify', async () => {
+  const actor = { id: '00000000-0000-0000-0000-000000000001', name: 'Principal' };
+  const service = new PrincipalAssessmentsService({
+    transaction: async (run) => run({
+      query: async (sql, params) => {
+        if (sql.includes('SELECT pg_advisory_xact_lock')) return [];
+        if (sql.includes('UPDATE principal_exam_plans')) {
+          assert.equal(params[2], 'scheduled');
+          return [{ id: 'plan-1', sectionId: 'sec-1' }, { id: 'plan-2', sectionId: 'sec-2' }];
+        }
+        return [];
+      },
+    }),
+    query: async () => [],
+  });
+
+  const res = await service.publishExamPlans('school-1', actor, {
+    examName: 'Midterm',
+    term: 'Term 1',
+    planIds: ['plan-1', 'plan-2'],
+    status: 'scheduled',
+  });
+
+  assert.deepEqual(res, { success: true, count: 2, status: 'scheduled' });
+});
+

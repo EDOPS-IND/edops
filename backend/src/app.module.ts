@@ -18,6 +18,7 @@ import { PrincipalModule } from './modules/principal/principal.module';
 import { TeacherModule } from './modules/teacher/teacher.module';
 import { ParentModule } from './modules/parent/parent.module';
 import { StudentModule } from './modules/student/student.module';
+import { OcrModule } from './modules/ocr/ocr.module';
 import { DatabaseModule } from './database/database.module';
 import { DrizzleService } from './database/drizzle.service';
 
@@ -82,6 +83,7 @@ export class AppModule {
         TeacherModule,
         StudentModule,
         ParentModule,
+        OcrModule,
       ],
       controllers: [HealthController],
       providers: [

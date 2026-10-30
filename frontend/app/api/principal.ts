@@ -119,12 +119,13 @@ export function createPrincipalQuestionPaper(orgId: string, data: any) { return 
 export function reviewPrincipalQuestionPaper(orgId: string, paperId: string, data: { status: string; reviewComments?: string }) { return api<any>(`/organizations/${orgId}/principal/assessments/question-papers/${paperId}/status`, { method: "PATCH", body: data }); }
 
 export async function getPrincipalExaminations(orgId: string) {
-  return api<any>(`/organizations/${orgId}/principal/assessments/examinations`);
+  return api<any>(`/organizations/${orgId}/principal/assessments/examinations`, { noCache: true });
 }
 
 export function createPrincipalExamPlan(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/plans`, { method: "POST", body: data }); }
 export function createPrincipalExamPlans(orgId: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/plans/bulk`, { method: "POST", body: data }); }
 export function updatePrincipalExamPlan(orgId: string, id: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/plans/${id}`, { method: "PATCH", body: data }); }
+export function publishPrincipalExamPlans(orgId: string, data: { examName: string; term: string; planIds?: string[]; sectionIds?: string[]; status?: "draft" | "scheduled" }) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/plans/publish`, { method: "POST", body: data }); }
 export function importPrincipalTeacherMarks(orgId: string, id: string) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/evaluations/${id}/import`, { method: "POST" }); }
 export function reviewPrincipalExamResult(orgId: string, id: string, data: unknown) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/results/${id}`, { method: "PATCH", body: data }); }
 export function publishPrincipalExamResults(orgId: string, data: { term: string; examName: string; className: string; sectionName: string }) { return api<any>(`/organizations/${orgId}/principal/assessments/examinations/publish-results`, { method: "POST", body: data }); }

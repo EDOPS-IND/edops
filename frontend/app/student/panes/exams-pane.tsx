@@ -314,13 +314,34 @@ export function ExamsPane({ organizationId }: ExamsPaneProps) {
                   </h3>
                 </div>
 
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '28px', fontWeight: 700, color: T.navy, lineHeight: 1 }}>
-                    {card.percentage}%
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '26px', fontWeight: 700, color: T.navy, lineHeight: 1 }}>
+                      {card.percentage}%
+                    </div>
+                    <span style={{ fontSize: '11px', color: T.slate }}>
+                      Total: {card.totalMarks} / {card.maxTotal} marks
+                    </span>
                   </div>
-                  <span style={{ fontSize: '11px', color: T.slate }}>
-                    Total: {card.totalMarks} / {card.maxTotal} marks
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => window.print()}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '6px',
+                      border: `1px solid ${T.border}`,
+                      background: T.white,
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: T.navy,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Printer size={13} /> Print / Save
+                  </button>
                 </div>
               </div>
 
@@ -353,7 +374,7 @@ export function ExamsPane({ organizationId }: ExamsPaneProps) {
                       display: 'grid',
                       gridTemplateColumns: '2fr 1fr 1fr 1fr',
                       padding: '12px 16px',
-                      borderBottom: sIdx === card.subjects.length - 1 ? 'none' : `1px solid ${T.border}`,
+                      borderBottom: `1px solid ${T.border}`,
                       fontSize: '13px',
                       alignItems: 'center',
                       background: sIdx % 2 === 0 ? T.white : '#fcfdfe',
@@ -378,6 +399,27 @@ export function ExamsPane({ organizationId }: ExamsPaneProps) {
                     </span>
                   </div>
                 ))}
+
+                {/* Final Row - Total & Overall Result */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '2fr 1fr 1fr 1fr',
+                    padding: '12px 16px',
+                    background: '#f8fafc',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    alignItems: 'center',
+                    borderTop: `2px solid ${T.border}`,
+                  }}
+                >
+                  <span style={{ color: T.navy }}>TOTAL SCORE / RESULT</span>
+                  <span style={{ textAlign: 'center', color: T.navy }}>{card.totalMarks}</span>
+                  <span style={{ textAlign: 'center', color: T.slate }}>{card.maxTotal}</span>
+                  <span style={{ textAlign: 'right', color: card.percentage >= 33 ? '#15803d' : '#dc2626' }}>
+                    {card.percentage >= 33 ? 'PASS' : 'NEEDS SUPPORT'}
+                  </span>
+                </div>
               </div>
             </div>
           ))

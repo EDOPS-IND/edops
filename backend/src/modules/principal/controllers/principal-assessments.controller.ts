@@ -18,12 +18,13 @@ import {
   CreateQuestionPaperDto,
   CreateExamPlanDto,
   CreateExamPlansDto,
+  PublishExamPlanDto,
   PublishExamResultsDto,
   ReviewExamResultDto,
   ReviewQuestionPaperDto,
   UpdateExamPlanDto,
 } from "../dto/principal.dto";
-import { AllowSchoolAdminExamCreate, PrincipalGuard } from "../guards/principal.guard";
+import { PrincipalGuard } from "../guards/principal.guard";
 import { PrincipalAssessmentsService } from "../services/principal-assessments.service";
 
 @ApiTags("Principal Academic Command Center - Assessments & Examinations")
@@ -87,7 +88,6 @@ export class PrincipalAssessmentsController {
   }
 
   @Post("examinations/plans")
-  @AllowSchoolAdminExamCreate()
   @RequireFeature("exams")
   createExamPlan(
     @Param("organizationId", ParseUUIDPipe) orgId: string,
@@ -98,7 +98,6 @@ export class PrincipalAssessmentsController {
   }
 
   @Post("examinations/plans/bulk")
-  @AllowSchoolAdminExamCreate()
   @RequireFeature("exams")
   createExamPlans(
     @Param("organizationId", ParseUUIDPipe) orgId: string,
@@ -108,14 +107,25 @@ export class PrincipalAssessmentsController {
     return this.service.createExamPlans(orgId, req.user, dto);
   }
 
+  @Post("examinations/plans/publish")
+  @RequireFeature("exams")
+  publishExamPlans(
+    @Param("organizationId", ParseUUIDPipe) orgId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: PublishExamPlanDto,
+  ) {
+    return this.service.publishExamPlans(orgId, req.user, dto);
+  }
+
   @Patch("examinations/plans/:id")
   @RequireFeature("exams")
   updateExamPlan(
     @Param("organizationId", ParseUUIDPipe) orgId: string,
     @Param("id", ParseUUIDPipe) id: string,
+    @Req() req: AuthenticatedRequest,
     @Body() dto: UpdateExamPlanDto,
   ) {
-    return this.service.updateExamPlan(orgId, id, dto);
+    return this.service.updateExamPlan(orgId, req.user, id, dto);
   }
 
   @Post("examinations/evaluations/:id/import")

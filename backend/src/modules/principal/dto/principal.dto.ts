@@ -586,6 +586,7 @@ export class CreateExamPlanDto {
 export class CreateExamPlanSubjectDto {
   @IsUUID() sectionId!: string;
   @IsUUID() subjectId!: string;
+  @IsOptional() @IsDateString() examDate?: string;
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) startTime!: string;
   @Matches(/^([01]\d|2[0-3]):[0-5]\d$/) endTime!: string;
   @Type(() => Number) @IsNumber() @Min(0.01) @Max(999.99) maxMarks!: number;
@@ -603,6 +604,14 @@ export class CreateExamPlansDto {
 }
 
 export class UpdateExamPlanDto extends PartialType(CreateExamPlanDto) {}
+
+export class PublishExamPlanDto {
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(150) examName!: string;
+  @Transform(trim) @IsString() @IsNotEmpty() @MaxLength(60) term!: string;
+  @IsOptional() @IsArray() sectionIds?: string[];
+  @IsOptional() @IsArray() planIds?: string[];
+  @IsOptional() @IsIn(["draft", "scheduled"]) status?: "draft" | "scheduled";
+}
 
 export class ReviewExamResultDto {
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0) marksObtained?: number;

@@ -17,6 +17,9 @@ export function ReportCardModal({
   if (!isOpen) return null;
 
   const results = selectedWard.data?.results || [];
+  const totalScore = results.reduce((acc: number, r: any) => acc + (Number(r.score) || 0), 0);
+  const totalMax = results.reduce((acc: number, r: any) => acc + (Number(r.max) || 0), 0);
+  const aggregatePct = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0;
 
   return (
     <div
@@ -169,6 +172,34 @@ export function ReportCardModal({
                   ))
                 )}
               </tbody>
+              {results.length > 0 && (
+                <tfoot>
+                  <tr style={{ background: "#f8fafc", borderTop: "2px solid #cbd5e1", fontWeight: 800 }}>
+                    <td colSpan={2} style={{ padding: "12px 14px", color: "#0c1e33" }}>
+                      TOTAL SCORE &amp; AGGREGATE
+                    </td>
+                    <td style={{ padding: "12px 14px", color: "#0c1e33" }}>{totalScore}</td>
+                    <td style={{ padding: "12px 14px", color: "#64748b" }}>{totalMax}</td>
+                    <td style={{ padding: "12px 14px", color: aggregatePct >= 75 ? "#15803d" : "#dc2626" }}>
+                      {aggregatePct}%
+                    </td>
+                    <td style={{ padding: "12px 14px" }}>
+                      <span
+                        style={{
+                          padding: "3px 8px",
+                          borderRadius: "4px",
+                          fontSize: "11px",
+                          fontWeight: 800,
+                          background: "#0c1e33",
+                          color: "#ffffff",
+                        }}
+                      >
+                        {aggregatePct >= 91 ? "A1" : aggregatePct >= 81 ? "A2" : aggregatePct >= 71 ? "B1" : aggregatePct >= 61 ? "B2" : aggregatePct >= 51 ? "C1" : aggregatePct >= 33 ? "D" : "E"}
+                      </span>
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </div>
