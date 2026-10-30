@@ -10,6 +10,7 @@ import {
   CreateExamPlanDto,
   CreateExamPlansDto,
   CreateQuestionPaperDto,
+  PublishExamPlanDto,
   PublishExamResultsDto,
   ReviewExamResultDto,
   ReviewQuestionPaperDto,
@@ -28,7 +29,8 @@ export class PrincipalAssessmentsService {
       `SELECT id, title, subject_name AS "subjectName", grade, term,
               total_marks AS "totalMarks", duration_minutes AS "durationMinutes",
               difficulty_easy_pct AS "difficultyEasyPct", difficulty_medium_pct AS "difficultyMediumPct",
-              difficulty_hard_pct AS "difficultyHardPct", competency_mapped AS "competencyMapped",
+              difficulty_hard_pct AS "difficultyHardPct", blueprint_json AS "blueprintJson",
+              competency_mapped AS "competencyMapped",
               submitted_by_name AS "submittedByName", status, review_comments AS "reviewComments",
               created_at AS "createdAt"
        FROM principal_question_papers
@@ -271,6 +273,11 @@ export class PrincipalAssessmentsService {
         className: string;
         sectionName: string;
         subjects: any[];
+        totalMarks: number;
+        maxTotal: number;
+        overallPercentage: number;
+        overallGrade: string;
+        academicStanding: string;
       }
     >();
     for (const row of results) {
@@ -290,14 +297,24 @@ export class PrincipalAssessmentsService {
         className: row.className,
         sectionName: row.sectionName,
         subjects: [] as any[],
+        totalMarks: 0,
+        maxTotal: 0,
+        overallPercentage: 0,
+        overallGrade: "—",
+        academicStanding: "Needs Support",
       };
       card.subjects.push({
         subjectName: row.subjectName,
-        marksObtained: row.marksObtained,
-        maxMarks: row.maxMarks,
-        percentage: row.percentage,
+        marksObtained: Number(row.marksObtained),
+        maxMarks: Number(row.maxMarks),
+        percentage: Number(row.percentage),
         grade: row.grade,
       });
+      card.totalMarks += Number(row.marksObtained);
+      card.maxTotal += Number(row.maxMarks);
+      card.overallPercentage = card.maxTotal > 0 ? Number(((card.totalMarks / card.maxTotal) * 100).toFixed(1)) : 0;
+      card.overallGrade = card.overallPercentage >= 91 ? 'A1' : card.overallPercentage >= 81 ? 'A2' : card.overallPercentage >= 71 ? 'B1' : card.overallPercentage >= 61 ? 'B2' : card.overallPercentage >= 51 ? 'C1' : card.overallPercentage >= 41 ? 'C2' : card.overallPercentage >= 33 ? 'D' : 'E';
+      card.academicStanding = card.overallPercentage >= 80 ? 'Exemplary' : card.overallPercentage >= 65 ? 'Good' : card.overallPercentage >= 40 ? 'Average' : 'Needs Support';
       reportCards.set(key, card);
     }
     return {
@@ -322,48 +339,128 @@ export class PrincipalAssessmentsService {
   }
 
   async createExamPlans(orgId: string, actor: User, dto: CreateExamPlansDto) {
-    return this.drizzle.transaction(async (manager) => {
+    const result = await this.drizzle.transaction(async (manager) => {
       await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [orgId]);
       const saved: any[] = [];
       for (const plan of dto.plans) {
+        const planDate = plan.examDate || dto.examDate;
         if (plan.startTime >= plan.endTime || Number(plan.passingMarks) > Number(plan.maxMarks)) {
           throw new BadRequestException("Each subject needs a valid time range and passing marks no higher than maximum marks");
         }
         const [valid] = await manager.query(
           `SELECT 1 FROM sections sec
            JOIN academic_years y ON y.id=sec.academic_year_id AND y.organization_id=sec.organization_id AND y.is_current=true
-           JOIN class_subject_assignments csa ON csa.organization_id=sec.organization_id AND csa.section_id=sec.id AND csa.subject_id=$3
+           JOIN subjects subj ON subj.organization_id=sec.organization_id AND subj.id=$3
            WHERE sec.organization_id=$1 AND sec.id=$2 AND $4::date BETWEEN y.start_date AND y.end_date`,
-          [orgId, plan.sectionId, plan.subjectId, dto.examDate],
+          [orgId, plan.sectionId, plan.subjectId, planDate],
         );
         if (!valid) throw new BadRequestException("Select an enrolled subject for a current-year section");
         const [clash] = await manager.query(
           `SELECT id FROM principal_exam_plans WHERE organization_id=$1 AND section_id=$2 AND exam_date=$3::date
            AND start_time < $5 AND end_time > $4 AND exam_name <> $6 LIMIT 1`,
-          [orgId, plan.sectionId, dto.examDate, plan.startTime, plan.endTime, dto.examName],
+          [orgId, plan.sectionId, planDate, plan.startTime, plan.endTime, dto.examName],
         );
         if (clash) throw new ConflictException("This class already has an exam during that time");
-        const [duplicate] = await manager.query(
-          `SELECT id FROM principal_exam_plans WHERE organization_id=$1 AND section_id=$2 AND subject_id=$3
-           AND exam_name=$4 AND exam_date=$5::date LIMIT 1`,
-          [orgId, plan.sectionId, plan.subjectId, dto.examName, dto.examDate],
+
+        const [existing] = await manager.query(
+          `SELECT id, status FROM principal_exam_plans
+           WHERE organization_id=$1 AND section_id=$2 AND subject_id=$3
+             AND lower(trim(exam_name))=lower(trim($4)) AND lower(trim(term))=lower(trim($5)) LIMIT 1`,
+          [orgId, plan.sectionId, plan.subjectId, dto.examName, dto.term],
         );
-        if (duplicate) throw new ConflictException("This exam is already planned for one of the selected subjects");
-        const [row] = await manager.query(
-          `INSERT INTO principal_exam_plans
-           (organization_id,section_id,subject_id,exam_name,term,exam_date,start_time,end_time,max_marks,passing_marks,status,created_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
-          [orgId, plan.sectionId, plan.subjectId, dto.examName, dto.term, dto.examDate,
-            plan.startTime, plan.endTime, plan.maxMarks, plan.passingMarks, dto.status, actor.id],
-        );
+
+        let row;
+        if (existing) {
+          const [updated] = await manager.query(
+            `UPDATE principal_exam_plans
+             SET exam_date=$1::date, start_time=$2, end_time=$3, max_marks=$4, passing_marks=$5, status=$6
+             WHERE id=$7 RETURNING id`,
+            [planDate, plan.startTime, plan.endTime, plan.maxMarks, plan.passingMarks, dto.status, existing.id],
+          );
+          row = updated;
+        } else {
+          const [inserted] = await manager.query(
+            `INSERT INTO principal_exam_plans
+             (organization_id,section_id,subject_id,exam_name,term,exam_date,start_time,end_time,max_marks,passing_marks,status,created_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+            [orgId, plan.sectionId, plan.subjectId, dto.examName, dto.term, planDate,
+              plan.startTime, plan.endTime, plan.maxMarks, plan.passingMarks, dto.status, actor.id],
+          );
+          row = inserted;
+        }
         saved.push(row);
       }
-      return { success: true, count: saved.length, plans: saved };
+      const affectedSectionIds = Array.from(new Set(dto.plans.map((p) => p.sectionId)));
+      return { success: true, count: saved.length, plans: saved, affectedSectionIds };
     });
+
+    if (dto.status === "scheduled" && result.affectedSectionIds.length > 0) {
+      this.notifyAffectedExamAudience(
+        orgId,
+        actor,
+        dto.examName,
+        dto.term,
+        result.affectedSectionIds,
+      ).catch(() => {});
+    }
+
+    return { success: true, count: result.count, plans: result.plans };
   }
 
-  updateExamPlan(orgId: string, id: string, dto: UpdateExamPlanDto) {
-    return this.saveExamPlan(orgId, null, id, dto);
+  updateExamPlan(orgId: string, actor: User, id: string, dto: UpdateExamPlanDto) {
+    return this.saveExamPlan(orgId, actor?.id || null, id, dto);
+  }
+
+  async publishExamPlans(orgId: string, actor: User, dto: PublishExamPlanDto) {
+    const targetStatus = dto.status || "scheduled";
+    const result = await this.drizzle.transaction(async (manager) => {
+      await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [orgId]);
+
+      let whereClause = `organization_id = $1`;
+      const params: any[] = [orgId];
+
+      if (dto.planIds && dto.planIds.length > 0) {
+        params.push(dto.planIds);
+        whereClause += ` AND id = ANY($${params.length}::uuid[])`;
+      } else {
+        if (dto.examName) {
+          params.push(dto.examName);
+          whereClause += ` AND lower(trim(exam_name)) = lower(trim($${params.length}))`;
+        }
+        if (dto.term) {
+          params.push(dto.term);
+          whereClause += ` AND lower(trim(term)) = lower(trim($${params.length}))`;
+        }
+        if (dto.sectionIds && dto.sectionIds.length > 0) {
+          params.push(dto.sectionIds);
+          whereClause += ` AND section_id = ANY($${params.length}::uuid[])`;
+        }
+      }
+
+      params.push(targetStatus);
+      const rows = await manager.query(
+        `UPDATE principal_exam_plans
+         SET status = $${params.length}
+         WHERE ${whereClause}
+         RETURNING id, section_id AS "sectionId"`,
+        params,
+      );
+
+      const affectedSectionIds = Array.from(new Set(rows.map((r: any) => r.sectionId))) as string[];
+      return { success: true, count: rows.length, status: targetStatus, affectedSectionIds };
+    });
+
+    if (targetStatus === "scheduled" && result.affectedSectionIds.length > 0) {
+      this.notifyAffectedExamAudience(
+        orgId,
+        actor,
+        dto.examName,
+        dto.term,
+        result.affectedSectionIds,
+      ).catch(() => {});
+    }
+
+    return { success: true, count: result.count, status: targetStatus };
   }
 
   private async saveExamPlan(
@@ -372,7 +469,7 @@ export class PrincipalAssessmentsService {
     id: string | null,
     dto: UpdateExamPlanDto,
   ) {
-    return this.drizzle.transaction(async (manager) => {
+    const result = await this.drizzle.transaction(async (manager) => {
       // ponytail: a school-wide transaction lock keeps the overlap check atomic; split by class if write volume grows.
       await manager.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
         orgId,
@@ -491,8 +588,106 @@ export class PrincipalAssessmentsService {
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
             [...params, actorId],
           );
-      return saved;
+
+      const shouldNotify = value.status === "scheduled" && (!previous || previous.status !== "scheduled");
+      return {
+        saved,
+        shouldNotify,
+        actorId: actorId || previous?.created_by || null,
+        examName: value.examName,
+        term: value.term,
+        sectionId: value.sectionId,
+      };
     });
+
+    if (result.shouldNotify) {
+      const actor = { id: result.actorId || "system" } as User;
+      this.notifyAffectedExamAudience(
+        orgId,
+        actor,
+        result.examName,
+        result.term,
+        [result.sectionId],
+      ).catch(() => {});
+    }
+
+    return result.saved;
+  }
+
+  private async notifyAffectedExamAudience(
+    orgId: string,
+    actor: User,
+    examName: string,
+    term: string,
+    sectionIds: string[],
+  ) {
+    if (!sectionIds || !sectionIds.length) return;
+
+    try {
+      const [totalSectionsRow] = await this.drizzle.query(
+        `SELECT count(*)::int AS count FROM sections WHERE organization_id = $1`,
+        [orgId],
+      );
+      const totalSections = totalSectionsRow?.count || 0;
+      const isSchoolWide = sectionIds.length >= totalSections && totalSections > 0;
+
+      const students = await this.drizzle.query(
+        `SELECT DISTINCT student_user_id AS "userId"
+         FROM enrollments
+         WHERE organization_id = $1 AND section_id = ANY($2::uuid[]) AND status = 'active'`,
+        [orgId, sectionIds],
+      );
+
+      const parents = await this.drizzle.query(
+        `SELECT DISTINCT psr.parent_id AS "userId"
+         FROM parent_student_relationships psr
+         JOIN enrollments e ON e.student_user_id = psr.student_id AND e.organization_id = psr.school_id
+         WHERE psr.school_id = $1 AND e.section_id = ANY($2::uuid[]) AND e.status = 'active'`,
+        [orgId, sectionIds],
+      );
+
+      const teachers = await this.drizzle.query(
+        `SELECT DISTINCT teacher_user_id AS "userId"
+         FROM class_subject_assignments
+         WHERE organization_id = $1 AND section_id = ANY($2::uuid[]) AND teacher_user_id IS NOT NULL`,
+        [orgId, sectionIds],
+      );
+
+      const recipientUserIds: string[] = Array.from(
+        new Set([
+          ...students.map((s: any) => s.userId),
+          ...parents.map((p: any) => p.userId),
+          ...teachers.map((t: any) => t.userId),
+        ]),
+      ).filter(Boolean);
+
+      if (!recipientUserIds.length) return;
+
+      const subjectLine = `Examination Timetable Announced: ${examName} (${term})`;
+      const body = `The official exam schedule for ${examName} (${term}) has been published. Please check your examination timetable for dates, timings, and duration.`;
+
+      if (isSchoolWide && actor?.id) {
+        await this.drizzle.query(
+          `INSERT INTO school_broadcasts (
+            organization_id, title, message, channels, target_audience, priority, sent_by, sender_name, recipient_count
+          ) VALUES ($1, $2, $3, '{"in_app"}', 'all', 'high', $4, $5, $6)`,
+          [orgId, subjectLine, body, actor.id, actor.name || "Principal", recipientUserIds.length],
+        );
+      }
+
+      await this.drizzle.query("SELECT pg_notify($1, $2)", [
+        "edops_communication",
+        JSON.stringify({
+          organizationId: orgId,
+          userIds: recipientUserIds,
+          type: "exam.timetable_published",
+          examName,
+          term,
+        }),
+      ]);
+    } catch {
+      // Non-blocking notification emission
+    }
   }
 
   async importTeacherMarks(orgId: string, evaluationId: string) {
@@ -541,10 +736,21 @@ export class PrincipalAssessmentsService {
           `INSERT INTO principal_exam_results
           (organization_id, exam_name, term, class_name, section_name, subject_name, student_user_id,
             student_name, marks_obtained, max_marks, percentage, grade, status)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,ROUND(100 * $9::numeric / $10::numeric, 2),'','Entered')
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,ROUND(100 * $9::numeric / $10::numeric, 2),
+            CASE
+              WHEN (100.0 * $9::numeric / $10::numeric) >= 91 THEN 'A1'
+              WHEN (100.0 * $9::numeric / $10::numeric) >= 81 THEN 'A2'
+              WHEN (100.0 * $9::numeric / $10::numeric) >= 71 THEN 'B1'
+              WHEN (100.0 * $9::numeric / $10::numeric) >= 61 THEN 'B2'
+              WHEN (100.0 * $9::numeric / $10::numeric) >= 51 THEN 'C1'
+              WHEN (100.0 * $9::numeric / $10::numeric) >= 41 THEN 'C2'
+              WHEN (100.0 * $9::numeric / $10::numeric) >= 33 THEN 'D'
+              ELSE 'E'
+            END,
+            'Entered')
           ON CONFLICT (organization_id, term, exam_name, class_name, section_name, subject_name, student_user_id)
           DO UPDATE SET marks_obtained = EXCLUDED.marks_obtained, max_marks = EXCLUDED.max_marks,
-            percentage = EXCLUDED.percentage
+            percentage = EXCLUDED.percentage, grade = EXCLUDED.grade
           WHERE principal_exam_results.status = 'Entered' AND principal_exam_results.is_locked = false
           RETURNING id`,
           [
@@ -622,7 +828,7 @@ export class PrincipalAssessmentsService {
   async publishResults(orgId: string, actor: User, dto: PublishExamResultsDto) {
     return this.drizzle.transaction(async (manager) => {
       const rows = await manager.query(
-        `SELECT id, status, is_locked FROM principal_exam_results
+        `SELECT id, status, is_locked, subject_name FROM principal_exam_results
         WHERE organization_id = $1 AND term = $2 AND exam_name = $3 AND class_name = $4 AND section_name = $5 FOR UPDATE`,
         [orgId, dto.term, dto.examName, dto.className, dto.sectionName],
       );
@@ -630,6 +836,29 @@ export class PrincipalAssessmentsService {
         throw new NotFoundException(
           "No saved results match this exam and class",
         );
+
+      const plannedSubjects = await manager.query(
+        `SELECT DISTINCT sub.name AS subject_name
+         FROM principal_exam_plans p
+         JOIN sections sec ON sec.id = p.section_id AND sec.organization_id = p.organization_id
+         JOIN programs prog ON prog.id = sec.program_id AND prog.organization_id = p.organization_id
+         JOIN subjects sub ON sub.id = p.subject_id AND sub.organization_id = p.organization_id
+         WHERE p.organization_id = $1 AND p.term = $2 AND p.exam_name = $3
+           AND prog.name = $4 AND sec.name = $5 AND p.status = 'scheduled'`,
+        [orgId, dto.term, dto.examName, dto.className, dto.sectionName],
+      );
+      if (plannedSubjects.length > 0) {
+        const approvedSubjectSet = new Set(
+          rows.filter((r: any) => r.status === "Approved" && !r.is_locked).map((r: any) => r.subject_name)
+        );
+        const pendingSubjects = plannedSubjects.filter((ps: any) => !approvedSubjectSet.has(ps.subject_name));
+        if (pendingSubjects.length > 0) {
+          throw new ConflictException(
+            `All subjects must be approved before publishing transcripts. Pending: ${pendingSubjects.map((s: any) => s.subject_name).join(", ")}`
+          );
+        }
+      }
+
       if (rows.some((row: any) => row.status !== "Approved" || row.is_locked))
         throw new ConflictException(
           "Verify and approve every result before publishing",

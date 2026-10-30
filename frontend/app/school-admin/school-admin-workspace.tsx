@@ -848,25 +848,7 @@ export function SchoolAdminWorkspace({
         }
 
         if (isExamAction) {
-          if (!examName.trim()) throw new Error("Please enter examination title");
-          if (!examSectionId) throw new Error("Please select a target Class & Section");
-          if (!examSubjectId) throw new Error("Please select an Examination Subject");
-          if (!examDate) throw new Error("Please choose an Examination Date");
-
-          await createPrincipalExamPlan(organizationId, {
-            sectionId: examSectionId,
-            subjectId: examSubjectId,
-            examName: examName.trim(),
-            term: examTerm,
-            examDate: examDate,
-            startTime: examStartTime,
-            endTime: examEndTime,
-            maxMarks: Number(examMaxMarks) || 100,
-            status: "scheduled",
-          });
-          setRefreshKey((k) => k + 1);
-          setQuickActionModal(null);
-          return;
+          throw new Error("Examinations can only be scheduled by the Principal in the Principal Academic Command Center.");
         }
 
         if (quickActionModal.toLowerCase().includes("broadcast") || quickActionModal.toLowerCase().includes("announcement")) {

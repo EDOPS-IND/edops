@@ -347,7 +347,30 @@ export function PrincipalWorkspace({
   };
 
   const navigation = useDashboardNavigation(organization.id, "principal");
-  const isFeatureEnabled = (key: string) => navigation.sections.some(section => section.items.some(item => item.featureKey === key));
+  const isFeatureEnabled = (key: string) => {
+    // If organization has explicit features array, check it
+    if (Array.isArray(organization.features) && organization.features.length > 0) {
+      if (organization.features.includes(key)) return true;
+      if (key === "exams" && organization.features.includes("examinations")) return true;
+      if (key === "examinations" && organization.features.includes("exams")) return true;
+      return false;
+    }
+    // Check navigation sections by key or item keys
+    if (navigation.sections && navigation.sections.length > 0) {
+      return navigation.sections.some(
+        (section) =>
+          section.key === key ||
+          section.key === (key === "exams" ? "examinations" : key) ||
+          section.items.some(
+            (item) =>
+              item.featureKey === key ||
+              item.key === key ||
+              (key === "exams" && (section.key === "examinations" || item.key.includes("exam"))),
+          ),
+      );
+    }
+    return true;
+  };
 
   // Comprehensive mapping of all alias, slug, and direct IDs so every subtab works seamlessly.
   const paneTabs: Record<string, Record<string, string>> = {

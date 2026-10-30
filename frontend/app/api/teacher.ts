@@ -124,6 +124,10 @@ export async function getTeacherAssessments(orgId: string): Promise<any> {
 }
 
 export function submitTeacherMarks(orgId: string, body: any) { return api<any>(`/organizations/${orgId}/teacher/assessments/marks`, { method: "POST", body }); }
+export function submitTeacherQuestionPaper(orgId: string, body: any) { return api<any>(`/organizations/${orgId}/teacher/assessments/question-papers`, { method: "POST", body }); }
+export function extractQuestionPaperOcr(orgId: string, body: { fileData?: string; mimeType?: string; rawText?: string; subjectHint?: string; gradeHint?: string }) {
+  return api<any>(`/organizations/${orgId}/ocr/extract-question-paper`, { method: "POST", body });
+}
 
 export async function getTeacherMessages(orgId: string): Promise<any> {
   return api<any>(`/organizations/${orgId}/teacher/messages`);

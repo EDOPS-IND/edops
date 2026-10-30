@@ -344,13 +344,15 @@ export function LearningExamsPane({
           ))}
         </div>
 
-        <button
-          className="edops-learning-action"
-          onClick={subtab === "assignments" ? openCourseworkModal : openExamModal}
-          style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
-        >
-          <Plus size={15} /> {subtab === "assignments" ? "New Coursework" : "Schedule New Exam"}
-        </button>
+        {subtab === "assignments" && (
+          <button
+            className="edops-learning-action"
+            onClick={openCourseworkModal}
+            style={{ padding: "8px 16px", background: "#0c1e33", color: "#ffffff", border: "none", borderRadius: "8px", fontSize: "12.5px", fontWeight: 700, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
+          >
+            <Plus size={15} /> New Coursework
+          </button>
+        )}
       </div>
 
       {/* 1. ASSIGNMENTS MONITORING TAB */}
