@@ -45,6 +45,12 @@ export class TeachingAccess {
     }
     if (role === 'school_admin' || role === 'principal') return;
     if (role === 'teacher') {
+      const [isClassTeacher] = await manager.query(
+        'SELECT 1 FROM sections WHERE organization_id = $1 AND id = $2 AND class_teacher_user_id = $3 LIMIT 1',
+        [org, sectionId, actor.id]
+      );
+      if (isClassTeacher) return;
+
       if (!subjectId) throw new NotFoundException('Assigned class not found');
       const [assigned] = await manager.query(
         'SELECT 1 FROM class_subject_assignments WHERE organization_id = $1 AND section_id = $2 AND subject_id = $3 AND teacher_user_id = $4 LIMIT 1',

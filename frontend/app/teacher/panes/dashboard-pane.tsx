@@ -210,37 +210,39 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 
           {/* Action Buttons */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginTop: "2px" }}>
-            {/* Mark Attendance */}
-            <button
-              type="button"
-              onClick={() => onTakeAttendance(nextClass?.sectionId, 1, nextClass?.classSection)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                padding: "10px 16px",
-                border: `1px solid ${S.line}`,
-                borderRadius: "6px",
-                background: "#fff",
-                fontSize: "13px",
-                fontWeight: 600,
-                color: S.navy,
-                cursor: "pointer",
-                whiteSpace: "nowrap",
-                transition: "all 0.15s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#98A2B3";
-                e.currentTarget.style.background = "#FAF8F5";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = S.line;
-                e.currentTarget.style.background = "#fff";
-              }}
-            >
-              <CheckSquare size={16} />
-              <span>Mark Attendance</span>
-            </button>
+            {/* Mark Attendance (Class Teacher Period 1 Only) */}
+            {nextClass?.canTakeAttendance && (
+              <button
+                type="button"
+                onClick={() => onTakeAttendance(nextClass?.sectionId, 1, nextClass?.classSection)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  padding: "10px 16px",
+                  border: `1px solid ${S.line}`,
+                  borderRadius: "6px",
+                  background: "#fff",
+                  fontSize: "13px",
+                  fontWeight: 600,
+                  color: S.navy,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                  transition: "all 0.15s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#98A2B3";
+                  e.currentTarget.style.background = "#FAF8F5";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = S.line;
+                  e.currentTarget.style.background = "#fff";
+                }}
+              >
+                <CheckSquare size={16} />
+                <span>Mark Attendance</span>
+              </button>
+            )}
 
             {/* New Assignment */}
             <button
@@ -864,25 +866,27 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            <button
-              onClick={() => onTakeAttendance(nextClass.sectionId, 1, nextClass.classSection)}
-              style={{
-                background: "#fff",
-                border: `1px solid ${S.line}`,
-                color: S.navy,
-                padding: "8px 14px",
-                borderRadius: "6px",
-                fontSize: "12px",
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-              }}
-            >
-              <CheckSquare size={14} />
-              <span>Mark Attendance</span>
-            </button>
+            {nextClass.canTakeAttendance && (
+              <button
+                onClick={() => onTakeAttendance(nextClass.sectionId, 1, nextClass.classSection)}
+                style={{
+                  background: "#fff",
+                  border: `1px solid ${S.line}`,
+                  color: S.navy,
+                  padding: "8px 14px",
+                  borderRadius: "6px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                }}
+              >
+                <CheckSquare size={14} />
+                <span>Mark Attendance</span>
+              </button>
+            )}
             <button
               onClick={() => onMarkLessonCompleted(nextClass.sectionId, 1, nextClass.classSection)}
               style={{
@@ -995,35 +999,52 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span
-                      style={{
-                        padding: "3px 8px",
-                        borderRadius: "100px",
-                        fontSize: "11px",
-                        fontWeight: 600,
-                        background: isDone ? S.greenBg : "#FFFAEB",
-                        color: isDone ? S.greenDk : "#B54708",
-                        border: isDone ? "none" : "1px solid #FEDF89",
-                      }}
-                    >
-                      {isDone ? "Register Taken" : "Pending Attendance"}
-                    </span>
-                    {!isDone && (
-                      <button
-                        onClick={() => onTakeAttendance(undefined, period.period, period.classSection)}
+                    {period.canTakeAttendance ? (
+                      <>
+                        <span
+                          style={{
+                            padding: "3px 8px",
+                            borderRadius: "100px",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            background: isDone ? S.greenBg : "#FFFAEB",
+                            color: isDone ? S.greenDk : "#B54708",
+                            border: isDone ? "none" : "1px solid #FEDF89",
+                          }}
+                        >
+                          {isDone ? "Register Taken" : "Pending Attendance"}
+                        </span>
+                        {!isDone && (
+                          <button
+                            onClick={() => onTakeAttendance(period.sectionId, 1, period.classSection)}
+                            style={{
+                              background: S.navy,
+                              color: "#fff",
+                              border: "none",
+                              padding: "6px 12px",
+                              borderRadius: "6px",
+                              fontSize: "11.5px",
+                              fontWeight: 600,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Roll Call
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <span
                         style={{
-                          background: S.navy,
-                          color: "#fff",
-                          border: "none",
-                          padding: "6px 12px",
-                          borderRadius: "6px",
-                          fontSize: "11.5px",
-                          fontWeight: 600,
-                          cursor: "pointer",
+                          padding: "3px 8px",
+                          borderRadius: "100px",
+                          fontSize: "11px",
+                          fontWeight: 500,
+                          background: S.chip,
+                          color: S.slate,
                         }}
                       >
-                        Roll Call
-                      </button>
+                        Lecture Period
+                      </span>
                     )}
                   </div>
                 </div>

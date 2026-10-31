@@ -14,7 +14,7 @@ export class TeacherDashboardService {
     const [students]=await this.drizzle.query(`SELECT COUNT(DISTINCT e.student_user_id)::int AS total FROM enrollments e WHERE e.organization_id=$1 AND e.status='active' AND (EXISTS (SELECT 1 FROM class_subject_assignments c WHERE c.organization_id=e.organization_id AND c.section_id=e.section_id AND c.teacher_user_id=$2) OR EXISTS (SELECT 1 FROM sections s WHERE s.organization_id=e.organization_id AND s.id=e.section_id AND s.class_teacher_user_id=$2))`, [organizationId,user.id]);
     const recentActivity=await this.drizzle.query(`SELECT id,action AS text,created_at AS time FROM audit_events WHERE organization_id=$1 AND actor_id=$2 ORDER BY created_at DESC LIMIT 10`, [organizationId,user.id]);
     const [messages]=await this.drizzle.query(`SELECT COUNT(*)::int AS total FROM teacher_messages WHERE organization_id=$1 AND recipient_id=$2 AND NOT is_read`, [organizationId,user.id]);
-    const pendingAttendance=today.slots.filter(s=>!s.attendanceTaken).length;
+    const pendingAttendance=today.slots.filter(s=>s.canTakeAttendance && !s.attendanceTaken).length;
     return {teacher:{ id:user.id,name:user.name || user.email,email:user.email,primarySubject:classes.classes[0]?.subjectName || '',assignedClassesCount:new Set(classes.classes.map(c=>c.sectionId)).size,totalStudents:students.total },
       kpis:{classesToday:today.slots.length,periodsToday:today.slots.length,studentsToday:students.total,pendingAttendance,pendingEvaluations:evaluations.total,upcomingAssessments:null,curriculumProgress:null,unreadMessages:messages.total},
       nextClass:today.activeSlot,todaySchedule:today.slots.map(s=>({...s,time:`${s.startTime} – ${s.endTime}`,attendanceDone:s.attendanceTaken})),recentActivity,

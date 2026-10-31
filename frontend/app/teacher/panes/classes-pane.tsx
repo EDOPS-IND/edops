@@ -238,7 +238,7 @@ export function ClassesPane({
               </p>
             </div>
 
-            {selectedClass && (
+            {selectedClass && selectedClass.isClassTeacher && (
               <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                 <button
                   type="button"

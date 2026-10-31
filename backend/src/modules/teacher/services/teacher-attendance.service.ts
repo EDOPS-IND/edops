@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { AttendanceService } from '../../attendance/attendance.service';
 import { DrizzleService } from '../../../database/drizzle.service';
-import { Injectable, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { User } from '../../auth/user.entity';
 import { QuickAttendanceDto } from '../dto/teacher.dto';
 
@@ -144,9 +144,22 @@ export class TeacherAttendanceService {
   }
 
   async recordQuickAttendance(organizationId: string, user: User, dto: QuickAttendanceDto) {
-    let [session]=await this.drizzle.query(`SELECT id,status FROM attendance_sessions WHERE organization_id=$1 AND section_id=$2 AND subject_id IS NOT DISTINCT FROM $3::uuid AND date=$4 AND period=$5`, [organizationId,dto.sectionId,dto.subjectId || null,dto.date,dto.period]);
+    const [section] = await this.drizzle.query(
+      `SELECT id, class_teacher_user_id FROM sections WHERE organization_id = $1 AND id = $2`,
+      [organizationId, dto.sectionId]
+    );
+    if (!section) throw new BadRequestException('Class section not found');
+    if (section.class_teacher_user_id !== user.id) {
+      throw new ForbiddenException('Only the designated Class Teacher can take daily attendance for this section');
+    }
+    if (dto.period && Number(dto.period) !== 1) {
+      throw new BadRequestException('Daily attendance in Indian schools must be recorded during Period 1 (Class Teacher period)');
+    }
+    const period = 1;
+
+    let [session]=await this.drizzle.query(`SELECT id,status FROM attendance_sessions WHERE organization_id=$1 AND section_id=$2 AND date=$3 AND period=$4`, [organizationId,dto.sectionId,dto.date,period]);
     if (session?.status==='finalized') throw new ConflictException('This attendance session is already finalized');
-    if (!session) session=await this.attendanceService.create(organizationId,user,{sectionId:dto.sectionId,subjectId:dto.subjectId,date:dto.date,period:dto.period},randomUUID());
+    if (!session) session=await this.attendanceService.create(organizationId,user,{sectionId:dto.sectionId,subjectId:dto.subjectId || undefined,date:dto.date,period},randomUUID());
     await this.attendanceService.mark(organizationId,user,session.id,{records:dto.records});
     await this.attendanceService.finalize(organizationId,user,session.id,randomUUID());
     return { success:true,sessionId:session.id,markedStudents:dto.records.length };

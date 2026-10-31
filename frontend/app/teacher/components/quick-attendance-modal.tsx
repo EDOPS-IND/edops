@@ -48,7 +48,7 @@ export function QuickAttendanceModal({
 }: QuickAttendanceModalProps) {
   const activeClassName = classSection || classSectionName || "Active Class";
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const period = periodNumber || 1;
+  const period = 1; // Indian school standard: Daily roll call is always Period 1
   const [saving, setSaving] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [students, setStudents] = useState<
@@ -165,17 +165,17 @@ export function QuickAttendanceModal({
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
               <span style={{ fontSize: "11px", fontWeight: 700, color: S.navy, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                Period Register
+                Class Teacher Register
               </span>
               <span style={{ fontSize: "11px", fontWeight: 600, color: S.slate, background: S.chip, padding: "2px 8px", borderRadius: "6px", border: `1px solid ${S.border}` }}>
-                Slot: P{period} · {date}
+                Period 1 Roll Call · {date}
               </span>
             </div>
             <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: S.navy }}>
-              Take Attendance — {activeClassName}
+              Take Daily Attendance — {activeClassName}
             </h3>
             <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: S.slate }}>
-              Date: {date} • Period {period} • Real-time Attendance Ledger
+              Date: {date} • Period 1 • Class Teacher Morning Roll Call
             </p>
           </div>
           <button
