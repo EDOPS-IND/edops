@@ -10,6 +10,7 @@ export class TeacherClassesService {
     const classes = await this.drizzle.query(
       `SELECT c.section_id AS "sectionId", c.subject_id AS "subjectId",
               COALESCE(prog.name || ' - ', '') || sec.name AS "className",
+              (sec.class_teacher_user_id = $2) AS "isClassTeacher",
               sub.name AS "subjectName", sub.code AS "subjectCode",
         (SELECT COUNT(*)::int FROM enrollments e WHERE e.organization_id=c.organization_id AND e.section_id=c.section_id AND e.status='active') AS "studentCount",
         (SELECT ROUND(AVG(100.0*s.score/NULLIF(a.max_score,0))::numeric, 0)::int FROM assignments a JOIN submissions s ON s.organization_id=a.organization_id AND s.assignment_id=a.id WHERE a.organization_id=c.organization_id AND a.section_id=c.section_id AND a.subject_id=c.subject_id AND s.status='graded') AS "subjectAverage",

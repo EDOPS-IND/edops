@@ -30,6 +30,7 @@ export interface TeacherClass {
   studentCount?: number;
   subjectAverage?: number | null;
   attendanceRate?: number | null;
+  isClassTeacher?: boolean;
 }
 
 export interface LectureItem {

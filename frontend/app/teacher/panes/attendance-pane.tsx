@@ -211,10 +211,10 @@ export function AttendancePane({
             <span>Apply Leave</span>
           </button>
 
-          {activeSlot ? (
+          {activeSlot && activeSlot.canTakeAttendance ? (
             <button
               type="button"
-              onClick={() => onTakeAttendance(activeSlot.sectionId, activeSlot.period, activeSlot.classSection)}
+              onClick={() => onTakeAttendance(activeSlot.sectionId, 1, activeSlot.classSection)}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -231,9 +231,9 @@ export function AttendancePane({
               }}
             >
               <CheckSquare size={14} />
-              <span>Take Attendance: {activeSlot.classSection} (P{activeSlot.period})</span>
+              <span>Take Attendance: {activeSlot.classSection} (Period 1)</span>
             </button>
-          ) : todaySlots.length > 0 && todaySlots.every((s) => s.attendanceTaken) ? (
+          ) : todaySlots.length > 0 && todaySlots.some((s) => s.canTakeAttendance && s.attendanceTaken) ? (
             <div
               style={{
                 display: "inline-flex",
@@ -485,41 +485,49 @@ export function AttendancePane({
                   <div style={{ fontSize: "12px", color: T.slate }}>{slot.subject} • {slot.room}</div>
 
                   <div style={{ paddingTop: "8px", borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                    {isFinalized ? (
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: T.greenDark, background: T.greenBg, padding: "2px 8px", borderRadius: "6px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                        <CheckCircle2 size={12} /> Finalized
-                      </span>
-                    ) : isActive ? (
-                      <span style={{ fontSize: "11px", fontWeight: 600, color: T.skyDark, background: T.skyBg, padding: "2px 8px", borderRadius: "6px" }}>
-                        ● Live Period
-                      </span>
+                    {slot.canTakeAttendance ? (
+                      isFinalized ? (
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: T.greenDark, background: T.greenBg, padding: "2px 8px", borderRadius: "6px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                          <CheckCircle2 size={12} /> Finalized
+                        </span>
+                      ) : isActive ? (
+                        <span style={{ fontSize: "11px", fontWeight: 600, color: T.skyDark, background: T.skyBg, padding: "2px 8px", borderRadius: "6px" }}>
+                          ● Live Period
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: "11px", fontWeight: 500, color: T.slate, background: T.chip, padding: "2px 8px", borderRadius: "6px", border: `1px solid ${T.border}` }}>
+                          {slot.status === "upcoming" ? "Upcoming" : "Pending Marking"}
+                        </span>
+                      )
                     ) : (
-                      <span style={{ fontSize: "11px", fontWeight: 500, color: T.slate, background: T.chip, padding: "2px 8px", borderRadius: "6px", border: `1px solid ${T.border}` }}>
-                        {slot.status === "upcoming" ? "Upcoming" : "Pending Marking"}
+                      <span style={{ fontSize: "11px", fontWeight: 500, color: T.slate, background: T.chip, padding: "2px 8px", borderRadius: "6px" }}>
+                        Lecture Period
                       </span>
                     )}
 
-                    {isFinalized ? (
-                      <span style={{ fontSize: "12px", fontWeight: 600, color: T.greenDark }}>Recorded ✓</span>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onTakeAttendance(slot.sectionId, slot.period, slot.classSection)}
-                        style={{
-                          background: "transparent",
-                          border: "none",
-                          fontSize: "12px",
-                          fontWeight: 600,
-                          color: T.navy,
-                          cursor: "pointer",
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "4px",
-                          padding: 0,
-                        }}
-                      >
-                        Take Attendance →
-                      </button>
+                    {slot.canTakeAttendance && (
+                      isFinalized ? (
+                        <span style={{ fontSize: "12px", fontWeight: 600, color: T.greenDark }}>Recorded ✓</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onTakeAttendance(slot.sectionId, 1, slot.classSection)}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color: T.navy,
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            padding: 0,
+                          }}
+                        >
+                          Take Attendance →
+                        </button>
+                      )
                     )}
                   </div>
                 </div>

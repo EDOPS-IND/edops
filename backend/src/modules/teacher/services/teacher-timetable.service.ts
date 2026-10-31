@@ -16,7 +16,8 @@ export class TeacherTimetableService {
       slots = await this.drizzle.query(
         `SELECT t.id, t.period_number, t.start_time, t.end_time, t.room_number as room,
                 sec.id as section_id, sec.name as section_name,
-                sub.id as subject_id, sub.name as subject_name
+                sub.id as subject_id, sub.name as subject_name,
+                (sec.class_teacher_user_id = $2) as is_class_teacher
          FROM timetable_entries t
          JOIN academic_years y ON y.id = t.academic_year_id AND y.organization_id = t.organization_id AND y.is_current = true
          JOIN sections sec ON sec.id = t.section_id AND sec.organization_id = t.organization_id
@@ -71,6 +72,9 @@ export class TeacherTimetableService {
         slotStatus = isMarked ? 'completed' : 'pending';
       }
 
+      const isClassTeacher = Boolean(s.is_class_teacher);
+      const canTakeAttendance = Boolean(isClassTeacher && Number(s.period_number) === 1);
+
       return {
         id: s.id,
         period: Number(s.period_number),
@@ -82,11 +86,13 @@ export class TeacherTimetableService {
         room: s.room || null,
         status: slotStatus,
         attendanceTaken: isMarked,
+        isClassTeacher,
+        canTakeAttendance,
       };
     });
 
-    const activeSlot = mapped.find((s) => s.status === 'active' && !s.attendanceTaken)
-      || mapped.find((s) => s.status === 'pending' && !s.attendanceTaken)
+    const activeSlot = mapped.find((s) => s.canTakeAttendance && s.status === 'active' && !s.attendanceTaken)
+      || mapped.find((s) => s.canTakeAttendance && s.status === 'pending' && !s.attendanceTaken)
       || null;
 
     return { day: today, slots: mapped, activeSlot };

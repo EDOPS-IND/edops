@@ -102,7 +102,7 @@ export class PrincipalDashboardService {
       JOIN roster r ON r.student_user_id = ar.student_id AND r.section_id = s.section_id
       WHERE ar.organization_id = $1 AND s.status = 'finalized' AND s.date = (SELECT day FROM school_day)
     ), scheduled AS (
-      SELECT DISTINCT t.section_id, t.period_number FROM timetable_entries t
+      SELECT DISTINCT t.section_id, 1 as period_number FROM timetable_entries t
       JOIN academic_years y ON y.id = t.academic_year_id AND y.organization_id = t.organization_id AND y.is_current = true
       WHERE t.organization_id = $1 AND t.day_of_week = EXTRACT(ISODOW FROM (SELECT day FROM school_day))
     ) SELECT (SELECT COUNT(DISTINCT student_user_id)::int FROM roster) AS "enrolledStudents",
