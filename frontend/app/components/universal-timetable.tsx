@@ -39,7 +39,7 @@ export interface UniversalTimetableProps {
   activeViewMode?: "class" | "teacher" | "room" | "today" | "weekly";
   onViewModeChange?: (mode: string) => void;
   onTakeAttendance?: (sectionId?: string, periodNumber?: number, classSection?: string) => void;
-  onLogLesson?: (classSection?: string, sectionId?: string) => void;
+  onLogLesson?: (classSection?: string, sectionId?: string, periodInfo?: string) => void;
 }
 
 export function UniversalTimetable({
@@ -1048,7 +1048,11 @@ export function UniversalTimetable({
                                 <button
                                   type="button"
                                   onClick={() =>
-                                    onLogLesson(slot.classSection, slot.sectionId)
+                                    onLogLesson(
+                                      slot.classSection,
+                                      slot.sectionId,
+                                      slot.period ? `Period ${slot.period} (${slot.startTime || ''} - ${slot.endTime || ''})`.replace(' - )', ')') : undefined
+                                    )
                                   }
                                   style={{
                                     display: "inline-flex",

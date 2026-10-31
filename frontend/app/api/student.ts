@@ -9,6 +9,10 @@ export async function getStudentClass(orgId: string) {
   return api<any>(`/organizations/${orgId}/student/class`);
 }
 
+export async function getStudentLectures(orgId: string): Promise<any> {
+  return api<any>(`/organizations/${orgId}/student/class/lectures`);
+}
+
 export async function getStudentSubjects(orgId: string): Promise<any> {
   return api<any>(`/organizations/${orgId}/student/subjects`);
 }

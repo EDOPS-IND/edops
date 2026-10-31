@@ -91,7 +91,7 @@ dialog {
   overscroll-behavior: contain;
 }
 
-/* Background scroll lock via native CSS :has() when any modal or drawer is open */
+/* Background scroll containment via native CSS :has() when any modal or drawer is open without breaking sticky sidebars */
 html:has(.modal-backdrop),
 html:has(.edops-right-drawer),
 html:has([role="dialog"]),
@@ -104,7 +104,6 @@ body:has([role="dialog"]),
 body:has([aria-modal="true"]),
 body:has(.action-modal),
 body:has(dialog[open]) {
-  overflow: hidden !important;
   overscroll-behavior: none !important;
 }
 

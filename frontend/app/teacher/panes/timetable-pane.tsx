@@ -8,7 +8,7 @@ interface TimetablePaneProps {
   activeViewMode?: "today" | "weekly";
   onViewModeChange?: (mode: string) => void;
   onTakeAttendance?: (sectionId?: string, periodNumber?: number, classSection?: string) => void;
-  onLogLesson?: (classSection?: string, sectionId?: string) => void;
+  onLogLesson?: (classSection?: string, sectionId?: string, periodInfo?: string) => void;
 }
 
 export function TimetablePane({

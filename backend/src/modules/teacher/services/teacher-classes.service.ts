@@ -1,5 +1,5 @@
 import { DrizzleService } from '../../../database/drizzle.service';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '../../auth/user.entity';
 
 @Injectable()
@@ -8,12 +8,15 @@ export class TeacherClassesService {
 
   async getMyClasses(organizationId: string, user: User) {
     const classes = await this.drizzle.query(
-      `SELECT c.section_id AS "sectionId", c.subject_id AS "subjectId", sec.name AS "className", sub.name AS "subjectName", sub.code AS "subjectCode",
+      `SELECT c.section_id AS "sectionId", c.subject_id AS "subjectId",
+              COALESCE(prog.name || ' - ', '') || sec.name AS "className",
+              sub.name AS "subjectName", sub.code AS "subjectCode",
         (SELECT COUNT(*)::int FROM enrollments e WHERE e.organization_id=c.organization_id AND e.section_id=c.section_id AND e.status='active') AS "studentCount",
         (SELECT ROUND(AVG(100.0*s.score/NULLIF(a.max_score,0))::numeric, 0)::int FROM assignments a JOIN submissions s ON s.organization_id=a.organization_id AND s.assignment_id=a.id WHERE a.organization_id=c.organization_id AND a.section_id=c.section_id AND a.subject_id=c.subject_id AND s.status='graded') AS "subjectAverage",
         (SELECT ROUND(100.0*COUNT(*) FILTER (WHERE r.status IN ('present','late'))/NULLIF(COUNT(*),0)::numeric, 0)::int FROM attendance_records r JOIN attendance_sessions ats ON ats.id=r.attendance_session_id AND ats.organization_id=r.organization_id WHERE r.organization_id=c.organization_id AND ats.section_id=c.section_id AND ats.status='finalized') AS "attendanceRate"
        FROM class_subject_assignments c 
        JOIN sections sec ON sec.id=c.section_id AND sec.organization_id=c.organization_id
+       LEFT JOIN programs prog ON prog.id=sec.program_id
        JOIN subjects sub ON sub.id=c.subject_id AND sub.organization_id=c.organization_id
        WHERE c.organization_id=$1 AND c.teacher_user_id=$2 
        ORDER BY sec.name, sub.name`, 
@@ -95,5 +98,87 @@ export class TeacherClassesService {
       students: enrichedStudents,
       chapters 
     };
+  }
+
+  async getLectureLogs(organizationId: string, user: User) {
+    const lectures = await this.drizzle.query(
+      `SELECT id, topic, subject_name AS "subjectName", class_section AS "classSection",
+              teacher_name AS "teacherName", to_char(planned_date, 'YYYY-MM-DD') AS "date",
+              activities AS "periodInfo",
+              resources, homework, reflection AS notes, status, created_at AS "createdAt"
+       FROM principal_lesson_plans
+       WHERE organization_id = $1 AND teacher_user_id = $2
+       ORDER BY planned_date DESC, created_at DESC LIMIT 100`,
+      [organizationId, user.id],
+    );
+    return { lectures };
+  }
+
+  async logLecture(organizationId: string, user: User, dto: any) {
+    if (!dto.topic?.trim() || !dto.classSection?.trim() || !dto.subjectName?.trim()) {
+      throw new BadRequestException('Class, Subject, and Lecture Topic are required');
+    }
+
+    // Verify this class and subject are assigned to this teacher
+    const isAssigned = await this.drizzle.query(
+      `SELECT 1 FROM class_subject_assignments c
+       JOIN sections sec ON sec.id = c.section_id AND sec.organization_id = c.organization_id
+       JOIN subjects sub ON sub.id = c.subject_id AND sub.organization_id = c.organization_id
+       LEFT JOIN programs prog ON prog.id = sec.program_id
+       WHERE c.organization_id = $1 AND c.teacher_user_id = $2
+         AND (
+           COALESCE(prog.name || ' - ', '') || sec.name = $3
+           OR sec.name = $3
+           OR $3 LIKE '%' || sec.name
+         )
+         AND LOWER(sub.name) = LOWER($4)
+       UNION
+       SELECT 1 FROM timetable_entries t
+       JOIN sections sec ON sec.id = t.section_id AND sec.organization_id = t.organization_id
+       JOIN subjects sub ON sub.id = t.subject_id AND sub.organization_id = t.organization_id
+       LEFT JOIN programs prog ON prog.id = sec.program_id
+       LEFT JOIN principal_timetable_substitutions ps ON ps.organization_id = t.organization_id
+         AND ps.timetable_entry_id = t.id AND ps.event_date = $5::date
+       WHERE t.organization_id = $1
+         AND COALESCE(ps.substitute_teacher_user_id, t.teacher_user_id) = $2
+         AND (
+           COALESCE(prog.name || ' - ', '') || sec.name = $3
+           OR sec.name = $3
+           OR $3 LIKE '%' || sec.name
+         )
+         AND LOWER(sub.name) = LOWER($4)
+       LIMIT 1`,
+      [organizationId, user.id, dto.classSection, dto.subjectName, dto.date || new Date().toISOString().slice(0, 10)],
+    );
+
+    if (!isAssigned || isAssigned.length === 0) {
+      throw new BadRequestException(`You are not assigned to teach ${dto.subjectName} for ${dto.classSection}`);
+    }
+
+    const [row] = await this.drizzle.query(
+      `INSERT INTO principal_lesson_plans (
+        organization_id, teacher_user_id, teacher_name, class_section, subject_name,
+        topic, planned_date, activities, resources, homework, reflection, status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7::date, $8, $9, $10, $11, 'Completed')
+      RETURNING id, topic, subject_name AS "subjectName", class_section AS "classSection",
+                teacher_name AS "teacherName", to_char(planned_date, 'YYYY-MM-DD') AS "date",
+                activities AS "periodInfo",
+                resources, homework, reflection AS notes, status, created_at AS "createdAt"`,
+      [
+        organizationId,
+        user.id,
+        user.name || user.email || 'Teacher',
+        dto.classSection,
+        dto.subjectName,
+        dto.topic,
+        dto.date || new Date().toISOString().slice(0, 10),
+        dto.periodInfo || '',
+        dto.resources || '',
+        dto.homework || '',
+        dto.notes || '',
+      ],
+    );
+    return { success: true, lecture: row };
   }
 }

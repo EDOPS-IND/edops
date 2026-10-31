@@ -36,8 +36,8 @@ export function AcademicsPane({
 }) {
   const [liveData, setLiveData] = useState<any>(null);
   const [loadError, setLoadError] = useState(false);
-  const [subTab, setSubTab] = useState<"classes" | "subjects" | "curriculum" | "lesson_plans" | "competencies">(
-    (initialTab as any) || "classes"
+  const [subTab, setSubTab] = useState<"classes" | "subjects" | "curriculum" | "daily_logs">(
+    (initialTab === "lesson_plans" || initialTab === "competencies" ? "daily_logs" : (initialTab as any)) || "classes"
   );
   const [feedbackInput, setFeedbackInput] = useState<{ [key: string]: string }>({});
   const [selectedGrade, setSelectedGrade] = useState<string>("");
@@ -254,8 +254,7 @@ export function AcademicsPane({
           { id: "classes", label: "Classes & Sections" },
           { id: "subjects", label: "Subject Performance" },
           { id: "curriculum", label: "Curriculum & Syllabus Gap Engine" },
-          { id: "lesson_plans", label: "Lesson Plans & Principal Feedback" },
-          { id: "competencies", label: "Competencies & Learning Outcomes" },
+          { id: "daily_logs", label: "Daily Classroom Lecture Logs" },
         ].map((t) => {
           const isActive = subTab === t.id;
           return (
@@ -703,17 +702,17 @@ export function AcademicsPane({
         </div>
       )}
 
-      {/* 4. Lesson Plans & Principal Review Tab */}
-      {subTab === "lesson_plans" && (
+      {/* 4. Daily Classroom Lecture Logs Tab */}
+      {subTab === "daily_logs" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {planList.length === 0 ? (
-            <div style={{ padding: "24px", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9" }}>
-              No lesson plans have been submitted for review yet.
+            <div style={{ padding: "32px", textAlign: "center", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px dashed #e4e6e9", fontSize: "13px" }}>
+              No classroom lectures logged yet. As teachers log their daily periods, live lecture notes, topics, and homework will appear here.
             </div>
           ) : (
             planList.map((lp: LessonPlanItem, idx: number) => (
               <div
-                key={idx}
+                key={lp.id || idx}
                 style={{
                   background: "#ffffff",
                   border: "1px solid #e4e6e9",
@@ -722,148 +721,106 @@ export function AcademicsPane({
                   boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>
-                      {lp.subject} ({lp.classSection}) — {lp.topic}
+                    <span style={{ fontSize: "11px", fontWeight: 700, color: "#17a1fa", textTransform: "uppercase" }}>
+                      {lp.classSection} • {lp.subject}
+                    </span>
+                    <h4 style={{ margin: "4px 0 2px", fontSize: "16px", fontWeight: 700, color: "#1e293b" }}>
+                      {lp.topic}
                     </h4>
                     <span style={{ fontSize: "12px", color: "#64748b" }}>
-                      Teacher: <b>{lp.teacherName}</b> · Planned Date: {lp.plannedDate}
+                      Conducted by <b>{lp.teacherName}</b> on <b>{lp.plannedDate}</b>
                     </span>
                   </div>
                   <span
                     style={{
-                      background: lp.status === "Approved" ? "#dcfce7" : "#fef3c7",
-                      color: lp.status === "Approved" ? "#166534" : "#92400e",
-                      padding: "3px 8px",
-                      borderRadius: "4px",
+                      background: "#dcfce7",
+                      color: "#166534",
+                      padding: "4px 10px",
+                      borderRadius: "6px",
                       fontSize: "11px",
                       fontWeight: 700,
                     }}
                   >
-                    {lp.status}
+                    Logged
                   </span>
                 </div>
 
-                <div style={{ fontSize: "12px", color: "#475569", display: "flex", flexDirection: "column", gap: "4px", margin: "10px 0" }}>
-                  <div>
-                    <b style={{ color: "#1e293b" }}>Target Learning Outcome:</b> {lp.learningOutcomes}
-                  </div>
-                  <div>
-                    <b style={{ color: "#1e293b" }}>Teaching Pedagogy:</b> {lp.teachingStrategy}
-                  </div>
-                  <div>
-                    <b style={{ color: "#1e293b" }}>Formative Assessment:</b> {lp.assessmentMethod}
-                  </div>
-                  {lp.principalFeedback && (
-                    <div
-                      style={{
-                        background: "#f0fdf4",
-                        border: "1px solid #dcfce7",
-                        padding: "8px 12px",
-                        borderRadius: "6px",
-                        color: "#166534",
-                        marginTop: "6px",
-                      }}
-                    >
-                      <b>Principal Review Note:</b> {lp.principalFeedback}
+                <div style={{ fontSize: "12px", color: "#475569", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "12px", margin: "14px 0", background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+                  {lp.learningOutcomes && (
+                    <div>
+                      <b style={{ color: "#1e293b" }}>Key Topic / Concept:</b>
+                      <div style={{ marginTop: "2px", color: "#334155" }}>{lp.learningOutcomes}</div>
+                    </div>
+                  )}
+                  {lp.homework && (
+                    <div>
+                      <b style={{ color: "#1e293b" }}>Homework / Assignment:</b>
+                      <div style={{ marginTop: "2px", color: "#b45309", fontWeight: 600 }}>{lp.homework}</div>
+                    </div>
+                  )}
+                  {lp.resources && (
+                    <div>
+                      <b style={{ color: "#1e293b" }}>Study Material &amp; Resources:</b>
+                      <div style={{ marginTop: "2px", color: "#0a3a7a" }}>{lp.resources}</div>
+                    </div>
+                  )}
+                  {lp.teachingStrategy && (
+                    <div>
+                      <b style={{ color: "#1e293b" }}>Classroom Notes:</b>
+                      <div style={{ marginTop: "2px", color: "#475569" }}>{lp.teachingStrategy}</div>
                     </div>
                   )}
                 </div>
 
-                {lp.status !== "Approved" && (
-                  <div style={{ marginTop: "12px", display: "flex", gap: "10px", alignItems: "center" }}>
+                {lp.principalFeedback ? (
+                  <div
+                    style={{
+                      background: "#f0fdf4",
+                      border: "1px solid #dcfce7",
+                      padding: "8px 12px",
+                      borderRadius: "6px",
+                      color: "#166534",
+                      fontSize: "12px",
+                      marginTop: "6px",
+                    }}
+                  >
+                    <b>Principal Observation:</b> {lp.principalFeedback}
+                  </div>
+                ) : (
+                  <div style={{ marginTop: "10px", display: "flex", gap: "8px", alignItems: "center" }}>
                     <input
                       type="text"
-                      placeholder="Add Principal feedback or commendation notes..."
+                      placeholder="Add an observation or commendation note..."
                       value={feedbackInput[lp.id] || ""}
                       onChange={(e) => setFeedbackInput({ ...feedbackInput, [lp.id]: e.target.value })}
                       style={{
                         flex: 1,
-                        padding: "8px 12px",
+                        padding: "7px 12px",
                         borderRadius: "6px",
                         border: "1px solid #cbd5e1",
                         fontSize: "12px",
                       }}
                     />
                     <button
+                      type="button"
                       onClick={() => handleSendFeedback(lp.id, "Approved")}
                       style={{
                         background: "#0c1e33",
                         color: "#ffffff",
                         border: "none",
                         borderRadius: "6px",
-                        padding: "8px 16px",
+                        padding: "7px 14px",
                         fontSize: "12px",
                         fontWeight: 600,
                         cursor: "pointer",
                       }}
                     >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleSendFeedback(lp.id, "Needs Revision")}
-                      style={{
-                        background: "#fffbeb",
-                        color: "#b45309",
-                        border: "1px solid #fcd34d",
-                        borderRadius: "6px",
-                        padding: "8px 14px",
-                        fontSize: "12px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                      }}
-                    >
-                      Request Revision
+                      Acknowledge
                     </button>
                   </div>
                 )}
-              </div>
-            ))
-          )}
-        </div>
-      )}
-
-      {/* 5. Competencies & Learning Outcomes Tab */}
-      {subTab === "competencies" && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "16px" }}>
-          {nodeList.length === 0 ? (
-            <div style={{ padding: "24px", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9" }}>
-              No curriculum learning outcomes or competencies have been registered yet.
-            </div>
-          ) : (
-            nodeList.map((node: CurriculumNodeItem) => (
-              <div
-                key={node.id}
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #e4e6e9",
-                  borderRadius: "10px",
-                  padding: "18px",
-                  boxShadow: "0 1px 3px rgba(0,0,0,0.02)",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "11px",
-                    color: "#0c1e33",
-                    background: "#f1f5f9",
-                    padding: "2px 8px",
-                    borderRadius: "4px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {node.grade} · {node.subject}
-                </span>
-                <h4 style={{ margin: "8px 0 6px", fontSize: "15px", fontWeight: 700, color: "#1e293b" }}>
-                  {node.chapter}
-                </h4>
-                <div style={{ fontSize: "12px", color: "#475569", marginBottom: "4px" }}>
-                  <b style={{ color: "#1e293b" }}>Competencies:</b> {node.competency || "Standard Pedagogical Competency"}
-                </div>
-                <div style={{ fontSize: "12px", color: "#475569" }}>
-                  <b style={{ color: "#1e293b" }}>Learning Outcomes:</b> {node.learningOutcomes.join(" · ") || "Standard CBSE/State curriculum outcomes"}
-                </div>
               </div>
             ))
           )}
