@@ -378,6 +378,7 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
           boxSizing: "border-box",
           zIndex: 40,
           borderRight: `1px solid ${S.sidebarBorder}`,
+          overflow: "hidden",
         }}
       >
         {/* Brand / Logo - Exactly 68px height matching Student Command Center */}

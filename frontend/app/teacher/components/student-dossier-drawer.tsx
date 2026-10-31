@@ -148,8 +148,9 @@ export function StudentDossierDrawer({
         inset: 0,
         zIndex: 100,
         overflow: "hidden",
-        background: "rgba(12, 30, 51, 0.45)",
-        backdropFilter: "blur(2px)",
+        background: "rgba(12, 30, 51, 0.55)",
+        touchAction: "none",
+        overscrollBehavior: "contain",
         fontFamily: "'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
       }}
       onClick={(e) => {

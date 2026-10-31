@@ -25,4 +25,34 @@ export class StudentClassesService {
        WHERE organization_id=$1 AND target_audience IN ('all','students') ORDER BY created_at DESC LIMIT 20`, [organizationId]);
     return { classInfo: { ...enrollment, classTeacher: enrollment.classTeacher, roomNumber: null, studentCount: classmates.length, subjectsCount: count.total }, classmates, announcements };
   }
+
+  async getStudentLectures(organizationId: string, studentUserId: string) {
+    const [enrollment] = await this.drizzle.query(
+      `SELECT e.section_id, COALESCE(prog.name || ' - ', '') || sec.name AS "classSection", sec.name AS "sectionName"
+       FROM enrollments e
+       JOIN sections sec ON sec.id = e.section_id AND sec.organization_id = e.organization_id
+       LEFT JOIN programs prog ON prog.id = sec.program_id
+       WHERE e.organization_id = $1 AND e.student_user_id = $2 AND e.status = 'active'
+       LIMIT 1`,
+      [organizationId, studentUserId],
+    );
+    if (!enrollment) return { lectures: [] };
+
+    const lectures = await this.drizzle.query(
+      `SELECT id, topic, subject_name AS "subjectName", class_section AS "classSection",
+              teacher_name AS "teacherName", to_char(planned_date, 'YYYY-MM-DD') AS "date",
+              activities AS "periodInfo",
+              resources, homework, reflection AS notes, status, created_at AS "createdAt"
+       FROM principal_lesson_plans
+       WHERE organization_id = $1
+         AND (
+           class_section = $2
+           OR class_section = $3
+           OR class_section LIKE '%' || $3
+         )
+       ORDER BY planned_date DESC, created_at DESC LIMIT 50`,
+      [organizationId, enrollment.classSection, enrollment.sectionName],
+    );
+    return { lectures };
+  }
 }

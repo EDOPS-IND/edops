@@ -17,6 +17,14 @@ export async function getTeacherClassStudents(orgId: string, classId: string): P
   return api<any>(`/organizations/${orgId}/teacher/classes/${classId}`);
 }
 
+export async function getTeacherLectures(orgId: string): Promise<any> {
+  return api<any>(`/organizations/${orgId}/teacher/classes/lectures`);
+}
+
+export async function logTeacherLecture(orgId: string, body: any): Promise<any> {
+  return api<any>(`/organizations/${orgId}/teacher/classes/lectures`, { method: "POST", body });
+}
+
 export async function getTeacherStudents(orgId: string): Promise<any> {
   return api<any[]>(`/organizations/${orgId}/teacher/students`);
 }

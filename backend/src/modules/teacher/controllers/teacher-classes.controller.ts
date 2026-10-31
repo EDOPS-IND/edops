@@ -1,4 +1,4 @@
-import { Controller, Get, Param, ParseUUIDPipe, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedRequest } from '../../../common/auth.guard';
 import { TeacherGuard } from '../guards/teacher.guard';
@@ -19,6 +19,25 @@ export class TeacherClassesController {
     @Req() req: AuthenticatedRequest
   ) {
     return this.classesService.getMyClasses(organizationId, req.user);
+  }
+
+  @Get('classes/lectures')
+  @ApiOperation({ summary: 'Get teacher daily classroom lecture logs and study materials' })
+  getLectureLogs(
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Req() req: AuthenticatedRequest
+  ) {
+    return this.classesService.getLectureLogs(organizationId, req.user);
+  }
+
+  @Post('classes/lectures')
+  @ApiOperation({ summary: 'Log a daily class lecture with topics, study materials, homework, and notes' })
+  logLecture(
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: any
+  ) {
+    return this.classesService.logLecture(organizationId, req.user, dto);
   }
 
   @Get('classes/:sectionId')

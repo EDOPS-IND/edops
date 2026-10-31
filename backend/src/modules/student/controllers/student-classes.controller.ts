@@ -35,4 +35,13 @@ export class StudentClassesController {
   ) {
     return this.classesService.getClassDetails(organizationId, req.user?.id);
   }
+
+  @Get("class/lectures")
+  @ApiOperation({ summary: "Get daily classroom lecture logs, notes, and study materials" })
+  getStudentLectures(
+    @Param("organizationId", ParseUUIDPipe) organizationId: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.classesService.getStudentLectures(organizationId, req.user?.id);
+  }
 }
