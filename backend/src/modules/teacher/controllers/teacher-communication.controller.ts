@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { AuthenticatedRequest } from '../../../common/auth.guard';
+import { AuthenticatedRequest, RequireFeature } from '../../../common/auth.guard';
 import { SendTeacherMessageDto } from '../dto/teacher.dto';
 import { TeacherGuard } from '../guards/teacher.guard';
 import { TeacherCommunicationService } from '../services/teacher-communication.service';
@@ -8,6 +8,7 @@ import { TeacherCommunicationService } from '../services/teacher-communication.s
 @ApiTags('Teacher Command Center')
 @ApiBearerAuth()
 @UseGuards(TeacherGuard)
+@RequireFeature('communication')
 @ApiParam({ name: 'organizationId', format: 'uuid' })
 @Controller({ path: 'organizations/:organizationId/teacher', version: '1' })
 export class TeacherCommunicationController {

@@ -91,6 +91,19 @@ export const academicYears = pgTable('academic_years', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+export const schoolHolidays = pgTable('school_holidays', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  organizationId: uuid('organization_id').references(() => organizations.id).notNull(),
+  academicYearId: uuid('academic_year_id').references(() => academicYears.id),
+  date: date('date').notNull(),
+  title: varchar('title', { length: 140 }).notNull(),
+  holidayType: varchar('holiday_type', { length: 32 }).default('gazetted').notNull(),
+  isAdhoc: boolean('is_adhoc').default(false).notNull(),
+  declaredBy: uuid('declared_by').references(() => users.id),
+  notes: text('notes'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const programs = pgTable('programs', {
   id: uuid('id').defaultRandom().primaryKey(),
   organizationId: uuid('organization_id').references(() => organizations.id).notNull(),

@@ -52,6 +52,7 @@ import { Student360Modal } from "./panes/student-360-modal";
 
 import { OrganizationSummary, getStudentAvatarUrl, invalidateApiCache } from "../edops-api";
 import { useDashboardNavigation } from "../dashboard-navigation";
+import { DashboardSidebar } from "../components/dashboard-sidebar";
 import { FeatureUnavailableCard, ThreeDotsLoading } from "../components/feature-unavailable-card";
 import { PrincipalTab } from "./types";
 
@@ -171,65 +172,45 @@ function NavItem({
   );
 }
 
-// ─── Categorized Flat Navigation Specification ─────────────────────────────────
-const principalNavSections = [
-  {
-    key: "overview",
-    label: "Overview",
-    items: [
-      { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-    ],
-  },
-  {
-    key: "operations",
-    label: "Academic Operations",
-    items: [
-      { id: "planning", label: "Academic Planning", icon: CalendarCheck },
-      { id: "academics", label: "Academics & Classes", icon: BookOpen },
-      { id: "timetable", label: "Timetable", icon: Clock },
-      { id: "attendance", label: "Attendance", icon: UserCheck },
-      { id: "people", label: "Faculty & Workload", icon: Users },
-    ],
-  },
-  {
-    key: "learning_eval",
-    label: "Student & Learning",
-    items: [
-      { id: "learning", label: "Assignments & Learning", icon: ClipboardList },
-      { id: "assessment", label: "Assessments", icon: GraduationCap },
-      { id: "examinations", label: "Examinations", icon: Award },
-      { id: "students", label: "Students & 360", icon: Users },
-    ],
-  },
-  {
-    key: "governance",
-    label: "Insights & Governance",
-    items: [
-      { id: "communication", label: "Communication", icon: MessageSquare },
-      { id: "analytics", label: "Academic Analytics", icon: BarChart2 },
-      { id: "alerts", label: "Academic Alerts", icon: Bell },
-      { id: "reports", label: "Reports", icon: FileText },
-      { id: "activity", label: "Activity Log", icon: Activity },
-    ],
-  },
-];
+// ─── Principal Navigation Icons ─────────────────────────────────
+const principalIcons: Record<string, React.ElementType> = {
+  dashboard: LayoutDashboard,
+  planning: CalendarCheck,
+  academics: BookOpen,
+  classes: BookOpen,
+  subjects: BookOpen,
+  curriculum: BookOpen,
+  timetable: Clock,
+  attendance: UserCheck,
+  people: Users,
+  learning: ClipboardList,
+  assessment: GraduationCap,
+  assessments: GraduationCap,
+  examinations: Award,
+  students: Users,
+  communication: MessageSquare,
+  analytics: BarChart2,
+  alerts: Bell,
+  reports: FileText,
+  activity: Activity,
+};
 
 const paneTitles: Record<string, string> = {
-  dashboard: "Overview & Health",
-  planning: "Academic Planning",
-  people: "Faculty & Workload",
-  academics: "Academics & Classes",
-  timetable: "Timetable & Scheduling",
-  attendance: "Attendance Registers",
-  learning: "Assignments & Learning",
-  assessment: "Assessments & Question Papers",
-  examinations: "Examinations & Marks",
-  students: "Student Tracking & 360",
-  communication: "Academic Communication",
-  analytics: "Academic Analytics & Audit",
-  alerts: "Academic Alerts",
-  reports: "Academic Reports",
-  activity: "Activity Audit Log",
+  dashboard: "Dashboard",
+  planning: "Planning",
+  people: "Faculty",
+  academics: "Academics",
+  timetable: "Timetable",
+  attendance: "Attendance",
+  learning: "Learning",
+  assessment: "Assessments",
+  examinations: "Examinations",
+  students: "Students",
+  communication: "Communication",
+  analytics: "Analytics",
+  alerts: "Alerts",
+  reports: "Reports",
+  activity: "Activity",
 };
 
 interface PrincipalWorkspaceProps {
@@ -499,117 +480,15 @@ export function PrincipalWorkspace({
         fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif',
       }}
     >
-      {/* SIDEBAR NAVIGATION (Matching School Admin exactly: 240px, S.sidebarBg, clean flat layout) */}
-      <aside
-        className="workspace-aside"
-        style={{
-          width: "240px",
-          flexShrink: 0,
-          background: S.sidebarBg,
-          color: "#fff",
-          height: "100vh",
-          position: "sticky",
-          top: 0,
-          alignSelf: "flex-start",
-          padding: 0,
-          boxSizing: "border-box",
-          zIndex: 40,
-          borderRight: `1px solid ${S.sidebarBorder}`,
-        }}
-      >
-        {/* Brand / Logo - Exactly 68px height matching Command Center Spec */}
-        <div
-          style={{
-            height: "68px",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 20px",
-            cursor: "pointer",
-            flexShrink: 0,
-            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-            boxSizing: "border-box",
-          }}
-          onClick={() => navigateTo("dashboard")}
-          title="EDOPS Principal Command Center"
-        >
-          <img
-            src="/EDOPSLogo.png"
-            alt="EDOPS Principal Command Center"
-            style={{
-              height: "36px",
-              width: "auto",
-              maxWidth: "140px",
-              display: "block",
-              objectFit: "contain",
-              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
-              transition: "transform 0.15s ease",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-          />
-        </div>
-
-        {/* Scrollable Navigation Body */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            padding: "12px 12px 14px",
-            overflowY: "auto",
-            overflowX: "hidden",
-            scrollbarWidth: "none",
-          }}
-        >
-          <nav
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "3px",
-              flex: 1,
-            }}
-            aria-label="Sidebar navigation"
-          >
-            {navigation.error && (
-              <p role="alert" style={{ color: "#FCA5A5", padding: "12px", fontSize: "12px" }}>
-                {navigation.error}
-              </p>
-            )}
-            {principalNavSections.map((section, idx) => {
-              const visibleItems = section.items.filter(
-                (item) => item.id === "dashboard" || navigation.has(item.id)
-              );
-              if (visibleItems.length === 0) return null;
-              return (
-                <div key={section.key}>
-                  <div
-                    style={{
-                      fontSize: "10px",
-                      fontWeight: 700,
-                      color: S.groupLabel,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      padding: idx === 0 ? "8px 12px 4px" : "14px 12px 4px",
-                      userSelect: "none",
-                    }}
-                  >
-                    {section.label}
-                  </div>
-                  {visibleItems.map((item) => (
-                    <NavItem
-                      key={item.id}
-                      icon={item.icon}
-                      label={item.label}
-                      active={activePane === item.id}
-                      onClick={() => navigateTo(item.id)}
-                    />
-                  ))}
-                </div>
-              );
-            })}
-          </nav>
-        </div>
-      </aside>
+      {/* SIDEBAR NAVIGATION (Shared DashboardSidebar aligned with Unified Hierarchy) */}
+      <DashboardSidebar
+        organizationId={organization.id}
+        role="principal"
+        activeTab={activePane}
+        onTabChange={(tab, subTab) => navigateTo(tab, subTab)}
+        iconMap={principalIcons}
+        title="EDOPS Principal Command Center"
+      />
 
       {/* MAIN CONTENT AREA */}
       <main style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, minHeight: "100vh" }}>
@@ -1056,9 +935,9 @@ export function PrincipalWorkspace({
               </button>
             </div>
             <nav style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: "3px" }}>
-              {principalNavSections.map((section, idx) => {
-                const visibleItems = section.items.filter(
-                  (item) => item.id === "dashboard" || navigation.has(item.id)
+              {navigation.sections.map((section, idx) => {
+                const visibleItems = (section.items || []).filter(
+                  (item: any) => item.effectiveEnabled !== false
                 );
                 if (visibleItems.length === 0) return null;
                 return (
@@ -1076,18 +955,22 @@ export function PrincipalWorkspace({
                     >
                       {section.label}
                     </div>
-                    {visibleItems.map((item) => (
-                      <NavItem
-                        key={item.id}
-                        icon={item.icon}
-                        label={item.label}
-                        active={activePane === item.id}
-                        onClick={() => {
-                          setMobileMenuOpen(false);
-                          navigateTo(item.id);
-                        }}
-                      />
-                    ))}
+                    {visibleItems.map((item: any) => {
+                      const tabId = item.key.split(".").at(-1) || item.key;
+                      const Icon = principalIcons[tabId] || LayoutDashboard;
+                      return (
+                        <NavItem
+                          key={item.key}
+                          icon={Icon}
+                          label={item.label}
+                          active={activePane === tabId}
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            navigateTo(tabId);
+                          }}
+                        />
+                      );
+                    })}
                   </div>
                 );
               })}

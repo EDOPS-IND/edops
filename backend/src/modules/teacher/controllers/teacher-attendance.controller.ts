@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { AuthenticatedRequest } from '../../../common/auth.guard';
 import { QuickAttendanceDto, TeacherApplyLeaveDto, TeacherReviewLeaveDto } from '../dto/teacher.dto';
@@ -20,6 +20,17 @@ export class TeacherAttendanceController {
     @Req() req: AuthenticatedRequest
   ) {
     return this.attendanceService.getAttendanceOverview(organizationId, req.user);
+  }
+
+  @Get('attendance/register')
+  @ApiOperation({ summary: 'Get monthly attendance register matrix for class section' })
+  getRegister(
+    @Param('organizationId', ParseUUIDPipe) organizationId: string,
+    @Req() req: AuthenticatedRequest,
+    @Query('sectionId') sectionId?: string,
+    @Query('month') month?: string,
+  ) {
+    return this.attendanceService.getClassRegister(organizationId, req.user, sectionId, month);
   }
 
   @Post(['attendance', 'attendance/quick'])

@@ -1014,23 +1014,21 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                         >
                           {isDone ? "Register Taken" : "Pending Attendance"}
                         </span>
-                        {!isDone && (
-                          <button
-                            onClick={() => onTakeAttendance(period.sectionId, 1, period.classSection)}
-                            style={{
-                              background: S.navy,
-                              color: "#fff",
-                              border: "none",
-                              padding: "6px 12px",
-                              borderRadius: "6px",
-                              fontSize: "11.5px",
-                              fontWeight: 600,
-                              cursor: "pointer",
-                            }}
-                          >
-                            Roll Call
-                          </button>
-                        )}
+                        <button
+                          onClick={() => onTakeAttendance(period.sectionId, 1, period.classSection)}
+                          style={{
+                            background: isDone ? "#fff" : S.navy,
+                            color: isDone ? S.navy : "#fff",
+                            border: isDone ? `1px solid ${S.line}` : "none",
+                            padding: "6px 12px",
+                            borderRadius: "6px",
+                            fontSize: "11.5px",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          {isDone ? "Rectify" : "Roll Call"}
+                        </button>
                       </>
                     ) : (
                       <span

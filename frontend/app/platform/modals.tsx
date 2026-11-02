@@ -49,6 +49,45 @@ export function SupportSessionModal({
   );
 }
 
+const PLAN_FEATURE_TAXONOMY = [
+  {
+    category: "Academics & Instruction",
+    items: [
+      { key: "curriculum", label: "Curriculum & Lesson Plans" },
+      { key: "recordings", label: "Lecture Recordings & Storage" },
+    ],
+  },
+  {
+    category: "Schedule & Presence",
+    items: [
+      { key: "timetable", label: "Timetable Management" },
+      { key: "attendance", label: "Attendance & Registers" },
+    ],
+  },
+  {
+    category: "Assessment & Performance",
+    items: [
+      { key: "assessments", label: "Formative Tests & Quizzes" },
+      { key: "exams", label: "Term Examinations & Scorecards" },
+      { key: "arena", label: "Arena Practice Bank" },
+    ],
+  },
+  {
+    category: "Communication & Community",
+    items: [
+      { key: "communication", label: "In-App Messages & Directives" },
+    ],
+  },
+  {
+    category: "Operations & Governance",
+    items: [
+      { key: "finance", label: "Fee Management & Invoicing" },
+      { key: "ocr", label: "AI Paper Extraction (OCR)" },
+      { key: "analytics", label: "Academic Analytics & Audit" },
+    ],
+  },
+];
+
 export function CreatePlanModal({
   onClose,
   onCreate
@@ -61,14 +100,34 @@ export function CreatePlanModal({
     amountMinor: 5000000,
     maxStudents: 1000,
     maxTeachers: 70,
-    features: {},
+    features: {
+      curriculum: true,
+      timetable: true,
+      attendance: true,
+      assessments: true,
+      exams: true,
+      communication: true,
+    } as Record<string, boolean>,
   });
+
+  const toggleFeature = (key: string) => {
+    setNewPlan((prev) => ({
+      ...prev,
+      features: {
+        ...prev.features,
+        [key]: !prev.features[key],
+      },
+    }));
+  };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" }}>
-      <div style={{ background: "#FFF", borderRadius: "10px", padding: "24px", maxWidth: "550px", width: "100%", boxShadow: "0 10px 25px rgba(0,0,0,0.2)" }}>
+      <div style={{ background: "#FFF", borderRadius: "12px", padding: "24px", maxWidth: "620px", width: "100%", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 10px 25px rgba(0,0,0,0.2)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-          <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800 }}>Create New Plan Tier</h3>
+          <div>
+            <h3 style={{ margin: 0, fontSize: "16px", fontWeight: 800 }}>Create New Plan Tier</h3>
+            <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#6B7280" }}>Features configured here automatically sync across user sidebars and API route guards.</p>
+          </div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer" }}><X size={18} /></button>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", fontSize: "12.5px" }}>
@@ -111,7 +170,42 @@ export function CreatePlanModal({
             />
           </div>
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "16px" }}>
+
+        {/* Feature Entitlements Grouped by Standard Categories */}
+        <div style={{ marginTop: "18px", borderTop: "1px solid #E5E7EB", paddingTop: "14px" }}>
+          <label style={{ fontSize: "12.5px", fontWeight: 700, color: "#111827", display: "block", marginBottom: "8px" }}>
+            Included Feature Entitlements
+          </label>
+          <div style={{ display: "grid", gap: "10px" }}>
+            {PLAN_FEATURE_TAXONOMY.map((group) => (
+              <div key={group.category} style={{ background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: "8px", padding: "10px 12px" }}>
+                <div style={{ fontSize: "11px", fontWeight: 700, color: "#475569", textTransform: "uppercase", letterSpacing: "0.04em", marginBottom: "6px" }}>
+                  {group.category}
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px" }}>
+                  {group.items.map((item) => {
+                    const isChecked = !!newPlan.features[item.key];
+                    return (
+                      <label key={item.key} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12px", cursor: "pointer", userSelect: "none" }}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleFeature(item.key)}
+                          style={{ cursor: "pointer", accentColor: "#064E3B", width: "15px", height: "15px" }}
+                        />
+                        <span style={{ color: isChecked ? "#0F172A" : "#64748B", fontWeight: isChecked ? 600 : 400 }}>
+                          {item.label}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px", marginTop: "18px" }}>
           <button onClick={onClose} style={{ padding: "8px 14px", background: "#F8E7C9", color: "#064E3B", border: "1px solid #E5CCA2", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>Cancel</button>
           <button
             onClick={() => {

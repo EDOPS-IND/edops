@@ -33,6 +33,7 @@ import {
   dashboardRoles,
   DashboardRole,
   dashboardSections,
+  dashboardFeatureKey,
 } from "./dashboard-navigation";
 
 import { DrizzleService } from "../../database/drizzle.service";
@@ -90,6 +91,31 @@ export class BillingService {
       ORDER BY key, organization_id IS NOT NULL DESC`,
       [org, role],
     );
+    if (!sections || sections.length === 0) {
+      const defaults = this.defaultNavigationForRole(role);
+      const effective = await entitlements(m, org, role);
+      return defaults
+        .map((section: any) => ({
+          ...section,
+          items: section.items
+            .map((item: any) => {
+              const itemKey = item.key.split(".").at(-1) || item.key;
+              const featureKey = dashboardFeatureKey(role, section.key, itemKey);
+              return {
+                ...item,
+                featureKey,
+                effectiveEnabled:
+                  effective.entitled &&
+                  effective.features[featureKey] !== false,
+              };
+            })
+            .filter((item: any) => includeDisabled || item.effectiveEnabled),
+        }))
+        .filter(
+          (section: any) =>
+            includeDisabled || (section.enabled && section.items.length > 0),
+        );
+    }
     const items = await m.query(
       `SELECT DISTINCT ON (key) key,section_key AS "sectionKey",label,feature_key AS "featureKey",sort_order AS "sortOrder",enabled
       FROM dashboard_items WHERE role=$2 AND (organization_id IS NULL OR organization_id=$1)

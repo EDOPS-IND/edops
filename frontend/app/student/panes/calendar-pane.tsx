@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../edops-api';
 import { Calendar, Clock, AlertCircle } from 'lucide-react';
+import { SchoolCalendarGrid, toDDMMYYYY } from '../../components/school-calendar-grid';
 
 const T = {
   navy: '#0c1e33',
@@ -102,6 +103,15 @@ export const CalendarPane: React.FC<CalendarPaneProps> = ({ organizationId }) =>
         </div>
       </div>
 
+      {/* Visual Academic Calendar & Holidays Grid */}
+      <SchoolCalendarGrid
+        organizationId={organizationId}
+        canEdit={false}
+        title="Student Academic Calendar & Holiday Grid"
+        subtitle="Official school session calendar with holidays and emergency off days (Read-Only)."
+        events={allEvents}
+      />
+
       {/* 2. Events Card */}
       <div
         style={{
@@ -193,18 +203,22 @@ export const CalendarPane: React.FC<CalendarPaneProps> = ({ organizationId }) =>
                         style={{
                           padding: '3px 8px',
                           borderRadius: '100px',
-                          background: T.chip,
+                          background: evt.type === 'Emergency Closure' ? '#fff1f2' : evt.type === 'School Holiday' ? '#f3e8ff' : T.chip,
+                          border: evt.type === 'Emergency Closure' ? '1px solid #fecdd3' : evt.type === 'School Holiday' ? '1px solid #e9d5ff' : 'none',
                           fontSize: '10px',
-                          fontWeight: 600,
-                          color: T.navy,
+                          fontWeight: 700,
+                          color: evt.type === 'Emergency Closure' ? '#be123c' : evt.type === 'School Holiday' ? '#6b21a8' : T.navy,
                           textTransform: 'uppercase',
                         }}
                       >
                         {evt.type || 'Academic Event'}
                       </span>
-                      <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 600, color: T.navy }}>
+                      <h4 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: evt.type === "Emergency Closure" ? "#9f1239" : T.navy }}>
                         {evt.title}
                       </h4>
+                      <span style={{ fontSize: "11px", fontWeight: 600, color: "#2563eb", background: "#eff6ff", border: "1px solid #bfdbfe", padding: "1px 6px", borderRadius: "4px" }}>
+                        {toDDMMYYYY(evt.date)}
+                      </span>
                     </div>
                     <p style={{ margin: 0, fontSize: '12px', color: T.slate, lineHeight: 1.5 }}>
                       {evt.description}

@@ -13,7 +13,7 @@ import {
   Type,
 } from "@nestjs/common";
 import { ApiParam, ApiProperty, ApiTags } from "@nestjs/swagger";
-import { AuthenticatedRequest } from "../../common/auth.guard";
+import { AuthenticatedRequest, RequireFeature } from "../../common/auth.guard";
 import { SchoolEndpoint } from "../../common/school-api-docs";
 import { AcademicListDto } from "../academics/academic.dto";
 import { EmptyActionDto } from "../assignments/teaching.dto";
@@ -53,6 +53,7 @@ function Endpoint(
 }
 @ApiTags("Arena")
 @ApiParam({ name: "organizationId", format: "uuid" })
+@RequireFeature("arena")
 @Controller({ path: "organizations/:organizationId/arena", version: "1" })
 export class ArenaController {
   constructor(private readonly arena: ArenaService) {}

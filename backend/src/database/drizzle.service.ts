@@ -129,6 +129,21 @@ export class DrizzleService implements OnModuleInit, OnModuleDestroy {
         );
         CREATE INDEX IF NOT EXISTS idx_broadcast_reads_user ON broadcast_reads(organization_id, user_id);
       `);
+      await this.pool.query(`
+        CREATE TABLE IF NOT EXISTS school_holidays (
+          id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+          organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+          academic_year_id uuid REFERENCES academic_years(id) ON DELETE CASCADE,
+          date date NOT NULL,
+          title varchar(140) NOT NULL,
+          holiday_type varchar(32) NOT NULL DEFAULT 'gazetted',
+          is_adhoc boolean NOT NULL DEFAULT false,
+          declared_by uuid REFERENCES users(id),
+          notes text,
+          created_at timestamptz NOT NULL DEFAULT now()
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_school_holidays_date ON school_holidays(organization_id, date);
+      `);
       // Cleanup legacy session table: authentication is now fully stateless JWT
       await this.pool.query('DROP TABLE IF EXISTS sessions CASCADE;');
     } catch {

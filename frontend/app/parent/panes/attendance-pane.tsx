@@ -3,17 +3,21 @@
 import React from "react";
 import { WardInfo, LeaveApplication } from "../types";
 import { CalendarCheck, Clock, Plus, CheckCircle2, AlertTriangle, FileText } from "lucide-react";
+import { SchoolCalendarGrid } from "../../components/school-calendar-grid";
 
 export function AttendancePane({
   selectedWard,
   leavesList,
   onOpenLeaveModal,
+  organizationId,
 }: {
   selectedWard: WardInfo;
   leavesList: LeaveApplication[];
   onOpenLeaveModal: () => void;
+  organizationId?: string;
 }) {
   const attendance = selectedWard.data?.attendance || [];
+  const holidays = selectedWard.data?.holidays || [];
   const wardLeaves = leavesList.filter((l) => l.studentUserId === selectedWard.studentUserId);
 
   const attendanceRate = selectedWard.attendancePct != null ? `${selectedWard.attendancePct}%` : "—";
@@ -293,6 +297,14 @@ export function AttendancePane({
           </div>
         )}
       </div>
+
+      {/* Visual Academic Calendar & Holidays Grid for Parents (Read-Only) */}
+      <SchoolCalendarGrid
+        organizationId={organizationId || selectedWard.organizationId || ""}
+        canEdit={false}
+        title="Official Academic Calendar & Holidays"
+        subtitle="Institutional session calendar with holidays and emergency closures. Non-instructional days are excluded from attendance denominators."
+      />
     </div>
   );
 }

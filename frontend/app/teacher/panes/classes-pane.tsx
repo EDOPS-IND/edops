@@ -259,7 +259,7 @@ export function ClassesPane({
                   }}
                 >
                   <CheckSquare size={14} />
-                  <span>Take Attendance</span>
+                  <span>Daily Attendance / Rectify</span>
                 </button>
                 <button
                   type="button"
