@@ -491,4 +491,131 @@ export class AcademicsService {
       return { success: true, count, action: 'promote', targetSectionId: dto.targetSectionId };
     });
   }
+
+  async listHolidays(org: string, query: { month?: string; academicYearId?: string }) {
+    let sql = `SELECT h.id, to_char(h.date, 'YYYY-MM-DD') as date, h.title, h.holiday_type as "holidayType",
+                      h.is_adhoc as "isAdhoc", h.notes, h.created_at as "createdAt",
+                      u.name as "declaredByName"
+               FROM school_holidays h
+               LEFT JOIN users u ON u.id = h.declared_by
+               WHERE h.organization_id = $1`;
+    const params: any[] = [org];
+    if (query.month) {
+      params.push(query.month);
+      sql += ` AND to_char(h.date, 'YYYY-MM') = $${params.length}`;
+    }
+    if (query.academicYearId) {
+      params.push(query.academicYearId);
+      sql += ` AND (h.academic_year_id = $${params.length} OR EXISTS (
+        SELECT 1 FROM academic_years y WHERE y.id = $${params.length} AND h.date >= y.start_date AND h.date <= y.end_date
+      ))`;
+    }
+    sql += ` ORDER BY h.date ASC`;
+
+    let examSql = `SELECT DISTINCT ON (ep.exam_name, ep.exam_date)
+                          ep.id, ep.exam_name AS title, to_char(ep.exam_date, 'YYYY-MM-DD') AS date,
+                          COALESCE(ep.start_time || ' - ' || ep.end_time, 'All Day') AS time,
+                          'Exam' AS type,
+                          'Official Exam Assessment: ' || ep.exam_name AS description
+                   FROM principal_exam_plans ep
+                   WHERE ep.organization_id = $1 AND ep.status IN ('scheduled', 'draft', 'published', 'active')`;
+    const examParams: any[] = [org];
+    if (query.month) {
+      examParams.push(query.month);
+      examSql += ` AND to_char(ep.exam_date, 'YYYY-MM') = $${examParams.length}`;
+    }
+    if (query.academicYearId) {
+      examParams.push(query.academicYearId);
+      examSql += ` AND EXISTS (
+        SELECT 1 FROM academic_years y
+        LEFT JOIN sections sec ON sec.id = ep.section_id AND sec.organization_id = ep.organization_id
+        WHERE y.id = $${examParams.length}
+          AND (sec.academic_year_id = y.id OR (ep.exam_date >= y.start_date AND ep.exam_date <= y.end_date))
+      )`;
+    }
+    examSql += ` ORDER BY ep.exam_name, ep.exam_date, ep.start_time ASC`;
+
+    let ptmSql = `SELECT p.id, p.title, to_char(p.event_date, 'YYYY-MM-DD') AS date,
+                         COALESCE(p.start_time || ' - ' || p.end_time, 'All Day') AS time,
+                         'PTM' AS type,
+                         'Scheduled Parent-Teacher Conference' AS description
+                  FROM ptm_schedules p
+                  WHERE p.organization_id = $1`;
+    const ptmParams: any[] = [org];
+    if (query.month) {
+      ptmParams.push(query.month);
+      ptmSql += ` AND to_char(p.event_date, 'YYYY-MM') = $${ptmParams.length}`;
+    }
+    if (query.academicYearId) {
+      ptmParams.push(query.academicYearId);
+      ptmSql += ` AND EXISTS (
+        SELECT 1 FROM academic_years y
+        WHERE y.id = $${ptmParams.length} AND p.event_date >= y.start_date AND p.event_date <= y.end_date
+      )`;
+    }
+    ptmSql += ` ORDER BY p.event_date ASC`;
+
+    const [rows, academicYears, exams, ptms] = await Promise.all([
+      this.drizzle.query(sql, params),
+      this.drizzle.query(
+        `SELECT id, name, to_char(start_date, 'YYYY-MM-DD') as "startDate", to_char(end_date, 'YYYY-MM-DD') as "endDate", is_current as "isCurrent"
+         FROM academic_years
+         WHERE organization_id = $1
+         ORDER BY start_date DESC`,
+        [org]
+      ),
+      this.drizzle.query(examSql, examParams).catch((err) => {
+        console.error('[AcademicsService.listHolidays] Exam query failed:', err.message);
+        return [];
+      }),
+      this.drizzle.query(ptmSql, ptmParams).catch((err) => {
+        console.error('[AcademicsService.listHolidays] PTM query failed:', err.message);
+        return [];
+      }),
+    ]);
+    const events = [...exams, ...ptms];
+    return { holidays: rows, academicYears, events };
+  }
+
+  async declareHoliday(org: string, actor: User, dto: { date: string; title: string; holidayType?: string; isAdhoc?: boolean; notes?: string; broadcastNotice?: boolean; academicYearId?: string }) {
+    if (!dto.date || !dto.title) throw new BadRequestException('Date and title are required');
+    const [currentYear] = await this.drizzle.query(
+      `SELECT id FROM academic_years WHERE organization_id = $1 AND is_current = true LIMIT 1`,
+      [org]
+    );
+
+    const [holiday] = await this.drizzle.query(
+      `INSERT INTO school_holidays (organization_id, academic_year_id, date, title, holiday_type, is_adhoc, declared_by, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       ON CONFLICT (organization_id, date) DO UPDATE 
+       SET title = EXCLUDED.title, holiday_type = EXCLUDED.holiday_type, is_adhoc = EXCLUDED.is_adhoc, notes = EXCLUDED.notes
+       RETURNING id, to_char(date, 'YYYY-MM-DD') as date, title, holiday_type as "holidayType", is_adhoc as "isAdhoc", notes`,
+      [org, dto.academicYearId || currentYear?.id || null, dto.date, dto.title.trim(), dto.holidayType || (dto.isAdhoc ? 'adhoc_emergency' : 'gazetted'), Boolean(dto.isAdhoc), actor.id, dto.notes || '']
+    );
+
+    if (dto.isAdhoc || dto.broadcastNotice) {
+      await this.drizzle.query(
+        `INSERT INTO school_broadcasts (organization_id, title, message, channels, target_audience, priority, sent_by, sender_name)
+         VALUES ($1, $2, $3, '{"in_app"}', 'all', 'high', $4, $5)`,
+        [
+          org,
+          `School Closed: ${dto.title}`,
+          `Official Notice: School will remain closed on ${dto.date} due to ${dto.title}.${dto.notes ? ` Details: ${dto.notes}` : ''}`,
+          actor.id,
+          actor.name || 'School Administration',
+        ]
+      ).catch(() => null);
+    }
+
+    return holiday;
+  }
+
+  async deleteHoliday(org: string, id: string) {
+    const [deleted] = await this.drizzle.query(
+      `DELETE FROM school_holidays WHERE organization_id = $1 AND id = $2 RETURNING id`,
+      [org, id]
+    );
+    if (!deleted) throw new NotFoundException('Holiday record not found');
+    return { success: true, id };
+  }
 }

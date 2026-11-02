@@ -29,6 +29,8 @@ import { SubjectPassingMarks1790553600001 } from './migrations/1790553600001-Sub
 import { NullableSubjectFaculty1790553600002 } from './migrations/1790553600002-NullableSubjectFaculty';
 import { SchoolDocuments1790553600003 } from './migrations/1790553600003-SchoolDocuments';
 import { RemoveSchoolAdminReportsNavigation1790553600004 } from './migrations/1790553600004-RemoveSchoolAdminReportsNavigation';
+import { SyncDashboardNavigationHierarchy1790553600005 } from './migrations/1790553600005-SyncDashboardNavigationHierarchy';
+import { SingleWordDashboardNavigation1790553600006 } from './migrations/1790553600006-SingleWordDashboardNavigation';
 import { ArenaAttempt, ArenaQuestion } from '../modules/arena/arena.entity';
 import { Recording } from '../modules/content/recording.entity';
 import { Assignment, AttendanceSession, ExamEvaluation, Submission } from '../modules/assignments/teaching.entity';
@@ -68,6 +70,8 @@ export function databaseOptions(config: AppConfig): DataSourceOptions {
       NullableSubjectFaculty1790553600002,
       SchoolDocuments1790553600003,
       RemoveSchoolAdminReportsNavigation1790553600004,
+      SyncDashboardNavigationHierarchy1790553600005,
+      SingleWordDashboardNavigation1790553600006,
     ],
     migrationsTransactionMode: 'all',
     synchronize: false,

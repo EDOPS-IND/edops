@@ -14,7 +14,7 @@ import {
   ApiParam,
   ApiTags,
 } from "@nestjs/swagger";
-import { AuthenticatedRequest } from "../../../common/auth.guard";
+import { AuthenticatedRequest, RequireFeature } from "../../../common/auth.guard";
 import { StudentGuard } from "../guards/student.guard";
 import { StudentArenaService } from "../services/student-arena.service";
 import { SubmitArenaAttemptDto } from "../dto/student.dto";
@@ -22,6 +22,7 @@ import { SubmitArenaAttemptDto } from "../dto/student.dto";
 @ApiTags("Student Command Center")
 @ApiBearerAuth()
 @UseGuards(StudentGuard)
+@RequireFeature("arena")
 @ApiParam({ name: "organizationId", format: "uuid" })
 @Controller({ path: "organizations/:organizationId/student", version: "1" })
 export class StudentArenaController {

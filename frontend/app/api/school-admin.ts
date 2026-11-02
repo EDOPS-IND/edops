@@ -514,3 +514,25 @@ export function createSchoolAdminDiscipline(orgId: string, data: any) {
 export function updateSchoolAdminConfiguration(orgId: string, data: any) {
   return api<any>(`/organizations/${orgId}/school-admin/settings/configuration`, { method: "PATCH", body: data });
 }
+
+export function getSchoolHolidays(orgId: string, query?: string | { month?: string; academicYearId?: string }) {
+  let q = '';
+  if (typeof query === 'string') {
+    q = `?month=${query}`;
+  } else if (query) {
+    const params = new URLSearchParams();
+    if (query.month) params.set('month', query.month);
+    if (query.academicYearId) params.set('academicYearId', query.academicYearId);
+    const qs = params.toString();
+    if (qs) q = `?${qs}`;
+  }
+  return api<{ holidays: any[]; academicYears?: any[]; events?: any[] }>(`/organizations/${orgId}/academics/holidays${q}`);
+}
+
+export function declareSchoolHoliday(orgId: string, data: { date: string; title: string; holidayType?: string; isAdhoc?: boolean; notes?: string; broadcastNotice?: boolean; academicYearId?: string }) {
+  return api<any>(`/organizations/${orgId}/academics/holidays`, { method: "POST", body: data });
+}
+
+export function deleteSchoolHoliday(orgId: string, id: string) {
+  return api<any>(`/organizations/${orgId}/academics/holidays/${id}`, { method: "DELETE" });
+}

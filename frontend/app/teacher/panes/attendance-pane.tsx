@@ -24,6 +24,7 @@ import {
   updateTeacherStudentLeaveStatus,
 } from "../../edops-api";
 import { ApplyLeaveModal, LeaveItem, LeaveTable } from "../../components/leave-desk";
+import { MonthlyRegisterView } from "../components/classes/monthly-register-view";
 
 const T = {
   navy: "#0c1e33",
@@ -66,16 +67,16 @@ export function AttendancePane({
   const [activeSlot, setActiveSlot] = useState<any>(null);
   const [defaultSectionId, setDefaultSectionId] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"registers" | "my_leaves" | "student_leaves">(
-    initialTab === "my_leaves" || initialTab === "student_leaves" ? initialTab : "registers"
+  const [activeTab, setActiveTab] = useState<"registers" | "monthly_register" | "my_leaves" | "student_leaves">(
+    initialTab === "my_leaves" || initialTab === "student_leaves" || initialTab === "monthly_register" ? (initialTab as any) : "registers"
   );
   const [myLeaves, setMyLeaves] = useState<any[]>([]);
   const [studentLeaves, setStudentLeaves] = useState<any[]>([]);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
 
   useEffect(() => {
-    if (initialTab && (initialTab === "registers" || initialTab === "my_leaves" || initialTab === "student_leaves")) {
-      setActiveTab(initialTab);
+    if (initialTab && (initialTab === "registers" || initialTab === "monthly_register" || initialTab === "my_leaves" || initialTab === "student_leaves")) {
+      setActiveTab(initialTab as any);
     }
   }, [initialTab]);
 
@@ -234,21 +235,44 @@ export function AttendancePane({
               <span>Take Attendance: {activeSlot.classSection} (Period 1)</span>
             </button>
           ) : todaySlots.length > 0 && todaySlots.some((s) => s.canTakeAttendance && s.attendanceTaken) ? (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                padding: "6px 14px",
-                borderRadius: "100px",
-                background: T.greenBg,
-                color: T.greenDark,
-                fontSize: "11px",
-                fontWeight: 600,
-              }}
-            >
-              <CheckCircle2 size={13} color={T.greenDark} />
-              <span>All Periods Finalized Today</span>
+            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "6px 14px",
+                  borderRadius: "100px",
+                  background: T.greenBg,
+                  color: T.greenDark,
+                  fontSize: "11px",
+                  fontWeight: 600,
+                }}
+              >
+                <CheckCircle2 size={13} color={T.greenDark} />
+                <span>Roll Call Finalized Today</span>
+              </div>
+              {(() => {
+                const ctSlot = todaySlots.find((s) => s.canTakeAttendance);
+                return ctSlot ? (
+                  <button
+                    type="button"
+                    onClick={() => onTakeAttendance(ctSlot.sectionId, 1, ctSlot.classSection)}
+                    style={{
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      border: `1px solid ${T.border}`,
+                      background: T.white,
+                      fontSize: "11px",
+                      fontWeight: 600,
+                      color: T.navy,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Rectify Register
+                  </button>
+                ) : null;
+              })()}
             </div>
           ) : (
             <div
@@ -401,6 +425,7 @@ export function AttendancePane({
       <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
         {[
           { id: "registers", label: "Daily Registers & Timetable" },
+          { id: "monthly_register", label: "Monthly Register Matrix (P/A/L)" },
           {
             id: "my_leaves",
             label: `My Leave Applications${myLeaves.filter((l) => l.status === "pending").length > 0 ? ` (${myLeaves.filter((l) => l.status === "pending").length})` : ""}`,
@@ -507,7 +532,25 @@ export function AttendancePane({
 
                     {slot.canTakeAttendance && (
                       isFinalized ? (
-                        <span style={{ fontSize: "12px", fontWeight: 600, color: T.greenDark }}>Recorded ✓</span>
+                        <div style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                          <span style={{ fontSize: "12px", fontWeight: 600, color: T.greenDark }}>Recorded ✓</span>
+                          <button
+                            type="button"
+                            onClick={() => onTakeAttendance(slot.sectionId, 1, slot.classSection)}
+                            style={{
+                              background: "transparent",
+                              border: `1px solid ${T.border}`,
+                              borderRadius: "4px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              color: T.navy,
+                              cursor: "pointer",
+                              padding: "2px 8px",
+                            }}
+                          >
+                            Rectify
+                          </button>
+                        </div>
                       ) : (
                         <button
                           type="button"
@@ -674,6 +717,10 @@ export function AttendancePane({
         )}
       </div>
       </>
+      )}
+
+      {activeTab === "monthly_register" && (
+        <MonthlyRegisterView organizationId={organizationId} />
       )}
 
       {activeTab === "my_leaves" && (

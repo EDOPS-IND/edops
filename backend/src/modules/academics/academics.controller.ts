@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Headers,
   Param,
@@ -375,5 +376,34 @@ export class AcademicsController {
     @Body() dto: BatchPromotionDto,
   ) {
     return this.academics.batchPromote(org, req.user, dto);
+  }
+
+  @Get("holidays")
+  @ApiOperation({ summary: "List school calendar holidays and ad-hoc closures" })
+  listHolidays(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Query("month") month?: string,
+    @Query("academicYearId") academicYearId?: string,
+  ) {
+    return this.academics.listHolidays(org, { month, academicYearId });
+  }
+
+  @Post("holidays")
+  @ApiOperation({ summary: "Declare a school holiday or emergency ad-hoc closure" })
+  declareHoliday(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Req() req: AuthenticatedRequest,
+    @Body() dto: { date: string; title: string; holidayType?: string; isAdhoc?: boolean; notes?: string; broadcastNotice?: boolean },
+  ) {
+    return this.academics.declareHoliday(org, req.user, dto);
+  }
+
+  @Delete("holidays/:id")
+  @ApiOperation({ summary: "Cancel or remove a declared school holiday" })
+  deleteHoliday(
+    @Param("organizationId", ParseUUIDPipe) org: string,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.academics.deleteHoliday(org, id);
   }
 }

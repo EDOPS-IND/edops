@@ -29,7 +29,7 @@ export class TeacherWorkloadReportsService {
     let dbExams: any[] = [];
     try {
       dbExams = await this.drizzle.query(
-        `SELECT ep.exam_name AS title, ep.exam_date FROM principal_exam_plans ep
+        `SELECT ep.exam_name AS title, to_char(ep.exam_date, 'YYYY-MM-DD') AS exam_date FROM principal_exam_plans ep
          WHERE ep.organization_id=$1 AND ep.status='scheduled' AND EXISTS (SELECT 1 FROM class_subject_assignments c WHERE c.organization_id=ep.organization_id AND c.section_id=ep.section_id AND c.subject_id=ep.subject_id AND c.teacher_user_id=$2)
          ORDER BY ep.exam_date LIMIT 100`,
         [organizationId, user.id]
@@ -39,9 +39,9 @@ export class TeacherWorkloadReportsService {
     let dbTasks: any[] = [];
     try {
       dbTasks = await this.drizzle.query(
-        `SELECT title, due_date FROM teacher_academic_tasks
+        `SELECT title, to_char(due_date, 'YYYY-MM-DD') AS due_date FROM teacher_academic_tasks
          WHERE organization_id = $1 AND teacher_user_id = $2
-         ORDER BY due_date ASC LIMIT 5`,
+         ORDER BY due_date ASC LIMIT 50`,
         [organizationId, user.id]
       );
     } catch (error) { throw error; }
@@ -49,16 +49,39 @@ export class TeacherWorkloadReportsService {
     let dbPtms: any[] = [];
     try {
       dbPtms = await this.drizzle.query(
-        `SELECT title, event_date, start_time, end_time FROM ptm_schedules
+        `SELECT title, to_char(event_date, 'YYYY-MM-DD') AS event_date, start_time, end_time FROM ptm_schedules
          WHERE organization_id = $1
-         ORDER BY event_date ASC LIMIT 5`,
+         ORDER BY event_date ASC LIMIT 50`,
         [organizationId]
       );
     } catch (error) { throw error; }
 
+    let dbHolidays: any[] = [];
+    try {
+      dbHolidays = await this.drizzle.query(
+        `SELECT id, title, to_char(date, 'YYYY-MM-DD') AS date, holiday_type, is_adhoc, notes
+         FROM school_holidays
+         WHERE organization_id = $1
+         ORDER BY date ASC`,
+        [organizationId]
+      );
+    } catch { dbHolidays = []; }
+
+    let monthPrefix: string | null = null;
+    if (month) {
+      const parsed = new Date(month.includes(' ') ? `${month} 1` : month);
+      if (!isNaN(parsed.getTime())) {
+        const y = parsed.getFullYear();
+        const m = String(parsed.getMonth() + 1).padStart(2, '0');
+        monthPrefix = `${y}-${m}`;
+      }
+    }
+
     const events: any[] = [];
     for (const e of dbExams) {
+      const dateStr = typeof e.exam_date === 'string' ? e.exam_date.slice(0, 10) : new Date(e.exam_date).toISOString().slice(0, 10);
       events.push({
+        rawDate: dateStr,
         date: new Date(e.exam_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         title: e.title,
         type: 'Exam',
@@ -67,7 +90,9 @@ export class TeacherWorkloadReportsService {
       });
     }
     for (const t of dbTasks) {
+      const dateStr = typeof t.due_date === 'string' ? t.due_date.slice(0, 10) : new Date(t.due_date).toISOString().slice(0, 10);
       events.push({
+        rawDate: dateStr,
         date: new Date(t.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         title: t.title,
         type: 'Deadline',
@@ -76,7 +101,9 @@ export class TeacherWorkloadReportsService {
       });
     }
     for (const p of dbPtms) {
+      const dateStr = typeof p.event_date === 'string' ? p.event_date.slice(0, 10) : new Date(p.event_date).toISOString().slice(0, 10);
       events.push({
+        rawDate: dateStr,
         date: new Date(p.event_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
         title: p.title || 'Parent-Teacher Meeting',
         type: 'PTM',
@@ -85,17 +112,46 @@ export class TeacherWorkloadReportsService {
       });
     }
 
-    events.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    for (const h of dbHolidays) {
+      const dateStr = typeof h.date === 'string' ? h.date.slice(0, 10) : new Date(h.date).toISOString().slice(0, 10);
+      events.push({
+        rawDate: dateStr,
+        date: new Date(h.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        title: h.title,
+        type: h.is_adhoc ? 'Emergency Closure' : 'Holiday',
+        color: h.is_adhoc ? 'bg-rose-50 text-rose-700 border-rose-200' : 'bg-purple-50 text-purple-700 border-purple-200',
+        description: `${h.is_adhoc ? 'Ad-hoc emergency closure' : 'Declared school holiday'}${h.notes ? `: ${h.notes}` : ''}`,
+      });
+    }
+
+    events.sort((a, b) => new Date(a.rawDate || a.date).getTime() - new Date(b.rawDate || b.date).getTime());
+
+    const monthEvents = monthPrefix
+      ? events.filter((ev) => ev.rawDate && ev.rawDate.startsWith(monthPrefix))
+      : events;
+
+    const monthExams = monthPrefix
+      ? dbExams.filter((e) => String(e.exam_date).slice(0, 7) === monthPrefix)
+      : dbExams;
+    const monthTasks = monthPrefix
+      ? dbTasks.filter((t) => String(t.due_date).slice(0, 7) === monthPrefix)
+      : dbTasks;
+    const monthPtms = monthPrefix
+      ? dbPtms.filter((p) => String(p.event_date).slice(0, 7) === monthPrefix)
+      : dbPtms;
+    const monthHolidays = monthPrefix
+      ? dbHolidays.filter((h) => String(h.date).slice(0, 7) === monthPrefix)
+      : dbHolidays;
 
     return {
       month: month || 'Current Academic Month',
       stats: {
-        exams: `${dbExams.length} Papers`,
-        deadlines: `${dbTasks.length} Pending`,
-        ptm: dbPtms.length > 0 ? `${dbPtms.length} Scheduled` : '0 Scheduled',
-        holidays: '0 Days',
+        exams: `${monthExams.length} Papers`,
+        deadlines: `${monthTasks.length} Pending`,
+        ptm: monthPtms.length > 0 ? `${monthPtms.length} Scheduled` : '0 Scheduled',
+        holidays: `${monthHolidays.length} Days`,
       },
-      events,
+      events: monthEvents,
     };
   }
 

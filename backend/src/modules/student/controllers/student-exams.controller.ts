@@ -12,13 +12,14 @@ import {
   ApiParam,
   ApiTags,
 } from "@nestjs/swagger";
-import { AuthenticatedRequest } from "../../../common/auth.guard";
+import { AuthenticatedRequest, RequireFeature } from "../../../common/auth.guard";
 import { StudentGuard } from "../guards/student.guard";
 import { StudentExamsService } from "../services/student-exams.service";
 
 @ApiTags("Student Command Center")
 @ApiBearerAuth()
 @UseGuards(StudentGuard)
+@RequireFeature("exams")
 @ApiParam({ name: "organizationId", format: "uuid" })
 @Controller({ path: "organizations/:organizationId/student", version: "1" })
 export class StudentExamsController {

@@ -1,9 +1,11 @@
 import { Body, Controller, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { RequireFeature } from '../../common/auth.guard';
 import { OcrService } from './ocr.service';
 import { ExtractQuestionPaperDto } from './dto/extract-paper.dto';
 
 @ApiTags('OCR & Document Digitization')
+@RequireFeature('ocr')
 @Controller('organizations/:organizationId/ocr')
 export class OcrController {
   constructor(private readonly ocrService: OcrService) {}

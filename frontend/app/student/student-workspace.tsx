@@ -31,6 +31,26 @@ import {
 
 import { OrganizationSummary, api, getStudentAvatarUrl, invalidateApiCache } from '../edops-api';
 import { useDashboardNavigation } from '../dashboard-navigation';
+import { DashboardSidebar } from '../components/dashboard-sidebar';
+
+const studentIcons: Record<string, React.ElementType> = {
+  dashboard: LayoutDashboard,
+  class: Users,
+  subjects: BookOpen,
+  timetable: Clock,
+  assignments: ClipboardList,
+  arena: Trophy,
+  assessments: Award,
+  exams: CalendarDays,
+  curriculum: BookOpen,
+  resources: Video,
+  calendar: CalendarDays,
+  attendance: Calendar,
+  performance: BarChart3,
+  progress: Target,
+  communication: MessageSquare,
+  profile: Settings,
+};
 import { NotificationBellDropdown } from '../components/notification-bell-dropdown';
 import { FeatureUnavailableCard, ThreeDotsLoading } from '../components/feature-unavailable-card';
 import { GlobalPortalSearch } from '../components/global-portal-search';
@@ -213,20 +233,20 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
   const pageTitles: Record<StudentTab, string> = {
     dashboard: "Dashboard",
     attendance: "Attendance",
-    assignments: "Homework",
+    assignments: "Assignments",
     curriculum: "Curriculum",
-    arena: "Arena Practice",
+    arena: "Arena",
     assessments: "Assessments",
-    class: "My Class",
+    class: "Classes",
     subjects: "Subjects",
-    timetable: "Timetable & Schedule",
-    exams: "Term Exams",
+    timetable: "Timetable",
+    exams: "Examinations",
     performance: "Performance",
-    resources: "Notes & Lectures",
+    resources: "Resources",
     calendar: "Calendar",
-    communication: "Academic Inbox",
-    progress: "Personal Growth",
-    profile: "Account Settings",
+    communication: "Communication",
+    progress: "Progress",
+    profile: "Profile",
   };
 
   // Primary navigation items
@@ -336,234 +356,16 @@ export const StudentWorkspace: React.FC<StudentWorkspaceProps> = ({
       }}
     >
       {/* ═══════════════════════════════════════════════
-          S I D E B A R (Strictly matching provided selector)
+          S I D E B A R (Shared & Feature-Flag Aligned)
       ═══════════════════════════════════════════════ */}
-      <aside
-        id="sidebar"
-        aria-label="Primary navigation"
-        className="workspace-aside"
-        style={{
-          width: "240px",
-          flexShrink: 0,
-          background: S.sidebarBg,
-          color: "#fff",
-          height: "100vh",
-          position: "sticky",
-          top: 0,
-          alignSelf: "flex-start",
-          padding: 0,
-          boxSizing: "border-box",
-          zIndex: 40,
-          borderRight: `1px solid ${S.sidebarBorder}`,
-        }}
-      >
-        {/* Brand / Logo - Exactly 68px height matching Student Command Center header */}
-        <div
-          style={{
-            height: "68px",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 20px",
-            cursor: "pointer",
-            flexShrink: 0,
-            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-            boxSizing: "border-box",
-          }}
-          onClick={() => navigateTo('dashboard')}
-          title="EDOPS Student Command Center"
-        >
-          <img
-            src="/EDOPSLogo.png"
-            alt="EDOPS Student Portal"
-            style={{
-              height: "36px",
-              width: "auto",
-              maxWidth: "140px",
-              display: "block",
-              objectFit: "contain",
-              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
-              transition: "transform 0.15s ease",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-          />
-        </div>
-
-        {/* Scrollable Navigation Body */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            padding: "12px 12px 14px",
-            overflowY: "auto",
-            overflowX: "hidden",
-            scrollbarWidth: "none",
-          }}
-        >
-          {/* Navigation Section Items */}
-          <nav
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "3px",
-              flex: 1,
-            }}
-            aria-label="Sidebar navigation"
-          >
-            {/* Section 1: STUDENT WORKSPACE */}
-            <div
-              style={{
-                fontSize: "10px",
-                fontWeight: 700,
-                color: S.groupLabel,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                padding: "8px 12px 4px",
-                userSelect: "none",
-              }}
-            >
-              STUDENT WORKSPACE
-            </div>
-
-            {/* Dashboard Item */}
-            {renderNavItem({
-              id: 'dashboard',
-              label: 'Dashboard',
-              tab: 'dashboard',
-              icon: LayoutDashboard,
-            })}
-
-            {/* Section 2: ACADEMICS */}
-            <div
-              style={{
-                fontSize: "10px",
-                fontWeight: 700,
-                color: S.groupLabel,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                padding: "14px 12px 4px",
-                userSelect: "none",
-              }}
-            >
-              ACADEMICS
-            </div>
-
-            {/* Primary Academic Items */}
-            {primaryAcademicItems.map(item => renderNavItem(item))}
-
-            {/* Seamless More Modules Section (Guaranteed 1-Line & matching selector) */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-              <button
-                id="nav-toggle-more-modules"
-                onClick={() => setShowMoreAcademics(!showMoreAcademics)}
-                style={{
-                  all: "unset",
-                  boxSizing: "border-box",
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "10px",
-                  height: "40px",
-                  padding: "0 12px",
-                  borderRadius: "10px",
-                  fontSize: "13.5px",
-                  cursor: "pointer",
-                  transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
-                  background: isExtraTabActive && !showMoreAcademics ? S.itemActiveBg : "transparent",
-                  color: (isExtraTabActive && !showMoreAcademics) || showMoreAcademics ? "#ffffff" : S.itemInactiveText,
-                  fontWeight: (isExtraTabActive && !showMoreAcademics) || showMoreAcademics ? 600 : 450,
-                  whiteSpace: "nowrap",
-                  flexWrap: "nowrap",
-                }}
-                onMouseEnter={(e) => {
-                  if (!(isExtraTabActive && !showMoreAcademics)) {
-                    e.currentTarget.style.color = "#ffffff";
-                    e.currentTarget.style.background = S.itemHoverBg;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!(isExtraTabActive && !showMoreAcademics)) {
-                    e.currentTarget.style.color = showMoreAcademics ? "#ffffff" : S.itemInactiveText;
-                    e.currentTarget.style.background = "transparent";
-                  }
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "11px", minWidth: 0, flex: 1, overflow: "hidden" }}>
-                  <LayoutGrid
-                    size={18}
-                    strokeWidth={(isExtraTabActive && !showMoreAcademics) || showMoreAcademics ? 2 : 1.75}
-                    style={{
-                      flexShrink: 0,
-                      color: (isExtraTabActive && !showMoreAcademics) || showMoreAcademics ? "#ffffff" : S.itemInactiveText,
-                    }}
-                  />
-                  <span
-                    style={{
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    More Modules
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-                  <ChevronDown
-                    size={15}
-                    style={{
-                      color: (isExtraTabActive && !showMoreAcademics) || showMoreAcademics ? "#ffffff" : S.itemInactiveText,
-                      transform: showMoreAcademics ? "rotate(180deg)" : "rotate(0deg)",
-                      transition: "transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                      flexShrink: 0,
-                    }}
-                  />
-                </div>
-              </button>
-
-              {/* Seamless Expanded Items with Exact Same Full-Width Pill Selector & Alignment */}
-              {showMoreAcademics && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "3px",
-                    padding: "4px",
-                    background: "rgba(255, 255, 255, 0.02)",
-                    borderRadius: "10px",
-                    border: "1px solid rgba(255, 255, 255, 0.04)",
-                  }}
-                >
-                  {extraAcademicItems.map(item => renderNavItem(item))}
-                </div>
-              )}
-            </div>
-
-            {/* Section 3: SETTINGS */}
-            <div
-              style={{
-                fontSize: "10px",
-                fontWeight: 700,
-                color: S.groupLabel,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                padding: "14px 12px 4px",
-                userSelect: "none",
-              }}
-            >
-              SETTINGS
-            </div>
-
-            {renderNavItem({
-              id: 'profile',
-              label: 'Account Settings',
-              tab: 'profile',
-              icon: Settings,
-            })}
-          </nav>
-        </div>
-      </aside>
+      <DashboardSidebar
+        organizationId={organization.id}
+        role="student"
+        activeTab={activeTab}
+        onTabChange={(tab) => navigateTo(tab as StudentTab)}
+        iconMap={studentIcons}
+        title="EDOPS Student Command Center"
+      />
 
       {/* ═══════════════════════════════════════════════
           W O R K S P A C E   &   H E A D E R

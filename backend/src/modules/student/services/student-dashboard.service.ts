@@ -189,7 +189,22 @@ export class StudentDashboardService {
   async getCalendar(organizationId:string,studentUserId:string) {
     const assignments=await this.assignments.getAssignments(organizationId,studentUserId);
     const exams=await this.drizzle.query(`SELECT ep.id,ep.exam_name AS title,ep.exam_date AS date,ep.start_time || ' - ' || ep.end_time AS time FROM principal_exam_plans ep WHERE ep.organization_id=$1 AND ep.status='scheduled' AND EXISTS (SELECT 1 FROM enrollments e WHERE e.organization_id=ep.organization_id AND e.section_id=ep.section_id AND e.student_user_id=$2 AND e.status='active') ORDER BY ep.exam_date`,[organizationId,studentUserId]);
-    return {events:[...assignments.assignments.map(a=>({id:a.id,title:a.title,date:a.dueDate,type:'Deadline',time:'',description:a.description})),...exams.map(e=>({...e,type:'Exam',description:''}))]};
+    const holidays=await this.drizzle.query(
+      `SELECT id, title, to_char(date, 'YYYY-MM-DD') AS date,
+              CASE WHEN is_adhoc THEN 'Emergency Closure' ELSE 'School Holiday' END AS type,
+              'All Day' AS time, notes AS description, is_adhoc AS "isAdhoc"
+       FROM school_holidays
+       WHERE organization_id = $1
+       ORDER BY date ASC`,
+      [organizationId]
+    ).catch(() => []);
+    return {
+      events: [
+        ...assignments.assignments.map(a=>({id:a.id,title:a.title,date:a.dueDate,type:'Deadline',time:'',description:a.description})),
+        ...exams.map(e=>({...e,type:'Exam',description:''})),
+        ...holidays.map((h: any) => ({ id: h.id, title: h.title, date: h.date, type: h.type, time: h.time, description: h.description || (h.isAdhoc ? 'Emergency off day declared by Administration' : 'Declared school holiday') })),
+      ]
+    };
   }
 
 }

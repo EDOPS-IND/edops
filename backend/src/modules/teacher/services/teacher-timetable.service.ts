@@ -43,6 +43,13 @@ export class TeacherTimetableService {
       markedSet = new Set((markedSessions || []).map((m: any) => `${m.section_id}_${m.period}`));
     } catch (error) { throw error; }
 
+    const [todayHoliday] = await this.drizzle.query(
+      `SELECT title, holiday_type as "holidayType", is_adhoc as "isAdhoc" 
+       FROM school_holidays 
+       WHERE organization_id = $1 AND date = CURRENT_DATE LIMIT 1`,
+      [organizationId]
+    );
+
     const now = new Date();
     const currentMins = now.getHours() * 60 + now.getMinutes();
 
@@ -73,7 +80,7 @@ export class TeacherTimetableService {
       }
 
       const isClassTeacher = Boolean(s.is_class_teacher);
-      const canTakeAttendance = Boolean(isClassTeacher && Number(s.period_number) === 1);
+      const canTakeAttendance = Boolean(!todayHoliday && isClassTeacher && Number(s.period_number) === 1);
 
       return {
         id: s.id,
@@ -84,8 +91,10 @@ export class TeacherTimetableService {
         sectionId: s.section_id,
         subject: s.subject_name,
         room: s.room || null,
-        status: slotStatus,
+        status: todayHoliday ? 'holiday' : slotStatus,
         attendanceTaken: isMarked,
+        isSchoolClosed: Boolean(todayHoliday),
+        closureReason: todayHoliday?.title || null,
         isClassTeacher,
         canTakeAttendance,
       };

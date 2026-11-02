@@ -3,6 +3,12 @@
 import React, { useState, useEffect } from "react";
 import { getTeacherCalendar } from "../../edops-api";
 import { Calendar, CalendarDays, Clock, MapPin, Award, Users, AlertCircle, CheckCircle2 } from "lucide-react";
+import { SchoolCalendarGrid, toDDMMYYYY } from "../../components/school-calendar-grid";
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
 
 const T = {
   navy: "#0c1e33",
@@ -32,18 +38,24 @@ interface CalendarPaneProps {
 }
 
 export const CalendarPane: React.FC<CalendarPaneProps> = ({ organizationId }) => {
-  const [selectedMonth, setSelectedMonth] = useState("October 2026");
+  const today = new Date();
+  const [currentYearMonth, setCurrentYearMonth] = useState({
+    year: today.getFullYear(),
+    month: today.getMonth(),
+  });
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
 
+  const selectedMonthStr = `${MONTH_NAMES[currentYearMonth.month]} ${currentYearMonth.year}`;
+
   useEffect(() => {
     loadCalendar();
-  }, [organizationId, selectedMonth]);
+  }, [organizationId, selectedMonthStr]);
 
   const loadCalendar = async () => {
     setLoading(true);
     try {
-      const res = await getTeacherCalendar(organizationId, selectedMonth);
+      const res = await getTeacherCalendar(organizationId, selectedMonthStr);
       setData(res);
     } catch {
     } finally {
@@ -52,9 +64,9 @@ export const CalendarPane: React.FC<CalendarPaneProps> = ({ organizationId }) =>
   };
 
   const events = data?.events || [];
-  const stats = data?.stats || { exams: "3", deadlines: "2", ptm: "1", holidays: "4" };
+  const stats = data?.stats || { exams: "0 Papers", deadlines: "0 Pending", ptm: "0 Scheduled", holidays: "0 Days" };
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div style={{ padding: "48px 0", textAlign: "center", color: T.slate, fontFamily: "'Poppins', sans-serif" }}>
         <div
@@ -114,40 +126,10 @@ export const CalendarPane: React.FC<CalendarPaneProps> = ({ organizationId }) =>
           </p>
         </div>
 
-        <select
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-          style={{
-            padding: "8px 14px",
-            background: T.white,
-            border: `1px solid ${T.line}`,
-            borderRadius: "8px",
-            fontSize: "12px",
-            fontWeight: 600,
-            color: T.navy,
-            outline: "none",
-            cursor: "pointer",
-          }}
-        >
-          {[
-            "April 2026",
-            "May 2026",
-            "June 2026",
-            "July 2026",
-            "August 2026",
-            "September 2026",
-            "October 2026",
-            "November 2026",
-            "December 2026",
-            "January 2027",
-            "February 2027",
-            "March 2027",
-          ].map((m) => (
-            <option key={m} value={m}>
-              {m}
-            </option>
-          ))}
-        </select>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", background: T.white, border: `1px solid ${T.line}`, borderRadius: "8px", padding: "6px 14px", fontSize: "12px", fontWeight: 700, color: T.navy }}>
+          <Calendar size={14} style={{ color: T.blue }} />
+          <span>Active View: {selectedMonthStr}</span>
+        </div>
       </div>
 
       {/* 2. Top 4 Metric Cards - Strict DESIGN.md Section 2.1 Palettes */}
@@ -275,99 +257,16 @@ export const CalendarPane: React.FC<CalendarPaneProps> = ({ organizationId }) =>
         </div>
       </div>
 
-      {/* 3. Events Timeline / List Card */}
-      <div
-        style={{
-          background: T.white,
-          borderRadius: "10px",
-          border: `1px solid ${T.border}`,
-          padding: "24px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "16px",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 600, color: T.navy }}>
-            Events Scheduled for {selectedMonth}
-          </h3>
-          <span style={{ fontSize: "12px", color: T.slate }}>
-            {events.length} institutional milestones
-          </span>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {events.length === 0 ? (
-            <div style={{ padding: "36px", textAlign: "center", color: T.slate, fontSize: "12px", border: `1px dashed ${T.border}`, borderRadius: "8px" }}>
-              No institutional events scheduled for {selectedMonth}.
-            </div>
-          ) : (
-            events.map((ev: any, idx: number) => {
-              let typeBadge = { bg: T.skyBg, color: T.skyDark };
-              if (ev.type === "exam") typeBadge = { bg: T.violetBg, color: T.violetDark };
-              else if (ev.type === "deadline") typeBadge = { bg: T.amberBg, color: T.amberDark };
-              else if (ev.type === "holiday") typeBadge = { bg: T.greenBg, color: T.greenDark };
-
-              return (
-                <div
-                  key={ev.id || idx}
-                  style={{
-                    padding: "14px 18px",
-                    borderRadius: "8px",
-                    border: `1px solid ${T.border}`,
-                    background: T.white,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: "12px",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-                    <div
-                      style={{
-                        padding: "8px 12px",
-                        borderRadius: "6px",
-                        background: T.chip,
-                        border: `1px solid ${T.border}`,
-                        textAlign: "center",
-                        minWidth: "60px",
-                      }}
-                    >
-                      <div style={{ fontSize: "14px", fontWeight: 700, color: T.navy }}>{ev.day || "15"}</div>
-                      <div style={{ fontSize: "10px", color: T.slate, textTransform: "uppercase" }}>{ev.monthShort || "OCT"}</div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: "14px", fontWeight: 600, color: T.navy }}>
-                        {ev.title}
-                      </div>
-                      <div style={{ fontSize: "11.5px", color: T.slate, display: "flex", alignItems: "center", gap: "10px", marginTop: "2px" }}>
-                        <span><Clock size={12} style={{ display: "inline", verticalAlign: "middle" }} /> {ev.time || "All Day"}</span>
-                        {ev.location && <span><MapPin size={12} style={{ display: "inline", verticalAlign: "middle" }} /> {ev.location}</span>}
-                      </div>
-                    </div>
-                  </div>
-
-                  <span
-                    style={{
-                      padding: "3px 10px",
-                      borderRadius: "6px",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      background: typeBadge.bg,
-                      color: typeBadge.color,
-                      textTransform: "capitalize",
-                    }}
-                  >
-                    {ev.type || "Academic"}
-                  </span>
-                </div>
-              );
-            })
-          )}
-        </div>
-      </div>
+      {/* 2.5. Full Visual Academic Calendar Grid (Synchronized with Teacher Dashboard) */}
+      <SchoolCalendarGrid
+        organizationId={organizationId}
+        canEdit={false}
+        title="Faculty Academic Calendar & Holiday Grid"
+        subtitle="Full institutional session calendar. Click on any date to inspect exams, holidays, and milestones."
+        events={events}
+        controlledYearMonth={currentYearMonth}
+        onMonthChange={setCurrentYearMonth}
+      />
     </div>
   );
 };

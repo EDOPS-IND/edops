@@ -152,14 +152,34 @@ export class TeacherAttendanceService {
     if (section.class_teacher_user_id !== user.id) {
       throw new ForbiddenException('Only the designated Class Teacher can take daily attendance for this section');
     }
+    const [holiday] = await this.drizzle.query(
+      `SELECT title, is_adhoc FROM school_holidays WHERE organization_id = $1 AND date = $2 LIMIT 1`,
+      [organizationId, dto.date]
+    );
+    if (holiday) {
+      throw new BadRequestException(`Cannot record attendance: School is officially closed on ${dto.date} (${holiday.title})`);
+    }
     if (dto.period && Number(dto.period) !== 1) {
       throw new BadRequestException('Daily attendance in Indian schools must be recorded during Period 1 (Class Teacher period)');
     }
     const period = 1;
 
+    const [todayRow] = await this.drizzle.query(
+      `SELECT to_char(CURRENT_DATE, 'YYYY-MM-DD') as today`
+    );
+    const isToday = dto.date === todayRow?.today;
+
     let [session]=await this.drizzle.query(`SELECT id,status FROM attendance_sessions WHERE organization_id=$1 AND section_id=$2 AND date=$3 AND period=$4`, [organizationId,dto.sectionId,dto.date,period]);
-    if (session?.status==='finalized') throw new ConflictException('This attendance session is already finalized');
-    if (!session) session=await this.attendanceService.create(organizationId,user,{sectionId:dto.sectionId,subjectId:dto.subjectId || undefined,date:dto.date,period},randomUUID());
+    if (session) {
+      if (!isToday) {
+        throw new ConflictException('Past attendance records can only be rectified by School Admin or Principal');
+      }
+      // Same-day rectification by designated Class Teacher
+      await this.attendanceService.mark(organizationId, user, session.id, { records: dto.records });
+      return { success: true, sessionId: session.id, markedStudents: dto.records.length, rectified: true };
+    }
+
+    session=await this.attendanceService.create(organizationId,user,{sectionId:dto.sectionId,subjectId:dto.subjectId || undefined,date:dto.date,period},randomUUID());
     await this.attendanceService.mark(organizationId,user,session.id,{records:dto.records});
     await this.attendanceService.finalize(organizationId,user,session.id,randomUUID());
     return { success:true,sessionId:session.id,markedStudents:dto.records.length };
@@ -239,5 +259,164 @@ export class TeacherAttendanceService {
     );
     if (!updated) throw new BadRequestException('Could not update leave request. Verify you are the assigned class teacher and request duration is <= 2 days.');
     return updated;
+  }
+
+  async getClassRegister(organizationId: string, user: User, sectionId?: string, month?: string) {
+    let targetSectionId = sectionId;
+    if (!targetSectionId) {
+      const [ctSec] = await this.drizzle.query(
+        `SELECT id FROM sections WHERE organization_id = $1 AND class_teacher_user_id = $2 LIMIT 1`,
+        [organizationId, user.id]
+      );
+      targetSectionId = ctSec?.id;
+    }
+    if (!targetSectionId) {
+      const [anySec] = await this.drizzle.query(
+        `SELECT section_id as id FROM class_subject_assignments WHERE organization_id = $1 AND teacher_user_id = $2 LIMIT 1`,
+        [organizationId, user.id]
+      );
+      targetSectionId = anySec?.id;
+    }
+    if (!targetSectionId) {
+      return { month: month || new Date().toISOString().slice(0, 7), daysCount: 30, students: [], sections: [] };
+    }
+
+    const [secInfo] = await this.drizzle.query(
+      `SELECT s.id, s.name, (s.class_teacher_user_id = $2) as "isClassTeacher" FROM sections s WHERE s.organization_id = $1 AND s.id = $3`,
+      [organizationId, user.id, targetSectionId]
+    );
+
+    const availableSections = await this.drizzle.query(
+      `SELECT DISTINCT s.id, s.name, (s.class_teacher_user_id = $2) as "isClassTeacher" 
+       FROM sections s
+       LEFT JOIN class_subject_assignments c ON c.section_id = s.id AND c.organization_id = s.organization_id
+       WHERE s.organization_id = $1 AND (s.class_teacher_user_id = $2 OR c.teacher_user_id = $2)
+       ORDER BY "isClassTeacher" DESC, s.name ASC`,
+      [organizationId, user.id]
+    );
+
+    const targetMonth = month && /^\d{4}-\d{2}$/.test(month) ? month : new Date().toISOString().slice(0, 7);
+    const [yearStr, monthStr] = targetMonth.split('-');
+    const yearNum = Number(yearStr);
+    const monthNum = Number(monthStr);
+    const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+
+    const holidays = await this.drizzle.query(
+      `SELECT EXTRACT(DAY FROM date)::int as day, to_char(date, 'YYYY-MM-DD') as date, title, holiday_type as "holidayType", is_adhoc as "isAdhoc"
+       FROM school_holidays
+       WHERE organization_id = $1 AND to_char(date, 'YYYY-MM') = $2`,
+      [organizationId, targetMonth]
+    );
+    const holidayMap = new Map<number, any>();
+    (holidays || []).forEach((h: any) => {
+      holidayMap.set(h.day, h);
+    });
+
+    const daysMeta: Array<{ day: number; dateStr: string; dayOfWeek: string; isSunday: boolean; isHoliday?: boolean; holidayTitle?: string; isAdhoc?: boolean }> = [];
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dObj = new Date(yearNum, monthNum - 1, d);
+      const dow = dObj.getDay();
+      const dateStr = `${targetMonth}-${String(d).padStart(2, '0')}`;
+      const hol = holidayMap.get(d);
+      daysMeta.push({
+        day: d,
+        dateStr,
+        dayOfWeek: dayNames[dow],
+        isSunday: dow === 0,
+        isHoliday: Boolean(dow === 0 || hol),
+        holidayTitle: hol ? hol.title : dow === 0 ? 'Sunday' : undefined,
+        isAdhoc: hol ? hol.isAdhoc : false,
+      });
+    }
+
+    const studentRows = await this.drizzle.query(
+      `SELECT u.id, u.name, e.roll_number as "rollNumber"
+       FROM enrollments e
+       JOIN users u ON u.id = e.student_user_id
+       WHERE e.organization_id = $1 AND e.section_id = $2 AND e.status = 'active'
+       ORDER BY e.roll_number ASC, u.name ASC`,
+      [organizationId, targetSectionId]
+    );
+
+    const records = await this.drizzle.query(
+      `SELECT r.student_id as "studentId", EXTRACT(DAY FROM s.date)::int as day, r.status
+       FROM attendance_sessions s
+       JOIN attendance_records r ON r.attendance_session_id = s.id AND r.organization_id = s.organization_id
+       WHERE s.organization_id = $1 AND s.section_id = $2 AND to_char(s.date, 'YYYY-MM') = $3
+         AND s.period = 1 AND s.status = 'finalized'`,
+      [organizationId, targetSectionId, targetMonth]
+    );
+
+    const recordMap = new Map<string, string>();
+    (records || []).forEach((r: any) => {
+      recordMap.set(`${r.studentId}_${r.day}`, r.status);
+    });
+
+    const approvedLeaves = await this.drizzle.query(
+      `SELECT u.name as "studentName", e.roll_number as "rollNumber",
+              to_char(l.start_date, 'YYYY-MM-DD') as "startDate",
+              to_char(l.end_date, 'YYYY-MM-DD') as "endDate",
+              l.reason, l.leave_type as "leaveType"
+       FROM leave_requests l
+       JOIN users u ON u.id = l.user_id
+       JOIN enrollments e ON e.student_user_id = u.id AND e.organization_id = l.organization_id AND e.section_id = $2
+       WHERE l.organization_id = $1 AND l.status = 'approved'
+         AND (to_char(l.start_date, 'YYYY-MM') = $3 OR to_char(l.end_date, 'YYYY-MM') = $3)
+       ORDER BY l.start_date ASC`,
+      [organizationId, targetSectionId, targetMonth]
+    );
+
+    const students = (studentRows || []).map((st: any) => {
+      const marks: Record<number, string> = {};
+      let pCount = 0;
+      let aCount = 0;
+      let lCount = 0;
+
+      daysMeta.forEach((dm) => {
+        const rawStatus = recordMap.get(`${st.id}_${dm.day}`);
+        if (dm.isSunday || dm.isHoliday) {
+          marks[dm.day] = 'H';
+        } else if (rawStatus === 'present') {
+          marks[dm.day] = 'P';
+          pCount++;
+        } else if (rawStatus === 'absent') {
+          marks[dm.day] = 'A';
+          aCount++;
+        } else if (rawStatus === 'late') {
+          marks[dm.day] = 'L';
+          lCount++;
+          pCount++;
+        } else if (rawStatus === 'excused') {
+          marks[dm.day] = 'E';
+        } else {
+          marks[dm.day] = '-';
+        }
+      });
+
+      const totalRecorded = pCount + aCount;
+      const pct = totalRecorded > 0 ? Math.round((pCount / totalRecorded) * 100) : null;
+
+      return {
+        id: st.id,
+        name: st.name,
+        rollNumber: st.rollNumber || '—',
+        marks,
+        presentCount: pCount,
+        absentCount: aCount,
+        lateCount: lCount,
+        attendancePercentage: pct,
+      };
+    });
+
+    return {
+      month: targetMonth,
+      section: secInfo || { id: targetSectionId, name: 'Class Section', isClassTeacher: false },
+      sections: availableSections || [],
+      days: daysMeta,
+      students,
+      approvedLeaves: approvedLeaves || [],
+      holidays: holidays || [],
+    };
   }
 }

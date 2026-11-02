@@ -2871,7 +2871,7 @@ function RoleWorkspace({
             position: "sticky",
             top: 0,
             zIndex: 30,
-            height: "58px",
+            height: "68px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -2880,6 +2880,7 @@ function RoleWorkspace({
             borderBottom: "1px solid #EAECF0",
             gap: "16px",
             flexShrink: 0,
+            boxSizing: "border-box",
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>

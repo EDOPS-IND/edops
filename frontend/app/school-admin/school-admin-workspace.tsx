@@ -34,6 +34,7 @@ import {
 } from "../edops-api";
 import { CreateTicketModal } from "../platform/modals";
 import { NotificationBellDropdown } from "../components/notification-bell-dropdown";
+import { defaultTabTooltips } from "../components/dashboard-sidebar";
 
 // ─── Design Tokens (Strictly matching Student & Teacher Dashboard specification) ──
 const S = {
@@ -70,14 +71,15 @@ const S = {
 
 // ─── Nav item (Matching Student & Teacher Command Center) ──────────────────────
 function NavItem({
-  icon: Icon, label, active, badge, badgeVariant = "red", onClick,
+  icon: Icon, label, title, active, badge, badgeVariant = "red", onClick,
 }: {
-  icon: React.ElementType; label: string; active: boolean;
+  icon: React.ElementType; label: string; title?: string; active: boolean;
   badge?: number; badgeVariant?: "red" | "amber"; onClick: () => void;
 }) {
   const [hover, setHover] = useState(false);
   return (
     <button
+      title={title || label}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
@@ -1005,6 +1007,7 @@ export function SchoolAdminWorkspace({
                       key={item.key}
                       icon={navIcons[tab] || LayoutDashboard}
                       label={item.label}
+                      title={defaultTabTooltips[tab] || item.label}
                       active={currentTab === tab}
                       onClick={() => go(tab)}
                     />

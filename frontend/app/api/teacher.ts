@@ -43,6 +43,14 @@ export async function getTeacherAttendance(orgId: string, query?: any): Promise<
   return api<any>(`/organizations/${orgId}/teacher/attendance${query?.sectionId ? `?sectionId=${query.sectionId}` : ''}`);
 }
 
+export async function getTeacherClassRegister(orgId: string, sectionId?: string, month?: string): Promise<any> {
+  const params = new URLSearchParams();
+  if (sectionId) params.set('sectionId', sectionId);
+  if (month) params.set('month', month);
+  const q = params.toString();
+  return api<any>(`/organizations/${orgId}/teacher/attendance/register${q ? `?${q}` : ''}`);
+}
+
 export async function getTeacherLeaves(orgId: string) {
   return api<any[]>(`/organizations/${orgId}/teacher/leaves`);
 }

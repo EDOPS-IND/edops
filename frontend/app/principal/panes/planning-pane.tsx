@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Plus, Calendar, Target as TargetIcon, ClipboardCheck, Users, CalendarDays, X, CheckCircle2 } from "lucide-react";
+import { Plus, Calendar, Target as TargetIcon, ClipboardCheck, Users, CalendarDays, X, CheckCircle2, AlertTriangle, Trash2 } from "lucide-react";
 import {
   createPrincipalAcademicPlan,
   createPrincipalAcademicTarget,
@@ -9,7 +9,11 @@ import {
   createPrincipalReviewMeeting,
   getPrincipalPlanning,
   updatePrincipalAcademicTarget,
+  getSchoolHolidays,
+  deleteSchoolHoliday,
 } from "../../edops-api";
+import { EmergencyHolidayModal } from "../../components/emergency-holiday-modal";
+import { SchoolCalendarGrid } from "../../components/school-calendar-grid";
 
 type Plan = {
   id: string;
@@ -76,6 +80,8 @@ export function PlanningPane({
   const [showActions, setShowActions] = useState(false);
   const [selectedTargetId, setSelectedTargetId] = useState("");
   const [currentTab, setCurrentTab] = useState(initialTab || "annual_plan");
+  const [schoolHolidays, setSchoolHolidays] = useState<any[]>([]);
+  const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
 
   useEffect(() => {
     if (initialTab) setCurrentTab(initialTab);
@@ -83,7 +89,17 @@ export function PlanningPane({
 
   const view = currentTab;
 
-  const reload = () => getPrincipalPlanning(organizationId).then(setData);
+  const reloadHolidays = () => {
+    if (!organizationId) return;
+    getSchoolHolidays(organizationId)
+      .then((res: any) => setSchoolHolidays(res?.holidays || []))
+      .catch(() => {});
+  };
+
+  const reload = () => {
+    getPrincipalPlanning(organizationId).then(setData);
+    reloadHolidays();
+  };
 
   useEffect(() => {
     let active = true;
@@ -94,6 +110,7 @@ export function PlanningPane({
       .catch((reason) => {
         if (active) setError(reason instanceof Error ? reason.message : "Could not load academic planning");
       });
+    reloadHolidays();
     return () => {
       active = false;
     };
@@ -165,6 +182,16 @@ export function PlanningPane({
       kind: "Action review",
       title: item.issue,
       detail: item.ownerName,
+    })),
+    ...schoolHolidays.map((h: any) => ({
+      id: `holiday-${h.id}`,
+      rawId: h.id,
+      when: typeof h.date === 'string' ? h.date.slice(0, 10) : new Date(h.date).toISOString().slice(0, 10),
+      kind: h.is_adhoc || h.isAdhoc ? "Emergency Day Off" : "School Holiday",
+      title: h.title,
+      detail: h.notes || (h.is_adhoc || h.isAdhoc ? "Emergency closure (excluded from attendance)" : "Official gazetted holiday"),
+      isHoliday: true,
+      isAdhoc: Boolean(h.is_adhoc || h.isAdhoc),
     })),
   ].sort((a, b) => date(a.when).localeCompare(date(b.when)));
 
@@ -328,6 +355,28 @@ export function PlanningPane({
         </div>
 
         <div style={{ display: "flex", gap: "10px" }}>
+          {view === "calendar" && (
+            <button
+              type="button"
+              onClick={() => setIsEmergencyModalOpen(true)}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "8px 14px",
+                borderRadius: "8px",
+                border: "1px solid #f43f5e",
+                background: "#be123c",
+                color: "#ffffff",
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              <AlertTriangle size={13} /> Declare Holiday / Closure
+            </button>
+          )}
+
           {view === "school_targets" && (
             <button
               type="button"
@@ -472,49 +521,12 @@ export function PlanningPane({
       )}
 
       {view === "calendar" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-          {calendar.length === 0 ? (
-            <div style={{ padding: "32px", textAlign: "center", color: "#64748b", background: "#ffffff", borderRadius: "10px", border: "1px solid #e4e6e9" }}>
-              No academic milestones or meeting dates recorded.
-            </div>
-          ) : (
-            calendar.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #e4e6e9",
-                  borderRadius: "10px",
-                  padding: "16px 20px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span
-                      style={{
-                        padding: "2px 8px",
-                        borderRadius: "4px",
-                        fontSize: "10px",
-                        fontWeight: 700,
-                        background: "#f1f5f9",
-                        color: "#0c1e33",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {item.kind}
-                    </span>
-                    <h3 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "#1e293b" }}>{item.title}</h3>
-                  </div>
-                  <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#64748b" }}>{item.detail}</p>
-                </div>
-                <div style={{ fontSize: "12px", fontWeight: 700, color: "#0c1e33" }}>{date(item.when)}</div>
-              </div>
-            ))
-          )}
-        </div>
+        <SchoolCalendarGrid
+          organizationId={organizationId}
+          canEdit={true}
+          title="Principal Academic Calendar & Holiday Grid"
+          subtitle="Manage gazetted holidays, ad-hoc emergency closures, and view school calendar by academic session."
+        />
       )}
 
       {(view === "learning_goals" || view === "school_targets") && !showActions && (

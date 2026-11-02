@@ -115,6 +115,13 @@ export class ParentService {
         `SELECT b.id,b.schedule_id AS "scheduleId",b.slot_index AS "slotIndex",b.teacher_user_id AS "teacherId",u.name AS "teacherName",s.title,s.event_date AS date,b.status FROM ptm_bookings b JOIN ptm_schedules s ON s.id=b.schedule_id AND s.organization_id=b.organization_id JOIN users u ON u.id=b.teacher_user_id WHERE b.organization_id=$1 AND b.parent_user_id=$2 AND b.student_user_id=$3 ORDER BY s.event_date`,
         [org, actor.id, student],
       );
+      const holidays = await m.query(
+        `SELECT id, title, to_char(date, 'YYYY-MM-DD') AS date, holiday_type AS "holidayType", is_adhoc AS "isAdhoc", notes
+         FROM school_holidays
+         WHERE organization_id = $1
+         ORDER BY date DESC LIMIT 15`,
+        [org],
+      ).catch(() => []);
       return {
         subjects,
         assignments,
@@ -134,6 +141,7 @@ export class ParentService {
         queries,
         schedules,
         bookings,
+        holidays,
       };
     });
   }

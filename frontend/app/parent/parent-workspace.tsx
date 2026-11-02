@@ -33,6 +33,18 @@ import {
 } from "../edops-api";
 import { ParentTab, WardInfo, LeaveApplication, ParentQuery } from "./types";
 import { ThreeDotsLoading } from "../components/feature-unavailable-card";
+import { DashboardSidebar } from "../components/dashboard-sidebar";
+
+const parentIcons: Record<string, React.ElementType> = {
+  overview: LayoutDashboard,
+  academics: BookOpen,
+  children: BookOpen,
+  attendance: CheckCircle2,
+  fees: CreditCard,
+  ptm: CalendarDays,
+  notices: Bell,
+  communication: MessageSquare,
+};
 import { UnifiedCommunicationHub } from "../components/notice-board";
 import { NotificationBellDropdown } from "../components/notification-bell-dropdown";
 
@@ -238,276 +250,134 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#f4f6f7", fontFamily: 'var(--font-space-grotesk), "Inter", system-ui, sans-serif' }}>
-      {/* 1. UNIVERSAL MIDNIGHT OBSIDIAN SIDEBAR (#0b0f19) */}
-      <aside
-        id="parent-sidebar"
-        aria-label="Parent Portal Navigation"
-        className="workspace-aside"
-        style={{
-          width: "240px",
-          flexShrink: 0,
-          background: "#0b0f19",
-          borderRight: "1px solid rgba(255, 255, 255, 0.06)",
-          height: "100vh",
-          position: "sticky",
-          top: 0,
-          alignSelf: "flex-start",
-          overflow: "hidden",
-          zIndex: 40,
-        }}
-      >
-        {/* Brand Header & Official Logo */}
-        <div
-          style={{
-            height: "68px",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 18px",
-            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-            boxSizing: "border-box",
-            flexShrink: 0,
-            cursor: "pointer",
-            gap: "10px",
-          }}
-          onClick={() => navigateTo("overview")}
-          title="EDOPS Guardian Portal"
-        >
-          <img
-            src="/EDOPSLogo.png"
-            alt="EDOPS Guardian Portal"
-            style={{
-              height: "34px",
-              width: "auto",
-              maxWidth: "115px",
-              display: "block",
-              objectFit: "contain",
-              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
-              transition: "transform 0.15s ease",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-          />
-          <span
-            style={{
-              fontSize: "9.5px",
-              fontWeight: 700,
-              padding: "2px 7px",
-              borderRadius: "5px",
-              background: "rgba(129, 140, 248, 0.16)",
-              color: "#a5b4fc",
-              border: "1px solid rgba(129, 140, 248, 0.3)",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-            }}
-          >
-            PARENT
-          </span>
-        </div>
-
-        {/* Scrollable Navigation Body */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            padding: "14px 12px",
-            overflowY: "auto",
-            overflowX: "hidden",
-            scrollbarWidth: "none",
-            gap: "16px",
-          }}
-        >
-          {/* Active Ward Profile Card */}
-          {selectedWard ? (
-            <div
-              style={{
-                background: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                borderRadius: "10px",
-                padding: "10px 12px",
-              }}
-            >
+      {/* 1. UNIVERSAL MIDNIGHT OBSIDIAN SIDEBAR (#0b0f19) - Shared & Feature-Flag Aligned */}
+      <DashboardSidebar
+        organizationId={organization.id}
+        role="parent"
+        activeTab={activeTab}
+        onTabChange={(tab) => navigateTo(tab as ParentTab)}
+        iconMap={parentIcons}
+        topSlot={
+          <div style={{ padding: "12px 12px 0" }}>
+            {selectedWard ? (
               <div
                 style={{
-                  fontSize: "10px",
-                  fontWeight: 700,
-                  color: "rgba(255, 255, 255, 0.38)",
-                  letterSpacing: "0.08em",
-                  textTransform: "uppercase",
-                  marginBottom: "8px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  background: "rgba(255, 255, 255, 0.03)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: "10px",
+                  padding: "10px 12px",
                 }}
               >
-                <span>ACTIVE STUDENT</span>
-                <span style={{ fontSize: "9px", color: "#10b981", fontWeight: 700 }}>VERIFIED</span>
-              </div>
-
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <img
-                  src={getStudentAvatarUrl(selectedWard.name, selectedWard.studentUserId)}
-                  alt={selectedWard.name}
-                  style={{
-                    width: "34px",
-                    height: "34px",
-                    borderRadius: "50%",
-                    background: "#1c2337",
-                    flexShrink: 0,
-                    border: "1.5px solid #818cf8",
-                  }}
-                />
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontWeight: 700,
-                      color: "#ffffff",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {selectedWard.name}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "#8a92a6" }}>
-                    Class {selectedWard.sectionName || "Enrolled"}
-                  </div>
-                </div>
-              </div>
-
-              {/* Multi-ward switcher if guardian has more than 1 student */}
-              {wards.length > 1 && (
                 <div
                   style={{
-                    marginTop: "10px",
-                    paddingTop: "8px",
-                    borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                    fontSize: "10px",
+                    fontWeight: 700,
+                    color: "rgba(255, 255, 255, 0.38)",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                    marginBottom: "8px",
                     display: "flex",
-                    flexDirection: "column",
-                    gap: "5px",
-                  }}
-                >
-                  <span style={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.4)", fontWeight: 600 }}>
-                    Switch Child:
-                  </span>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                    {wards.map((w) => {
-                      const isCur = w.studentUserId === selectedWard.studentUserId;
-                      return (
-                        <button
-                          key={w.studentUserId}
-                          onClick={() => setSelectedWardId(w.studentUserId)}
-                          style={{
-                            all: "unset",
-                            padding: "3px 8px",
-                            borderRadius: "6px",
-                            fontSize: "11px",
-                            fontWeight: isCur ? 700 : 500,
-                            background: isCur ? "#818cf8" : "rgba(255, 255, 255, 0.06)",
-                            color: isCur ? "#ffffff" : "#cbd5e1",
-                            cursor: "pointer",
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          {w.name.split(" ")[0]}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div
-              style={{
-                background: "rgba(255, 255, 255, 0.03)",
-                border: "1px solid rgba(255, 255, 255, 0.08)",
-                borderRadius: "10px",
-                padding: "12px",
-                fontSize: "12px",
-                color: "#8a92a6",
-                textAlign: "center",
-              }}
-            >
-              No verified student linked
-            </div>
-          )}
-
-          {/* Navigation Links */}
-          <nav style={{ display: "flex", flexDirection: "column", gap: "3px" }} aria-label="Guardian navigation">
-            <div
-              style={{
-                fontSize: "10px",
-                fontWeight: 700,
-                color: "rgba(255, 255, 255, 0.38)",
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                padding: "8px 12px 4px",
-                userSelect: "none",
-              }}
-            >
-              GUARDIAN WORKSPACE
-            </div>
-
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = activeTab === item.tab;
-              return (
-                <button
-                  key={item.id}
-                  id={`nav-${item.id}`}
-                  onClick={() => {
-                    navigateTo(item.tab);
-                  }}
-                  style={{
-                    all: "unset",
-                    boxSizing: "border-box",
-                    width: "100%",
-                    display: "flex",
+                    justifyContent: "space-between",
                     alignItems: "center",
-                    gap: "11px",
-                    height: "40px",
-                    padding: "0 12px",
-                    borderRadius: "10px",
-                    fontSize: "13.5px",
-                    cursor: "pointer",
-                    transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
-                    background: isActive ? "#1c2337" : "transparent",
-                    color: isActive ? "#ffffff" : "#8a92a6",
-                    fontWeight: isActive ? 600 : 450,
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.color = "#ffffff";
-                      e.currentTarget.style.background = "rgba(255, 255, 255, 0.05)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.color = "#8a92a6";
-                      e.currentTarget.style.background = "transparent";
-                    }
                   }}
                 >
-                  <Icon
-                    size={18}
-                    strokeWidth={isActive ? 2 : 1.75}
+                  <span>ACTIVE STUDENT</span>
+                  <span style={{ fontSize: "9px", color: "#10b981", fontWeight: 700 }}>VERIFIED</span>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <img
+                    src={getStudentAvatarUrl(selectedWard.name, selectedWard.studentUserId)}
+                    alt={selectedWard.name}
                     style={{
+                      width: "34px",
+                      height: "34px",
+                      borderRadius: "50%",
+                      background: "#1c2337",
                       flexShrink: 0,
-                      color: isActive ? "#ffffff" : "#8a92a6",
-                      transition: "color 0.15s ease",
+                      border: "1.5px solid #818cf8",
                     }}
                   />
-                  <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {item.label}
-                  </span>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
-      </aside>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 700,
+                        color: "#ffffff",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                      }}
+                    >
+                      {selectedWard.name}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#8a92a6" }}>
+                      Class {selectedWard.sectionName || "Enrolled"}
+                    </div>
+                  </div>
+                </div>
+
+                {wards.length > 1 && (
+                  <div
+                    style={{
+                      marginTop: "10px",
+                      paddingTop: "8px",
+                      borderTop: "1px solid rgba(255, 255, 255, 0.06)",
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: "5px",
+                    }}
+                  >
+                    <span style={{ fontSize: "10px", color: "rgba(255, 255, 255, 0.4)", fontWeight: 600 }}>
+                      Switch Child:
+                    </span>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                      {wards.map((w) => {
+                        const isCur = w.studentUserId === selectedWard.studentUserId;
+                        return (
+                          <button
+                            key={w.studentUserId}
+                            type="button"
+                            onClick={() => setSelectedWardId(w.studentUserId)}
+                            style={{
+                              all: "unset",
+                              padding: "3px 8px",
+                              borderRadius: "6px",
+                              fontSize: "11px",
+                              fontWeight: isCur ? 700 : 500,
+                              background: isCur ? "#818cf8" : "rgba(255, 255, 255, 0.06)",
+                              color: isCur ? "#ffffff" : "#cbd5e1",
+                              cursor: "pointer",
+                              transition: "all 0.15s ease",
+                            }}
+                          >
+                            {w.name.split(" ")[0]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div
+                style={{
+                  background: "rgba(255, 255, 255, 0.03)",
+                  border: "1px solid rgba(255, 255, 255, 0.08)",
+                  borderRadius: "10px",
+                  padding: "12px",
+                  fontSize: "12px",
+                  color: "#8a92a6",
+                  textAlign: "center",
+                }}
+              >
+                No verified student linked
+              </div>
+            )}
+          </div>
+        }
+        title="EDOPS Guardian Portal"
+      />
 
       {/* 2. RIGHT SIDE CONTENT AREA (Sticky Header + Canvas) */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
@@ -914,6 +784,7 @@ export const ParentWorkspace: React.FC<ParentWorkspaceProps> = ({
                       selectedWard={selectedWard}
                       leavesList={leavesList}
                       onOpenLeaveModal={() => setLeaveModalOpen(true)}
+                      organizationId={organization.id}
                     />
                   </div>
                 )}

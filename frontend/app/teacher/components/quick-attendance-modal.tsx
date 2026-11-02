@@ -50,6 +50,7 @@ export function QuickAttendanceModal({
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const period = 1; // Indian school standard: Daily roll call is always Period 1
   const [saving, setSaving] = useState(false);
+  const [isRectification, setIsRectification] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [students, setStudents] = useState<
     Array<{ id: string; name: string; roll: string; status: "present" | "absent" | "late" | "excused" }>
@@ -75,15 +76,18 @@ export function QuickAttendanceModal({
     try {
       const res = await getTeacherClassDetails(organizationId, sectionId);
       if (res?.students && res.students.length > 0) {
+        const hasExisting = res.students.some((s: any) => !!s.todayAttendanceStatus);
+        setIsRectification(hasExisting);
         setStudents(
           res.students.map((s: any) => ({
             id: s.id,
             name: s.name,
             roll: s.rollNumber || "01",
-            status: "present" as const,
+            status: (s.todayAttendanceStatus || "present") as any,
           }))
         );
       } else {
+        setIsRectification(false);
         setStudents([]);
       }
     } catch {
@@ -167,15 +171,17 @@ export function QuickAttendanceModal({
               <span style={{ fontSize: "11px", fontWeight: 700, color: S.navy, textTransform: "uppercase", letterSpacing: "0.06em" }}>
                 Class Teacher Register
               </span>
-              <span style={{ fontSize: "11px", fontWeight: 600, color: S.slate, background: S.chip, padding: "2px 8px", borderRadius: "6px", border: `1px solid ${S.border}` }}>
-                Period 1 Roll Call · {date}
+              <span style={{ fontSize: "11px", fontWeight: 600, color: isRectification ? S.coralDark : S.slate, background: isRectification ? S.coralBg : S.chip, padding: "2px 8px", borderRadius: "6px", border: `1px solid ${isRectification ? S.coralDark : S.border}` }}>
+                {isRectification ? "Period 1 · Rectify Today's Register" : `Period 1 Roll Call · ${date}`}
               </span>
             </div>
             <h3 style={{ margin: 0, fontSize: "18px", fontWeight: 700, color: S.navy }}>
-              Take Daily Attendance — {activeClassName}
+              {isRectification ? `Rectify Attendance — ${activeClassName}` : `Take Daily Attendance — ${activeClassName}`}
             </h3>
             <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: S.slate }}>
-              Date: {date} • Period 1 • Class Teacher Morning Roll Call
+              {isRectification
+                ? `Date: ${date} • Correcting finalized marks for today's morning roll call`
+                : `Date: ${date} • Period 1 • Class Teacher Morning Roll Call`}
             </p>
           </div>
           <button
@@ -347,7 +353,7 @@ export function QuickAttendanceModal({
               boxShadow: "0 2px 6px rgba(12,30,51,0.2)",
             }}
           >
-            {saving ? "Finalizing Register..." : "Finalize & Record"}
+            {saving ? "Saving..." : isRectification ? "Save Rectified Register" : "Finalize & Record"}
           </button>
         </div>
       </div>

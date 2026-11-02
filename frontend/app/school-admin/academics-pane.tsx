@@ -12,7 +12,11 @@ import {
   updateAcademicSubject,
   updateAcademicSection,
   updateAcademicYear,
+  getSchoolHolidays,
+  deleteSchoolHoliday,
 } from '../edops-api';
+import { EmergencyHolidayModal } from '../components/emergency-holiday-modal';
+import { SchoolCalendarGrid } from '../components/school-calendar-grid';
 import {
   BookOpen,
   Calendar,
@@ -491,7 +495,9 @@ export function AcademicsPane({
   const [sectionSearch, setSectionSearch] = useState('');
   const [sectionProgramFilter, setSectionProgramFilter] = useState<string>('all');
   const [subjectSearch, setSubjectSearch] = useState('');
-  const [calendarFilter, setCalendarFilter] = useState<'all' | 'ptm' | 'exam' | 'academic'>('all');
+  const [calendarFilter, setCalendarFilter] = useState<'all' | 'holiday' | 'ptm' | 'exam' | 'academic'>('all');
+  const [schoolHolidays, setSchoolHolidays] = useState<any[]>([]);
+  const [isEmergencyModalOpen, setIsEmergencyModalOpen] = useState(false);
 
   const load = async (isSilent = false) => {
     if (!organizationId) {
@@ -503,12 +509,14 @@ export function AcademicsPane({
     }
     setError('');
     try {
-      const [academics, students] = await Promise.all([
+      const [academics, students, holidaysRes] = await Promise.all([
         getSchoolAdminAcademics(organizationId),
         getSchoolAdminStudents(organizationId).catch(() => []),
+        getSchoolHolidays(organizationId).catch(() => ({ holidays: [] })),
       ]);
       setData(academics);
       setAllStudents(students || []);
+      setSchoolHolidays(holidaysRes?.holidays || []);
     } catch (e) {
       setData(null);
       setError(e instanceof Error ? e.message : 'Unable to load academics');
@@ -919,16 +927,32 @@ export function AcademicsPane({
     });
   }, [curriculum, selectedClassGrade, curriculumSearch]);
 
+  // All Calendar items including declared holidays and emergency closures
+  const allCalendarItems = useMemo(() => {
+    const holidayItems = (schoolHolidays || []).map((h: any) => ({
+      id: h.id,
+      title: h.title,
+      date: typeof h.date === 'string' ? h.date.slice(0, 10) : new Date(h.date).toISOString().slice(0, 10),
+      time: 'All Day',
+      category: h.is_adhoc || h.isAdhoc ? 'Emergency Day Off' : 'School Holiday',
+      isHoliday: true,
+      isAdhoc: Boolean(h.is_adhoc || h.isAdhoc),
+      notes: h.notes,
+    }));
+    return [...events, ...holidayItems];
+  }, [events, schoolHolidays]);
+
   // Filtered events
   const filteredEvents = useMemo(() => {
-    if (calendarFilter === 'all') return events;
-    return events.filter((ev: any) => {
+    if (calendarFilter === 'all') return allCalendarItems;
+    return allCalendarItems.filter((ev: any) => {
       const cat = (ev.category || ev.type || '').toLowerCase();
+      if (calendarFilter === 'holiday') return ev.isHoliday || cat.includes('holiday') || cat.includes('off');
       if (calendarFilter === 'ptm') return cat.includes('ptm') || cat.includes('meeting') || cat.includes('parent');
       if (calendarFilter === 'exam') return cat.includes('exam') || cat.includes('test') || cat.includes('assessment');
       return true;
     });
-  }, [events, calendarFilter]);
+  }, [allCalendarItems, calendarFilter]);
 
   // Subtabs configuration (NO numbers in labels as requested!)
   const SUBTABS = [
@@ -3365,129 +3389,14 @@ export function AcademicsPane({
         </div>
       )}
 
-      {/* SUBTAB 5: Academic Calendar */}
+      {/* SUBTAB 5: Academic Calendar Grid */}
       {tab === 'calendar' && (
-        <div
-          style={{
-            background: '#FFFFFF',
-            border: `1px solid ${S.border}`,
-            borderRadius: '10px',
-            boxShadow: '0 1px 3px rgba(12, 30, 51, 0.04)',
-            overflow: 'hidden',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              padding: '20px 24px',
-              borderBottom: `1px solid ${S.border}`,
-              flexWrap: 'wrap',
-              gap: '12px',
-            }}
-          >
-            <div>
-              <h2 style={{ margin: 0, fontSize: '16px', fontWeight: 600, color: S.navy }}>
-                Institutional Calendar &amp; Academic Events
-              </h2>
-              <p style={{ margin: '3px 0 0', fontSize: '13px', color: S.slate }}>
-                Scheduled examinations, parent-teacher conferences, and institutional terms.
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {(['all', 'ptm', 'exam'] as const).map((filterKey) => (
-                <button
-                  key={filterKey}
-                  type="button"
-                  onClick={() => setCalendarFilter(filterKey)}
-                  style={{
-                    padding: '5px 12px',
-                    borderRadius: '6px',
-                    border: calendarFilter === filterKey ? `1px solid ${S.navy}` : `1px solid ${S.border}`,
-                    background: calendarFilter === filterKey ? S.navy : S.chip,
-                    color: calendarFilter === filterKey ? '#FFFFFF' : S.navy,
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    textTransform: 'capitalize',
-                  }}
-                >
-                  {filterKey === 'all' ? 'All Events' : filterKey.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px', textAlign: 'left' }}>
-              <thead>
-                <tr
-                  style={{
-                    background: '#F8FAFC',
-                    borderBottom: `1px solid ${S.border}`,
-                    color: S.slate,
-                  }}
-                >
-                  <th style={{ padding: '12px 24px', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Event Title</th>
-                  <th style={{ padding: '12px 18px', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Scheduled Date</th>
-                  <th style={{ padding: '12px 18px', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Time Slot</th>
-                  <th style={{ padding: '12px 24px', fontWeight: 600, fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Category</th>
-                </tr>
-              </thead>
-              <tbody>
-                {loading ? (
-                  <TableSkeletonRows rows={4} columns={4} />
-                ) : filteredEvents.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} style={{ padding: '32px' }}>
-                      <NoResultState
-                        title="No Calendar Events Scheduled"
-                        description="No academic events, examinations, or parent-teacher meets are currently listed on the calendar roster."
-                        onReset={calendarFilter !== 'all' ? () => setCalendarFilter('all') : undefined}
-                      />
-                    </td>
-                  </tr>
-                ) : (
-                  filteredEvents.map((ev: any, i: number) => (
-                    <tr
-                      key={ev.id || i}
-                      style={{
-                        borderBottom: i === filteredEvents.length - 1 ? 'none' : `1px solid ${S.border}`,
-                        transition: 'background 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#F8FAFC')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <td style={{ padding: '14px 24px', fontWeight: 600, color: S.navy }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <Clock size={15} style={{ color: S.slate }} />
-                          <span>{ev.title}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '14px 18px', color: S.slate }}>{ev.date}</td>
-                      <td style={{ padding: '14px 18px', color: S.slate }}>{ev.time || 'All Day'}</td>
-                      <td style={{ padding: '14px 24px' }}>
-                        <span
-                          style={{
-                            padding: '3px 8px',
-                            borderRadius: '10px',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            background: S.chip,
-                            color: S.navy,
-                          }}
-                        >
-                          {ev.category || 'Academic'}
-                        </span>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <SchoolCalendarGrid
+          organizationId={organizationId || ''}
+          canEdit={true}
+          title="Institutional Academic Calendar & Grid"
+          subtitle="Manage gazetted holidays, ad-hoc emergency closures, and view school calendar by academic session."
+        />
       )}
 
       {/* SUBTAB 6: Batch Rollover & Promotions (Redesigned Minimal Executive Layout) */}

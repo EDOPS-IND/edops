@@ -50,7 +50,8 @@ export class TeacherClassesService {
     const students = await this.drizzle.query(
       `SELECT u.id, u.name, u.email, e.roll_number AS "rollNumber",
         (SELECT ROUND(AVG(100.0*s.score/NULLIF(a.max_score,0))::numeric, 0)::int FROM assignments a JOIN submissions s ON s.organization_id=a.organization_id AND s.assignment_id=a.id WHERE a.organization_id=e.organization_id AND a.section_id=e.section_id AND a.subject_id=$3 AND s.student_id=u.id AND s.status='graded') as "subjectAverage",
-        (SELECT ROUND(100.0*COUNT(*) FILTER (WHERE r.status IN ('present','late'))/NULLIF(COUNT(*),0)::numeric, 0)::int FROM attendance_records r JOIN attendance_sessions ats ON ats.id=r.attendance_session_id AND ats.organization_id=r.organization_id WHERE r.organization_id=e.organization_id AND ats.section_id=e.section_id AND r.student_id=u.id AND ats.status='finalized') as "attendance"
+        (SELECT ROUND(100.0*COUNT(*) FILTER (WHERE r.status IN ('present','late'))/NULLIF(COUNT(*),0)::numeric, 0)::int FROM attendance_records r JOIN attendance_sessions ats ON ats.id=r.attendance_session_id AND ats.organization_id=r.organization_id WHERE r.organization_id=e.organization_id AND ats.section_id=e.section_id AND r.student_id=u.id AND ats.status='finalized') as "attendance",
+        (SELECT r.status FROM attendance_records r JOIN attendance_sessions ats ON ats.id=r.attendance_session_id AND ats.organization_id=r.organization_id WHERE r.organization_id=e.organization_id AND ats.section_id=e.section_id AND r.student_id=u.id AND ats.date=CURRENT_DATE AND ats.period=1 AND ats.status='finalized' LIMIT 1) as "todayAttendanceStatus"
        FROM enrollments e 
        JOIN users u ON u.id=e.student_user_id 
        WHERE e.organization_id=$1 AND e.section_id=$2 AND e.status='active' 
@@ -81,6 +82,7 @@ export class TeacherClassesService {
         ...s,
         attendance: att,
         subjectAverage: avg,
+        todayAttendanceStatus: s.todayAttendanceStatus || null,
         status,
       };
     });

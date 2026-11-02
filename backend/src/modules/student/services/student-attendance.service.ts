@@ -72,7 +72,15 @@ export class StudentAttendanceService {
         remarks: `Period ${r.period} • ${r.subject_name}`,
       }));
 
-      return { summary, subjectWise, calendarDays };
+      const holidays = await this.drizzle.query(
+        `SELECT id, title, to_char(date, 'YYYY-MM-DD') AS date, holiday_type AS "holidayType", is_adhoc AS "isAdhoc", notes
+         FROM school_holidays
+         WHERE organization_id = $1
+         ORDER BY date DESC LIMIT 10`,
+        [organizationId]
+      ).catch(() => []);
+
+      return { summary, subjectWise, calendarDays, holidays };
     } catch (error) { throw error; }
   }
 }

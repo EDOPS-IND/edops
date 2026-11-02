@@ -33,6 +33,27 @@ import {
 
 import { OrganizationSummary, getTeacherClasses, getStudentAvatarUrl, invalidateApiCache } from '../edops-api';
 import { useDashboardNavigation } from '../dashboard-navigation';
+import { DashboardSidebar } from '../components/dashboard-sidebar';
+
+const teacherIcons: Record<string, React.ElementType> = {
+  dashboard: LayoutDashboard,
+  classes: BookOpen,
+  today: Clock,
+  timetable: Clock,
+  attendance: CheckSquare,
+  learning: FileText,
+  assignments: FileText,
+  arena: Layers,
+  assessment: Award,
+  exams: CalendarDays,
+  students: Users,
+  curriculum: Compass,
+  communication: MessageSquare,
+  workload: BarChart2,
+  calendar: CalendarDays,
+  reports: FileSpreadsheet,
+  activity: Activity,
+};
 import { NotificationBellDropdown } from '../components/notification-bell-dropdown';
 import { FeatureUnavailableCard, ThreeDotsLoading } from '../components/feature-unavailable-card';
 import { TeacherTab } from './types';
@@ -233,22 +254,22 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
   const navigation = useDashboardNavigation(organization.id, 'teacher');
 
   const pageTitles: Record<TeacherTab, string> = {
-    dashboard: "Teacher Command Center",
-    classes: "My Classes & Sections",
-    timetable: "Class Schedule & Timetable",
-    attendance: "Attendance Registers",
-    learning: "Lesson Plans & Delivery",
-    assignments: "Assignments & Grading",
-    arena: "Arena Practice Bank",
-    assessment: "Formative Tests & Evaluations",
-    exams: "Official Exams & Grading",
-    students: "Student Tracking & Roster",
-    curriculum: "Curriculum Progress & LOs",
-    communication: "Academic Inbox & Directives",
-    workload: "My Workload & Instructional Tasks",
-    calendar: "Academic Calendar",
-    reports: "Reports & Heatmaps",
-    activity: "Faculty Audit Log",
+    dashboard: "Dashboard",
+    classes: "Classes",
+    timetable: "Timetable",
+    attendance: "Attendance",
+    learning: "Lessons",
+    assignments: "Assignments",
+    arena: "Arena",
+    assessment: "Assessments",
+    exams: "Examinations",
+    students: "Students",
+    curriculum: "Curriculum",
+    communication: "Communication",
+    workload: "Workload",
+    calendar: "Calendar",
+    reports: "Reports",
+    activity: "Activity",
   };
 
   // Primary navigation items
@@ -359,234 +380,16 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
       }}
     >
       {/* ═══════════════════════════════════════════════
-          S I D E B A R (Matching Student Command Center)
+          S I D E B A R (Shared & Feature-Flag Aligned)
       ═══════════════════════════════════════════════ */}
-      <aside
-        id="sidebar"
-        aria-label="Teacher primary navigation"
-        className="workspace-aside"
-        style={{
-          width: "240px",
-          flexShrink: 0,
-          background: S.sidebarBg,
-          color: "#fff",
-          height: "100vh",
-          position: "sticky",
-          top: 0,
-          alignSelf: "flex-start",
-          padding: 0,
-          boxSizing: "border-box",
-          zIndex: 40,
-          borderRight: `1px solid ${S.sidebarBorder}`,
-          overflow: "hidden",
-        }}
-      >
-        {/* Brand / Logo - Exactly 68px height matching Student Command Center */}
-        <div
-          style={{
-            height: "68px",
-            display: "flex",
-            alignItems: "center",
-            padding: "0 20px",
-            cursor: "pointer",
-            flexShrink: 0,
-            borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-            boxSizing: "border-box",
-          }}
-          onClick={() => navigateTo('dashboard')}
-          title="EDOPS Teacher Command Center"
-        >
-          <img
-            src="/EDOPSLogo.png"
-            alt="EDOPS Teacher Portal"
-            style={{
-              height: "36px",
-              width: "auto",
-              maxWidth: "140px",
-              display: "block",
-              objectFit: "contain",
-              filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))",
-              transition: "transform 0.15s ease",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-          />
-        </div>
-
-        {/* Scrollable Navigation Body */}
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            padding: "12px 12px 14px",
-            overflowY: "auto",
-            overflowX: "hidden",
-            scrollbarWidth: "none",
-          }}
-        >
-          <nav
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: "3px",
-              flex: 1,
-            }}
-            aria-label="Sidebar navigation"
-          >
-            {/* Section 1: TEACHER WORKSPACE */}
-            <div
-              style={{
-                fontSize: "10px",
-                fontWeight: 700,
-                color: S.groupLabel,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                padding: "8px 12px 4px",
-                userSelect: "none",
-              }}
-            >
-              TEACHER WORKSPACE
-            </div>
-
-            {/* Dashboard Item */}
-            {renderNavItem({
-              id: 'dashboard',
-              label: 'Command Center',
-              tab: 'dashboard',
-              icon: LayoutDashboard,
-            })}
-
-            {/* Section 2: INSTRUCTION & CLASSES */}
-            <div
-              style={{
-                fontSize: "10px",
-                fontWeight: 700,
-                color: S.groupLabel,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                padding: "14px 12px 4px",
-                userSelect: "none",
-              }}
-            >
-              INSTRUCTION & CLASSES
-            </div>
-
-            {/* Primary Instruction Items */}
-            {primaryInstructionItems.map(item => renderNavItem(item))}
-
-            {/* Seamless More Modules Section (Matching Student Sidebar) */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-              <button
-                id="nav-toggle-more-modules"
-                onClick={() => setShowMoreModules(!showMoreModules)}
-                style={{
-                  all: "unset",
-                  boxSizing: "border-box",
-                  width: "100%",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: "10px",
-                  height: "40px",
-                  padding: "0 12px",
-                  borderRadius: "10px",
-                  fontSize: "13.5px",
-                  cursor: "pointer",
-                  transition: "all 0.15s cubic-bezier(0.4, 0, 0.2, 1)",
-                  background: isExtraTabActive && !showMoreModules ? S.itemActiveBg : "transparent",
-                  color: (isExtraTabActive && !showMoreModules) || showMoreModules ? "#ffffff" : S.itemInactiveText,
-                  fontWeight: (isExtraTabActive && !showMoreModules) || showMoreModules ? 600 : 450,
-                  whiteSpace: "nowrap",
-                  flexWrap: "nowrap",
-                }}
-                onMouseEnter={(e) => {
-                  if (!(isExtraTabActive && !showMoreModules)) {
-                    e.currentTarget.style.color = "#ffffff";
-                    e.currentTarget.style.background = S.itemHoverBg;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!(isExtraTabActive && !showMoreModules)) {
-                    e.currentTarget.style.color = showMoreModules ? "#ffffff" : S.itemInactiveText;
-                    e.currentTarget.style.background = "transparent";
-                  }
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "center", gap: "11px", minWidth: 0, flex: 1, overflow: "hidden" }}>
-                  <LayoutGrid
-                    size={18}
-                    strokeWidth={(isExtraTabActive && !showMoreModules) || showMoreModules ? 2 : 1.75}
-                    style={{
-                      flexShrink: 0,
-                      color: (isExtraTabActive && !showMoreModules) || showMoreModules ? "#ffffff" : S.itemInactiveText,
-                    }}
-                  />
-                  <span
-                    style={{
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    More Modules
-                  </span>
-                </div>
-                <div style={{ display: "flex", alignItems: "center", flexShrink: 0 }}>
-                  <ChevronDown
-                    size={15}
-                    style={{
-                      color: (isExtraTabActive && !showMoreModules) || showMoreModules ? "#ffffff" : S.itemInactiveText,
-                      transform: showMoreModules ? "rotate(180deg)" : "rotate(0deg)",
-                      transition: "transform 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
-                      flexShrink: 0,
-                    }}
-                  />
-                </div>
-              </button>
-
-              {/* Seamless Expanded Items with Matching Full-Width Pill Selector */}
-              {showMoreModules && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "3px",
-                    padding: "4px",
-                    background: "rgba(255, 255, 255, 0.02)",
-                    borderRadius: "10px",
-                    border: "1px solid rgba(255, 255, 255, 0.04)",
-                  }}
-                >
-                  {extraTeacherItems.map(item => renderNavItem(item))}
-                </div>
-              )}
-            </div>
-
-            {/* Section 3: SETTINGS */}
-            <div
-              style={{
-                fontSize: "10px",
-                fontWeight: 700,
-                color: S.groupLabel,
-                letterSpacing: "0.08em",
-                textTransform: "uppercase",
-                padding: "14px 12px 4px",
-                userSelect: "none",
-              }}
-            >
-              SETTINGS
-            </div>
-
-            {renderNavItem({
-              id: 'settings-workload',
-              label: 'Faculty Settings',
-              tab: 'workload',
-              icon: Settings,
-            })}
-          </nav>
-        </div>
-      </aside>
+      <DashboardSidebar
+        organizationId={organization.id}
+        role="teacher"
+        activeTab={activeTab}
+        onTabChange={(tab) => navigateTo(tab as TeacherTab)}
+        iconMap={teacherIcons}
+        title="EDOPS Teacher Command Center"
+      />
 
       {/* ═══════════════════════════════════════════════
           W O R K S P A C E   &   H E A D E R
@@ -1149,46 +952,66 @@ export const TeacherWorkspace: React.FC<TeacherWorkspaceProps> = ({
               </button>
             </div>
             <nav style={{ flex: 1, overflowY: "auto", padding: "12px 10px", display: "flex", flexDirection: "column", gap: "3px" }}>
-              {[
-                { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-                ...primaryInstructionItems,
-                ...extraTeacherItems,
-              ].map((item) => {
-                const Icon = item.icon;
-                const active = activeTab === item.id;
+              {navigation.sections.map((section, idx) => {
+                const visibleItems = (section.items || []).filter(
+                  (item: any) => item.effectiveEnabled !== false
+                );
+                if (visibleItems.length === 0) return null;
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      navigateTo(item.id as TeacherTab);
-                    }}
-                    className={`drawer-nav-item ${active ? "active" : ""}`}
-                    style={{
-                      all: "unset",
-                      boxSizing: "border-box",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "11px",
-                      width: "100%",
-                      height: "40px",
-                      padding: "0 12px",
-                      borderRadius: "10px",
-                      fontSize: "13.5px",
-                      fontWeight: active ? 600 : 500,
-                      cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      background: active ? S.itemActiveBg : "transparent",
-                      color: active ? "#ffffff" : "#cbd5e1",
-                      borderLeft: active ? "3px solid #F8E7C9" : "3px solid transparent",
-                      transition: "all 0.15s ease",
-                    }}
-                  >
-                    <Icon size={17} style={{ flexShrink: 0, color: active ? "#F8E7C9" : "#94a3b8" }} />
-                    <span style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {item.label}
-                    </span>
-                  </button>
+                  <div key={section.key}>
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        fontWeight: 700,
+                        color: S.groupLabel,
+                        letterSpacing: "0.08em",
+                        textTransform: "uppercase",
+                        padding: idx === 0 ? "8px 12px 4px" : "12px 12px 4px",
+                        userSelect: "none",
+                      }}
+                    >
+                      {section.label}
+                    </div>
+                    {visibleItems.map((item: any) => {
+                      const tabId = (item.key.split(".").at(-1) || item.key) as TeacherTab;
+                      const Icon = teacherIcons[tabId] || LayoutDashboard;
+                      const active = activeTab === tabId;
+                      return (
+                        <button
+                          key={item.key}
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            navigateTo(tabId);
+                          }}
+                          className={`drawer-nav-item ${active ? "active" : ""}`}
+                          style={{
+                            all: "unset",
+                            boxSizing: "border-box",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "11px",
+                            width: "100%",
+                            height: "40px",
+                            padding: "0 12px",
+                            borderRadius: "10px",
+                            fontSize: "13.5px",
+                            fontWeight: active ? 600 : 500,
+                            cursor: "pointer",
+                            whiteSpace: "nowrap",
+                            background: active ? S.itemActiveBg : "transparent",
+                            color: active ? "#ffffff" : "#cbd5e1",
+                            borderLeft: active ? "3px solid #F8E7C9" : "3px solid transparent",
+                            transition: "all 0.15s ease",
+                          }}
+                        >
+                          <Icon size={17} style={{ flexShrink: 0, color: active ? "#F8E7C9" : "#94a3b8" }} />
+                          <span style={{ color: "inherit", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                            {item.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 );
               })}
             </nav>

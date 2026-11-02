@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { AuthenticatedRequest } from '../../../common/auth.guard';
+import { AuthenticatedRequest, RequireFeature } from '../../../common/auth.guard';
 import { CreateTeacherArenaQuestionDto } from '../dto/teacher.dto';
 import { TeacherGuard } from '../guards/teacher.guard';
 import { TeacherArenaService } from '../services/teacher-arena.service';
@@ -8,6 +8,7 @@ import { TeacherArenaService } from '../services/teacher-arena.service';
 @ApiTags('Teacher Command Center')
 @ApiBearerAuth()
 @UseGuards(TeacherGuard)
+@RequireFeature('arena')
 @ApiParam({ name: 'organizationId', format: 'uuid' })
 @Controller({ path: 'organizations/:organizationId/teacher', version: '1' })
 export class TeacherArenaController {
