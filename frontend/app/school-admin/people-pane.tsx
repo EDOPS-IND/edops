@@ -29,6 +29,7 @@ import {
 import { TeacherAllocationManager } from "../components/teacher-allocation-manager";
 import { DepartmentDossierDrawer } from "./components/department-dossier-drawer";
 import { MemberLifecycleModal, MemberLifecycleTarget } from "../components/member-lifecycle-modal";
+import { KpiSkeletonGrid, TableSkeletonRows, NoResultState } from "../components/ui";
 import {
   Users,
   User,
@@ -73,90 +74,7 @@ import {
 /* SKELETON LOADING AND EMPTY STATE COMPONENTS                                */
 /* -------------------------------------------------------------------------- */
 
-function NoResultState({
-  title,
-  description,
-  onReset,
-}: {
-  title: string;
-  description: string;
-  onReset?: () => void;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "48px 24px",
-        width: "100%",
-        textAlign: "center",
-        boxSizing: "border-box",
-      }}
-    >
-      <img
-        src="/noresult.png"
-        alt="No results found"
-        style={{
-          width: "140px",
-          height: "auto",
-          maxHeight: "120px",
-          objectFit: "contain",
-          marginBottom: "16px",
-          opacity: 0.95,
-        }}
-      />
-      <b
-        style={{
-          fontFamily: "'Poppins', sans-serif",
-          fontSize: "15px",
-          fontWeight: 700,
-          color: "#0C1E33",
-          marginBottom: "6px",
-          letterSpacing: "-0.01em",
-        }}
-      >
-        {title}
-      </b>
-      <p
-        style={{
-          margin: 0,
-          fontFamily: "'Poppins', sans-serif",
-          fontSize: "12px",
-          color: "#64748B",
-          maxWidth: "420px",
-          lineHeight: 1.55,
-        }}
-      >
-        {description}
-      </p>
-      {onReset && (
-        <button
-          type="button"
-          onClick={onReset}
-          style={{
-            marginTop: "16px",
-            padding: "7px 18px",
-            borderRadius: "6px",
-            background: "#0C1E33",
-            color: "#FFFFFF",
-            border: "none",
-            fontSize: "12px",
-            fontWeight: 600,
-            cursor: "pointer",
-            fontFamily: "'Poppins', sans-serif",
-            transition: "all 0.15s ease",
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.background = "#1B3554")}
-          onMouseLeave={(e) => (e.currentTarget.style.background = "#0C1E33")}
-        >
-          Reset Filters
-        </button>
-      )}
-    </div>
-  );
-}
+
 
 function StudentProfileEmptyState({
   title,
@@ -298,63 +216,7 @@ function getStudentTabEmptyMeta(tab: string, studentName: string, admissionNo?: 
   }
 }
 
-function TableSkeletonRows({ rows = 6, columns = 6 }: { rows?: number; columns?: number }) {
-  return (
-    <>
-      {Array.from({ length: rows }).map((_, rIdx) => {
-        const isEven = rIdx % 2 === 0;
-        return (
-          <tr
-            key={rIdx}
-            style={{
-              height: "52px",
-              minHeight: "52px",
-              background: isEven ? "#FFFFFF" : "#F8FAFC",
-              borderBottom: "1px solid #E0E5EB",
-              boxSizing: "border-box",
-            }}
-          >
-            {/* Col 1: Avatar circle + 2 text shimmer bars */}
-            <td style={{ padding: "0 16px", height: "52px", verticalAlign: "middle" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                <div
-                  className="edops-skeleton"
-                  style={{ width: "30px", height: "30px", borderRadius: "50%", flexShrink: 0 }}
-                />
-                <div style={{ display: "flex", flexDirection: "column", gap: "5px", width: "120px" }}>
-                  <div className="edops-skeleton" style={{ height: "12px", width: "85%" }} />
-                  <div className="edops-skeleton" style={{ height: "9px", width: "60%" }} />
-                </div>
-              </div>
-            </td>
-            {/* Middle columns */}
-            {Array.from({ length: columns - 2 }).map((_, cIdx) => (
-              <td key={cIdx} style={{ padding: "0 14px", height: "52px", verticalAlign: "middle" }}>
-                <div
-                  className="edops-skeleton"
-                  style={{
-                    height: "12px",
-                    width: cIdx % 2 === 0 ? "70px" : "105px",
-                    maxWidth: "90%",
-                  }}
-                />
-              </td>
-            ))}
-            {/* Last column: Action button */}
-            <td style={{ padding: "0 16px", height: "52px", textAlign: "right", verticalAlign: "middle" }}>
-              <div style={{ display: "inline-flex", justifyContent: "flex-end", width: "100%" }}>
-                <div
-                  className="edops-skeleton"
-                  style={{ height: "26px", width: "58px", borderRadius: "6px" }}
-                />
-              </div>
-            </td>
-          </tr>
-        );
-      })}
-    </>
-  );
-}
+
 
 function StudentSkeletonRows({ rows = 6 }: { rows?: number }) {
   return (
@@ -465,55 +327,7 @@ function TeacherSkeletonRows({ rows = 6 }: { rows?: number }) {
   );
 }
 
-function KpiSkeletonGrid() {
-  const cards = [
-    { bg: "#E0D3FF" },
-    { bg: "#D0EDC0" },
-    { bg: "#BCE6F3" },
-    { bg: "#FADAC9" },
-  ];
 
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-        gap: "16px",
-        width: "100%",
-      }}
-    >
-      {cards.map((c, i) => (
-        <div
-          key={i}
-          style={{
-            boxSizing: "border-box",
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "space-between",
-            height: "164px",
-            padding: "20px",
-            gap: "12px",
-            background: c.bg,
-            borderRadius: "10px",
-          }}
-        >
-          <div style={{ display: "flex", flexDirection: "row", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-            <div className="edops-skeleton-kpi" style={{ width: "110px", height: "12px", borderRadius: "4px" }} />
-            <div className="edops-skeleton-kpi" style={{ width: "20px", height: "20px", borderRadius: "50%" }} />
-          </div>
-          <div className="edops-skeleton-kpi" style={{ width: "75px", height: "36px", borderRadius: "6px" }} />
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px", width: "100%" }}>
-            <div className="edops-skeleton-kpi" style={{ width: "140px", height: "10px", borderRadius: "4px" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-              <div className="edops-skeleton-kpi" style={{ width: "55px", height: "10px", borderRadius: "4px" }} />
-              <div className="edops-skeleton-kpi" style={{ width: "14px", height: "14px", borderRadius: "3px" }} />
-            </div>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export function PeoplePane({
   organizationId,

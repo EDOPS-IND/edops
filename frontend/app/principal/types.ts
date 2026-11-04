@@ -154,6 +154,8 @@ export interface LessonPlanItem {
   assessmentMethod: string;
   status: string;
   principalFeedback?: string;
+  homework?: string;
+  resources?: string;
 }
 
 export interface QuestionPaperItem {

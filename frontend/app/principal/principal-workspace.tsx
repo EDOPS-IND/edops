@@ -467,7 +467,12 @@ export function PrincipalWorkspace({
       audit: "classes",
     },
   };
-  const activeNavLabel = principalNavSections.flatMap((s) => s.items).find((i) => i.id === activePane)?.label || activePane;
+  const activeNavLabel =
+    navigation.sections
+      ?.flatMap((s: any) => s.items || [])
+      ?.find((i: any) => (i.key?.split(".").at(-1) || i.key) === activePane)?.label ||
+    paneTitles[activePane] ||
+    activePane;
   const activeView = paneTabs[activePane]?.[activeSubTab] || activeSubTab || Object.values(paneTabs[activePane] || {})[0] || "";
   const activeKey = activePane === "dashboard" ? "overview.dashboard" : ["alerts", "reports", "activity"].includes(activePane) ? `management.${activePane}` : activePane === "planning" && activeSubTab === "action_plans" ? "planning.app" : `${activePane}.${activeSubTab}`;
 
