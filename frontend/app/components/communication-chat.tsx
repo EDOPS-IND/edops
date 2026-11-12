@@ -348,7 +348,7 @@ export function CommunicationChat({
         if (created) {
           setSelectedId(created.conversationId);
           const updated = await getCommunicationConversation(organizationId, created.conversationId);
-          setMessagesByConv((prev) => ({ ...prev, [created.conversationId]: updated }));
+          setMessages(Array.isArray(updated) ? updated : []);
         }
       }
     } catch {
