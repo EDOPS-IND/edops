@@ -64,7 +64,7 @@ export function AttendanceLeavePane({
       await createSchoolAdminBroadcast(organizationId, {
         title: subject,
         message: body,
-        channels: ["in_app", "email", "sms"],
+        channels: ["in_app"],
         targetAudience: "parents",
         priority: "urgent",
       });

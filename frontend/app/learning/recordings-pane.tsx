@@ -89,6 +89,9 @@ export function RecordingsPane({
               </div>
               <span className={`status-chip ${item.status}`}>{item.status}</span>
               <h3>{item.title}</h3>
+              {(item.chapter || item.topic) && (
+                <p>{[item.chapter, item.topic].filter(Boolean).join(" · ")}</p>
+              )}
               <p>{dateTime(item.recordedAt)} · {formatBytes(item.sizeBytes)}</p>
               <div className="row-actions">
                 {(item.status === "published" || (role !== "student" && item.status === "ready")) && (
@@ -163,6 +166,8 @@ function RecordingUpload({
           sectionId: classroom.sectionId,
           subjectId: classroom.subjectId,
           title: data.get("title"),
+          chapter: String(data.get("chapter") || "").trim() || undefined,
+          topic: String(data.get("topic") || "").trim() || undefined,
           recordedAt: new Date(String(data.get("recordedAt"))).toISOString(),
           durationSeconds: Number(data.get("durationSeconds")),
           contentType: file.type,
@@ -202,6 +207,16 @@ function RecordingUpload({
           Title
           <input name="title" required maxLength={200} />
         </label>
+        <div className="form-grid">
+          <label>
+            Chapter
+            <input name="chapter" maxLength={160} placeholder="e.g. Quadratic Equations" />
+          </label>
+          <label>
+            Topic
+            <input name="topic" maxLength={200} placeholder="e.g. Completing the square" />
+          </label>
+        </div>
         <label>
           Video file
           <input name="file" type="file" accept="video/mp4,video/webm" required />

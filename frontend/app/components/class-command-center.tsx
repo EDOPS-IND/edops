@@ -667,7 +667,7 @@ export function ClassCommandCenterModal({
       await createSchoolAdminBroadcast(organizationId, {
         title: `Statutory Attendance Warning: ${sName} (${classSec})`,
         message: `Official attendance breach warning for ${sName} (${classSec}${sRoll ? ` · ${sRoll}` : ""}). Current attendance is ${rateText} with ${absentCount} recorded absences. Under CBSE regulations, a minimum of 75% attendance is required for term and examination clearance.`,
-        channels: ["in_app", "email", "sms"],
+        channels: ["in_app"],
         targetAudience: "parents",
         priority: "urgent",
       });

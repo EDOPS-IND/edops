@@ -6,7 +6,7 @@ import {
   updatePlanStatus, updatePlanFeatures, getSchoolDetailedOverrides,
   removeSchoolDetailedOverride, onboardSchool,
   updateSchoolLifecycle, getSupportTickets, createSupportTicket,
-  updateSupportTicketStatus, startSupportSession, getAnnouncements,
+  updateSupportTicketStatus, startSupportSession, endSupportSession, getAnnouncements,
   createAnnouncement, getPayments, refundPayment,
   getDetailedHealth, getAuditLogs, getPlatformDashboard, getPlatformStaff
 } from "./edops-api";
@@ -67,7 +67,7 @@ export function PlatformWorkspace({
 
   // Impersonation Banner session
   const [impersonatingSession, setImpersonatingSession] = useState<{
-    active: boolean; schoolId: string; schoolName: string; expiresAt: string; sessionToken: string;
+    id: string; active: boolean; schoolId: string; schoolName: string; startedAt?: string; expiresAt: string; sessionToken: string;
   } | null>(null);
 
   const [busy, setBusy] = useState(false);
@@ -209,6 +209,7 @@ export function PlatformWorkspace({
   async function handleStartSupportSession(reason: string) {
     if (!supportSessionModal) return;
     setBusy(true);
+    setError("");
     try {
       const res = await startSupportSession({
         organizationId: supportSessionModal.id,
@@ -219,6 +220,21 @@ export function PlatformWorkspace({
       setSuccessMsg(`Audited support session started for ${res.schoolName}`);
     } catch (err: any) {
       setError(err.message || "Support session start failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEndSupportSession() {
+    if (!impersonatingSession) return;
+    setBusy(true);
+    setError("");
+    try {
+      await endSupportSession(impersonatingSession.id);
+      setSuccessMsg(`Support session for ${impersonatingSession.schoolName} ended and audited`);
+      setImpersonatingSession(null);
+    } catch (err: any) {
+      setError(err.message || "Could not end support session");
     } finally {
       setBusy(false);
     }
@@ -334,10 +350,11 @@ export function PlatformWorkspace({
             <span>⚠ SUPPORT SESSION ACTIVE: Impersonating <b>{impersonatingSession.schoolName}</b>. All actions are cryptographically signed and permanently audited.</span>
           </div>
           <button
-            onClick={() => setImpersonatingSession(null)}
-            style={{ background: "#D97706", color: "#FFF", border: "none", borderRadius: "6px", padding: "6px 14px", cursor: "pointer", fontSize: "12px", fontWeight: 800 }}
+            onClick={handleEndSupportSession}
+            disabled={busy}
+            style={{ background: "#D97706", color: "#FFF", border: "none", borderRadius: "6px", padding: "6px 14px", cursor: busy ? "wait" : "pointer", fontSize: "12px", fontWeight: 800, opacity: busy ? 0.7 : 1 }}
           >
-            Exit Support Session
+            {busy ? "Ending…" : "End Support Session"}
           </button>
         </div>
       )}

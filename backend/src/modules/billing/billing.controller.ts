@@ -452,8 +452,25 @@ export class PlatformBillingController {
 
   // : Audited Support Sessions (Impersonation)
   @Post("support/sessions")
+  @ApiOperation({ summary: "Platform Administrator: Start Audited Support Session" })
   startSupportSession(@Req() req: AuthenticatedRequest, @Body() dto: any) {
     return this.billing.startSupportSession(req.user, dto);
+  }
+
+  @Get("support/sessions")
+  @ApiOperation({ summary: "Platform Administrator: List Audited Support Sessions" })
+  supportSessions(@Req() req: AuthenticatedRequest) {
+    return this.billing.supportSessions(req.user);
+  }
+
+  @Post("support/sessions/:id/end")
+  @ApiOperation({ summary: "Platform Administrator: End Audited Support Session" })
+  endSupportSession(
+    @Req() req: AuthenticatedRequest,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: any,
+  ) {
+    return this.billing.endSupportSession(req.user, id, dto?.reason);
   }
 
   // : Platform Announcements

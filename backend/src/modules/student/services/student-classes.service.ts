@@ -7,11 +7,18 @@ export class StudentClassesService {
 
   async getClassDetails(organizationId: string, studentUserId: string) {
     const [enrollment] = await this.drizzle.query(
-      `SELECT e.section_id, sec.name AS "className", y.name AS "academicYear", e.roll_number AS "rollNumber",
-        COALESCE(ctu.name, 'Unassigned') AS "classTeacher"
-       FROM enrollments e JOIN sections sec ON sec.id=e.section_id AND sec.organization_id=e.organization_id
-       LEFT JOIN users ctu ON ctu.id=sec.class_teacher_user_id
-       LEFT JOIN academic_years y ON y.id=e.academic_year_id AND y.organization_id=e.organization_id
+      `SELECT e.section_id,
+          COALESCE(NULLIF(TRIM(CONCAT_WS(' ', prog.name, sec.name)), ''), sec.name) AS "className",
+          prog.name AS "programName",
+          sec.name AS "sectionName",
+          y.name AS "academicYear",
+          e.roll_number AS "rollNumber",
+          COALESCE(NULLIF(TRIM(tu.name), ''), tu.email) AS "classTeacher"
+       FROM enrollments e
+       JOIN sections sec ON sec.id=e.section_id AND sec.organization_id=e.organization_id
+       LEFT JOIN programs prog ON prog.id=sec.program_id AND prog.organization_id=sec.organization_id
+       JOIN academic_years y ON y.id=e.academic_year_id AND y.organization_id=e.organization_id AND y.is_current
+       LEFT JOIN users tu ON tu.id=sec.class_teacher_user_id
        WHERE e.organization_id=$1 AND e.student_user_id=$2 AND e.status='active' LIMIT 1`, [organizationId, studentUserId]);
     if (!enrollment) return { classInfo: null, classmates: [], announcements: [] };
     const classmates = await this.drizzle.query(
@@ -20,10 +27,16 @@ export class StudentClassesService {
        WHERE e.organization_id=$1 AND e.section_id=$2 AND e.status='active' ORDER BY e.roll_number`, [organizationId, enrollment.section_id, studentUserId]);
     const [count] = await this.drizzle.query(
       `SELECT COUNT(DISTINCT subject_id)::int AS total FROM class_subject_assignments WHERE organization_id=$1 AND section_id=$2`, [organizationId, enrollment.section_id]);
+    const [room] = await this.drizzle.query(
+      `SELECT NULLIF(BTRIM(room_number), '') AS "roomNumber"
+       FROM timetable_entries
+       WHERE organization_id=$1 AND section_id=$2 AND NULLIF(BTRIM(room_number), '') IS NOT NULL
+       GROUP BY NULLIF(BTRIM(room_number), '')
+       ORDER BY COUNT(*) DESC, room_number ASC LIMIT 1`, [organizationId, enrollment.section_id]);
     const announcements = await this.drizzle.query(
       `SELECT id,title,sender_name AS author,created_at AS date,message AS content FROM school_broadcasts
        WHERE organization_id=$1 AND target_audience IN ('all','students') ORDER BY created_at DESC LIMIT 20`, [organizationId]);
-    return { classInfo: { ...enrollment, classTeacher: enrollment.classTeacher, roomNumber: null, studentCount: classmates.length, subjectsCount: count.total }, classmates, announcements };
+    return { classInfo: { ...enrollment, classTeacher: enrollment.classTeacher || null, roomNumber: room?.roomNumber || null, studentCount: classmates.length, subjectsCount: count.total }, classmates, announcements };
   }
 
   async getStudentLectures(organizationId: string, studentUserId: string) {

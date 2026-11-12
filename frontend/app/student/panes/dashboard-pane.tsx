@@ -110,6 +110,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
 
   const kpis = data?.kpis || {
     overallAttendance: 0,
+    overallScore: null,
     academicAverage: null,
     improvement: 0,
     assignmentCompletion: 0,
@@ -117,7 +118,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
     curriculumProgress: 0,
   };
 
-  const healthScore = kpis.academicAverage == null ? null : Math.round(kpis.academicAverage);
+  const healthScore = kpis.overallScore == null ? null : Math.round(kpis.overallScore);
   const nextClass = data?.nextClass;
   const timetable = data?.timetable || [];
   const pendingTasks = data?.pendingTasks || [];
@@ -444,11 +445,11 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             <TrendingUp size={18} />
           </div>
           <p style={{ margin: 0, fontSize: "36px", fontWeight: 700, lineHeight: 1, color: "#7a4a00" }}>
-            {kpis?.academicAverage ?? 0}%
+            {kpis?.overallScore != null ? `${Math.round(kpis.overallScore)}%` : "—"}
           </p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
             <p style={{ margin: 0, fontSize: "11px" }}>
-              +{kpis?.improvement ?? 0}% vs last term
+              {kpis?.overallScore != null ? "Composite of attendance, coursework & assessments" : "No graded data yet"}
             </p>
             <span style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "11px", fontWeight: 600, color: "#7a4a00" }}>
               View <ArrowRight size={14} />
@@ -718,7 +719,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                   color: S.navy,
                 }}
               >
-                {healthScore == null ? "No graded results" : "Recorded academic average"}
+                {healthScore == null ? "No graded results" : "Composite academic standing"}
               </span>
               <p style={{ margin: 0, fontSize: "11px", lineHeight: 1.6, color: S.slate }}>
                 Verified attendance ({kpis?.overallAttendance ?? 0}%), homework completion ({kpis?.assignmentCompletion ?? 0}%), and academic average ({kpis?.academicAverage ?? 0}%) live in register.
@@ -739,10 +740,10 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
             >
               <b style={{ color: S.navy }}>Recorded indicators:</b>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginTop: "8px" }}>
-                <div>• Attendance: {kpis.overallAttendance}%</div>
+                <div>• Attendance: {kpis.overallAttendance ?? 0}%</div>
                 <div>• Academic Average: {kpis.academicAverage ?? 0}%</div>
-                <div>• Coursework Completion: {kpis.assignmentCompletion}%</div>
-                <div>Practice drill results are tracked in Arena</div>
+                <div>• Coursework Completion: {kpis.assignmentCompletion ?? 0}%</div>
+                <div>• Overall Score: {kpis.overallScore != null ? `${Math.round(kpis.overallScore)}%` : "—"}</div>
               </div>
             </div>
           )}
@@ -918,7 +919,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
               {nextClass.subject} · <span style={{ fontWeight: 500, color: S.slate }}>{nextClass.topic || "Instructional Period"}</span>
             </h3>
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px", fontSize: "12px", color: S.slate }}>
-              <span>Room {nextClass.room || "302"}</span>
+              <span>{nextClass.room ? `Room ${nextClass.room}` : "Room not assigned"}</span>
               <span>•</span>
               <span>Teacher: <b style={{ color: S.navy }}>{nextClass.teacher || "Faculty"}</b></span>
             </div>
@@ -1074,7 +1075,7 @@ export const DashboardPane: React.FC<DashboardPaneProps> = ({
                           )}
                         </div>
                         <div style={{ fontSize: "11.5px", color: S.slate, marginTop: "2px" }}>
-                          {period.startTime ? `${period.startTime} - ${period.endTime}` : (period.time || "09:00 - 09:45")} · {period.teacherName || period.teacher || "Faculty"} (Room {period.room || "302"})
+                          {period.startTime ? `${period.startTime} - ${period.endTime}` : (period.time || "09:00 - 09:45")} · {period.teacherName || period.teacher || "Faculty"}{period.room ? ` (Room ${period.room})` : ""}
                         </div>
                       </div>
                     </div>

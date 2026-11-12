@@ -10,7 +10,7 @@ import { AcademicListDto } from "../academics/academic.dto";
 import { AuditService } from "../audit/audit.service";
 import { User } from "../auth/user.entity";
 import { SchoolWork } from "../tenants/school-work.service";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { tokenHash } from "../auth/password";
 import {
   CreatePlanDto,
@@ -1195,27 +1195,90 @@ export class BillingService {
         [dto.organizationId],
       );
       if (!org) throw new NotFoundException("School not found");
+      const reason = (dto.reason || "").trim();
+      if (reason.length < 5)
+        throw new BadRequestException(
+          "A support reason of at least 5 characters is required",
+        );
+      const id = randomUUID();
       const sessionToken = randomBytes(24).toString("hex");
-      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      const sessionTokenHash = createHash("sha256")
+        .update(sessionToken)
+        .digest("hex");
+      const startedAt = new Date();
+      const expiresAt = new Date(startedAt.getTime() + 60 * 60 * 1000);
+      const [session] = await m.query(
+        `INSERT INTO support_sessions
+          (id, organization_id, platform_user_id, reason, session_token_hash, started_at, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, started_at AS "startedAt", expires_at AS "expiresAt"`,
+        [
+          id,
+          dto.organizationId,
+          actor.id,
+          reason,
+          sessionTokenHash,
+          startedAt,
+          expiresAt,
+        ],
+      );
       await this.audit.record(m, {
         organizationId: dto.organizationId,
         actorId: actor.id,
         action: "support.session_started",
         details: {
+          supportSessionId: id,
           schoolName: org.name,
-          reason: dto.reason,
+          reason,
           expiresAt: expiresAt.toISOString(),
           sessionTokenPrefix: sessionToken.slice(0, 8),
         },
       });
       return {
+        id: session.id,
         active: true,
         schoolId: org.id,
         schoolName: org.name,
-        expiresAt: expiresAt.toISOString(),
+        startedAt: session.startedAt,
+        expiresAt: session.expiresAt,
         sessionToken,
         warning: "SUPPORT SESSION ACTIVE - ALL ACTIONS ARE PERMANENTLY AUDITED",
       };
+    });
+  }
+
+  endSupportSession(actor: User, id: string, reason?: string) {
+    return this.platform(actor, async (m) => {
+      const [session] = await m.query(
+        `UPDATE support_sessions
+         SET ended_at = now(), end_reason = $3
+         WHERE id = $1 AND platform_user_id = $2 AND ended_at IS NULL
+         RETURNING id, organization_id AS "organizationId", ended_at AS "endedAt"`,
+        [id, actor.id, (reason || "Ended by platform administrator").slice(0, 255)],
+      );
+      if (!session)
+        throw new NotFoundException("Active support session not found");
+      await this.audit.record(m, {
+        organizationId: session.organizationId,
+        actorId: actor.id,
+        action: "support.session_ended",
+        details: { supportSessionId: id, reason: reason || null },
+      });
+      return { success: true, ...session };
+    });
+  }
+
+  supportSessions(actor: User) {
+    return this.platform(actor, async (m) => {
+      return m.query(
+        `SELECT s.id, s.organization_id AS "organizationId", o.name AS "schoolName",
+                s.reason, s.started_at AS "startedAt", s.expires_at AS "expiresAt",
+                s.ended_at AS "endedAt", s.end_reason AS "endReason",
+                COALESCE(u.name, u.email) AS "actorName"
+         FROM support_sessions s
+         JOIN organizations o ON o.id = s.organization_id
+         JOIN users u ON u.id = s.platform_user_id
+         ORDER BY s.started_at DESC LIMIT 50`,
+      );
     });
   }
 

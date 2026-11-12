@@ -1,9 +1,15 @@
-import { ApiProperty, PartialType, PickType } from "@nestjs/swagger";
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  PartialType,
+  PickType,
+} from "@nestjs/swagger";
 import { Transform } from "class-transformer";
 import {
   IsDateString,
   IsIn,
   IsInt,
+  IsOptional,
   IsString,
   IsUUID,
   Matches,
@@ -23,6 +29,18 @@ export class CreateRecordingDto {
   @MinLength(1)
   @MaxLength(200)
   title!: string;
+  @ApiPropertyOptional({ maxLength: 160, description: "Chapter this recording belongs to" })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(160)
+  chapter?: string;
+  @ApiPropertyOptional({ maxLength: 200, description: "Topic covered in this recording" })
+  @IsOptional()
+  @Transform(trim)
+  @IsString()
+  @MaxLength(200)
+  topic?: string;
   @ApiProperty({ format: "date-time" })
   @Matches(/T.*(?:Z|[+-]\d{2}:\d{2})$/)
   @IsDateString({ strict: true })
@@ -49,7 +67,13 @@ export class CreateRecordingDto {
   checksumSha256!: string;
 }
 export class UpdateRecordingDto extends PartialType(
-  PickType(CreateRecordingDto, ["title", "recordedAt", "durationSeconds"]),
+  PickType(CreateRecordingDto, [
+    "title",
+    "chapter",
+    "topic",
+    "recordedAt",
+    "durationSeconds",
+  ]),
   { skipNullProperties: false },
 ) {}
 export class CompleteRecordingDto {

@@ -86,6 +86,8 @@ export type Inbox = {
 export type Recording = {
   id: string;
   title: string;
+  chapter?: string | null;
+  topic?: string | null;
   recordedAt: string;
   durationSeconds: number;
   contentType: string;

@@ -144,12 +144,18 @@ export class UpdateSupportTicketStatusDto {
   })
   @IsIn(["open", "assigned", "in_progress", "waiting", "resolved", "closed"])
   status!: string;
-  @ApiPropertyOptional({ format: "uuid" }) @IsUUID() assignedTo?: string;
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  assignedTo?: string;
 }
 
 export class StartSupportSessionDto {
   @ApiProperty({ format: "uuid" }) @IsUUID() organizationId!: string;
-  @ApiPropertyOptional({ format: "uuid" }) @IsUUID() targetUserId?: string;
+  @ApiPropertyOptional({ format: "uuid" })
+  @IsOptional()
+  @IsUUID()
+  targetUserId?: string;
   @ApiProperty()
   @Transform(trim)
   @IsString()

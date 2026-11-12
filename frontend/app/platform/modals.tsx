@@ -36,11 +36,20 @@ export function SupportSessionModal({
           placeholder="e.g. Investigating grade calculation discrepancy"
           value={reason}
           onChange={e => setReason(e.target.value)}
-          style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px", marginBottom: "16px" }}
+          style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #D1D5DB", marginTop: "4px", marginBottom: "8px" }}
         />
+        {reason.trim().length < 5 && (
+          <div style={{ fontSize: "11px", color: "#B45309", marginBottom: "12px" }}>
+            Enter at least 5 characters so the session is auditable.
+          </div>
+        )}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
           <button onClick={onClose} style={{ padding: "8px 14px", background: "#F3F4F6", border: "none", borderRadius: "6px", cursor: "pointer" }}>Cancel</button>
-          <button onClick={() => onConfirm(reason)} disabled={busy} style={{ padding: "8px 18px", background: "#D97706", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 700, cursor: "pointer" }}>
+          <button
+            onClick={() => onConfirm(reason.trim())}
+            disabled={busy || reason.trim().length < 5}
+            style={{ padding: "8px 18px", background: "#D97706", color: "#FFF", border: "none", borderRadius: "6px", fontWeight: 700, cursor: busy || reason.trim().length < 5 ? "not-allowed" : "pointer", opacity: busy || reason.trim().length < 5 ? 0.6 : 1 }}
+          >
             Confirm & Begin Session
           </button>
         </div>
