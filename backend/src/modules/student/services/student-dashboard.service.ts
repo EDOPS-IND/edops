@@ -33,21 +33,11 @@ export class StudentDashboardService {
     const timetable = timetableData.weeklySchedule[day] || [];
     const pendingTasks = assignmentData.assignments.filter(a=>a.status==='pending').map(a=>({ id:a.id,title:a.title,type:'assignment',dueDate:a.dueDate,priority:'normal' }));
     const overallAttendance = attendanceData.summary.overallPercentage;
-    const academicAverage = performanceData.overall.currentAverage;
-    const assignmentCompletion = assignmentData.summary.completionPct;
-    const weightedScores: Array<{ value: number; weight: number }> = [];
-    if (overallAttendance != null) weightedScores.push({ value: overallAttendance, weight: 0.25 });
-    if (assignmentCompletion != null) weightedScores.push({ value: assignmentCompletion, weight: 0.25 });
-    if (academicAverage != null) weightedScores.push({ value: academicAverage, weight: 0.5 });
-    const totalWeight = weightedScores.reduce((sum, item) => sum + item.weight, 0);
-    const overallScore = totalWeight
-      ? Number((weightedScores.reduce((sum, item) => sum + item.value * item.weight, 0) / totalWeight).toFixed(1))
-      : null;
     return {
       student,studentName:student?.name || student?.email || '',
       enrollment:classData.classInfo ? { ...classData.classInfo,classSection:classData.classInfo.className,totalClassmates:classData.classmates.length } : null,
-      kpis:{ overallAttendance,overallScore,academicAverage,improvement:null,
-        assignmentCompletion,assignmentsPending:assignmentData.summary.pending,curriculumProgress:curriculumData.overallProgress },
+      kpis:{ overallAttendance,academicAverage:performanceData.overall.currentAverage,improvement:null,
+        assignmentCompletion:assignmentData.summary.completionPct,assignmentsPending:assignmentData.summary.pending,curriculumProgress:curriculumData.overallProgress },
       nextClass:null,timetable,recentActivity,pendingTasks,
       attentionRequired:pendingTasks.map(t=>({ ...t,severity:'warning',message:t.title,desc:t.dueDate,action:'View Assignments' })),
       alerts:overallAttendance!=null && overallAttendance<75 ? [{ id:'attendance',type:'warning',title:'Attendance below threshold',message:`Recorded attendance is ${overallAttendance}%.` }] : [],

@@ -52,8 +52,6 @@ export function createSchoolSupportTicket(orgId: string, data: any) { return api
 export function getSchoolSupportTickets(orgId: string) { return api<any[]>(`/organizations/${orgId}/billing/tickets`); }
 export function updateSupportTicketStatus(id: string, data: any) { return api<any>(`/platform/support/tickets/${id}/status`, { method: "PATCH", body: data }); }
 export function startSupportSession(data: any) { return api<any>("/platform/support/sessions", { method: "POST", body: data }); }
-export function endSupportSession(id: string, reason?: string) { return api<any>(`/platform/support/sessions/${id}/end`, { method: "POST", body: { reason } }); }
-export function getSupportSessions() { return api<any[]>("/platform/support/sessions"); }
 export async function getAnnouncements() {
   return api<any[]>("/platform/announcements");
 }

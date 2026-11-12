@@ -8,7 +8,7 @@ export class StudentResourcesService {
 
   async getResources(organizationId: string, studentUserId: string) {
     const studyMaterials = await this.drizzle.query(
-      `SELECT t.id,t.title,t.description,t.unit,t.chapter,t.topic,t.file_type AS type,t.file_url AS "fileUrl",t.created_at AS date,
+      `SELECT t.id,t.title,t.chapter,t.topic,t.file_type AS type,t.file_url AS "fileUrl",t.created_at AS date,
         u.name AS "uploadedBy",s.name AS subject,
         EXISTS (SELECT 1 FROM student_bookmarks b WHERE b.organization_id=t.organization_id AND b.student_user_id=$2 AND b.resource_id=t.id::text AND b.resource_type='study_material') AS "isBookmarked"
        FROM teacher_study_materials t JOIN subjects s ON s.id=t.subject_id AND s.organization_id=t.organization_id
@@ -16,9 +16,8 @@ export class StudentResourcesService {
        WHERE t.organization_id=$1 AND EXISTS (SELECT 1 FROM enrollments e WHERE e.organization_id=t.organization_id AND e.section_id=t.section_id AND e.student_user_id=$2 AND e.status='active')
        ORDER BY t.created_at DESC`, [organizationId, studentUserId]);
     const recordedLectures = await this.drizzle.query(
-      `SELECT r.id,r.title,r.chapter,r.topic,r.duration_seconds AS "durationSeconds",r.recorded_at AS "recordedDate",s.name AS subject,u.name AS teacher,
-        COALESCE(p.last_position_seconds,0) AS "lastPositionSeconds",COALESCE(p.watched_pct,0) AS "watchedPct",COALESCE(p.is_completed,false) AS "isCompleted",
-        EXISTS (SELECT 1 FROM student_bookmarks b WHERE b.organization_id=r.organization_id AND b.student_user_id=$2 AND b.resource_id=r.id::text AND b.resource_type='recorded_lecture') AS "isBookmarked"
+      `SELECT r.id,r.title,r.duration_seconds AS "durationSeconds",r.recorded_at AS "recordedDate",s.name AS subject,u.name AS teacher,
+        COALESCE(p.last_position_seconds,0) AS "lastPositionSeconds",COALESCE(p.watched_pct,0) AS "watchedPct",COALESCE(p.is_completed,false) AS "isCompleted"
        FROM recorded_sessions r JOIN subjects s ON s.id=r.subject_id AND s.organization_id=r.organization_id
        JOIN users u ON u.id=r.uploaded_by
        LEFT JOIN student_lecture_progress p ON p.organization_id=r.organization_id AND p.recording_id=r.id AND p.student_user_id=$2

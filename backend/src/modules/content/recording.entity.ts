@@ -6,8 +6,6 @@ export class Recording extends AcademicRecord {
   @ApiProperty({ format: "uuid" }) subjectId!: string;
   @ApiProperty({ format: "uuid" }) uploadedBy!: string;
   @ApiProperty() title!: string;
-  @ApiProperty({ type: String, nullable: true }) chapter!: string | null;
-  @ApiProperty({ type: String, nullable: true }) topic!: string | null;
   @ApiProperty({ format: "date-time" }) recordedAt!: Date;
   @ApiProperty() durationSeconds!: number;
   @ApiProperty({ enum: ["video/mp4", "video/webm"] }) contentType!: string;

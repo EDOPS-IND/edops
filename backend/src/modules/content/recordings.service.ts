@@ -39,7 +39,7 @@ export class RecordingsService {
   ) {
     const [row] = await manager.query(
       `SELECT id, organization_id AS "organizationId", section_id AS "sectionId", subject_id AS "subjectId",
-              uploaded_by AS "uploadedBy", title, chapter, topic, recorded_at AS "recordedAt", duration_seconds AS "durationSeconds",
+              uploaded_by AS "uploadedBy", title, recorded_at AS "recordedAt", duration_seconds AS "durationSeconds",
               content_type AS "contentType", size_bytes AS "sizeBytes", checksum_sha256 AS "checksumSha256",
               object_key AS "objectKey", object_version AS "objectVersion", status, published_at AS "publishedAt",
               created_at AS "createdAt"
@@ -91,7 +91,7 @@ export class RecordingsService {
         );
         const items = await manager.query(
           `SELECT id, organization_id AS "organizationId", section_id AS "sectionId", subject_id AS "subjectId",
-                  uploaded_by AS "uploadedBy", title, chapter, topic, recorded_at AS "recordedAt", duration_seconds AS "durationSeconds",
+                  uploaded_by AS "uploadedBy", title, recorded_at AS "recordedAt", duration_seconds AS "durationSeconds",
                   content_type AS "contentType", size_bytes AS "sizeBytes", status, published_at AS "publishedAt",
                   created_at AS "createdAt"
            FROM recorded_sessions
@@ -131,9 +131,9 @@ export class RecordingsService {
         const id = randomUUID();
         const objectKey = `${org.toLowerCase()}/recordings/${id}.${dto.contentType === "video/mp4" ? "mp4" : "webm"}`;
         const [row] = await manager.query(
-          `INSERT INTO recorded_sessions (id, organization_id, section_id, subject_id, uploaded_by, title, chapter, topic,
+          `INSERT INTO recorded_sessions (id, organization_id, section_id, subject_id, uploaded_by, title,
             recorded_at, duration_seconds, content_type, size_bytes, checksum_sha256, object_key, status)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, 'uploading') RETURNING *`,
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'uploading') RETURNING *`,
           [
             id,
             org,
@@ -141,8 +141,6 @@ export class RecordingsService {
             dto.subjectId,
             actor.id,
             dto.title,
-            dto.chapter ?? null,
-            dto.topic ?? null,
             new Date(dto.recordedAt),
             dto.durationSeconds,
             dto.contentType,
@@ -206,14 +204,6 @@ export class RecordingsService {
         if (fields.title !== undefined) {
           setClauses.push(`title = $${idx++}`);
           params.push(fields.title);
-        }
-        if (fields.chapter !== undefined) {
-          setClauses.push(`chapter = $${idx++}`);
-          params.push(fields.chapter || null);
-        }
-        if (fields.topic !== undefined) {
-          setClauses.push(`topic = $${idx++}`);
-          params.push(fields.topic || null);
         }
         if (fields.recordedAt !== undefined) {
           setClauses.push(`recorded_at = $${idx++}`);

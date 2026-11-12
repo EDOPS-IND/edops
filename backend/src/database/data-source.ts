@@ -31,8 +31,6 @@ import { SchoolDocuments1790553600003 } from './migrations/1790553600003-SchoolD
 import { RemoveSchoolAdminReportsNavigation1790553600004 } from './migrations/1790553600004-RemoveSchoolAdminReportsNavigation';
 import { SyncDashboardNavigationHierarchy1790553600005 } from './migrations/1790553600005-SyncDashboardNavigationHierarchy';
 import { SingleWordDashboardNavigation1790553600006 } from './migrations/1790553600006-SingleWordDashboardNavigation';
-import { RecordingChapterTopic1790553600007 } from './migrations/1790553600007-RecordingChapterTopic';
-import { SupportSessions1790553600008 } from './migrations/1790553600008-SupportSessions';
 import { ArenaAttempt, ArenaQuestion } from '../modules/arena/arena.entity';
 import { Recording } from '../modules/content/recording.entity';
 import { Assignment, AttendanceSession, ExamEvaluation, Submission } from '../modules/assignments/teaching.entity';
@@ -74,8 +72,6 @@ export function databaseOptions(config: AppConfig): DataSourceOptions {
       RemoveSchoolAdminReportsNavigation1790553600004,
       SyncDashboardNavigationHierarchy1790553600005,
       SingleWordDashboardNavigation1790553600006,
-      RecordingChapterTopic1790553600007,
-      SupportSessions1790553600008,
     ],
     migrationsTransactionMode: 'all',
     synchronize: false,

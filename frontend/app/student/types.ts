@@ -28,7 +28,6 @@ export interface StudentEnrollmentInfo {
 
 export interface StudentKPIs {
   overallAttendance: number;
-  overallScore: number | null;
   subjectWiseAttendance: { subject: string; percentage: number }[];
   academicAverage: number;
   previousAverage: number;

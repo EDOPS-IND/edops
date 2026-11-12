@@ -259,8 +259,6 @@ export const recordedSessions = pgTable('recorded_sessions', {
   subjectId: uuid('subject_id').notNull(),
   uploadedBy: uuid('uploaded_by').notNull(),
   title: varchar('title', { length: 200 }).notNull(),
-  chapter: varchar('chapter', { length: 160 }),
-  topic: varchar('topic', { length: 200 }),
   recordedAt: timestamp('recorded_at', { withTimezone: true }).notNull(),
   durationSeconds: integer('duration_seconds').notNull(),
   contentType: varchar('content_type', { length: 32 }).notNull(),
